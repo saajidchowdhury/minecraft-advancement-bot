@@ -344,9 +344,15 @@ async function followShaft(c, direction) {
     c.log.info(`Following the remembered shaft ${direction} from ${cells[i]} (${Math.abs(end - i)} cells).`)
     while (i !== end) {
         check(c)
-        i = direction === 'down' ? Math.min(end, i + 8) : Math.max(end, i - 8)
+        // The pathfinder stalls on stair jumps (F004), so climbing goes cell by cell with the
+        // checked jump fallback; descending only drops and can take eight-cell legs.
+        i = direction === 'down' ? Math.min(end, i + 8) : i - 1
         try {
-            await c.gotoWithTimeout(new goals.GoalBlock(cells[i].x, cells[i].y, cells[i].z), 15000, 'shaft travel')
+            if (direction === 'up' && cells[i].y > bot.entity.position.y + 0.5) {
+                await climbStep(c, cells[i])
+            } else {
+                await c.gotoWithTimeout(new goals.GoalBlock(cells[i].x, cells[i].y, cells[i].z), direction === 'up' ? 6000 : 15000, 'shaft travel')
+            }
         } catch (error) {
             check(c)
             c.log.warn(`Remembered shaft is blocked near ${cells[i]}; forgetting it: ${error.message}`)

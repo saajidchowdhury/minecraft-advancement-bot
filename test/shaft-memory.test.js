@@ -53,11 +53,12 @@ test('a respawned bot walks to the shaft entrance and follows it down without di
     assert.equal(c.memory.mineRoute.length, 125)
 })
 
-test('returning to the surface follows the shaft up from its bottom', async () => {
+test('returning to the surface climbs the shaft one stair at a time with the jump fallback', async () => {
     const c = shaftWorld(new Vec3(124.5, -54, 0.5))
     assert.equal(await followShaft(c, 'up'), true)
     assert.deepEqual(c.bot.entity.position.floored(), new Vec3(0, 70, 0))
-    assert.equal(c.visits.every(v => v.label === 'shaft travel'), true)
+    assert.equal(c.visits.length, 124)
+    assert.equal(c.visits.every(v => v.label === 'prepared stair step'), true)
 })
 
 test('a blocked shaft is forgotten and an unreachable or distant one falls back to digging', async () => {
