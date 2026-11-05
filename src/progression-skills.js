@@ -275,6 +275,83 @@ async function mineTunnel(c, targetY, heading = null) {
         }
     }
     c.log.info(`Tunnel: Y ${start.y} -> ${bot.entity.position.y.toFixed(1)}; target Y=${targetY}.`)
+    if (targetY < start.y && bot.entity.position.y <= targetY + 0.5) {
+        rememberShaft(c)
+    }
+}
+
+// The shaft is the continuous tail of mineRoute (steps at most 6 apart) from the last
+// surface-level cell down to the bot, kept per dimension across deaths and reconnects.
+function rememberShaft(c) {
+    const bot = c.bot
+    const surfaceY = c.home?.y || 64
+    const route = [...(c.memory.mineRoute || []), bot.entity.position.floored()]
+    let entrance = -1
+    for (let i = route.length - 1; i > 0; i--) {
+        if (Math.hypot(route[i].x - route[i - 1].x, route[i].y - route[i - 1].y, route[i].z - route[i - 1].z) > 6) {
+            break
+        }
+        if (route[i - 1].y >= surfaceY - 6) {
+            entrance = i - 1
+        } else if (entrance >= 0) {
+            break
+        }
+    }
+    if (entrance < 0 || route.length - entrance < 8) {
+        return
+    }
+    const cells = route.slice(entrance).map(p => ({ x: p.x, y: p.y, z: p.z }))
+    c.memory.shaft = { dimension: bot.game.dimension, cells }
+    c.log.info(`Remembered a ${cells.length}-cell shaft from ${new Vec3(cells[0].x, cells[0].y, cells[0].z)} to ${new Vec3(cells.at(-1).x, cells.at(-1).y, cells.at(-1).z)}.`)
+}
+
+// Re-walk the remembered shaft instead of carving a new staircase. Every eighth cell is
+// a waypoint: the dug stairs are open, so the pathfinder covers each leg without digging.
+async function followShaft(c, direction) {
+    const bot = c.bot
+    const shaft = c.memory.shaft
+    if (!shaft || shaft.dimension !== bot.game.dimension || shaft.cells.length < 8 || shaft.retryAfter > Date.now()) {
+        return false
+    }
+    const cells = shaft.cells.map(p => new Vec3(p.x, p.y, p.z))
+    const here = bot.entity.position
+    const end = direction === 'down' ? cells.length - 1 : 0
+    let i = cells.reduce((best, p, j) => here.distanceTo(p.offset(0.5, 0, 0.5)) <= 6 &&
+        (best < 0 || here.distanceTo(p) < here.distanceTo(cells[best])) ? j : best, -1)
+    if (i < 0) {
+        const entry = cells[direction === 'down' ? 0 : cells.length - 1]
+        if (Math.hypot(here.x - entry.x, here.z - entry.z) > 128 || Math.abs(here.y - entry.y) > 12) {
+            return false
+        }
+        c.log.info(`Travelling to the remembered shaft ${direction === 'down' ? 'entrance' : 'bottom'} at ${entry}.`)
+        try {
+            await c.gotoWithTimeout(new goals.GoalNear(entry.x, entry.y, entry.z, 1), 30000, 'shaft approach')
+        } catch (error) {
+            check(c)
+            c.log.warn(`Could not reach the remembered shaft (${error.message}); digging instead for five minutes.`)
+            shaft.retryAfter = Date.now() + 300000
+            return false
+        }
+        i = cells.length - 1 - end
+    }
+    if (i === end) {
+        return false
+    }
+    c.log.info(`Following the remembered shaft ${direction} from ${cells[i]} (${Math.abs(end - i)} cells).`)
+    while (i !== end) {
+        check(c)
+        i = direction === 'down' ? Math.min(end, i + 8) : Math.max(end, i - 8)
+        try {
+            await c.gotoWithTimeout(new goals.GoalBlock(cells[i].x, cells[i].y, cells[i].z), 15000, 'shaft travel')
+        } catch (error) {
+            check(c)
+            c.log.warn(`Remembered shaft is blocked near ${cells[i]}; forgetting it: ${error.message}`)
+            c.memory.shaft = null
+            throw error
+        }
+    }
+    c.memory.mineRoute = direction === 'down' ? cells.map(p => ({ x: p.x, y: p.y, z: p.z })) : []
+    return true
 }
 
 async function gatherDeep(c, names) {
@@ -291,6 +368,9 @@ async function gatherDeep(c, names) {
         return c.collectTarget(block, block, block.name)
     }
     const targetY = bot.game.minY < 0 ? -54 : 11
+    if (bot.entity.position.y > targetY + 8 && await followShaft(c, 'down')) {
+        return
+    }
     if (await collectOpportunity(c, names) || await exploreCave(c, targetY)) {
         return
     }
@@ -619,6 +699,10 @@ async function buildRedstone(c) {
 
 async function returnSurface(c) {
     const surfaceY = c.home?.y || 64
+    if (await followShaft(c, 'up')) {
+        c.memory.surfaceByStaircase = false
+        return
+    }
     if (c.memory.surfaceByStaircase) {
         return mineTunnel(c, surfaceY)
     }
@@ -894,4 +978,4 @@ async function performProgression(c, action, state) {
     }
 }
 
-module.exports = { armorUpgrades, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep }
+module.exports = { armorUpgrades, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep }
