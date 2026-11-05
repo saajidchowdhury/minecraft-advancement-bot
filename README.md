@@ -33,6 +33,8 @@ With Node 22 or newer already installed, `npm ci` installs the locked dependenci
 
 ## In-game controls
 
+Press **T** in Minecraft, type a command such as `!status`, then press **Enter**. These commands go in the game chat, not the terminal.
+
 Only `MC_OWNER` can issue controls when that field is populated.
 
 | Command | Effect |
