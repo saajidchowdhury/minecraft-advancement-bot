@@ -63,6 +63,7 @@ test('returning to the surface climbs the shaft one stair at a time with the jum
 
 test('a blocked shaft is forgotten and an unreachable or distant one falls back to digging', async () => {
     const blocked = shaftWorld(new Vec3(0.5, 70, 0.5), { fail: goal => goal.y < 30 })
+    blocked.bot.blockAt = p => ({ name: 'lava', position: p, boundingBox: 'empty' })
     await assert.rejects(followShaft(blocked, 'down'), /timed out/)
     assert.equal(blocked.memory.shaft, null)
     const unreachable = shaftWorld(new Vec3(-40.5, 70, 30.5), { fail: (goal, label) => label === 'shaft approach' })
@@ -114,4 +115,34 @@ test('a far-away deeper shaft is replaced by a shallower one where the bot now w
     c.bot.entity.position = new Vec3(-260.5, 50, 0.5)
     rememberShaft(c)
     assert.equal(c.memory.shaft.cells[0].x, -280)
+})
+
+test('cobblestone left on the shaft by a night shelter is dug out instead of losing the shaft', async () => {
+    const placed = new Set([new Vec3(60, 10, 0).toString(), new Vec3(60, 11, 0).toString()])
+    const c = shaftWorld(new Vec3(0.5, 70, 0.5))
+    c.bestItem = () => undefined
+    c.bot.blockAt = p => {
+        const k = 70 - p.x
+        const open = !placed.has(p.toString()) && p.z === 0 && p.x >= 0 && p.x <= 124 && p.y >= k && p.y <= k + 2
+        return { name: placed.has(p.toString()) ? 'cobblestone' : open ? 'air' : 'stone', position: p, boundingBox: open ? 'empty' : 'block', diggable: true }
+    }
+    c.bot.canDigBlock = () => true
+    c.bot.equip = async () => {}
+    c.bot.dig = async block => { placed.delete(block.position.toString()) }
+    const goto = c.gotoWithTimeout
+    c.gotoWithTimeout = async (goal, ms, label) => {
+        // Walking down the open stairs stops at the cobblestone plug until it is dug out.
+        const plugged = placed.size > 0
+        if (plugged && goal.x >= 60) {
+            if (label === 'shaft travel') {
+                c.bot.entity.position = new Vec3(59.5, 11, 0.5)
+            }
+            throw new Error('shaft travel timed out after 6s')
+        }
+        return goto(goal, ms, label)
+    }
+    assert.equal(await followShaft(c, 'down'), true)
+    assert.equal(placed.size, 0)
+    assert.ok(c.memory.shaft)
+    assert.deepEqual(c.bot.entity.position.floored(), new Vec3(124, -54, 0))
 })

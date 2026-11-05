@@ -345,26 +345,41 @@ async function followShaft(c, direction) {
     }
     c.log.info(`Following the remembered shaft ${direction} from ${cells[i]} (${Math.abs(end - i)} cells).`)
     let repaired = -1
+    let stride = direction === 'down' ? 8 : 1
+    const step = direction === 'down' ? 1 : -1
     while (i !== end) {
         check(c)
         // The pathfinder stalls on stair jumps (F004), so climbing goes cell by cell with the
         // checked jump fallback; descending only drops and can take eight-cell legs.
-        i = direction === 'down' ? Math.min(end, i + 8) : i - 1
+        const from = i
+        i = direction === 'down' ? Math.min(end, i + stride) : i - 1
         try {
             if (direction === 'up' && cells[i].y > bot.entity.position.y + 0.5) {
                 await climbStep(c, cells[i])
             } else {
-                await c.gotoWithTimeout(new goals.GoalBlock(cells[i].x, cells[i].y, cells[i].z), direction === 'up' ? 6000 : 15000, 'shaft travel')
+                await c.gotoWithTimeout(new goals.GoalBlock(cells[i].x, cells[i].y, cells[i].z), stride === 1 ? 6000 : 15000, 'shaft travel')
             }
         } catch (error) {
             check(c)
-            // Parts of a route were walked down by drops, leaving no headroom to jump back up;
-            // carve it once, as an upward tunnel step would, before giving up on the shaft.
             const feet = bot.entity.position.floored()
-            if (direction === 'up' && repaired !== i && cells[i].y === feet.y + 1 && safeTunnelStep(bot, feet, cells[i])) {
+            const near = cells.reduce((best, p, j) => feet.distanceTo(p) < feet.distanceTo(cells[best]) ? j : best, from)
+            if (stride > 1) {
+                // Retry a failed long leg one cell at a time from wherever the bot ended up.
+                stride = 1
+                i = near
+                continue
+            }
+            // Drops leave no jump headroom and night shelters wall off cells; clear the next step
+            // once, as a tunnel step would, before giving up on the shaft.
+            const next = cells[i]
+            const adjacent = Math.abs(next.x - feet.x) + Math.abs(next.z - feet.z) <= 1 && Math.abs(next.y - feet.y) <= 1
+            if (adjacent && repaired !== i && safeTunnelStep(bot, feet, next)) {
                 repaired = i
-                c.log.warn(`Carving missing headroom for the shaft step to ${cells[i]}.`)
-                for (const p of [feet.offset(0, 3, 0), feet.offset(0, 2, 0), cells[i].offset(0, 2, 0), cells[i].offset(0, 1, 0)]) {
+                c.log.warn(`Clearing the shaft step to ${next}.`)
+                const cellsToClear = next.y > feet.y
+                    ? [feet.offset(0, 3, 0), feet.offset(0, 2, 0), next.offset(0, 2, 0), next.offset(0, 1, 0), next]
+                    : [next.offset(0, 2, 0), next.offset(0, 1, 0), next]
+                for (const p of cellsToClear) {
                     const block = bot.blockAt(p, false)
                     if (block && block.boundingBox !== 'empty' && bot.canDigBlock(block)) {
                         const tool = miningPickaxe(c, block)
@@ -375,7 +390,7 @@ async function followShaft(c, direction) {
                         check(c)
                     }
                 }
-                i += 1
+                i -= step
                 continue
             }
             c.log.warn(`Remembered shaft is blocked near ${cells[i]}; forgetting it: ${error.message}`)
