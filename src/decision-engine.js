@@ -150,6 +150,10 @@ function chooseAction (state) {
         if (state.hasStonePickaxe && state.health > 12 && (state.rawIron || 0) + (state.ironIngots || 0) < 40) {
             return Actions.IRON
         }
+        // With iron banked, diamonds (pickaxe, sword, armor, enchanting table) are the next best use.
+        if (state.hasIronPickaxe && state.health > 12) {
+            return 'gather_diamonds'
+        }
         return state.sheltered ? 'wait' : Actions.SHELTER
     }
     return surfaceBound ? 'return_surface' : action
