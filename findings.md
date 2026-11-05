@@ -6,8 +6,8 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-05 ~14:01 Eastern. Bot is RUNNING on LAN port 51718, PID 36683, code
-`de766af`, code `6f077df` (PID 39984), rebuilding after nine deaths today (F023, F025–F031). Verify PID and connection before stopping it; `pgrep -f src/index.js`
+Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 39984, code
+`6f077df`, rebuilding after nine deaths today (F023, F025–F031). Verify PID and connection before stopping it; `pgrep -f src/index.js`
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
