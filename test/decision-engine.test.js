@@ -76,11 +76,11 @@ test('progresses through the popular early advancement path', () => {
     assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, cobblestone: 3, sticks: 2 })), Actions.CRAFT_STONE_PICKAXE)
     assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true })), Actions.STONE)
     assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, cobblestone: 8 })), Actions.CRAFT_FURNACE)
-    assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, sticks: 2 })), Actions.IRON)
+    assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, sticks: 2, logs: 3 })), Actions.IRON)
     assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, sticks: 2, rawIron: 3 })), Actions.WOOD)
     assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, sticks: 2, rawIron: 3, hasSmeltingFuel: true })), Actions.SMELT_IRON)
     assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, ironIngots: 3, sticks: 2 })), Actions.CRAFT_IRON_PICKAXE)
-    assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, ironIngots: 3, sticks: 2, hasIronPickaxe: true, foodUnits: 12 })), Actions.IRON)
+    assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, ironIngots: 3, sticks: 2, hasIronPickaxe: true, foodUnits: 12, logs: 3 })), Actions.IRON)
 })
 
 test('an unarmed recovery does not run through a nearby hostile even at full health', () => {
@@ -129,4 +129,15 @@ test('a seen diamond outranks cleanup and routine goals but not danger', () => {
     assert.equal(chooseAction(state({ ...busy, health: 8, hostileDistance: 4 })), Actions.ESCAPE)
     assert.equal(chooseAction(state({ ...busy, hostileDistance: 3 })), Actions.FIGHT)
     assert.notEqual(chooseAction(state({ ...busy, diamondInView: false })), 'mine_diamond')
+})
+
+test('iron and coal trips also carry a wood reserve for replacement picks', () => {
+    const early = {
+        hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true,
+        hasFurnace: true, cobblestone: 40, foodUnits: 20, hasFood: true, completedAdvancements: new Set(),
+        logs: 0, planks: 1, sticks: 2
+    }
+    assert.equal(chooseAction(state(early)), Actions.WOOD)
+    assert.equal(chooseAction(state({ ...early, logs: 3 })), 'gather_iron')
+    assert.equal(chooseAction(state({ ...early, underground: true })), 'gather_iron')
 })

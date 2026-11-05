@@ -99,7 +99,8 @@ function chooseAction (state) {
         return Actions.FOOD
     }
     // Torches and replacement picks need sticks; wood is only reachable on the surface.
-    if (!state.underground && deep && (state.planks || 0) + (state.logs || 0) * 4 + (state.sticks || 0) / 2 < 12) {
+    const mining = deep || ['gather_iron', 'gather_coal'].includes(action)
+    if (!state.underground && mining && (state.planks || 0) + (state.logs || 0) * 4 + (state.sticks || 0) / 2 < 12) {
         return Actions.WOOD
     }
     return surfaceBound ? 'return_surface' : action
