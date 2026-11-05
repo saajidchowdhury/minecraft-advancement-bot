@@ -494,7 +494,7 @@ test('charging an archer keeps the shield raised and lowers it only to strike', 
             activateItem: offhand => events.push(offhand && c.bot.entity.position.distanceTo(skeleton.position) > 3.1 ? 'raise at range' : 'raise'),
             deactivateItem: () => events.push('lower'),
             attack: () => { events.push('attack'); skeleton.isValid = false },
-            pathfinder: { setGoal: goal => { if (goal) { c.bot.entity.position = new Vec3(4, 64, 0) } } }
+            pathfinder: { setGoal: goal => { if (goal) { setTimeout(() => { c.bot.entity.position = new Vec3(4, 64, 0) }, 150) } } }
         }
     }
     c.checkAction = SurvivalController.prototype.checkAction.bind(c)
