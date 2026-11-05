@@ -99,3 +99,9 @@ test('deep mining prepares food reserves at the surface without interrupting an 
     assert.equal(chooseAction({ ...ready, underground: true, food: 16, foodUnits: 0 }), 'return_surface')
     assert.equal(chooseAction({ ...ready, inventoryFull: true }), 'clear_inventory')
 })
+
+test('a visible nearby creeper triggers avoidance even at full health underground', () => {
+    const armed = { hasWeapon: true, underground: true, hostileDistance: 3 }
+    assert.equal(chooseAction(state({ ...armed, creeperDistance: 5 })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ ...armed, creeperDistance: Infinity })), Actions.FIGHT)
+})

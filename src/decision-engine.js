@@ -30,7 +30,7 @@ const Actions = Object.freeze({
   * without connecting to Minecraft.
   */
 function chooseAction (state) {
-    if ((state.hostileDistance <= 5 && state.health <= 10) ||
+    if (state.creeperDistance <= 6 || (state.hostileDistance <= 5 && state.health <= 10) ||
         (state.isNight && !state.underground && !state.sheltered &&
             (state.overwhelmed || (state.retreatForNight && state.hostileDistance <= 6)))) {
         return Actions.ESCAPE

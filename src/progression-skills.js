@@ -2,7 +2,7 @@
 
 const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
-const { discardableStack } = require('./inventory')
+const { discardableStacks } = require('./inventory')
 const { exploreCave, collectOpportunity, safeFooting, dryMovements } = require('./cave-exploration')
 const { RECIPES, nextAdvancement, resourceAction } = require('./advancement-plan')
 
@@ -637,23 +637,69 @@ async function returnSurface(c) {
     }
 }
 
+// Four open feet/head cells carry a level throw about three blocks, beyond the
+// one-block pickup reach, so no movement is needed. Prefer throwing back along the route.
+function tossLane(c, start) {
+    const bot = c.bot
+    const back = (c.memory.mineRoute || []).findLast(p => p.x !== start.x || p.z !== start.z)
+    let best = null
+    for (const [dx, dz] of DIRECTIONS) {
+        const open = [1, 2, 3, 4].every(k => [0, 1].every(dy => {
+            const block = bot.blockAt(start.offset(dx * k, dy, dz * k), false)
+            return block?.boundingBox === 'empty' && !['water', 'bubble_column'].includes(block.name)
+        }))
+        const score = back ? dx * (back.x - start.x) + dz * (back.z - start.z) : 0
+        if (open && (!best || score > best.score)) {
+            best = { dx, dz, score }
+        }
+    }
+    return best
+}
+
+function disposalFailed(c, message) {
+    c.memory.disposalFailures = (c.memory.disposalFailures || 0) + 1
+    if (c.memory.disposalFailures >= 3) {
+        c.memory.disposalFailures = 0
+        c.memory.disposalBackoffUntil = Date.now() + 60000
+        c.log.warn?.('Disposal failed three times; continuing other work for 60s before retrying cleanup.')
+    }
+    return new Error(message)
+}
+
+async function tossAll(c, stacks, target, signal) {
+    const bot = c.bot
+    await bot.lookAt(target, true)
+    // Forced look updates local rotation before the next movement packet transmits it.
+    await bot.waitForTicks?.(2)
+    for (const item of stacks) {
+        check(c)
+        if (signal?.aborted) {
+            throw new Error('disposal cancelled')
+        }
+        await bot.tossStack(item)
+    }
+}
+
 async function clearInventory(c) {
     const bot = c.bot
-    const item = discardableStack(bot.inventory.items())
-    if (!item) {
+    const surplus = discardableStacks(bot.inventory.items())
+    if (!surplus.length) {
         c.paused = true
         c.memory.paused = true
         bot.chat('Inventory full of useful items. Please make room, then use !resume.')
         return
     }
-    if ((c.memory.disposalFailures || 0) >= 3) {
-        c.paused = true
-        c.memory.paused = true
-        bot.chat('Disposal retreat failed three times; paused to prevent a drop/pickup loop. Use !come or !resume after checking the route.')
-        return
-    }
     const signal = c.actionAbort?.signal
     const start = bot.entity.position.floored()
+    const summary = surplus.map(item => `${item.count} ${item.name}`).join(', ')
+    const lane = tossLane(c, start)
+    if (lane) {
+        c.log.info(`Freeing inventory space: throwing ${summary} along an open lane; no retreat needed.`)
+        await tossAll(c, surplus, bot.entity.position.offset(4 * lane.dx, 1.62, 4 * lane.dz), signal)
+        c.memory.lastDisposal = { x: start.x + 3 * lane.dx, z: start.z + 3 * lane.dz, dimension: bot.game.dimension, at: Date.now() }
+        c.memory.disposalFailures = 0
+        return
+    }
     const previousDrop = c.memory.lastDisposal
     const recentDrop = previousDrop && previousDrop.dimension === bot.game.dimension && Date.now() - previousDrop.at < 120000
     const queue = [{ p: start, path: [] }]
@@ -683,17 +729,11 @@ async function clearInventory(c) {
         }
     }
     if (!retreat) {
-        c.memory.disposalFailures = (c.memory.disposalFailures || 0) + 1
-        throw new Error('no supported disposal retreat; refusing a stationary drop/pickup loop')
+        throw disposalFailed(c, 'no open toss lane or supported disposal retreat; refusing a stationary drop/pickup loop')
     }
     const away = start.minus(retreat.at(-1))
-    await bot.lookAt(bot.entity.position.offset(away.x, 1.3, away.z), true)
-    check(c)
-    if (signal?.aborted) {
-        throw new Error('disposal cancelled')
-    }
-    c.log.info(`Freeing inventory space: dropping ${item.count} surplus ${item.name}; retreating ${retreat.length} steps.`)
-    await bot.tossStack(item)
+    c.log.info(`Freeing inventory space: dropping ${summary}; retreating ${retreat.length} steps.`)
+    await tossAll(c, surplus, bot.entity.position.offset(away.x, 1.3, away.z), signal)
     c.memory.lastDisposal = { x: start.x, z: start.z, dimension: bot.game.dimension, at: Date.now() }
     check(c)
     bot.pathfinder.setMovements(dryMovements(bot))
@@ -720,8 +760,7 @@ async function clearInventory(c) {
         }
         c.memory.disposalFailures = 0
     } catch (error) {
-        c.memory.disposalFailures = (c.memory.disposalFailures || 0) + 1
-        throw error
+        throw Object.assign(disposalFailed(c, error.message), { cause: error })
     } finally {
         bot.pathfinder.setGoal(null)
         bot.pathfinder.setMovements(c.movements)

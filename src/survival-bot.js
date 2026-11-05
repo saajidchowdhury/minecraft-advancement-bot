@@ -33,6 +33,7 @@ const FOOD_VALUES = {
 }
 
 const LOG_SUFFIXES = ['_log', '_stem', '_wood', '_hyphae']
+const CREEPERS = new Set(['creeper'])
 const BUILDING_BLOCKS = ['cobblestone', 'cobbled_deepslate', 'dirt', 'netherrack']
 const SAFE_DESCENT_BLOCKS = new Set([
     'dirt', 'grass_block', 'coarse_dirt', 'rooted_dirt', 'podzol', 'mycelium',
@@ -248,6 +249,15 @@ class SurvivalController {
                 this.cancelCurrentTask('critical health')
             }
         })
+        this.bot.on('entityMoved', entity => {
+            if (entity.name !== 'creeper' || !this.running || !this.busy || this.activeAction === Actions.ESCAPE ||
+                this.actionAbort?.signal.aborted || !this.bot.entity ||
+                this.bot.entity.position.distanceTo(entity.position) > 6 || !this.canSee(entity)) {
+                return
+            }
+            this.log.warn(`Creeper visible at ${this.bot.entity.position.distanceTo(entity.position).toFixed(1)} blocks; interrupting ${this.activeAction}.`)
+            this.cancelCurrentTask('creeper approaching')
+        })
         this.bot.on('chat', (username, message) => this.onChat(username, message))
     }
 
@@ -435,6 +445,8 @@ class SurvivalController {
             this.log.warn('Shelter enclosure is no longer intact; replanning protection.')
         }
         const hostile = this.nearestEntity(HOSTILES, 24)
+        const creeper = this.nearestEntity(CREEPERS, 8)
+        const creeperVisible = Boolean(creeper && this.canSee(creeper))
         const lastDeath = this.memory.lastDeath
         const recoveryAge = lastDeath ? Date.now() - lastDeath.diedAt : Infinity
         const hasTableNow = this.hasItem('crafting_table') || Boolean(this.findStation('crafting_table', 4))
@@ -455,6 +467,8 @@ class SurvivalController {
             food: this.bot.food,
             hostile,
             hostileDistance: hostile ? this.bot.entity.position.distanceTo(hostile.position) : Infinity,
+            creeper: creeperVisible ? creeper : null,
+            creeperDistance: creeperVisible ? this.bot.entity.position.distanceTo(creeper.position) : Infinity,
             hasWeapon: Boolean(this.bestItem(['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword', 'netherite_axe', 'diamond_axe', 'iron_axe', 'stone_axe', 'wooden_axe'])),
             hasFood: Boolean(this.bestFood()),
             isNight: this.isNight(),
@@ -491,7 +505,7 @@ class SurvivalController {
             redstone: this.countItems(['redstone']), flint: this.countItems(['flint']),
             completedAdvancements: this.advancements.completed,
             dimension: this.bot.game.dimension, items,
-            inventoryFull: this.bot.inventory.emptySlotCount() <= 4,
+            inventoryFull: this.bot.inventory.emptySlotCount() <= 4 && !(this.memory.disposalBackoffUntil > Date.now()),
             surfaceY: this.home?.y || 64, y: this.bot.entity.position.y,
             underground: this.bot.entity.position.y < (this.home?.y || 64) - 3,
             portalInProgress: Boolean(this.memory.portalOrigin),
@@ -512,7 +526,7 @@ class SurvivalController {
             case 'prepare_bed': return prepareBed(this, state.bedWool)
             case 'prepare_night_weapon': return performProgression(this, 'craft_progression', { sideGoal: { item: 'stone_sword' } })
             case 'leave_shelter': return leaveShelter(this)
-            case Actions.ESCAPE: return this.escapeFrom(state.hostile)
+            case Actions.ESCAPE: return state.creeperDistance <= 6 ? this.avoidCreeper(state.creeper) : this.escapeFrom(state.hostile)
             case Actions.DESCEND: return this.descendSafely()
             case Actions.ASCEND: return this.escapeVerticalShaft()
             case Actions.RECOVER: return this.recoverItems()
@@ -1261,6 +1275,46 @@ class SurvivalController {
         const x = Math.floor(here.x + (away.x / length) * 16)
         const z = Math.floor(here.z + (away.z / length) * 16)
         await this.bot.pathfinder.goto(new GoalNear(x, Math.floor(here.y), z, 3))
+    }
+
+    canSee (entity) {
+        const eye = this.bot.entity.position.offset(0, 1.62, 0)
+        const target = entity.position.offset(0, 1.2, 0)
+        const range = eye.distanceTo(target)
+        return range < 0.01 || !this.bot.world.raycast(eye, target.minus(eye).scaled(1 / range), range)
+    }
+
+    // A creeper only swells while it sees its target, and outrunning it while digging
+    // rarely works underground. Seal a narrow passage facing it, otherwise flee.
+    async avoidCreeper (creeper) {
+        const signal = this.actionAbort?.signal
+        const feet = this.bot.entity.position.floored()
+        const toward = creeper.position.minus(this.bot.entity.position)
+        const openings = []
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            if (dx * toward.x + dz * toward.z <= 0) {
+                continue
+            }
+            for (const dy of [0, 1, 2]) {
+                const cell = feet.offset(dx, dy, dz)
+                if (this.isEmptyPlacementBlock(this.bot.blockAt(cell, false)) && !creeper.position.floored().equals(cell)) {
+                    openings.push(cell)
+                }
+            }
+        }
+        if (openings.length && openings.length <= 4 && this.countItems(BUILDING_BLOCKS) >= openings.length) {
+            for (const cell of openings) {
+                this.checkAction(signal)
+                await this.placeSurvivalBlock(cell).catch(error => this.log.warn(`Creeper seal placement failed at ${cell}: ${error.message}`))
+            }
+            this.checkAction(signal)
+            if (!this.canSee(creeper)) {
+                this.log.info(`Sealed ${openings.length} opening(s) toward a creeper at ${creeper.position.floored()}.`)
+                return
+            }
+        }
+        this.log.info(`Fleeing creeper at ${creeper.position.floored()}; ${openings.length} facing opening(s) could not be sealed.`)
+        return this.escapeFrom(creeper)
     }
 
     checkAction (signal = this.actionAbort?.signal) {

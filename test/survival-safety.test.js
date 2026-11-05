@@ -152,3 +152,66 @@ test('repeated modest surface-night damage interrupts mining before critically l
     assert.equal(c.cancelled, true)
     assert.equal(c.memory.nightRetreat.day, 4)
 })
+
+function creeperWorld(open) {
+    const blocks = new Map()
+    const placed = []
+    let fled = null
+    const c = {
+        memory: {}, running: true, paused: false, actionAbort: new AbortController(),
+        log: { info() {}, warn() {} }, countItems: () => 64,
+        bot: {
+            entity: { position: new Vec3(0.5, 64, 0.5) },
+            blockAt(p) {
+                const name = blocks.get(p.toString()) || (open(p) ? 'air' : 'stone')
+                return { name, position: p, boundingBox: name === 'air' ? 'empty' : 'block' }
+            }
+        },
+        async placeSurvivalBlock(p) { blocks.set(p.toString(), 'cobblestone'); placed.push(p) },
+        // Line of sight exists only while the cell between bot and creeper at head height is open.
+        canSee: () => c.bot.blockAt(new Vec3(0, 65, 1)).name === 'air',
+        async escapeFrom(entity) { fled = entity },
+        placed, get fled() { return fled }
+    }
+    c.isEmptyPlacementBlock = SurvivalController.prototype.isEmptyPlacementBlock.bind(c)
+    c.checkAction = SurvivalController.prototype.checkAction.bind(c)
+    return c
+}
+
+test('a creeper approaching along a one-wide tunnel is sealed out instead of chased', async () => {
+    const c = creeperWorld(p => p.x === 0 && p.z >= 0 && p.y >= 64 && p.y <= 65)
+    const creeper = { name: 'creeper', position: new Vec3(0.5, 64, 5.5) }
+    await SurvivalController.prototype.avoidCreeper.call(c, creeper)
+    assert.deepEqual(c.placed.map(String), [new Vec3(0, 64, 1), new Vec3(0, 65, 1)].map(String))
+    assert.equal(c.fled, null)
+})
+
+test('a creeper in open terrain is fled rather than walled with many blocks', async () => {
+    const c = creeperWorld(p => p.y >= 64)
+    const creeper = { name: 'creeper', position: new Vec3(4.5, 64, 4.5) }
+    await SurvivalController.prototype.avoidCreeper.call(c, creeper)
+    assert.equal(c.placed.length, 0)
+    assert.equal(c.fled, creeper)
+})
+
+test('a visible creeper interrupts mining but not escape, and hidden creepers are ignored', () => {
+    let cancels = 0
+    const bot = new EventEmitter()
+    bot.entity = { position: new Vec3(0, 64, 0) }
+    let visible = true
+    const c = { bot, running: true, busy: true, activeAction: 'gather_diamonds', log: { warn() {} },
+        canSee: () => visible, cancelCurrentTask() { cancels++ } }
+    SurvivalController.prototype.bindEvents.call(c)
+    const creeper = { name: 'creeper', position: new Vec3(0, 64, 5) }
+    bot.emit('entityMoved', { name: 'zombie', position: new Vec3(0, 64, 2) })
+    bot.emit('entityMoved', { ...creeper, position: new Vec3(0, 64, 8) })
+    visible = false
+    bot.emit('entityMoved', creeper)
+    assert.equal(cancels, 0)
+    visible = true
+    bot.emit('entityMoved', creeper)
+    assert.equal(cancels, 1)
+    c.activeAction = Actions.ESCAPE
+    bot.emit('entityMoved', creeper)
+    assert.equal(cancels, 1)
+})

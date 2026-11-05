@@ -2,13 +2,13 @@
 
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { discardableStack } = require('../src/inventory')
+const { discardableStack, discardableStacks } = require('../src/inventory')
 
 test('inventory cleanup keeps building reserves, ore, tools, food and rare items', () => {
     const valuable = [
         { name: 'diamond', count: 64 }, { name: 'iron_ingot', count: 64 },
-        { name: 'cobblestone', count: 64 }, { name: 'cobblestone', count: 64 },
-        { name: 'dirt', count: 64 }, { name: 'bread', count: 64 }, { name: 'diamond_pickaxe', count: 1 }
+        { name: 'cobblestone', count: 64 }, { name: 'cobbled_deepslate', count: 64 },
+        { name: 'dirt', count: 16 }, { name: 'bread', count: 64 }, { name: 'diamond_pickaxe', count: 1 }
     ]
     assert.equal(discardableStack(valuable), null)
     const surplus = { name: 'cobblestone', count: 64 }
@@ -22,83 +22,106 @@ test('cleanup frees a full surplus rubble stack before discarding a tiny partial
     assert.equal(discardableStack(items), full)
 })
 
-test('real inventory cleanup retreats beyond pickup range after tossing surplus', async () => {
-    const { Vec3 } = require('vec3')
-    const { performProgression } = require('../src/progression-skills')
-    const origin = new Vec3(0.5, 64, 0.5)
-    const full = { name: 'cobblestone', count: 64 }
-    const inventory = [full, { ...full }, { ...full }]
-    const original = {}
-    const c = {
-        running: true, paused: false, actionAbort: new AbortController(), memory: {}, movements: original,
-        log: { info() {} },
-        bot: {
-            health: 20, game: { dimension: 'overworld' }, registry: require('minecraft-data')('26.1'), entity: { position: origin.clone() },
-            inventory: { items: () => inventory },
-            blockAt(p) {
-                const solid = p.y < 64 || p.y >= 67 || p.x > 0 || p.z !== 0
-                return { name: solid ? 'stone' : 'air', position: p, boundingBox: solid ? 'block' : 'empty' }
-            },
-            async tossStack(item) { inventory.splice(inventory.indexOf(item), 1) },
-            lookAt: async () => {},
-            pathfinder: { setGoal() {}, setMovements(m) { c.activeMovements = m } }
-        },
-        async gotoWithTimeout(goal) {
-            assert.equal(c.activeMovements.canDig, false)
-            c.bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5)
-        }
-    }
-    await performProgression(c, 'clear_inventory', {})
-    assert.ok(c.bot.entity.position.distanceTo(origin) >= 3)
-    assert.equal(inventory.length, 2)
-    assert.equal(c.activeMovements, original)
-    const firstDrop = origin.clone()
-    const afterFirst = c.bot.entity.position.clone()
-    inventory.push({ ...full })
-    await performProgression(c, 'clear_inventory', {})
-    assert.ok(c.bot.entity.position.distanceTo(afterFirst) >= 3)
-    assert.ok(c.bot.entity.position.distanceTo(firstDrop) >= 4)
+test('one cleanup selects every surplus rubble stack while keeping each reserve', () => {
+    const items = [
+        ...Array.from({ length: 3 }, () => ({ name: 'cobblestone', count: 64 })), { name: 'cobblestone', count: 31 },
+        { name: 'cobbled_deepslate', count: 64 }, { name: 'cobbled_deepslate', count: 48 }, { name: 'granite', count: 18 },
+        { name: 'dirt', count: 64 }, { name: 'dirt', count: 17 }, { name: 'raw_iron', count: 15 }
+    ]
+    const surplus = discardableStacks(items)
+    const left = name => items.filter(i => i.name === name && !surplus.includes(i)).reduce((n, i) => n + i.count, 0)
+    assert.equal(left('cobblestone'), 64)
+    assert.equal(left('cobbled_deepslate'), 64)
+    assert.equal(left('dirt'), 17)
+    assert.equal(left('granite'), 0)
+    assert.equal(left('raw_iron'), 15)
+    assert.equal(surplus.length, 6)
 })
 
-test('cleanup refuses to toss in an enclosed cell with no safe retreat', async () => {
+function disposalContext(open, inventory, route = []) {
     const { Vec3 } = require('vec3')
-    const { performProgression } = require('../src/progression-skills')
-    let tossed = false
     const c = {
-        memory: {},
-        bot: {
-            game: { dimension: 'overworld' },
-            entity: { position: new Vec3(0.5, 64, 0.5) },
-            inventory: { items: () => Array.from({ length: 3 }, () => ({ name: 'cobblestone', count: 64 })) },
-            blockAt: () => ({ name: 'stone', boundingBox: 'block' }),
-            async tossStack() { tossed = true }
-        }
-    }
-    await assert.rejects(performProgression(c, 'clear_inventory', {}), /no supported disposal retreat/)
-    assert.equal(tossed, false)
-})
-
-test('repeated disposal navigation failures cannot cause an unlimited toss/pickup loop', async () => {
-    const { Vec3 } = require('vec3')
-    const { performProgression } = require('../src/progression-skills')
-    let tosses = 0
-    const c = {
-        memory: {}, running: true, paused: false, actionAbort: new AbortController(), movements: {}, log: { info() {} },
+        running: true, paused: false, actionAbort: new AbortController(), memory: { mineRoute: route }, movements: {},
+        log: { info() {}, warn() {} }, tossed: [], looks: [], ticks: 0,
         bot: {
             health: 20, game: { dimension: 'overworld' }, registry: require('minecraft-data')('26.1'),
             entity: { position: new Vec3(0.5, 64, 0.5) },
-            inventory: { items: () => Array.from({ length: 3 }, () => ({ name: 'cobblestone', count: 64 })) },
-            blockAt(p) { return { name: p.y < 64 ? 'stone' : 'air', position: p, boundingBox: p.y < 64 ? 'block' : 'empty' } },
-            tossStack: async () => { tosses++ }, lookAt: async () => {}, chat() {},
-            pathfinder: { setGoal() {}, setMovements() {} }
+            inventory: { items: () => inventory },
+            blockAt(p) {
+                const air = p.y >= 64 && p.y < 66 && open(p.x, p.z)
+                return { name: air ? 'air' : 'stone', position: p, boundingBox: air ? 'empty' : 'block' }
+            },
+            async tossStack(item) {
+                assert.ok(c.ticks >= 2, 'rotation must be transmitted before throwing')
+                c.tossed.push(item)
+                inventory.splice(inventory.indexOf(item), 1)
+            },
+            async lookAt(p) { c.looks.push(p) },
+            async waitForTicks(n) { c.ticks += n },
+            chat() {},
+            pathfinder: { setGoal() {}, setMovements(m) { c.activeMovements = m } }
         },
-        async gotoWithTimeout() { throw new Error('simulated repeated physics stall') }
+        async gotoWithTimeout(goal) {
+            c.bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5)
+        }
     }
-    for (let i = 0; i < 3; i++) {
-        await assert.rejects(performProgression(c, 'clear_inventory', {}), /physics stall/)
+    return c
+}
+
+test('a dead-end tunnel throws all surplus back along the route without moving', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const full = () => ({ name: 'cobbled_deepslate', count: 64 })
+    const inventory = [full(), full(), full(), { name: 'tuff', count: 3 }, { name: 'diamond', count: 2 }]
+    // Live F015 geometry: one-wide tunnel along -z from the face at z=0 with stale nearby drops.
+    const c = disposalContext((x, z) => x === 0 && z >= 0 && z <= 16, inventory, [{ x: 0, y: 64, z: 1 }])
+    c.memory.lastDisposal = { x: 0, z: 1, dimension: 'overworld', at: Date.now() }
+    const origin = c.bot.entity.position.clone()
+    await performProgression(c, 'clear_inventory', {})
+    assert.deepEqual(c.bot.entity.position, origin)
+    assert.equal(c.tossed.length, 3)
+    assert.deepEqual(inventory.map(i => i.name), ['cobbled_deepslate', 'diamond'])
+    const look = c.looks[0].minus(origin)
+    assert.ok(look.z > 3 && Math.abs(look.x) < 1e-9 && Math.abs(look.y - 1.62) < 1e-9)
+    assert.equal(c.memory.disposalFailures, 0)
+})
+
+test('without a lane, cleanup tosses then retreats beyond pickup range', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const full = () => ({ name: 'cobblestone', count: 64 })
+    const inventory = [full(), full(), full()]
+    const c = disposalContext((x, z) => z === 0 && x <= 0 && x >= -3, inventory)
+    const origin = c.bot.entity.position.clone()
+    c.gotoWithTimeout = async goal => {
+        assert.equal(c.activeMovements.canDig, false)
+        c.bot.entity.position = new (require('vec3').Vec3)(goal.x + 0.5, goal.y, goal.z + 0.5)
     }
     await performProgression(c, 'clear_inventory', {})
-    assert.equal(c.paused, true)
-    assert.equal(c.memory.paused, true)
-    assert.equal(tosses, 3)
+    assert.ok(c.bot.entity.position.distanceTo(origin) >= 3)
+    assert.equal(inventory.length, 1)
+    assert.equal(c.activeMovements, c.movements)
+})
+
+test('cleanup refuses to toss in an enclosed cell with no lane or retreat', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const inventory = Array.from({ length: 3 }, () => ({ name: 'cobblestone', count: 64 }))
+    const c = disposalContext((x, z) => x === 0 && z === 0, inventory)
+    await assert.rejects(performProgression(c, 'clear_inventory', {}), /no open toss lane or supported disposal retreat/)
+    assert.equal(c.tossed.length, 0)
+})
+
+test('repeated disposal failures back off for a bounded time instead of pausing indefinitely', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const inventory = []
+    const c = disposalContext((x, z) => z === 0 && x <= 0 && x >= -3, inventory)
+    c.gotoWithTimeout = async () => { throw new Error('simulated repeated physics stall') }
+    for (let i = 0; i < 3; i++) {
+        inventory.push(...Array.from({ length: 2 }, () => ({ name: 'cobblestone', count: 64 })))
+        await assert.rejects(performProgression(c, 'clear_inventory', {}), /physics stall/)
+        inventory.length = 0
+        c.memory.lastDisposal = null
+    }
+    assert.equal(c.tossed.length, 3)
+    assert.equal(c.paused, false)
+    assert.ok(c.memory.disposalBackoffUntil > Date.now() + 50000)
+    assert.equal(c.memory.disposalFailures, 0)
 })
