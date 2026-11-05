@@ -34,6 +34,7 @@ const FOOD_VALUES = {
 
 const LOG_SUFFIXES = ['_log', '_stem', '_wood', '_hyphae']
 const CREEPERS = new Set(['creeper'])
+const ARCHERS = new Set(['skeleton', 'stray', 'bogged', 'pillager'])
 const BUILDING_BLOCKS = ['cobblestone', 'cobbled_deepslate', 'dirt', 'netherrack']
 const SAFE_DESCENT_BLOCKS = new Set([
     'dirt', 'grass_block', 'coarse_dirt', 'rooted_dirt', 'podzol', 'mycelium',
@@ -470,6 +471,8 @@ class SurvivalController {
         const hostile = this.nearestEntity(HOSTILES, 24)
         const creeper = this.nearestEntity(CREEPERS, 8)
         const creeperVisible = Boolean(creeper && this.canSee(creeper))
+        const archer = this.nearestEntity(ARCHERS, 16)
+        const archerVisible = Boolean(archer && this.canSee(archer))
         const lastDeath = this.memory.lastDeath
         const recoveryAge = lastDeath ? Date.now() - lastDeath.diedAt : Infinity
         const hasTableNow = this.hasItem('crafting_table') || Boolean(this.findStation('crafting_table', 4))
@@ -492,6 +495,8 @@ class SurvivalController {
             hostileDistance: hostile ? this.bot.entity.position.distanceTo(hostile.position) : Infinity,
             creeper: creeperVisible ? creeper : null,
             creeperDistance: creeperVisible ? this.bot.entity.position.distanceTo(creeper.position) : Infinity,
+            ranged: archerVisible ? archer : null,
+            rangedDistance: archerVisible ? this.bot.entity.position.distanceTo(archer.position) : Infinity,
             hasWeapon: Boolean(this.bestItem(['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword', 'netherite_axe', 'diamond_axe', 'iron_axe', 'stone_axe', 'wooden_axe'])),
             hasFood: Boolean(this.bestFood()),
             isNight: this.isNight(),
@@ -560,11 +565,15 @@ class SurvivalController {
             case 'prepare_bed': return prepareBed(this, state.bedWool)
             case 'prepare_night_weapon': return performProgression(this, 'craft_progression', { sideGoal: { item: 'stone_sword' } })
             case 'leave_shelter': return leaveShelter(this)
-            case Actions.ESCAPE: return state.creeperDistance <= 6 ? this.avoidCreeper(state.creeper) : this.escapeFrom(state.hostile)
+            case Actions.ESCAPE:
+                if (state.creeperDistance <= 6) {
+                    return this.takeCover(state.creeper, 10)
+                }
+                return state.rangedDistance <= 16 ? this.takeCover(state.ranged, 24) : this.escapeFrom(state.hostile)
             case Actions.DESCEND: return this.descendSafely()
             case Actions.ASCEND: return this.escapeVerticalShaft()
             case Actions.RECOVER: return this.recoverItems()
-            case Actions.FIGHT: return this.fight(state.hostile)
+            case Actions.FIGHT: return this.fight(state.rangedDistance <= 3.5 ? state.ranged : state.hostile)
             case Actions.EAT: return this.eat()
             case Actions.SHELTER: return this.makeNightSafe()
             case Actions.WOOD: return this.gatherWood()
@@ -1328,12 +1337,12 @@ class SurvivalController {
         return range < 0.01 || !this.bot.world.raycast(eye, target.minus(eye).scaled(1 / range), range)
     }
 
-    // A creeper only swells while it sees its target, and outrunning it while digging
-    // rarely works underground. Seal a narrow passage facing it, otherwise flee.
-    async avoidCreeper (creeper) {
+    // Creepers only swell and archers only shoot with line of sight, and outrunning either
+    // while digging rarely works underground. Seal a narrow passage facing it, otherwise flee.
+    async takeCover (threat, clearDistance = 10) {
         const signal = this.actionAbort?.signal
         const feet = this.bot.entity.position.floored()
-        const toward = creeper.position.minus(this.bot.entity.position)
+        const toward = threat.position.minus(this.bot.entity.position)
         const openings = []
         for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
             if (dx * toward.x + dz * toward.z <= 0) {
@@ -1341,7 +1350,7 @@ class SurvivalController {
             }
             for (const dy of [0, 1, 2]) {
                 const cell = feet.offset(dx, dy, dz)
-                if (this.isEmptyPlacementBlock(this.bot.blockAt(cell, false)) && !creeper.position.floored().equals(cell)) {
+                if (this.isEmptyPlacementBlock(this.bot.blockAt(cell, false)) && !threat.position.floored().equals(cell)) {
                     openings.push(cell)
                 }
             }
@@ -1349,19 +1358,20 @@ class SurvivalController {
         if (openings.length && openings.length <= 4 && this.countItems(BUILDING_BLOCKS) >= openings.length) {
             for (const cell of openings) {
                 this.checkAction(signal)
-                await this.placeSurvivalBlock(cell).catch(error => this.log.warn(`Creeper seal placement failed at ${cell}: ${error.message}`))
+                await this.placeSurvivalBlock(cell).catch(error => this.log.warn(`Cover placement failed at ${cell}: ${error.message}`))
             }
             this.checkAction(signal)
-            if (!this.canSee(creeper)) {
-                this.log.info(`Sealed ${openings.length} opening(s) toward a creeper at ${creeper.position.floored()}.`)
+            if (!this.canSee(threat)) {
+                this.log.info(`Sealed ${openings.length} opening(s) toward a ${threat.name} at ${threat.position.floored()}.`)
                 return
             }
         }
-        this.log.info(`Fleeing creeper at ${creeper.position.floored()}; ${openings.length} facing opening(s) could not be sealed.`)
-        // A creeper keeps following; pausing between single legs let one close in and explode (F027).
-        for (let leg = 0; leg < 4 && creeper.isValid !== false && this.bot.entity.position.distanceTo(creeper.position) < 10; leg++) {
+        this.log.info(`Fleeing ${threat.name} at ${threat.position.floored()}; ${openings.length} facing opening(s) could not be sealed.`)
+        // Pausing between single legs let a following creeper close in and explode (F027).
+        for (let leg = 0; leg < 4 && threat.isValid !== false && this.canSee(threat) &&
+            this.bot.entity.position.distanceTo(threat.position) < clearDistance; leg++) {
             this.checkAction(signal)
-            await this.escapeFrom(creeper)
+            await this.escapeFrom(threat)
         }
     }
 

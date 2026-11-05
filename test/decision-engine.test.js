@@ -153,3 +153,11 @@ test('critical health with no nearby threat rests instead of starting cancellabl
     assert.equal(chooseAction(state({ health: 4, food: 16, hasFood: true })), Actions.EAT)
     assert.equal(chooseAction(state({ health: 4, hostileDistance: 3 })), Actions.ESCAPE)
 })
+
+test('archers are fought at melee range and escaped from at range when hurt', () => {
+    assert.equal(chooseAction(state({ rangedDistance: 0.8, hostileDistance: 0.8, hasWeapon: true, health: 8.5 })), Actions.FIGHT)
+    assert.equal(chooseAction(state({ rangedDistance: 0.8, hostileDistance: 0.8, hasWeapon: true, health: 3 })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ rangedDistance: 7.7, hostileDistance: 7.7, hasWeapon: true, health: 1.5, underground: true })), Actions.ESCAPE)
+    assert.notEqual(chooseAction(state({ rangedDistance: 7.7, hostileDistance: 7.7, hasWeapon: true, health: 18 })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ creeperDistance: 4, rangedDistance: 2, hasWeapon: true, health: 18 })), Actions.ESCAPE)
+})

@@ -30,7 +30,12 @@ const Actions = Object.freeze({
   * without connecting to Minecraft.
   */
 function chooseAction (state) {
+    // Running from an archer at arm's length only invites more arrows; melee it while able.
+    if (!(state.creeperDistance <= 6) && state.rangedDistance <= 3.5 && state.hasWeapon && state.health > 4) {
+        return Actions.FIGHT
+    }
     if (state.creeperDistance <= 6 || (state.hostileDistance <= 5 && state.health <= 10) || (state.hostileDistance <= 3.5 && !state.hasWeapon) ||
+        (state.rangedDistance <= 16 && state.health <= 10) ||
         (state.isNight && !state.underground && !state.sheltered &&
             (state.overwhelmed || (state.retreatForNight && state.hostileDistance <= 6)))) {
         return Actions.ESCAPE

@@ -182,7 +182,7 @@ function creeperWorld(open) {
 test('a creeper approaching along a one-wide tunnel is sealed out instead of chased', async () => {
     const c = creeperWorld(p => p.x === 0 && p.z >= 0 && p.y >= 64 && p.y <= 65)
     const creeper = { name: 'creeper', position: new Vec3(0.5, 64, 5.5) }
-    await SurvivalController.prototype.avoidCreeper.call(c, creeper)
+    await SurvivalController.prototype.takeCover.call(c, creeper)
     assert.deepEqual(c.placed.map(String), [new Vec3(0, 64, 1), new Vec3(0, 65, 1)].map(String))
     assert.equal(c.fled, null)
 })
@@ -190,7 +190,7 @@ test('a creeper approaching along a one-wide tunnel is sealed out instead of cha
 test('a creeper in open terrain is fled rather than walled with many blocks', async () => {
     const c = creeperWorld(p => p.y >= 64)
     const creeper = { name: 'creeper', position: new Vec3(4.5, 64, 4.5) }
-    await SurvivalController.prototype.avoidCreeper.call(c, creeper)
+    await SurvivalController.prototype.takeCover.call(c, creeper)
     assert.equal(c.placed.length, 0)
     assert.equal(c.fled, creeper)
 })
@@ -372,7 +372,21 @@ test('fleeing a creeper keeps running until it is ten blocks away', async () => 
         legs++
         c.bot.entity.position = c.bot.entity.position.offset(-3, 0, -3)
     }
-    await SurvivalController.prototype.avoidCreeper.call(c, creeper)
+    await SurvivalController.prototype.takeCover.call(c, creeper)
     assert.equal(legs, 2)
     assert.ok(c.bot.entity.position.distanceTo(creeper.position) >= 10)
+})
+
+test('a visible archer is fled until out of sight, not just a fixed distance', async () => {
+    const c = creeperWorld(p => p.y >= 64)
+    let legs = 0
+    let visible = true
+    c.canSee = () => visible
+    const skeleton = { name: 'skeleton', isValid: true, position: new Vec3(6.5, 64, 6.5) }
+    c.escapeFrom = async () => {
+        legs++
+        visible = legs < 2
+    }
+    await SurvivalController.prototype.takeCover.call(c, skeleton, 24)
+    assert.equal(legs, 2)
 })
