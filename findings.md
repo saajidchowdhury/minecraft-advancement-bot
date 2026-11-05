@@ -518,3 +518,9 @@ Mixed planks: live `e75cc79` failed the shield craft 100+ times (19:05–19:12Z)
 5 birch + 1 oak plank, because Mineflayer matches each recipe variant against one plank
 type. `de766af` grows a single type; live it crafted birch planks and the shield at
 19:12:32Z.
+
+Gear milestone (live, `de766af`, run started 19:12Z after a rebuild from nothing at
+18:43Z): shield 19:12:32, iron sword 19:13:26, leggings 19:20:36, helmet 19:27:30, boots
+19:29:15. state.json then showed all four iron armor slots plus the shield worn and the
+planner moved to gather_diamonds. This completes F024's iron stage live; diamond
+pickaxe/sword and diamond armor remain pending.

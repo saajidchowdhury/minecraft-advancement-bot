@@ -254,3 +254,7 @@ Update ~12:20 Eastern: four deaths today. Before more features, make a fresh or
 tool-less bot survive its first night: craft a wooden sword and gather shelter
 blocks before dusk, keep night shelter cheap (burrow live check pending), and stage a
 single-zombie daytime fight to validate the melee interrupt (F025).
+
+Update ~14:30 Eastern: full iron set, iron sword and shield crafted and worn live
+(F024 iron stage done). Next: diamonds → diamond pickaxe and sword live, with the
+F022 diamond priority and the F028/F029 cover and crowd logic watched for regressions.
