@@ -248,7 +248,9 @@ class SurvivalController {
                         this.cancelCurrentTask('night damage retreat')
                     }
                 }
-                const attacker = this.nearestEntity?.(HOSTILES, 4)
+                const attacker = this.nearestEntity?.(HOSTILES, 4) ||
+                    Object.values(this.bot.entities || {}).find(e => e.isValid && ARCHERS.has(e.name) &&
+                        this.bot.entity.position.distanceTo(e.position) <= 16 && this.canSee?.(e))
                 if (attacker && this.busy && ![Actions.ESCAPE, Actions.FIGHT].includes(action) && !this.actionAbort?.signal.aborted) {
                     // Work must not continue under melee attack; the next decision fights or escapes.
                     this.cancelCurrentTask(`attacked by ${attacker.name}`)
@@ -586,7 +588,7 @@ class SurvivalController {
             case Actions.DESCEND: return this.descendSafely()
             case Actions.ASCEND: return this.escapeVerticalShaft()
             case Actions.RECOVER: return this.recoverItems()
-            case Actions.FIGHT: return this.fight(state.rangedDistance <= 3.5 ? state.ranged : state.hostile)
+            case Actions.FIGHT: return this.fight(state.rangedDistance <= 12 ? state.ranged : state.hostile)
             case Actions.EAT: return this.eat()
             case Actions.SHELTER: return this.makeNightSafe()
             case Actions.WOOD: return this.gatherWood()

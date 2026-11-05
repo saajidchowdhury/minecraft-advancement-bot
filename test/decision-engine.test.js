@@ -188,3 +188,10 @@ test('a fully armored, armed bot keeps fighting a lone melee attacker instead of
     assert.equal(chooseAction(state({ ...duel, armorPoints: 5 })), Actions.ESCAPE)
     assert.equal(chooseAction(state({ ...duel, visibleHostiles: 3 })), Actions.ESCAPE)
 })
+
+test('a lone archer shooting from mid-range is charged when healthy, covered from when hurt', () => {
+    const archer = { rangedDistance: 7.9, hostileDistance: 7.9, hasWeapon: true, visibleHostiles: 1, health: 13.3, underground: true }
+    assert.equal(chooseAction(state(archer)), Actions.FIGHT)
+    assert.equal(chooseAction(state({ ...archer, health: 9.3 })), Actions.ESCAPE)
+    assert.notEqual(chooseAction(state({ ...archer, hasWeapon: false })), Actions.FIGHT)
+})

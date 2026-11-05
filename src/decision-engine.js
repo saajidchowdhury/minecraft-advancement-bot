@@ -31,7 +31,9 @@ const Actions = Object.freeze({
   */
 function chooseAction (state) {
     // Running from an archer at arm's length only invites more arrows; melee it while able.
-    if (!(state.creeperDistance <= 6) && state.rangedDistance <= 3.5 && state.hasWeapon && state.health > 4 && !((state.visibleHostiles ?? state.hostileCount ?? 0) > 1)) {
+    // Standing still under arrows loses; a lone archer within twelve blocks is charged when healthy.
+    if (!(state.creeperDistance <= 6) && state.hasWeapon && !((state.visibleHostiles ?? state.hostileCount ?? 0) > 1) &&
+        ((state.rangedDistance <= 3.5 && state.health > 4) || (state.rangedDistance <= 12 && state.health > 10))) {
         return Actions.FIGHT
     }
     // An armored, armed bot wins a lone melee duel; running lets the attacker keep hitting (F030).
