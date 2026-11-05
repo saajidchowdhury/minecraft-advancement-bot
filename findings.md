@@ -612,3 +612,7 @@ while collecting ore, had no jump headroom and the shaft was forgotten. `9950015
 that headroom once (only where safeTunnelStep allows) before giving up. `ad3b38e` keeps
 a deeper shaft over a shallower descent. Live reuse of a complete shaft remains pending;
 the current shaft was forgotten and will be re-recorded on the next descent.
+
+F033 live: on `5f78a8e` the bot climbed a remembered 25-cell shaft from (10,53,-102) to
+the surface in about 12 s (21:28:46–21:28:58Z) with the per-cell climb, no stalls, then
+resumed surface work. Descent along a remembered shaft is still unobserved live.
