@@ -7,11 +7,11 @@ stable; correct or qualify an old finding when new evidence changes it.
 ## Current handoff
 
 Updated 2026-11-05 ~12:43 Eastern. Bot is RUNNING on LAN port 51718, PID 32764, code
-`beec699`, rebuilding after five deaths today (F023, F025–F027). Verify PID and connection before stopping it; `pgrep -f src/index.js`
+`25934b3`, recovering after six deaths today (F023, F025–F028). Verify PID and connection before stopping it; `pgrep -f src/index.js`
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 156 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 157 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -482,3 +482,17 @@ rule. `beec699` melees archers within 3.5 blocks above 4 hp, and at <= 10 hp tak
 cover from a visible archer within 16 blocks (seal narrow openings, else flee until
 out of sight), sharing the creeper routine. Five deaths today; all regressions fail
 before their fixes. Live archer handling pending.
+
+## F028 — Gear route live; a skeleton crowd killed the bot [live + regression]
+
+Run on `beec699` (17:42–18:41Z) rebuilt from nothing: iron pickaxe 17:51, chestplate
+17:54, shield 18:08:52, iron sword 18:20:26 and iron leggings 18:28:19, which
+`equip_armor` wore at once (legs slot). This is the first live evidence for F024's
+gear route. A creeper escape at 18:07:56 fled in the open with no damage, and walled
+night shelters were verified at 17:55:58 and 18:10:09.
+
+Death 6 (18:40:46Z at -154,67,31): while unsticking from a pocket, the bot was hit by
+at least six skeletons (possibly a spawner); the new archer melee rule fought them at
+13.9 hp. `25934b3` makes three or more hostiles within twelve blocks trigger escape or
+cover at any time and depth, and allows archer melee only when no other hostile is
+near. Regression fails before the fix; live crowd behaviour pending.
