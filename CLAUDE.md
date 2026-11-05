@@ -20,7 +20,13 @@ overwhelmed or badly hurt; beds are an Overworld-only option. In the LAN
 workflow, pursue sleep only when the configured owner is observably sleeping,
 and wake when the owner wakes or their sleep state is no longer observable. Research mob drops
 and their advancement dependencies before expanding hunting goals. Exhaustive challenges such
-as visiting every biome are outside the intended scope. Occasionally building
+as visiting every biome are outside the intended scope.
+
+Optimize expected advancement throughput, not just ordering: reach advancements
+as quickly as possible without large risks, since a death costs recovery time or,
+if items despawn, a restart from scratch. Favor investments that compound, such as
+diamonds for a faster pickaxe, weapons and armor, and a full armor set rather than a
+lone chestplate. Judge a policy by advancements per unit time including risk. Occasionally building
 interesting, functional redstone contraptions is an optional, lower priority.
 
 Preserve the visible LAN workflow: the user opens a Java singleplayer survival
