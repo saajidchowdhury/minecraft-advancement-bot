@@ -6,9 +6,10 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-05 ~11:50 Eastern. Bot is RUNNING on LAN port 51718, code `f6aba27`,
-rebuilding from an empty inventory after the F023 death (hand-digging out of a cave
-near Y=58). Verify PID and connection before stopping it; `pgrep -f src/index.js`
+Updated 2026-11-05 ~11:42 Eastern. Bot is RUNNING on LAN port 51718, PID 26798, code
+`9adaf8c` (decision-fault fallback), rebuilding from nothing after the F023 death; it
+left the cave and crafted a wooden pickaxe at 16:40:30Z. `4e26364` (recovery gate) is
+committed but not loaded. Verify PID and connection before stopping it; `pgrep -f src/index.js`
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
