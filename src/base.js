@@ -157,15 +157,15 @@ function baseState(c, state) {
     const calm = state.hostileDistance > 12 && (state.underground || !state.isNight)
     if (!base || base.dimension !== bot.game.dimension) {
         state.baseEstablish = Boolean(calm && state.underground && bot.game.dimension === 'overworld' && state.hasIronPickaxe &&
-            (items.some(item => item.name === 'chest') || (state.hasCraftingTable && state.planks + state.logs * 4 >= 8)) &&
+            (items.some(item => item.name === 'barrel') || (state.hasCraftingTable && state.planks + state.logs * 4 >= 9)) &&
             state.cobblestone >= 2 && vaultSite(bot, here.floored()))
         return state
     }
     const chest = new Vec3(base.chest.x, base.chest.y, base.chest.z)
     state.baseDistance = here.distanceTo(chest)
-    if (!base.door) {
-        // Pre-vault bases sit exposed on the surface; empty them by day and rebuild underground.
-        state.baseMigrate = !state.isNight && state.hostileDistance > 12 && state.baseDistance <= 64
+    if (!base.door || base.container !== 'barrel') {
+        // Surface chests sit exposed, and a chest under rock cannot open; rebuild as a barrel vault.
+        state.baseMigrate = (state.underground || !state.isNight) && state.hostileDistance > 12 && state.baseDistance <= 64
         return state
     }
     const restock = restockPlan(base.contents || {}, items, worn)
@@ -182,7 +182,7 @@ function baseState(c, state) {
 async function digIfSolid(c, p) {
     const bot = c.bot
     const block = bot.blockAt(p, false)
-    if (block && block.boundingBox !== 'empty' && block.name !== 'chest') {
+    if (block && block.boundingBox !== 'empty' && !['chest', 'barrel'].includes(block.name)) {
         const tool = c.bestItem(['diamond_pickaxe', 'iron_pickaxe', 'stone_pickaxe', 'wooden_pickaxe'])
         if (tool) {
             await bot.equip(tool, 'hand')
@@ -221,8 +221,8 @@ async function withChest(c, action) {
     }
     c.checkAction()
     const block = bot.blockAt(chest, false)
-    if (block?.name !== 'chest') {
-        c.log.warn(`Base chest at ${chest} is missing (${block?.name}); forgetting the base.`)
+    if (block?.name !== (base.container || 'chest')) {
+        c.log.warn(`Base container at ${chest} is missing (${block?.name}); forgetting the base.`)
         c.memory.base = null
         throw new Error('base chest missing')
     }
@@ -244,29 +244,38 @@ async function establishBase(c) {
     if (!site) {
         throw new Error('no solid, dry rock beside the tunnel for a base vault')
     }
-    if (!c.hasItem('chest')) {
-        await c.ensurePlanks(8)
-        await c.ensureItem('chest', 1, true)
+    // A chest cannot open with a solid block on top; a barrel opens fully enclosed, so the vault
+    // keeps its rock roof. Barrel: six planks and two slabs of any wood.
+    if (!c.hasItem('barrel')) {
+        await c.ensurePlanks(9)
+        const planks = bot.inventory.items().filter(item => item.name.endsWith('_planks')).sort((a, b) => b.count - a.count)[0]
+        await c.ensureItem(planks.name.replace('_planks', '_slab'), 2, true)
+        await c.ensureItem('barrel', 1, true)
     }
     c.checkAction()
     const [dx, dz] = site.dir
     await digIfSolid(c, site.niche.offset(0, 1, 0))
     await digIfSolid(c, site.niche)
     await digIfSolid(c, site.chest)
-    await bot.equip(c.bestItem(['chest']), 'hand')
+    await bot.equip(c.bestItem(['barrel']), 'hand')
     await bot.placeBlock(bot.blockAt(site.chest.offset(dx, 0, dz), false), new Vec3(-dx, 0, -dz))
     await bot.waitForTicks(4)
-    if (bot.blockAt(site.chest, false)?.name !== 'chest') {
-        throw new Error(`base chest placement at ${site.chest} was not confirmed`)
+    if (bot.blockAt(site.chest, false)?.name !== 'barrel') {
+        throw new Error(`base barrel placement at ${site.chest} was not confirmed`)
     }
     const plain = p => ({ x: p.x, y: p.y, z: p.z })
-    c.memory.base = { dimension: bot.game.dimension, chest: plain(site.chest), niche: plain(site.niche), door: plain(site.door), contents: {}, sealed: false }
-    c.log.info(`Base vault built at ${site.chest}: chest in solid rock, niche ${site.niche} sealed after each visit.`)
+    c.memory.base = { dimension: bot.game.dimension, container: 'barrel', chest: plain(site.chest), niche: plain(site.niche), door: plain(site.door), contents: {}, sealed: false }
+    c.log.info(`Base vault built at ${site.chest}: barrel in solid rock, niche ${site.niche} sealed after each visit.`)
     if (c.hasItem('torch')) {
-        // A lit doorway stops mobs spawning where the bot stands to use the chest.
-        const floor = bot.blockAt(site.door.offset(0, -1, 0), false)
-        await bot.equip(c.bestItem(['torch']), 'hand')
-        await bot.placeBlock(floor, new Vec3(0, 1, 0)).catch(error => c.log.warn(`Base torch failed: ${error.message}`))
+        // A wall torch at head height lights the doorway without sitting where the bot stands.
+        for (const [px, pz] of [[-dx, -dz], [dz, dx], [-dz, -dx]]) {
+            const wall = bot.blockAt(site.door.offset(px, 1, pz), false)
+            if (wall?.boundingBox === 'block') {
+                await bot.equip(c.bestItem(['torch']), 'hand')
+                await bot.placeBlock(wall, new Vec3(-px, 0, -pz)).catch(error => c.log.warn(`Base torch failed: ${error.message}`))
+                break
+            }
+        }
     }
     return depositAtBase(c)
 }
@@ -276,6 +285,13 @@ async function establishBase(c) {
 async function migrateBase(c) {
     const bot = c.bot
     const base = c.memory.base
+    const above = new Vec3(base.chest.x, base.chest.y + 1, base.chest.z)
+    if ((base.container || 'chest') === 'chest' && bot.blockAt(above, false)?.boundingBox === 'block') {
+        if (bot.entity.position.distanceTo(above.offset(0.5, 0.5, 0.5)) > 4) {
+            await c.gotoWithTimeout(new goals.GoalNear(above.x, above.y, above.z, 2), 30000, 'base approach')
+        }
+        await digIfSolid(c, above)
+    }
     await withChest(c, async window => {
         for (const item of window.containerItems()) {
             c.checkAction()
@@ -284,7 +300,7 @@ async function migrateBase(c) {
     })
     const chest = bot.blockAt(new Vec3(base.chest.x, base.chest.y, base.chest.z), false)
     c.memory.base = null
-    if (chest?.name === 'chest') {
+    if (['chest', 'barrel'].includes(chest?.name)) {
         // The pathfinder's movement rules refuse to break chests, so collectTarget cannot be used.
         await bot.dig(chest, true)
         await bot.waitForTicks(6)
@@ -294,7 +310,7 @@ async function migrateBase(c) {
             await c.gotoWithTimeout(new goals.GoalNear(p.x, p.y, p.z, 0), 4000, 'chest pickup').catch(() => {})
         }
     }
-    c.log.info('Emptied the exposed surface base; a sealed underground vault will replace it.')
+    c.log.info('Emptied the old base; a sealed underground barrel vault will replace it.')
 }
 
 async function depositAtBase(c) {
