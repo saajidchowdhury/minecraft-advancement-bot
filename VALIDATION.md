@@ -268,3 +268,18 @@ On `646ae27`, the first charcoal-fed job ran while four additional raw iron
 were mined. The bot returned, collected both ingots and received Acquire Hardware
 at 18:32:22 Eastern. Fuel-starved recovery and alternate roof support have
 automated coverage and await focused live trials.
+
+Follow-up `2e11db8`: 229 tests and syntax checks pass. Added coverage for the
+three-ingot priority, limited first batch, spare plank fuel, stronger mining
+tools, night descent policy, remembered shaft preference and keeping a shelter
+closed when descent is refused. Updated the night surface-trip fixtures to use
+a fuel shortage after removing the obsolete stone work-pick goal.
+Final changed-code comment ratios are at most 8.20% (`decision-engine.js` 15/183).
+Other changed source ratios: `survival-bot.js` 63/2274,
+`progression-skills.js` 20/1057 and `advancement-plan.js` 5/206. Changed tests
+are at most 1.34%.
+
+Live without staging: the 18:45:08 run used carried plank fuel for one ingot,
+collected its third ingot, crafted and equipped the pick, and received the
+server advancement. Mining resumed with the iron pick in hand. See F043 for
+the unsuccessful hillside descent and the pending successful night trial.

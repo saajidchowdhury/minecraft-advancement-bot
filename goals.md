@@ -363,3 +363,7 @@ advancementsPerHour across a full run.
 - F042: check that a remembered furnace survives nearby mining, then collects
   normally after a restart. Check the failed shaft step at (1,63,25) separately
   if the return climb stalls again.
+- F043: the third ingot immediately led to an equipped iron pick and the bot
+  used it in the following mining work. Verify both night routes with a
+  reachable remembered shaft and a shelter above a safe digging column. The
+  hillside trial exposed refusal/recovery behavior, which now has a regression.

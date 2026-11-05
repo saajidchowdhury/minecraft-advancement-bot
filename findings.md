@@ -781,3 +781,32 @@ tunneling accepted furnaces, so the exact dig path is uncertain. Both now protec
 furnaces, barrels and chests. Explicit station reclaim and vault migration still
 use their own dig paths. The first return climb stalled at (1,63,25) even after a
 shaft repair and reverted to carving a new staircase.
+
+## F043 — Iron pickaxe priority and productive nights
+
+User direction: reserve the first three iron ingots for an iron pickaxe, use
+that pick for mining, and favor protected underground work at night. The planner
+now puts that upgrade ahead of optional activities, smelts only the missing
+ingots before the first pick, and equips it after crafting. A spare flammable
+plank can fuel a small initial batch while the bot keeps any planks it needs for
+sticks. Tunnels and probes prefer netherite, diamond, then iron over stone or wood.
+
+At 18:36:04 Eastern, `4e2e664` verified a surface shelter at (12,79,25). It
+waited there with two ingots, five raw iron and two planks. It had come back to
+the surface for fuel after the shaft repair failed. `38ece5e` tried a short
+descent through the shelter, but the terrain failed the existing dry, enclosed
+column check. Generic recovery mistook the intact shelter for a trapped shaft
+and repeatedly climbed out. Stopped that run at 18:43:01 without a logged death.
+`2e11db8` preserves an intact enclosure on refusal and skips repeat attempts
+there. It also uses a nearby remembered mine before sheltering when the bot is
+healthy and sees no nearby hostiles. Both routes keep the normal threat checks.
+
+Live on `2e11db8`, the bot used one carried plank to start the missing ingot
+at 18:45:11. A skeleton interrupted the action, but the furnace operation
+completed while cancellation was in flight. The bot killed the skeleton,
+returned and collected the third ingot at 18:45:35. Its next action crafted the
+iron pickaxe. The server confirmed Isn't It Iron Pick at 18:45:36, the bot
+equipped it at 18:45:41, and the 18:46:22 mining trace showed it held after a
+completed tunnel segment. No commands or supplies were staged. The run stayed
+connected on port 53606 at handoff. The next night trial should demonstrate a
+successful descent. Audit cancellation between furnace placement and loading.
