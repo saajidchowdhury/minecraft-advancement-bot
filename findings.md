@@ -698,3 +698,8 @@ of standing at the furnace. `8fe959e` adds Hired Help (adventure/summon_iron_gol
 full iron armor, 36 ingots (+2 for shears) across inventory and base, a pumpkin within 32
 blocks and calm daylight, the bot carves the pumpkin in place, crafts four iron blocks and
 builds the golem T with the lower corners clear, head last. Three regressions; live pending.
+
+Base live (`8fe959e`): the chest was crafted and placed at (-245,68,-185) at 22:49:55Z
+where the bot was working, and the first deposit stored 1 wooden_sword (a better sword is
+carried), 13 lapis_lazuli, 8 raw_copper and 2 spare furnaces. Restock after a death is
+still unobserved. Note for the Enchanter: lapis is stored but not in the restock list.
