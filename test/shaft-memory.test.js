@@ -71,3 +71,10 @@ test('a blocked shaft is forgotten and an unreachable or distant one falls back 
     assert.equal(await followShaft(far, 'down'), false)
     assert.equal(far.visits.length, 0)
 })
+
+test('a shallower descent does not replace a deeper remembered shaft', () => {
+    const c = shaftWorld(new Vec3(40.5, 30, 0.5))
+    c.memory.mineRoute = stairs.slice(0, 40)
+    rememberShaft(c)
+    assert.equal(c.memory.shaft.cells.length, 125)
+})

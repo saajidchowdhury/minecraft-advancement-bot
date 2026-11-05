@@ -301,6 +301,10 @@ function rememberShaft(c) {
         return
     }
     const cells = route.slice(entrance).map(p => ({ x: p.x, y: p.y, z: p.z }))
+    const old = c.memory.shaft
+    if (old?.dimension === bot.game.dimension && old.cells.at(-1).y < cells.at(-1).y) {
+        return
+    }
     c.memory.shaft = { dimension: bot.game.dimension, cells }
     c.log.info(`Remembered a ${cells.length}-cell shaft from ${new Vec3(cells[0].x, cells[0].y, cells[0].z)} to ${new Vec3(cells.at(-1).x, cells.at(-1).y, cells.at(-1).z)}.`)
 }
