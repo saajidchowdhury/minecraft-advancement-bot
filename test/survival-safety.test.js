@@ -107,3 +107,22 @@ test('a repeated death during the same recovery preserves the first drop age and
     assert.equal(c.memory.lastDeath.attempts, 0)
     assert.equal(c.memory.lastDeath.dimension, 'the_nether')
 })
+
+test('damage invalidates shelter and reports nearby threats without interrupting escape', () => {
+    const bot = new EventEmitter()
+    bot.health = 20
+    bot.entity = { position: new Vec3(0, 64, 0) }
+    bot.entities = { 1: { name: 'zombie', isValid: true, position: new Vec3(3, 64, 0) } }
+    let cancellations = 0
+    const messages = []
+    const c = { bot, running: true, busy: true, sheltered: true, shelterCenter: new Vec3(0, 64, 0),
+        activeAction: Actions.ESCAPE, log: { warn: message => messages.push(message) },
+        positionText: () => '0,64,0', cancelCurrentTask() { cancellations++ } }
+    SurvivalController.prototype.bindEvents.call(c)
+    bot.health = 4
+    bot.emit('health')
+    assert.equal(c.sheltered, false)
+    assert.equal(c.shelterCenter, null)
+    assert.equal(cancellations, 0)
+    assert.equal(messages.some(message => message.includes('zombie:3.0')), true)
+})

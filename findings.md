@@ -6,14 +6,19 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-The private repo is `saajidchowdhury/minecraft-advancement-bot`. The baseline before the survival follow-up was `2ba6526`; subsequent survival
-changes are described in F009–F010. Use Git and run metadata for the exact revision.
-The 00:16:00 run used that code on LAN port 50330 and was stopped with SIGINT at
-00:24:23 after repeated deaths. Do not assume an unfinished PID file is active.
-The bot had achieved nine advancements, including Suit Up, but subsequently lost
-its inventory. Survival/recovery now outranks shield and lava-bucket progression.
-See G001 in `goals.md` before restarting. Local logs are ignored by Git; check
-whether the referenced artifacts exist in the checkout being used.
+The private repo is `saajidchowdhury/minecraft-advancement-bot`. The latest live
+run started 00:33:48 on port 50330, code `932b1ed4b671`, recorded PID
+8097. It was running when last checked (2026-11-05T05:36:08.093Z, UTC); verify
+PID identity and connection before taking control. Its local artifacts are in
+`outputs/2026-11-05@00.33.48/`. Source files have not changed since that launch.
+
+The previous 00:16:00 run was stopped at 00:24:23 after repeated deaths. The new
+run restored the nine historical advancements and a partial recovered inventory,
+rebuilt a sword and stone work pick, re-equipped the recovered chestplate, and
+resumed gathering iron for a shield. Do not assume all pre-death items survived.
+Survival/recovery fixes are regression-tested; live night/damage validation remains
+the highest priority (G001). Local artifacts are ignored by Git and may be absent
+in a fresh clone. The baseline before the survival follow-up was `2ba6526`.
 
 ## F001 — Project scope and visibility [user requirement]
 
@@ -136,7 +141,7 @@ Follow-up: physical floor/wall/roof checks now gate success and are rechecked
 while waiting. Damage invalidates the shelter and logs active action and nearby
 threats. Shelter construction and individual placements capture and check their
 cancellation signal, including after equipping and before sending placement.
-Five focused regressions passed; live validation of the new night behavior is
+Focused regressions passed; live validation of the new night behavior is
 still pending. `test/survival-safety.test.js` contains the reproductions.
 
 ## F010 — Critical-health cancellation currently interrupts escape [live + inspection]
@@ -168,7 +173,7 @@ wood batches and lost furnace burn time can force repeated surface trips.
 
 ## F012 — Coverage and source provenance [verified baseline]
 
-67 focused tests passed at `2ba6526`; the survival follow-up passes 74 tests.
+67 focused tests passed at `2ba6526`; the survival follow-up passes 75 tests.
 See `VALIDATION.md` for commands and scope.
 The Mineflayer crafting patch applies to reconstructed pristine 4.39.0 sources.
 The installed dependencies are locked. Passing planner/geometry tests do not

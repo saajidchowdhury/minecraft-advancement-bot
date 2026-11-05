@@ -27,12 +27,13 @@ Next actions, in order:
 Progress: critical-health escape, enclosure verification/rechecking, placement
 cancellation, damage diagnostics, nearby repeated-death budgets, and unarmed
 threat avoidance are implemented with focused regressions. The full suite passes
-74 tests. G001 remains active for live validation and any further route failures.
+75 tests. G001 remains active for live validation and any further route failures.
 
 Completion: focused regressions pass; a live night/damage/recovery sequence is
 observed without self-cancelling escape or false shelter success. Do not force a
 suicidal demonstration just to satisfy a test. The 00:16:00 run was stopped at
-00:24:23; refresh actual world/PID state before resuming.
+00:24:23. The replacement 00:33:48 run is active at the last check; see
+findings.md for its version and verify its PID before taking over.
 
 ## G002 — High / ready — Stabilize supplies and finish shield preparation
 
