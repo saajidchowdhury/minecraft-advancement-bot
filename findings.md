@@ -11,7 +11,7 @@ Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 41971, 
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 191 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 195 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -658,3 +658,14 @@ A Seedy Place, Fishy Business and breeding is still pending.
 A Seedy Place live: on `506cf48` plant_seed started at 22:09:38Z, crafted a wooden hoe at
 22:09:41 and the server sent minecraft:husbandry/plant_seed at 22:09:46.475Z (about 8 s),
 the fourteenth confirmed advancement and the first from the G014 husbandry branch.
+
+## F037 — Throughput from the strategy review: loop latency and async smelting [logs + regression]
+
+strategy.md (new) measured today's sinks: ~29 min waiting at furnaces (60 smelt_iron
+actions, 1744 s, batches of three) and a fixed 1.5 s replan delay after every action
+against a 3.6 s median action gap (~5% of run time). `b85f0da` replans 250 ms after a
+success (failures keep 1.5 s, threats 100 ms). `bc7b277` smelts fire-and-forget: all raw
+iron (≤64) plus fuel go in, a job is recorded, the planner keeps mining iron and collects
+when the expected time passes or the bot strays beyond 48 blocks. Regressions fail on the
+pre-fix source. Live: the restart at about 22:30Z loads both; time savings still to be
+measured against today's baseline.

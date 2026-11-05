@@ -320,3 +320,9 @@ Into Fire/A Terrible Fortress once the Nether route is reliable.
 G014 progress ~16:45 Eastern: shield raised while charging archers (`abe265d`), A Seedy
 Place (`8f5282d`) and Fishy Business (`cdf6e01`) implemented with tests; live pending.
 Next G014 items: breeding (chickens with seeds), Take Aim (bow), wolf taming.
+
+Update ~17:30 Eastern: instructions now stress development efficiency and strategic work
+during passive watching; strategy.md ranks levers. Done: replan latency, async smelting.
+Next by strategy.md: verify base deposit/restock live and add a bed at the base (death
+cost), then the Nether route (Ice Bucket Challenge → portal → Oh Shiny, Hidden in the
+Depths), then Enchanter.
