@@ -99,3 +99,17 @@ test('repeated no-path failures scout with a longer survivable drop and restore 
         assert.equal(active.at(-1), original)
     }
 })
+
+test('land scouting targets a horizontal area so hills and valleys stay reachable', async () => {
+    const { Vec3 } = require('vec3')
+    let goal = null
+    const c = {
+        bot: { entity: { position: new Vec3(0.5, 78, 0.5) } }, memory: { scoutVisits: new Map() }, scoutAngle: 0, scoutSteps: 0,
+        log: { info() {} }, classifyTerrainColumn: () => 'land',
+        async gotoWithTimeout(g) { goal = g }
+    }
+    await SurvivalController.prototype.scout.call(c, 20)
+    assert.equal(goal.constructor.name, 'GoalNearXZ')
+    assert.equal(goal.isEnd({ x: goal.x, y: 66, z: goal.z }), true)
+    assert.equal(goal.isEnd({ x: goal.x, y: 90, z: goal.z }), true)
+})

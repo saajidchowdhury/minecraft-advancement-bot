@@ -1734,7 +1734,8 @@ class SurvivalController {
         this.log.info(`Land scout selected ${selected.x},${Math.floor(here.y)},${selected.z} ` +
             `(land=${selected.landSamples}, water=${selected.waterSamples}, visited=${selected.visits}).`)
         try {
-            await this.gotoWithTimeout(new GoalNear(selected.x, Math.floor(here.y), selected.z, 3), 25000, 'land scouting')
+            // Terrain height at the target is unknown; a fixed-height 3-D goal can sit in air or rock.
+            await this.gotoWithTimeout(new goals.GoalNearXZ(selected.x, selected.z, 3), 25000, 'land scouting')
             this.memory.scoutVisits.set(selected.visitKey, selected.visits + 1)
             this.scoutAngle = selected.angle + Math.PI / 8
             this.scoutSteps += 1
