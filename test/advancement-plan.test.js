@@ -62,9 +62,13 @@ test('portal needs ignition and provisions; partial frame is resumed instead of 
     assert.equal(nextAdvancement({ ...state, hasFlintAndSteel: true, obsidian: 2, portalInProgress: true }).action, 'enter_nether')
 })
 
-test('completed route waits near the portal rather than starting an unsupported End quest', () => {
-    assert.equal(nextAdvancement({ ...established, hasDiamondPickaxe: true, gear: diamondSword,
-        completedAdvancements: new Set(['minecraft:story/lava_bucket', 'minecraft:story/enter_the_nether']) }).action, 'wait')
+test('after the Nether route the bot mines for a diamond armor set, then waits instead of an End quest', () => {
+    const done = new Set(['minecraft:story/lava_bucket', 'minecraft:story/enter_the_nether'])
+    const routed = { ...established, hasDiamondPickaxe: true, gear: diamondSword, completedAdvancements: done }
+    assert.equal(nextAdvancement(routed).action, 'gather_diamonds')
+    const armored = new Set([...diamondSword, 'diamond_helmet', 'diamond_chestplate', 'diamond_leggings', 'diamond_boots'])
+    assert.equal(nextAdvancement({ ...routed, gear: armored }).action, 'wait')
+    assert.equal(nextAdvancement({ ...routed, dimension: 'the_nether' }).action, 'leave_nether')
 })
 
 test('a full iron set and sword precede diamonds; diamond gear follows the pickaxe', () => {

@@ -989,6 +989,31 @@ function armorUpgrades(bot) {
     }).filter(Boolean)
 }
 
+async function leaveNether(c) {
+    const bot = c.bot
+    if (bot.game.dimension !== 'the_nether') {
+        return
+    }
+    const portal = c.findNearestBlock(name => name === 'nether_portal', 16)
+    if (!portal) {
+        throw new Error('no nether portal within 16 blocks to return through')
+    }
+    // An arriving player stands in the portal on cooldown; step out, then walk back in.
+    if (bot.blockAt(bot.entity.position.floored())?.name === 'nether_portal') {
+        const out = DIRECTIONS.map(([dx, dz]) => bot.entity.position.floored().offset(dx, 0, dz))
+            .find(p => safeFooting(bot, p) && bot.blockAt(p)?.name !== 'nether_portal')
+        if (!out) {
+            throw new Error('no safe cell beside the arrival portal')
+        }
+        await c.gotoWithTimeout(new goals.GoalBlock(out.x, out.y, out.z), 6000, 'portal exit')
+        await bot.waitForTicks(20)
+    }
+    check(c)
+    await c.gotoWithTimeout(new goals.GoalBlock(portal.position.x, portal.position.y, portal.position.z), 10000, 'portal return')
+    await until(c, () => bot.game.dimension === 'overworld', 15000)
+    c.log.info('Returned to the Overworld through the portal.')
+}
+
 async function performProgression(c, action, state) {
     switch (action) {
         case 'clear_inventory': return clearInventory(c)
@@ -1020,6 +1045,7 @@ async function performProgression(c, action, state) {
         case 'gather_obsidian': return gatherObsidian(c)
         case 'gather_flint': return c.gatherOre(['gravel'], 24)
         case 'enter_nether': return enterNether(c)
+        case 'leave_nether': return leaveNether(c)
         case 'build_redstone': return buildRedstone(c)
         case 'return_surface': return returnSurface(c)
         case 'wait': return sleep(2000)

@@ -224,3 +224,29 @@ test('tunnel digging prefers an iron pick over a slow wooden pick when no stone 
     held.push('stone_pickaxe')
     assert.equal(miningPickaxe(c).name, 'stone_pickaxe')
 })
+
+test('after entering the Nether the bot steps out of the arrival portal and walks back in', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const portalAt = new Vec3(0, 64, 0)
+    const visits = []
+    const c = {
+        running: true, paused: false, actionAbort: new AbortController(), log: { info() {} },
+        findNearestBlock: () => ({ name: 'nether_portal', position: portalAt }),
+        bot: {
+            health: 20, game: { dimension: 'the_nether' }, entity: { position: new Vec3(0.5, 64, 0.5) },
+            blockAt: p => ({ name: p.equals(portalAt) || p.equals(portalAt.offset(0, 1, 0)) ? 'nether_portal' : p.y < 64 ? 'netherrack' : 'air',
+                position: p, boundingBox: p.y < 64 ? 'block' : 'empty' }),
+            waitForTicks: async () => {}
+        },
+        async gotoWithTimeout(goal, ms, label) {
+            visits.push(label)
+            c.bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5)
+            if (label === 'portal return') {
+                c.bot.game.dimension = 'overworld'
+            }
+        }
+    }
+    await performProgression(c, 'leave_nether', {})
+    assert.deepEqual(visits, ['portal exit', 'portal return'])
+    assert.equal(c.bot.game.dimension, 'overworld')
+})

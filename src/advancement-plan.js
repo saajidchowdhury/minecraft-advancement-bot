@@ -92,6 +92,10 @@ function craft(state, id, item, action = 'craft_progression') {
 }
 
 function nextAdvancement(state) {
+    // No Nether skills or gold armor yet: return through the portal once entry is confirmed.
+    if (state.dimension === 'the_nether' && state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
+        return target('prep:return from the Nether', 'leave_nether', 'step back through the portal to the Overworld')
+    }
     if (!state.hasCraftingTable) {
         return craft(state, 'minecraft:story/root', 'crafting_table', 'craft_table')
     }
@@ -182,6 +186,11 @@ function nextAdvancement(state) {
             return target('prep:portal supports', 'gather_stone', 'three blocks support the portal frame')
         }
         return target('minecraft:story/enter_the_nether', 'enter_nether', 'build, light and enter a portal')
+    }
+    // Past the supported route, a full diamond set raises survival for whatever comes next.
+    const missing = ARMOR_PIECES.find(piece => !ownsTier(state, piece, 'diamond'))
+    if (missing) {
+        return craft(state, 'prep:diamond armor', `diamond_${missing}`)
     }
     return target('survival:established', 'wait', 'supported advancement route complete; use !come or !redstone')
 }
