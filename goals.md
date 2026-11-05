@@ -37,7 +37,7 @@ but daylight exit/reconnection and hostile-damage escape remain open. It was
 stopped at 01:00:46 for the disposal loop; see
 findings.md for its version and verify its PID before taking over.
 
-## G002 — High / ready — Stabilize supplies and finish shield preparation
+## G002 — High / active — Stabilize mining supplies and disposal
 
 Dependencies: G001; findings F005, F007, F011.
 Inspect wood approach behavior: distinguish a too-short travel budget from
@@ -48,8 +48,9 @@ check duplicate/lost workstations and whether reclaiming them pays for its cost.
 
 Live progress: the 00:33:48 run retained the chestplate, crafted/equipped the
 shield and prepared/filled a bucket. Largest-stack cleanup, a bounded disposal
-retreat and surface food reserves are implemented; live retry is next. The previous inventory and
-shield progress were interrupted by death; do not assume they are still present.
+retreat and surface food reserves are implemented. Live `ac9e912` resumed mining
+and reduced its rubble load; refined retreat routing and surface food reserves
+still need live validation. Check actual equipment rather than historical ownership.
 Completion: repeatable collection/crafting with verified inventory changes and
 no repeated unproductive surface trips. Establish causes before optimizing quotas.
 
@@ -150,7 +151,7 @@ combat before dependable survival and return behavior.
 - Preserved the visible LAN player, original reference folder and private GitHub repo.
 - Added server-confirmed advancement tracking, world memory, bounded navigation,
   work-pick conservation, food pursuit/drop pickup and side probes.
-- Nine advancement IDs confirmed live through Suit Up (F003).
+- Ten advancement IDs confirmed live through Hot Stuff (F003).
 - Added matching agent instructions, findings and this prioritized queue.
 - Added the active-furnace-inventory fix and its realistic regression (G003 remains
   open for live confirmation). See VALIDATION.md for the automated baseline.
@@ -163,3 +164,11 @@ paused, stopped or disconnected. Keep transient PID/port observations dated and
 recheck them next time. A clean Git tree or successful unit suite does not mean
 all gameplay goals are complete. Preserve local evidence without committing
 credentials, profiles, world state or logs.
+
+
+Current live-test handoff: code `50f4151`, PID 10165, LAN port 50330,
+`outputs/2026-11-05@01.06.47/`. Connected at Y=0 with health 20 and food 19 at
+06:07:18Z, pursuing Diamonds! Source hashes match; verify current process/status
+before any control action. Cave survey/return, food provisioning and refined
+non-oscillating disposal are the next live checks. Opportunistic iron pickup has
+live evidence on `ac9e912`; the supported route still awaits diamonds/obsidian.

@@ -81,7 +81,7 @@ fallback. A policy regression checks surface food preparation and underground
 return priority. These do not establish live cave exploration or better yields.
 
 Comment ratios in changed code: cave-exploration.js and the changed tests 0%;
-inventory.js 0%; progression-skills.js below 0.2%; survival-bot.js below 1.4%;
+inventory.js 0%; progression-skills.js 1/736 (0.14%); survival-bot.js 23/1795 (1.28%);
 decision-engine.js 4/79 (5.06%). All are under the 10% ceiling. Agent instruction
 files remain byte-for-byte identical.
 
@@ -99,3 +99,11 @@ retreats revisited drops; it has not proved permanent trash disposal. At
 three while the main objective remained Diamonds! This is live evidence for
 parallel material gathering, not a new advancement. The tall-cavern and
 anti-oscillation refinements were edited separately while that revision ran.
+
+
+Active handoff: `50f4151`, PID 10165, port 50330, run beginning 01:06:47 Eastern.
+Its source hashes match current source. At 06:07:18Z it was connected and mining
+at Y=0 with health 20, food 19 and ten restored advancements. `ac9e912` was
+stopped cleanly first. New code has 94 passing tests and syntax checks; large-cave
+survey/return, surface food reserves and the final disposal-route refinement
+remain awaiting suitable live evidence. Bot remains running for those tests.

@@ -6,6 +6,14 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
+Active live run: `outputs/2026-11-05@01.06.47/`, startup code `50f4151f5453`,
+PID 10165, port 50330. At 2026-11-05T06:07:18.050Z it was connected, at Y=0,
+health 20, food 19, pursuing Diamonds! with ten historical server-confirmed
+advancements. Startup source hashes match all current source files. Check PID,
+connection and newest artifacts before taking control. This run has the tall-cave
+and recent-disposal avoidance refinements; they still need a suitable live trial.
+The prior `ac9e912` run ended cleanly at 06:06:37.369Z before this one started.
+
 The private repo is `saajidchowdhury/minecraft-advancement-bot`. The 00:33:48
 run on port 50330 used code `932b1ed4b671`, PID 8097, artifacts
 `outputs/2026-11-05@00.33.48/`. It was stopped with SIGTERM at
@@ -59,9 +67,9 @@ advancement does not mean the bot still owns its tool after breakage or death.
 
 Ten confirmed IDs: story/root, story/mine_stone, story/upgrade_tools,
 story/smelt_iron, story/iron_tools, story/obtain_armor, adventure/root,
-adventure/kill_a_mob husbandry/root and story/lava_bucket (all in the minecraft namespace).
+adventure/kill_a_mob, husbandry/root and story/lava_bucket (all in the minecraft namespace).
 Evidence: `outputs/2026-11-05@00.06.22/`, especially 00:09 food/eating and
-00:13:30 armor. See `test/advancement-tracker.test.js` and
+00:13:30 armor; Hot Stuff is in the 00:33:48 run at 05:40:56.578Z. See `test/advancement-tracker.test.js` and
 `test/advancement-plan.test.js` for durable regressions.
 
 ## F004 — Navigation needs bounded, supported steps [live + regressions]
@@ -177,7 +185,8 @@ wood batches and lost furnace burn time can force repeated surface trips.
 
 ## F012 — Coverage and source provenance [verified baseline]
 
-67 focused tests passed at `2ba6526`; the survival follow-up passes 75 tests.
+67 focused tests passed at `2ba6526`; the survival follow-up passed 75 tests.
+The cave/disposal follow-up now passes 94 tests plus syntax checks.
 See `VALIDATION.md` for commands and scope.
 The Mineflayer crafting patch applies to reconstructed pristine 4.39.0 sources.
 The installed dependencies are locked. Passing planner/geometry tests do not
