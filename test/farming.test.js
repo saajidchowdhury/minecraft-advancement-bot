@@ -157,3 +157,30 @@ test('unreachable grass is remembered and skipped so other grass can supply seed
     assert.equal(blocks.get(near.toString()), 'air')
     assert.equal(blocks.get(new Vec3(1, 64, 0).toString()), 'wheat')
 })
+
+test('breeding feeds two nearby adults of one species with their tag food until the server confirms', async () => {
+    const { breedingState, breedAnimals } = require('../src/farming')
+    const completed = new Set()
+    const fed = []
+    const hen = (id, x) => ({ id, name: 'chicken', isValid: true, position: new Vec3(x, 64, 0) })
+    const c = {
+        running: true, paused: false, actionAbort: new AbortController(), memory: {}, log: { info() {} },
+        advancements: { completed }, checkAction() {},
+        hasAnyItem: names => names.includes('wheat_seeds'), bestItem: names => ({ name: names[0] }),
+        async gotoWithTimeout() {},
+        bot: {
+            entity: { position: new Vec3(0, 64, 0) },
+            entities: { 1: hen(1, 3), 2: hen(2, 5), 3: { id: 3, name: 'cow', isValid: true, position: new Vec3(2, 64, 0) } },
+            equip: async () => {}, lookAt: async () => {},
+            async activateEntity(e) { fed.push(e.id); if (fed.length === 2) { completed.add('minecraft:husbandry/breed_an_animal') } }
+        }
+    }
+    const calm = { completedAdvancements: completed, dimension: 'overworld', underground: false, isNight: false, hostileDistance: Infinity }
+    assert.equal(breedingState(c, { ...calm }).canBreed, true)
+    await breedAnimals(c)
+    assert.deepEqual(fed, [1, 2])
+    assert.equal(breedingState(c, { ...calm }).canBreed, false)
+    c.hasAnyItem = () => false
+    completed.clear()
+    assert.equal(breedingState(c, { ...calm }).canBreed, false)
+})

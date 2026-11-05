@@ -145,4 +145,60 @@ async function goFish(c) {
     }
 }
 
-module.exports = { farmingState, fishingState, plantSeed, goFish, SEEDS }
+// Breeding foods from the 26.1.2 item tags (chicken_food, cow_food, sheep_food, pig_food).
+const BREEDING = { chicken: SEEDS, cow: ['wheat'], mooshroom: ['wheat'], sheep: ['wheat'], goat: ['wheat'], pig: ['carrot', 'potato', 'beetroot'] }
+
+function breedingPair(c) {
+    const bot = c.bot
+    const here = bot.entity.position
+    for (const [species, foods] of Object.entries(BREEDING)) {
+        if (!c.hasAnyItem(foods)) {
+            continue
+        }
+        const adults = Object.values(bot.entities || {}).filter(e => e.isValid && e.name === species &&
+            here.distanceTo(e.position) <= 16 && !c.memory.breeding?.fed?.includes(e.id))
+            .sort((a, b) => here.distanceTo(a.position) - here.distanceTo(b.position))
+        if (adults.length >= 2) {
+            return { species, foods, pair: adults.slice(0, 2) }
+        }
+    }
+    return null
+}
+
+function breedingState(c, state) {
+    state.canBreed = Boolean(!state.completedAdvancements?.has('minecraft:husbandry/breed_an_animal') && state.dimension === 'overworld' &&
+        !state.underground && !state.isNight && state.hostileDistance > 16 && !backedOff(c.memory.breeding) && breedingPair(c))
+    return state
+}
+
+// The Parrots and the Bats: feed two adults of one species. A baby ignores breeding food,
+// so fed ids are remembered and a failed pair is not retried.
+async function breedAnimals(c) {
+    const bot = c.bot
+    const memory = c.memory.breeding ??= { failures: 0, at: 0, fed: [] }
+    const found = breedingPair(c)
+    try {
+        if (!found) {
+            throw new Error('no breedable pair in range')
+        }
+        for (const animal of found.pair) {
+            c.checkAction()
+            memory.fed.push(animal.id)
+            const p = animal.position.floored()
+            await c.gotoWithTimeout(new goals.GoalNear(p.x, p.y, p.z, 2), 10000, `${found.species} approach`)
+            await bot.equip(c.bestItem(found.foods), 'hand')
+            await bot.lookAt(animal.position.offset(0, 0.5, 0), true)
+            await bot.activateEntity(animal)
+        }
+        await until(c, () => c.advancements.completed.has('minecraft:husbandry/breed_an_animal'), 8000)
+        c.log.info(`Bred two ${found.species}s; The Parrots and the Bats confirmed by the server.`)
+        memory.failures = 0
+    } catch (error) {
+        memory.failures += 1
+        memory.at = Date.now()
+        memory.fed = memory.fed.slice(-32)
+        throw error
+    }
+}
+
+module.exports = { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnimals, SEEDS }
