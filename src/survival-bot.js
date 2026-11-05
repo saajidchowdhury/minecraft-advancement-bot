@@ -516,7 +516,8 @@ class SurvivalController {
                 (hasWoodPickNow || Math.abs(lastDeath.y - this.bot.entity.position.y) <= 12)),
             recoverySecondsLeft: lastDeath ? Math.max(0, Math.floor((RECOVERY_WINDOW_MS - recoveryAge) / 1000)) : 0,
             logs: this.countMatching(name => LOG_SUFFIXES.some(suffix => name.endsWith(suffix))),
-            planks: this.countMatching(name => name.endsWith('_planks')),
+            // Recipes need one plank type (see ensurePlanks), so mixed leftovers do not add up.
+            planks: Math.max(0, ...[...new Set(Object.keys(items).filter(name => name.endsWith('_planks')))].map(name => this.countItems([name]))),
             sticks: this.countItems(['stick']),
             hasCraftingTable: hasTableNow,
             hasWoodenPickaxe: hasWoodPickNow,
