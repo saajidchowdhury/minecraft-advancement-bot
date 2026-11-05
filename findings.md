@@ -11,7 +11,7 @@ Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 41971, 
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 168 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 175 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -603,3 +603,12 @@ Possible later upgrades: a water elevator or ladder column for faster vertical t
 User direction on F033: the same stairs need not be reused indefinitely; drained sites
 should make relocation increasingly likely, using the same shaft travel method at the
 new site. Recorded as long-term goal G012; not implemented yet.
+
+F033 live follow-up: the first live shaft (recorded during an iron descent, 21:06–21:10Z)
+was climbed at about 1.5 cells/s for 43 cells, then eight-cell legs stalled on a stair
+jump (F004) and the stuck watchdog cancelled three times. `bdf9808` climbs cell by cell
+through climbStep's jump fallback; then one step, which the bot had descended by a drop
+while collecting ore, had no jump headroom and the shaft was forgotten. `9950015` carves
+that headroom once (only where safeTunnelStep allows) before giving up. `ad3b38e` keeps
+a deeper shaft over a shallower descent. Live reuse of a complete shaft remains pending;
+the current shaft was forgotten and will be re-recorded on the next descent.
