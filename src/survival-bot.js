@@ -444,7 +444,9 @@ class SurvivalController {
                     this.log.warn(`Workspace relocation failed: ${relocationError.message}`)
                 }
             }
-            if (count >= 3 && action !== 'hunt_night' && !STATIONARY_ACTIONS.has(action)) {
+            if (count >= 3 && /no path to the goal/i.test(message)) {
+                await this.unstick().catch(unstickError => this.log.warn(`Unstick failed: ${unstickError.message}`))
+            } else if (count >= 3 && action !== 'hunt_night' && !STATIONARY_ACTIONS.has(action)) {
                 await this.scout(12).catch(() => {})
             }
         } finally {
@@ -1661,6 +1663,25 @@ class SurvivalController {
             return this.makeNightSafe()
         }
         await this.scout(36)
+    }
+
+    // Repeated 'No path' means walls and drops deeper than the safe limit enclose the bot.
+    // At good health accept a longer fall (damage = drop - 3 hp); otherwise dig a short stair up.
+    async unstick () {
+        const loose = new Movements(this.bot)
+        this.configureSafeMovements(loose)
+        loose.maxDropDown = this.bot.health >= 16 ? 6 : SAFE_PATHFINDER_DROP
+        this.log.warn(`No route out; scouting with a ${loose.maxDropDown}-block drop limit, then digging upward if needed.`)
+        this.bot.pathfinder.setMovements(loose)
+        try {
+            await this.scout(16)
+            return
+        } catch (error) {
+            this.log.warn(`Unstick scouting failed: ${error.message}`)
+        } finally {
+            this.bot.pathfinder.setMovements(this.movements)
+        }
+        await mineTunnel(this, Math.floor(this.bot.entity.position.y) + 4)
     }
 
     async scout (distance) {

@@ -83,3 +83,19 @@ test('a two-deep pit inside roofless shelter walls has a one-step exit', () => {
     const floating = { blockAt: p => ({ name: p.y < 0 || (p.x === 1 && p.y <= 1) ? 'dirt' : 'air', boundingBox: p.y < 0 || (p.x === 1 && p.y <= 1) ? 'block' : 'empty', diggable: true, position: p }) }
     assert.equal(SurvivalController.prototype.stairDirectionScore.call({ bot: floating }, new Vec3(0, 0, 0), 1, 0, 8), Infinity)
 })
+
+test('repeated no-path failures scout with a longer survivable drop and restore normal movements', async () => {
+    for (const [health, expected] of [[20, 6], [12, 3]]) {
+        const active = []
+        const original = { name: 'normal' }
+        const c = {
+            bot: { health, registry: require('minecraft-data')('26.1'), version: '26.1', pathfinder: { setMovements(m) { active.push(m) } } },
+            movements: original, log: { warn() {} },
+            async scout () { c.dropDuringScout = active.at(-1).maxDropDown }
+        }
+        c.configureSafeMovements = SurvivalController.prototype.configureSafeMovements
+        await SurvivalController.prototype.unstick.call(c)
+        assert.equal(c.dropDuringScout, expected)
+        assert.equal(active.at(-1), original)
+    }
+})
