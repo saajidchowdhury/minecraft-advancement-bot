@@ -161,3 +161,10 @@ test('archers are fought at melee range and escaped from at range when hurt', ()
     assert.notEqual(chooseAction(state({ rangedDistance: 7.7, hostileDistance: 7.7, hasWeapon: true, health: 18 })), Actions.ESCAPE)
     assert.equal(chooseAction(state({ creeperDistance: 4, rangedDistance: 2, hasWeapon: true, health: 18 })), Actions.ESCAPE)
 })
+
+test('a crowd of hostiles is escaped rather than fought, even at full health', () => {
+    const crowd = { rangedDistance: 0.8, hostileDistance: 0.8, hasWeapon: true, health: 20, hostileCount: 6 }
+    assert.equal(chooseAction(state(crowd)), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ ...crowd, hostileCount: 1 })), Actions.FIGHT)
+    assert.equal(chooseAction(state({ ...crowd, hostileCount: 2, rangedDistance: Infinity })), Actions.FIGHT)
+})
