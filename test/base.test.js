@@ -56,6 +56,8 @@ test('base decisions: establish near the shaft once mid-game, deposit when passi
     assert.equal(baseState(fresh, { ...calm }).baseEstablish, true)
     assert.equal(baseState(fresh, { ...calm, isNight: true }).baseEstablish, false)
     assert.equal(baseState(fresh, { ...calm, hasIronPickaxe: false }).baseEstablish, false)
+    const roaming = { bot: baseBot([], new Vec3(-255.5, 70, -167.5)), memory: { shaft: { dimension: 'overworld', cells: [{ x: 10, y: 68, z: -106 }] } }, home: { x: 29, y: 70, z: 23 } }
+    assert.equal(baseState(roaming, { ...calm }).baseEstablish, true)
     const memory = { base: { dimension: 'overworld', chest: { x: 2, y: 70, z: 0 }, contents: { diamond_pickaxe: 1, iron_sword: 1, bread: 20 } } }
     const rich = baseState({ bot: baseBot(kit), memory }, { ...calm })
     assert.equal(rich.baseDeposit, true)

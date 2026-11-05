@@ -133,9 +133,7 @@ function baseState(c, state) {
     const worn = wornNames(bot)
     const calm = !state.isNight && state.hostileDistance > 12 && !state.underground
     if (!base || base.dimension !== bot.game.dimension) {
-        const anchor = c.memory.shaft?.dimension === bot.game.dimension ? c.memory.shaft.cells[0] : c.home
-        state.baseEstablish = Boolean(calm && bot.game.dimension === 'overworld' && state.hasIronPickaxe && anchor &&
-            Math.hypot(here.x - anchor.x, here.z - anchor.z) <= 48 &&
+        state.baseEstablish = Boolean(calm && bot.game.dimension === 'overworld' && state.hasIronPickaxe &&
             (items.some(item => item.name === 'chest') || (state.hasCraftingTable && state.planks + state.logs * 4 >= 8)))
         return state
     }
@@ -198,9 +196,18 @@ async function withChest(c, action) {
     }
 }
 
+// The bot roams hundreds of blocks; a base at a distant shaft or spawn would never be
+// visited, so it goes beside a shaft entrance within 48 blocks, else where the bot stands.
+function baseSite(c) {
+    const bot = c.bot
+    const shaft = c.memory.shaft?.dimension === bot.game.dimension ? c.memory.shaft.cells[0] : null
+    const here = bot.entity.position
+    return shaft && Math.hypot(here.x - shaft.x, here.z - shaft.z) <= 48 ? shaft : null
+}
+
 async function establishBase(c) {
     const bot = c.bot
-    const anchor = c.memory.shaft?.dimension === bot.game.dimension ? c.memory.shaft.cells[0] : c.home
+    const anchor = baseSite(c)
     if (anchor && bot.entity.position.distanceTo(new Vec3(anchor.x + 0.5, anchor.y, anchor.z + 0.5)) > 4) {
         await c.gotoWithTimeout(new goals.GoalNear(anchor.x, anchor.y, anchor.z, 2), 30000, 'base site')
     }

@@ -107,3 +107,11 @@ test('a shaft step walked down by a drop gets its headroom carved once instead o
     assert.ok(attempts >= 1)
     assert.ok(c.memory.shaft)
 })
+
+test('a far-away deeper shaft is replaced by a shallower one where the bot now works', () => {
+    const c = shaftWorld(new Vec3(-260.5, 50, 0.5))
+    c.memory.mineRoute = Array.from({ length: 20 }, (_, i) => ({ x: -280 + i, y: 70 - i, z: 0 }))
+    c.bot.entity.position = new Vec3(-260.5, 50, 0.5)
+    rememberShaft(c)
+    assert.equal(c.memory.shaft.cells[0].x, -280)
+})

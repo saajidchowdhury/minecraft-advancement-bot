@@ -302,7 +302,9 @@ function rememberShaft(c) {
     }
     const cells = route.slice(entrance).map(p => ({ x: p.x, y: p.y, z: p.z }))
     const old = c.memory.shaft
-    if (old?.dimension === bot.game.dimension && old.cells.at(-1).y < cells.at(-1).y) {
+    // Keep a deeper shaft, unless it is too far away (beyond followShaft's 128 blocks) to be used here.
+    const oldUsable = old && Math.hypot(old.cells[0].x - cells[0].x, old.cells[0].z - cells[0].z) <= 128
+    if (old?.dimension === bot.game.dimension && oldUsable && old.cells.at(-1).y < cells.at(-1).y) {
         return
     }
     c.memory.shaft = { dimension: bot.game.dimension, cells }
