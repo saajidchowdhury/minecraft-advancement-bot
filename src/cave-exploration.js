@@ -44,7 +44,7 @@ function safeFooting(bot, p) {
 }
 
 function caveRoof(bot, p) {
-    for (let y = 2; y <= 12; y++) {
+    for (let y = 2; y <= 64; y++) {
         const block = bot.blockAt(p.offset(0, y, 0), false)
         if (!block) {
             return false

@@ -204,3 +204,10 @@ test('unconfirmed lighting stops the survey before moving into darkness', async 
     assert.equal(moves.length, 0)
     assert.equal(c.activeMovements, original)
 })
+
+test('large caverns with high ceilings still receive a survey', () => {
+    const { c } = caveWorld()
+    c.bot.blockAt = p => ({ name: p.y < 64 || p.y >= 110 ? 'stone' : 'air', position: p,
+        boundingBox: p.y < 64 || p.y >= 110 ? 'block' : 'empty' })
+    assert.ok(findCaveRoute(c.bot, new Map(), -54).length > 0)
+})

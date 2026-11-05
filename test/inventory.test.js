@@ -33,9 +33,12 @@ test('real inventory cleanup retreats beyond pickup range after tossing surplus'
         running: true, paused: false, actionAbort: new AbortController(), memory: {}, movements: original,
         log: { info() {} },
         bot: {
-            health: 20, registry: require('minecraft-data')('26.1'), entity: { position: origin.clone() },
+            health: 20, game: { dimension: 'overworld' }, registry: require('minecraft-data')('26.1'), entity: { position: origin.clone() },
             inventory: { items: () => inventory },
-            blockAt(p) { return { name: p.y < 64 ? 'stone' : 'air', position: p, boundingBox: p.y < 64 ? 'block' : 'empty' } },
+            blockAt(p) {
+                const solid = p.y < 64 || p.y >= 67 || p.x > 0 || p.z !== 0
+                return { name: solid ? 'stone' : 'air', position: p, boundingBox: solid ? 'block' : 'empty' }
+            },
             async tossStack(item) { inventory.splice(inventory.indexOf(item), 1) },
             lookAt: async () => {},
             pathfinder: { setGoal() {}, setMovements(m) { c.activeMovements = m } }
@@ -49,6 +52,12 @@ test('real inventory cleanup retreats beyond pickup range after tossing surplus'
     assert.ok(c.bot.entity.position.distanceTo(origin) >= 3)
     assert.equal(inventory.length, 2)
     assert.equal(c.activeMovements, original)
+    const firstDrop = origin.clone()
+    const afterFirst = c.bot.entity.position.clone()
+    inventory.push({ ...full })
+    await performProgression(c, 'clear_inventory', {})
+    assert.ok(c.bot.entity.position.distanceTo(afterFirst) >= 3)
+    assert.ok(c.bot.entity.position.distanceTo(firstDrop) >= 4)
 })
 
 test('cleanup refuses to toss in an enclosed cell with no safe retreat', async () => {
@@ -56,7 +65,9 @@ test('cleanup refuses to toss in an enclosed cell with no safe retreat', async (
     const { performProgression } = require('../src/progression-skills')
     let tossed = false
     const c = {
+        memory: {},
         bot: {
+            game: { dimension: 'overworld' },
             entity: { position: new Vec3(0.5, 64, 0.5) },
             inventory: { items: () => Array.from({ length: 3 }, () => ({ name: 'cobblestone', count: 64 })) },
             blockAt: () => ({ name: 'stone', boundingBox: 'block' }),

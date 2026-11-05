@@ -134,8 +134,11 @@ food/protection/threat gates, visit cooldowns, a shared 24-step/two-minute budge
 return waypoints and capped opportunistic ore reserves. The original primary
 ore target retains priority. Surface deep mining prepares carried food first.
 
-Next: live-test disposal retreat (F014), food provisioning, opportunity pickup,
-then a naturally encountered large cave survey and return. Record movement,
+Live progress: `ac9e912` reduced rubble and resumed mining, and gathered three
+raw iron opportunistically while pursuing Diamonds! Some disposal routes still
+revisited trash, prompting a separately tested endpoint-exclusion refinement.
+Next: retry refined disposal, food provisioning, then a naturally encountered
+large cave survey and return. Record movement,
 lighting, ore/inventory changes and resource costs separately from server
 advancement evidence. Refine the supplies policy if it prevents useful surveys.
 After that, select one small cave branch (berry harvesting or safe axolotl

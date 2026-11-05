@@ -648,12 +648,15 @@ async function clearInventory(c) {
     }
     const signal = c.actionAbort?.signal
     const start = bot.entity.position.floored()
+    const previousDrop = c.memory.lastDisposal
+    const recentDrop = previousDrop && previousDrop.dimension === bot.game.dimension && Date.now() - previousDrop.at < 120000
     const queue = [{ p: start, path: [] }]
     const seen = new Set([start.toString()])
     let retreat = null
     for (let i = 0; i < queue.length && i < 64 && !retreat; i++) {
         const node = queue[i]
-        if (Math.hypot(node.p.x - start.x, node.p.z - start.z) >= 3) {
+        if (Math.hypot(node.p.x - start.x, node.p.z - start.z) >= 3 &&
+            (!recentDrop || Math.hypot(node.p.x - previousDrop.x, node.p.z - previousDrop.z) >= 4)) {
             retreat = node.path
             break
         }
@@ -684,6 +687,7 @@ async function clearInventory(c) {
     }
     c.log.info(`Freeing inventory space: dropping ${item.count} surplus ${item.name}; retreating ${retreat.length} steps.`)
     await bot.tossStack(item)
+    c.memory.lastDisposal = { x: start.x, z: start.z, dimension: bot.game.dimension, at: Date.now() }
     check(c)
     bot.pathfinder.setMovements(dryMovements(bot))
     try {

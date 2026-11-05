@@ -206,7 +206,11 @@ starts with four empty slots remaining to leave room for supplies and drops.
 These are initial policies, not measured optimum quotas or proof of safe return.
 `cave-opportunities.md` records official-source research and separates implemented
 ore reserves from later berry, axolotl, geode, container and enchanting skills.
-A large cave survey and return still need live evidence.
+A large cave survey and return still need live evidence. Revision `ac9e912`,
+run `outputs/2026-11-05@01.04.11/`, gathered three raw iron through Opportunity
+actions at 06:04:41–06:05:17Z while targeting Diamonds!, verifying that first
+slice live. A 46-block-high synthetic cavern exposed an overly short roof check;
+the follow-up scans up to 64 blocks overhead.
 
 ## F014 — Rubble disposal can immediately undo itself [live failure + regression]
 
@@ -222,4 +226,8 @@ throwing in the opposite direction. It walks at most four checked adjacent steps
 with digging/bridging disabled and restores normal movement afterward. No safe
 retreat means no toss. Later revisiting the disposal area can still pick up
 rubble; this patch addresses the immediate stationary loop, not permanent storage.
-A live retry is required; no claims about permanent inventory economics yet.
+Revision `ac9e912` reduced 920 cobblestone to 664 and resumed mining, but later
+retreats sometimes returned toward recent drops. A follow-up corridor regression
+covers two successive disposals; retreat endpoints now stay four horizontal
+blocks from the preceding same-dimension drop for two minutes. This refinement
+still needs live validation; no claims about permanent inventory economics yet.

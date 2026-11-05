@@ -22,7 +22,7 @@ Logs and snapshots are local in outputs/. The run beginning 23:33:29 captured ir
 
 ## Automated checks
 
-`npm run check` and `npm test` pass; the current baseline has 93 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
+`npm run check` and `npm test` pass; the current baseline has 94 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
 
 The inherited Mineflayer patch was applied successfully to reconstructed pristine 4.39.0 craft/inventory sources. Dependency versions are locked. No gameplay result is inferred solely from a passing unit test.
 
@@ -73,7 +73,7 @@ building reserves, retreating beyond pickup range with digging disabled, and
 refusing a toss with no safe retreat. The caller-level regression failed before
 the retreat patch; the stack-selection regression failed before its patch.
 
-Fourteen cave tests cover connected supported routes, roofed-chamber detection,
+Fifteen cave tests cover connected supported routes, roofed-chamber detection,
 natural descent, hazards/unloaded blocks, expiring dimension-scoped visits,
 lighting confirmation, return anchors, cancellation, failed-route quarantine,
 new threats, reserve caps/tool tier/slot headroom and the real diamond-action
@@ -84,3 +84,18 @@ Comment ratios in changed code: cave-exploration.js and the changed tests 0%;
 inventory.js 0%; progression-skills.js below 0.2%; survival-bot.js below 1.4%;
 decision-engine.js 4/79 (5.06%). All are under the 10% ceiling. Agent instruction
 files remain byte-for-byte identical.
+
+
+The follow-up fixture also covers a cavern with a ceiling 46 blocks above the
+floor. The original twelve-block roof check failed that case; the survey now
+checks up to 64 blocks overhead. A two-cleanup corridor regression reproduces
+retreat oscillation back toward the preceding disposal spot; recent same-dimension
+drop positions now exclude that retreat endpoint for two minutes.
+
+Live revision `ac9e912`, run `outputs/2026-11-05@01.04.11/`, reduced cobblestone
+from 920 to 664 in its first cleanup sequence and resumed mining. Some subsequent
+retreats revisited drops; it has not proved permanent trash disposal. At
+06:04:41–06:05:17Z, three Opportunity actions increased raw iron from zero to
+three while the main objective remained Diamonds! This is live evidence for
+parallel material gathering, not a new advancement. The tall-cavern and
+anti-oscillation refinements were edited separately while that revision ran.
