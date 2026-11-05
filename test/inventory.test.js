@@ -125,3 +125,24 @@ test('repeated disposal failures back off for a bounded time instead of pausing 
     assert.ok(c.memory.disposalBackoffUntil > Date.now() + 50000)
     assert.equal(c.memory.disposalFailures, 0)
 })
+
+test('a descending staircase throws surplus up the carved steps instead of retreating', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const inventory = [{ name: 'cobblestone', count: 64 }, { name: 'cobblestone', count: 64 }, { name: 'granite', count: 9 }]
+    const c = disposalContext(() => false, inventory, [{ x: 0, y: 65, z: 1 }])
+    // Stair carved upward along +z: step k has open feet/head cells at y=64+k and 65+k, plus jump room above the bot.
+    c.bot.blockAt = p => {
+        const k = p.z
+        const air = p.x === 0 && k >= 0 && k <= 6 && p.y >= 64 + k && p.y <= 65 + k + (k === 0 ? 1 : 0)
+        return { name: air ? 'air' : 'stone', position: p, boundingBox: air ? 'empty' : 'block' }
+    }
+    const origin = c.bot.entity.position.clone()
+    let moved = false
+    c.gotoWithTimeout = async () => { moved = true }
+    await performProgression(c, 'clear_inventory', {})
+    assert.equal(moved, false)
+    assert.deepEqual(c.bot.entity.position, origin)
+    assert.deepEqual(inventory.map(i => i.name), ['cobblestone'])
+    const look = c.looks[0].minus(origin)
+    assert.ok(look.z === 4 && Math.abs(look.y - 5.62) < 1e-9 && look.x === 0)
+})

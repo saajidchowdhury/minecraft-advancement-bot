@@ -638,19 +638,23 @@ async function returnSurface(c) {
 }
 
 // Four open feet/head cells carry a level throw about three blocks, beyond the
-// one-block pickup reach, so no movement is needed. Prefer throwing back along the route.
+// one-block pickup reach; a 45-degree throw up a carved stair lands about two steps up.
 function tossLane(c, start) {
     const bot = c.bot
     const back = (c.memory.mineRoute || []).findLast(p => p.x !== start.x || p.z !== start.z)
+    const empty = p => {
+        const block = bot.blockAt(p, false)
+        return block?.boundingBox === 'empty' && !['water', 'bubble_column'].includes(block.name)
+    }
     let best = null
     for (const [dx, dz] of DIRECTIONS) {
-        const open = [1, 2, 3, 4].every(k => [0, 1].every(dy => {
-            const block = bot.blockAt(start.offset(dx * k, dy, dz * k), false)
-            return block?.boundingBox === 'empty' && !['water', 'bubble_column'].includes(block.name)
-        }))
-        const score = back ? dx * (back.x - start.x) + dz * (back.z - start.z) : 0
-        if (open && (!best || score > best.score)) {
-            best = { dx, dz, score }
+        for (const rise of [0, 1]) {
+            const open = (!rise || empty(start.offset(0, 2, 0))) && [1, 2, 3, 4 - rise].every(k =>
+                [0, 1].every(dy => empty(start.offset(dx * k, rise * k + dy, dz * k))))
+            const score = (back ? 2 * (dx * (back.x - start.x) + dz * (back.z - start.z)) : 0) - rise
+            if (open && (!best || score > best.score)) {
+                best = { dx, dz, rise, score }
+            }
         }
     }
     return best
@@ -694,9 +698,9 @@ async function clearInventory(c) {
     const summary = surplus.map(item => `${item.count} ${item.name}`).join(', ')
     const lane = tossLane(c, start)
     if (lane) {
-        c.log.info(`Freeing inventory space: throwing ${summary} along an open lane; no retreat needed.`)
-        await tossAll(c, surplus, bot.entity.position.offset(4 * lane.dx, 1.62, 4 * lane.dz), signal)
-        c.memory.lastDisposal = { x: start.x + 3 * lane.dx, z: start.z + 3 * lane.dz, dimension: bot.game.dimension, at: Date.now() }
+        c.log.info(`Freeing inventory space: throwing ${summary} along an open ${lane.rise ? 'stair' : 'level'} lane; no retreat needed.`)
+        await tossAll(c, surplus, bot.entity.position.offset(4 * lane.dx, 1.62 + 4 * lane.rise, 4 * lane.dz), signal)
+        c.memory.lastDisposal = { x: start.x + (3 - lane.rise) * lane.dx, z: start.z + (3 - lane.rise) * lane.dz, dimension: bot.game.dimension, at: Date.now() }
         c.memory.disposalFailures = 0
         return
     }
