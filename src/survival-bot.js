@@ -7,7 +7,7 @@ const { createRng } = require('./random')
 const { Actions, chooseAction } = require('./decision-engine')
 const { RECIPES, nextAdvancement } = require('./advancement-plan')
 const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
-const { updateNightState, retreatForNight } = require('./night-policy')
+const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
 const { prepareBed, huntAtNight, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
 const { exploreCave, collectOpportunity, findPriorityDiamond } = require('./cave-exploration')
@@ -1285,7 +1285,8 @@ class SurvivalController {
                 if (reason) {
                     throw new Error(reason)
                 }
-                if (!hunt && this.bot.health <= 8) {
+                // Twelve or more armor points make a lone melee duel safer than running (F030).
+                if (!hunt && this.bot.health <= (wornArmorPoints(this.bot) >= 12 ? 4 : 8)) {
                     throw new Error('combat health too low; replanning escape')
                 }
                 const distance = this.bot.entity.position.distanceTo(entity.position)

@@ -173,3 +173,18 @@ test('hostiles hidden behind a sealed pocket do not force the bot back out', () 
     assert.equal(chooseAction(state({ health: 1.3, food: 20, hostileCount: 6, visibleHostiles: 0, hostileDistance: 13 })), 'wait')
     assert.equal(chooseAction(state({ health: 18, hostileCount: 6, visibleHostiles: 4, hostileDistance: 3 })), Actions.ESCAPE)
 })
+
+test('an adjacent attacker is fought before eating when the bot is healthy and armed', () => {
+    const near = { hostileDistance: 1.4, hasWeapon: true, health: 15.4, food: 16, hasFood: true }
+    assert.equal(chooseAction(state(near)), Actions.FIGHT)
+    assert.equal(chooseAction(state({ ...near, health: 9 })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ ...near, hostileDistance: 8 })), Actions.EAT)
+})
+
+test('a fully armored, armed bot keeps fighting a lone melee attacker instead of fleeing at low health', () => {
+    const duel = { hostileDistance: 0.5, hasWeapon: true, armorPoints: 15, visibleHostiles: 1, health: 9.9, food: 16, hasFood: true }
+    assert.equal(chooseAction(state(duel)), Actions.FIGHT)
+    assert.equal(chooseAction(state({ ...duel, health: 4 })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ ...duel, armorPoints: 5 })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ ...duel, visibleHostiles: 3 })), Actions.ESCAPE)
+})

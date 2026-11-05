@@ -34,6 +34,11 @@ function chooseAction (state) {
     if (!(state.creeperDistance <= 6) && state.rangedDistance <= 3.5 && state.hasWeapon && state.health > 4 && !((state.visibleHostiles ?? state.hostileCount ?? 0) > 1)) {
         return Actions.FIGHT
     }
+    // An armored, armed bot wins a lone melee duel; running lets the attacker keep hitting (F030).
+    if (!(state.creeperDistance <= 6) && state.hostileDistance <= 3.5 && state.hasWeapon && (state.armorPoints || 0) >= 12 &&
+        (state.visibleHostiles ?? 1) <= 1 && !(state.rangedDistance <= 16 && state.rangedDistance > 3.5) && state.health > 4) {
+        return Actions.FIGHT
+    }
     if (state.creeperDistance <= 6 || (state.hostileDistance <= 5 && state.health <= 10) || (state.hostileDistance <= 3.5 && !state.hasWeapon) ||
         (state.rangedDistance <= 16 && state.health <= 10) || (state.visibleHostiles ?? state.hostileCount) >= 3 ||
         (state.isNight && !state.underground && !state.sheltered &&
@@ -42,6 +47,10 @@ function chooseAction (state) {
     }
     if (state.sleeping) {
         return state.sleepPartnerReady === false ? 'wake' : 'wait'
+    }
+    // Eating takes 1.6 s; with an attacker at arm's length, fight first while healthy.
+    if (state.hostileDistance <= 3.5 && state.hasWeapon && state.health > 10 && !(state.creeperDistance <= 6)) {
+        return Actions.FIGHT
     }
     if (state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood) {
         return Actions.EAT

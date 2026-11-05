@@ -4,6 +4,11 @@ const WEAPONS = ['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword'
 const ARMOR = { leather: [1, 3, 2, 1], golden: [2, 5, 3, 1], chainmail: [2, 5, 4, 1],
     iron: [2, 6, 5, 2], diamond: [3, 8, 6, 3], netherite: [3, 8, 6, 3] }
 
+// Worn armor points from player slots 5-8 (head, torso, legs, feet); full iron = 15.
+function wornArmorPoints(bot) {
+    return [5, 6, 7, 8].reduce((sum, slot, i) => sum + (ARMOR[bot.inventory.slots[slot]?.name.split('_')[0]]?.[i] || 0), 0)
+}
+
 function nightReady(state) {
     return state.health >= 18 && state.food >= 18 && state.foodUnits >= 8 &&
         state.armorEquipped && state.shieldEquipped && state.hasNightWeapon &&
@@ -31,8 +36,7 @@ function updateNightState(c, state) {
     state.sleeping = Boolean(bot.isSleeping)
     state.sleepPartnerReady = sleepPartnerReady(c)
     state.hasNightWeapon = Boolean(c.bestItem(WEAPONS))
-    state.armorPoints = [5, 6, 7, 8].reduce((sum, slot, i) =>
-        sum + (ARMOR[bot.inventory.slots[slot]?.name.split('_')[0]]?.[i] || 0), 0)
+    state.armorPoints = wornArmorPoints(bot)
     const threats = Object.values(bot.entities).filter(e => e.isValid && c.hostileNames.has(e.name))
         .map(entity => ({ entity, distance: bot.entity.position.distanceTo(entity.position) }))
         .filter(entry => entry.distance <= 24)
@@ -90,4 +94,4 @@ function retreatForNight(c, reason) {
     }
 }
 
-module.exports = { WEAPONS, nightReady, updateNightState, retreatForNight, sleepPartnerReady }
+module.exports = { WEAPONS, wornArmorPoints, nightReady, updateNightState, retreatForNight, sleepPartnerReady }
