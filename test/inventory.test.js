@@ -77,3 +77,28 @@ test('cleanup refuses to toss in an enclosed cell with no safe retreat', async (
     await assert.rejects(performProgression(c, 'clear_inventory', {}), /no supported disposal retreat/)
     assert.equal(tossed, false)
 })
+
+test('repeated disposal navigation failures cannot cause an unlimited toss/pickup loop', async () => {
+    const { Vec3 } = require('vec3')
+    const { performProgression } = require('../src/progression-skills')
+    let tosses = 0
+    const c = {
+        memory: {}, running: true, paused: false, actionAbort: new AbortController(), movements: {}, log: { info() {} },
+        bot: {
+            health: 20, game: { dimension: 'overworld' }, registry: require('minecraft-data')('26.1'),
+            entity: { position: new Vec3(0.5, 64, 0.5) },
+            inventory: { items: () => Array.from({ length: 3 }, () => ({ name: 'cobblestone', count: 64 })) },
+            blockAt(p) { return { name: p.y < 64 ? 'stone' : 'air', position: p, boundingBox: p.y < 64 ? 'block' : 'empty' } },
+            tossStack: async () => { tosses++ }, lookAt: async () => {}, chat() {},
+            pathfinder: { setGoal() {}, setMovements() {} }
+        },
+        async gotoWithTimeout() { throw new Error('simulated repeated physics stall') }
+    }
+    for (let i = 0; i < 3; i++) {
+        await assert.rejects(performProgression(c, 'clear_inventory', {}), /physics stall/)
+    }
+    await performProgression(c, 'clear_inventory', {})
+    assert.equal(c.paused, true)
+    assert.equal(c.memory.paused, true)
+    assert.equal(tosses, 3)
+})

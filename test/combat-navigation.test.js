@@ -10,7 +10,8 @@ test('pursuit keeps one dynamic goal while an animal remains out of attack range
     let pursuitGoals = 0
     const target = { isValid: true, position: new Vec3(5, 0, 0) }
     const c = {
-        bestItem: () => null,
+        running: true, paused: false, actionAbort: new AbortController(),
+        checkAction: SurvivalController.prototype.checkAction, bestItem: () => null,
         bot: { health: 20, entity: { position: new Vec3(0, 0, 0) },
             pathfinder: { setGoal(goal) { if (goal) { pursuitGoals++ } } } }
     }

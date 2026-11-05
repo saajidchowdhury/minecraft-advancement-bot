@@ -646,6 +646,12 @@ async function clearInventory(c) {
         bot.chat('Inventory full of useful items. Please make room, then use !resume.')
         return
     }
+    if ((c.memory.disposalFailures || 0) >= 3) {
+        c.paused = true
+        c.memory.paused = true
+        bot.chat('Disposal retreat failed three times; paused to prevent a drop/pickup loop. Use !come or !resume after checking the route.')
+        return
+    }
     const signal = c.actionAbort?.signal
     const start = bot.entity.position.floored()
     const previousDrop = c.memory.lastDisposal
@@ -666,7 +672,7 @@ async function clearInventory(c) {
         for (const [dx, dz] of DIRECTIONS) {
             for (const dy of [0, 1, -1]) {
                 const p = node.p.offset(dx, dy, dz)
-                if (seen.has(p.toString()) || !safeFooting(bot, p) ||
+                if (seen.has(p.toString()) || c.isBlockedTarget?.({ position: p }) || !safeFooting(bot, p) ||
                     (dy !== 0 && !['air', 'cave_air', 'void_air'].includes(bot.blockAt((dy > 0 ? node.p : p).offset(0, 2, 0))?.name))) {
                     continue
                 }
@@ -677,6 +683,7 @@ async function clearInventory(c) {
         }
     }
     if (!retreat) {
+        c.memory.disposalFailures = (c.memory.disposalFailures || 0) + 1
         throw new Error('no supported disposal retreat; refusing a stationary drop/pickup loop')
     }
     const away = start.minus(retreat.at(-1))
@@ -699,8 +706,22 @@ async function clearInventory(c) {
             const feet = bot.entity.position.floored()
             c.memory.mineRoute ??= []
             c.memory.mineRoute.push({ x: feet.x, y: feet.y, z: feet.z })
-            await c.gotoWithTimeout(new goals.GoalBlock(p.x, p.y, p.z), 3000, 'disposal retreat')
+            try {
+                if (p.y > feet.y) {
+                    await climbStep(c, p)
+                } else {
+                    await c.gotoWithTimeout(new goals.GoalBlock(p.x, p.y, p.z), 4000, 'disposal retreat')
+                }
+            } catch (error) {
+                c.log.warn?.(`Disposal step failed: from=${feet}, target=${p}, actual=${bot.entity.position}; ${error.message}`)
+                c.rememberBlockedTarget?.({ position: p }, 'disposal retreat', error)
+                throw error
+            }
         }
+        c.memory.disposalFailures = 0
+    } catch (error) {
+        c.memory.disposalFailures = (c.memory.disposalFailures || 0) + 1
+        throw error
     } finally {
         bot.pathfinder.setGoal(null)
         bot.pathfinder.setMovements(c.movements)

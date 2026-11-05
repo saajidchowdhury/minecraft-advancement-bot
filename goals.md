@@ -146,6 +146,24 @@ After that, select one small cave branch (berry harvesting or safe axolotl
 capture) with real server confirmation. Do not expand into ancient-city/trial
 combat before dependable survival and return behavior.
 
+## G011 — High / implemented, live validation pending — Productive nights and sleep
+
+Keep healthy underground work moving. Test readiness-based surface work and
+isolated useful mob hunts, with limited attempts/distance, real drop pickup and
+cancellation. Confirm that crowds, sudden damage or low supplies trigger escape
+and rest for the remainder of that night rather than repeated engagement.
+
+Validate opportunistic bed crafting, oriented two-block placement, safe entry,
+actual server sleep and multiplayer wake-up behavior. Require a server packet
+for Sweet Dreams or Not Today, Thank You. Never activate a bed outside the
+Overworld. Validate persistent shelter recovery and a checked daylight doorway.
+Mob-drop dependencies and exact initial thresholds are in night-opportunities.md.
+
+Next live priority is G002/F015 so the bot can move productively; then validate
+night decisions when a natural surface trip occurs. Existing wooden-sword/chestplate
+and low food reserves are not hunting readiness; record why the policy rests or
+continues rather than manufacturing gear or spawns for a demonstration.
+
 ## Completed groundwork
 
 - Preserved the visible LAN player, original reference folder and private GitHub repo.
@@ -166,9 +184,6 @@ all gameplay goals are complete. Preserve local evidence without committing
 credentials, profiles, world state or logs.
 
 
-Current live-test handoff: code `50f4151`, PID 10165, LAN port 50330,
-`outputs/2026-11-05@01.06.47/`. Connected at Y=0 with health 20 and food 19 at
-06:07:18Z, pursuing Diamonds! Source hashes match; verify current process/status
-before any control action. Cave survey/return, food provisioning and refined
-non-oscillating disposal are the next live checks. Opportunistic iron pickup has
-live evidence on `ac9e912`; the supported route still awaits diamonds/obsidian.
+The 01:06:47 run was stopped at 06:17:30Z for persistent disposal movement failures.
+See F015: bounded retries and stair fallback need a live retry; the trigger is
+still uncertain. Do not assume the prior disposal follow-up solved the problem.

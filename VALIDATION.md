@@ -22,7 +22,7 @@ Logs and snapshots are local in outputs/. The run beginning 23:33:29 captured ir
 
 ## Automated checks
 
-`npm run check` and `npm test` pass; the current baseline has 94 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
+`npm run check` and `npm test` pass; the current baseline has 116 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
 
 The inherited Mineflayer patch was applied successfully to reconstructed pristine 4.39.0 craft/inventory sources. Dependency versions are locked. No gameplay result is inferred solely from a passing unit test.
 
@@ -107,3 +107,30 @@ at Y=0 with health 20, food 19 and ten restored advancements. `ac9e912` was
 stopped cleanly first. New code has 94 passing tests and syntax checks; large-cave
 survey/return, surface food reserves and the final disposal-route refinement
 remain awaiting suitable live evidence. Bot remains running for those tests.
+
+
+## Productive-night follow-up
+
+The previous active handoff is now historical: `50f4151` was stopped at
+06:17:30.511Z after repeated disposal movement timeouts at Y=-44. A fresh live
+non-digging approach reached the first stair; replay of the captured local
+terrain also found a valid path. The long-run physics/timing trigger remains
+unresolved. New containment tests ensure no more than three failed toss/retreat
+attempts before pausing; upward steps reuse the checked stair fallback.
+
+The full suite now passes 116 tests plus syntax checks. Eleven new policy tests
+cover productive underground/surface night work, readiness, useful isolated
+mobs, armor thresholds, limits, crowds, low health/hunger, beds and dimension/day
+scope. Ten skill/event tests cover oriented two-half bed placement, Overworld-only
+activation, server sleep state, cancellation, new threats, crafting, sudden damage,
+shield release and checked shelter exit. Existing combat/shelter mocks now include
+the controller liveness and world fields used by the real caller.
+
+These are automated checks. No new night hunt, shield block, Sweet Dreams,
+multiplayer sleep skip or full emergency retreat/night/exit is yet live-confirmed.
+No new advancement is inferred from a policy choice or an inventory change.
+
+Changed code comment ratios: new night modules/tests 0%; decision-engine.js
+4/98 (4.08%); survival-bot.js 23/1844 (1.25%); progression-skills.js 1/757
+(0.13%); index.js 2/166 (1.20%); other changed tests 0%. All are below 10%.
+AGENTS.md and CLAUDE.md were updated together and compare byte-for-byte equal.

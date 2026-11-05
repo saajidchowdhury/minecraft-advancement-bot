@@ -16,6 +16,7 @@ const EARLY_ADVANCEMENTS = Object.freeze([
 const RECIPES = Object.freeze({
     crafting_table: { planks: 4 }, wooden_pickaxe: { planks: 3, sticks: 2 },
     wooden_sword: { planks: 2, sticks: 1 }, stone_pickaxe: { cobblestone: 3, sticks: 2 },
+    stone_sword: { cobblestone: 2, sticks: 1 },
     furnace: { cobblestone: 8 }, iron_pickaxe: { ironIngots: 3, sticks: 2 },
     iron_chestplate: { ironIngots: 8 }, shield: { ironIngots: 1, planks: 6 },
     bucket: { ironIngots: 3 }, diamond_pickaxe: { diamonds: 3, sticks: 2 },

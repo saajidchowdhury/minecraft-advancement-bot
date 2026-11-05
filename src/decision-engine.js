@@ -30,14 +30,22 @@ const Actions = Object.freeze({
   * without connecting to Minecraft.
   */
 function chooseAction (state) {
-    if (state.hostileDistance <= 5 && state.health <= 10) {
+    if ((state.hostileDistance <= 5 && state.health <= 10) ||
+        (state.isNight && !state.underground && !state.sheltered &&
+            (state.overwhelmed || (state.retreatForNight && state.hostileDistance <= 6)))) {
         return Actions.ESCAPE
+    }
+    if (state.sleeping) {
+        return 'wait'
     }
     if (state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood) {
         return Actions.EAT
     }
     if (state.isNight && state.sheltered && !state.underground) {
         return 'wait'
+    }
+    if (state.needsShelterExit) {
+        return 'leave_shelter'
     }
     if (state.shaftTrapped) {
         return Actions.ASCEND
@@ -52,7 +60,15 @@ function chooseAction (state) {
         return Actions.RECOVER
     }
     if (state.isNight && !state.underground) {
-        return state.sheltered ? 'wait' : Actions.SHELTER
+        if (!state.nightCombatReady) {
+            if (state.canPrepareNightWeapon) {
+                return 'prepare_night_weapon'
+            }
+            return state.canSleep ? 'sleep' : Actions.SHELTER
+        }
+        if (state.nightTarget && !state.inventoryFull) {
+            return 'hunt_night'
+        }
     }
     if (state.health <= 10 && !state.hasFood) {
         return state.underground ? 'return_surface' : Actions.FOOD
@@ -65,6 +81,9 @@ function chooseAction (state) {
     }
     if (state.inventoryFull) {
         return 'clear_inventory'
+    }
+    if (!state.underground && state.canCraftBed && !state.hasBed && state.hostileDistance > 12) {
+        return 'prepare_bed'
     }
     const action = state.sideGoal?.action || nextAdvancement(state).action
     if (!state.underground && ['gather_diamonds', 'gather_redstone', 'gather_obsidian'].includes(action) && state.foodUnits < 12) {

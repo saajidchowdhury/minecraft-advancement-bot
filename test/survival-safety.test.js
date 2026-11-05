@@ -10,10 +10,10 @@ const { Actions } = require('../src/decision-engine')
 function shelterWorld() {
     const blocks = new Map()
     const c = {
-        running: true, paused: false, sheltered: false, actionAbort: new AbortController(),
+        memory: {}, running: true, paused: false, sheltered: false, actionAbort: new AbortController(),
         log: { info() {}, warn() {} }, countItems: () => 64, findNearestBlock: () => null,
         bot: {
-            health: 20, entity: { position: new Vec3(0.5, 64, 0.5) },
+            health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) },
             blockAt(p) {
                 const name = blocks.get(p.toString()) || (p.y < 64 ? 'stone' : 'air')
                 return { name, position: p, boundingBox: name === 'air' ? 'empty' : 'block',

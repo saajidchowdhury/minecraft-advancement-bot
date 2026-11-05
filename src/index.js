@@ -109,6 +109,10 @@ function connect () {
                 updatedAt: new Date().toISOString(), wallSeconds: (Date.now() - startedAt) / 1000,
                 action, goal, position, dimension: state.dimension, health: state.health, food: state.food,
                 inventory: bot.inventory.items().map(item => ({ name: item.name, count: item.count })),
+                equipment: Object.fromEntries(['head', 'torso', 'legs', 'feet', 'offhand'].map((name, i) =>
+                    [name, bot.inventory.slots[[5, 6, 7, 8, 45][i]]?.name || null])),
+                night: { timeOfDay: bot.time.timeOfDay, underground: state.underground,
+                    ready: state.nightCombatReady, hostiles: state.hostileCount, retreat: state.retreatForNight },
                 confirmedAdvancements: controller.advancements.summary()
             }, null, 4))
         }

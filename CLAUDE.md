@@ -13,7 +13,11 @@ other discoveries may help progression. Research relevant cave opportunities for
 the actual game version. Gather useful supplies for later advancements during
 current work when the detour is worthwhile; the planner need not pursue only one
 advancement at a time. Survival, supply reserves and a usable return route take
-priority over optional exploration. Exhaustive challenges such
+priority over optional exploration. Nightfall alone should not stop safe underground
+work. On the surface, use gear, health, food, nearby threats and useful drops to
+choose bounded hunting or productive work versus sleep or shelter. Withdraw when
+overwhelmed or badly hurt; beds are an Overworld-only option. Research mob drops
+and their advancement dependencies before expanding hunting goals. Exhaustive challenges such
 as visiting every biome are outside the intended scope. Occasionally building
 interesting, functional redstone contraptions is an optional, lower priority.
 

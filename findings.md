@@ -6,13 +6,16 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Active live run: `outputs/2026-11-05@01.06.47/`, startup code `50f4151f5453`,
-PID 10165, port 50330. At 2026-11-05T06:07:18.050Z it was connected, at Y=0,
-health 20, food 19, pursuing Diamonds! with ten historical server-confirmed
-advancements. Startup source hashes match all current source files. Check PID,
-connection and newest artifacts before taking control. This run has the tall-cave
-and recent-disposal avoidance refinements; they still need a suitable live trial.
-The prior `ac9e912` run ended cleanly at 06:06:37.369Z before this one started.
+The 01:06:47 live run used `50f4151f5453`, PID 10165, port 50330 and
+`outputs/2026-11-05@01.06.47/`. It reached Y=-44 with health 20 and hunger 17–18,
+then repeated disposal movement timeouts more than fifty times. It was stopped
+at 06:17:30.511Z after identity/cwd/TCP checks. The earlier report that source
+hashes matched was correct; it did not establish that disposal was reliable.
+
+New night decisions, bounded mob hunts, shield intervals, bed crafting/placement/
+sleep, persistent shelters and checked exits are implemented and regression-tested.
+Live validation of those behaviors remains pending. Two short diagnostic reconnects
+captured terrain and tested one non-digging stair; both quit afterward.
 
 The private repo is `saajidchowdhury/minecraft-advancement-bot`. The 00:33:48
 run on port 50330 used code `932b1ed4b671`, PID 8097, artifacts
@@ -240,3 +243,39 @@ retreats sometimes returned toward recent drops. A follow-up corridor regression
 covers two successive disposals; retreat endpoints now stay four horizontal
 blocks from the preceding same-dimension drop for two minutes. This refinement
 still needs live validation; no claims about permanent inventory economics yet.
+
+## F015 — Disposal retreat still stalled in the long run [live + uncertainty]
+
+The `50f4151` run reached diamond-region depth but then retried the same stationary
+disposal failure over fifty times. A local loaded-terrain capture replay found a
+valid path, and a fresh three-second live approach reached the first upward step.
+This does not identify why the long-running controller stalled: physics alignment,
+timing or retained movement state remain plausible. Dropped item entities are
+passable in the pinned pathfinder, so collision with the item itself is unsupported.
+
+Upward disposal steps now use the existing checked stair-jump fallback; failures
+log actual/target positions and quarantine their target. After three unsuccessful
+retreats, cleanup pauses rather than tossing indefinitely. `!resume` resets that
+failure budget. The focused repeated-stall regression verifies a three-toss maximum,
+not a successful live retreat. This is containment plus recovery reuse; the original
+physics trigger remains unresolved until a successful long live retry or sharper
+failure evidence is obtained. Captured terrain and diagnostic artifacts are ignored.
+
+## F016 — Night work now depends on readiness and useful opportunities [tests + research]
+
+Surface nightfall previously forced shelter regardless of equipment. Underground
+work already bypassed that rule. `night-policy.js` now selects short, local useful
+hunts for supplied and protected bots, or leaves their regular objective active.
+Crowds, dangerous mobs, low supplies/health and sudden surface-night damage can
+end hunting for that night. Bed sleep is an Overworld-only option with checked
+placement/orientation, both halves and server sleep state; other LAN players may
+also need to sleep. Checked shelter exits replace shaft-style wall escape, and
+intact shelter coordinates survive reconnects.
+
+`night-opportunities.md` records Mojang sources and exact 26.1.2 loot/advancement
+JSON inspected in the installed JAR. Spider string, skeleton bones/arrows and
+later pearl/brewing prerequisites offer useful parallel branches. Carrots and
+potatoes do NOT satisfy this version's A Seedy Place predicates. Ordinary loot
+collection, shield activation or a sleep request never substitutes for a server
+advancement packet. Hunt readiness/retreat, cancellation, beds and shelter exits
+have focused tests; night hunting, projectile blocking and sleep are not live-proven.

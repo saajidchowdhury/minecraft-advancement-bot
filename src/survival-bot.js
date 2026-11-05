@@ -7,6 +7,8 @@ const { createRng } = require('./random')
 const { Actions, chooseAction } = require('./decision-engine')
 const { RECIPES, nextAdvancement } = require('./advancement-plan')
 const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
+const { updateNightState, retreatForNight } = require('./night-policy')
+const { prepareBed, huntAtNight, sleepSafely, leaveShelter } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
 const { exploreCave, collectOpportunity } = require('./cave-exploration')
 const { performProgression, redstonePlan, mineTunnel, until, climbStep } = require('./progression-skills')
@@ -67,13 +69,15 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     smelt_charcoal: 45000, craft_progression: 45000, equip_armor: 10000, equip_shield: 10000,
     fill_water_bucket: 90000, fill_lava_bucket: 90000, gather_diamonds: 90000, gather_obsidian: 90000,
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
-    clear_inventory: 15000, build_redstone: 90000, return_surface: 60000, wait: 10000,
+    clear_inventory: 30000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000,
+    hunt_night: 45000, sleep: 30000, prepare_bed: 45000, prepare_night_weapon: 30000, leave_shelter: 20000,
     [Actions.EXPLORE]: 60000
 })
 const STATIONARY_ACTIONS = new Set([
     Actions.DESCEND,
     Actions.ASCEND,
+    'sleep', 'prepare_bed', 'prepare_night_weapon', 'leave_shelter',
     Actions.CRAFT_TABLE, Actions.CRAFT_WOODEN_PICKAXE, Actions.CRAFT_WOODEN_SWORD, Actions.CRAFT_STONE_PICKAXE,
     Actions.CRAFT_FURNACE, Actions.SMELT_IRON, Actions.CRAFT_IRON_PICKAXE,
     'clear_inventory', 'smelt_charcoal', 'craft_progression', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', Actions.SHELTER
@@ -134,6 +138,7 @@ function actionMadeProgress (action, before, after, moved) {
 class SurvivalController {
     constructor (bot, options = {}) {
         this.bot = bot
+        this.hostileNames = HOSTILES
         this.owner = options.owner || ''
         this.rng = createRng(options.seed ?? 1)
         this.probeSpacing = options.probeSpacing ?? 8
@@ -220,6 +225,13 @@ class SurvivalController {
                     .map(entity => `${entity.name}:${this.bot.entity.position.distanceTo(entity.position).toFixed(1)}`)
                 this.log.warn(`Damage: hp=${previousHealth.toFixed(2)}->${this.bot.health.toFixed(2)}, action=${action}, ` +
                     `sheltered=${this.sheltered}, nearby threats=${threats.join(',') || 'none'}, at ${this.positionText()}.`)
+                if (this.memory && this.bot.game?.dimension === 'overworld' && this.isNight?.() &&
+                    this.bot.entity.position.y >= (this.home?.y || 64) - 3 && previousHealth - this.bot.health >= 4) {
+                    retreatForNight(this, 'sudden damage')
+                    if (this.busy && ![Actions.ESCAPE, Actions.SHELTER].includes(action)) {
+                        this.cancelCurrentTask('night damage retreat')
+                    }
+                }
                 if (this.sheltered) {
                     this.sheltered = false
                     this.shelterCenter = null
@@ -272,12 +284,20 @@ class SurvivalController {
             this.memory.home = { x: spawn.x, y: spawn.y, z: spawn.z }
         }
         this.home = new Vec3(this.memory.home.x, this.memory.home.y, this.memory.home.z)
+        const savedShelter = this.memory.shelter
+        if (savedShelter?.dimension === this.bot.game.dimension) {
+            const center = new Vec3(savedShelter.x, savedShelter.y, savedShelter.z)
+            if (this.hasEnclosedShelter(center)) {
+                this.shelterCenter = center
+                this.sheltered = true
+            }
+        }
         const support = this.bot.blockAt(this.bot.entity.position.floored().offset(0, -1, 0))
         const trap = this.detectElevationTrap()
         const landing = this.findSafeLowerLanding()
         this.log.info(`Spawn mobility check: support=${support ? support.name : 'unknown'}, ` +
             `isolatedPillar=${Boolean(trap)}, lowerLanding=${landing ? `${landing.x},${landing.y},${landing.z} drop=${landing.drop}` : 'none'}.`)
-        if (trap || (landing && landing.drop >= 3 && landing.distance <= 2.5)) {
+        if (!this.sheltered && (trap || (landing && landing.drop >= 3 && landing.distance <= 2.5))) {
             this.log.info('Raised spawn platform detected; resolving it before starting survival goals.')
             await this.recoverMobility().catch(error => this.log.warn(`Initial mobility recovery failed: ${error.message}`))
         }
@@ -390,7 +410,7 @@ class SurvivalController {
                     this.log.warn(`Workspace relocation failed: ${relocationError.message}`)
                 }
             }
-            if (count >= 3 && !STATIONARY_ACTIONS.has(action)) {
+            if (count >= 3 && action !== 'hunt_night' && !STATIONARY_ACTIONS.has(action)) {
                 await this.scout(12).catch(() => {})
             }
         } finally {
@@ -402,16 +422,16 @@ class SurvivalController {
     }
 
     observe () {
-        if (!this.isNight()) {
+        if (!this.isNight() && !this.shelterCenter) {
             this.sheltered = false
-            this.shelterCenter = null
-        } else if (this.sheltered && !this.bot.isSleeping &&
+        }
+        if (this.sheltered && !this.bot.isSleeping &&
             (!this.shelterCenter || !this.hasEnclosedShelter(this.shelterCenter))) {
             this.sheltered = false
             this.shelterCenter = null
             this.log.warn('Shelter enclosure is no longer intact; replanning protection.')
         }
-        const hostile = this.nearestEntity(HOSTILES)
+        const hostile = this.nearestEntity(HOSTILES, 24)
         const lastDeath = this.memory.lastDeath
         const recoveryAge = lastDeath ? Date.now() - lastDeath.diedAt : Infinity
         const hasTableNow = this.hasItem('crafting_table') || Boolean(this.findStation('crafting_table', 4))
@@ -436,6 +456,7 @@ class SurvivalController {
             hasFood: Boolean(this.bestFood()),
             isNight: this.isNight(),
             sheltered: this.sheltered,
+            needsShelterExit: Boolean(this.shelterCenter && !this.isNight()),
             shaftTrapped: this.detectVerticalShaft(),
             elevationTrapped: Boolean(this.detectElevationTrap()),
             recoveryAvailable: Boolean(lastDeath && lastDeath.dimension === this.bot.game.dimension && recoveryAge < RECOVERY_WINDOW_MS && lastDeath.attempts < 3),
@@ -477,11 +498,16 @@ class SurvivalController {
         if (state.redstoneRequested && nextAdvancement(state).action === 'wait' && state.dimension === 'overworld') {
             state.sideGoal = redstonePlan(state)
         }
-        return state
+        return updateNightState(this, state)
     }
 
     async perform (action, state) {
         switch (action) {
+            case 'hunt_night': return huntAtNight(this, state)
+            case 'sleep': return sleepSafely(this, state)
+            case 'prepare_bed': return prepareBed(this, state.bedWool)
+            case 'prepare_night_weapon': return performProgression(this, 'craft_progression', { sideGoal: { item: 'stone_sword' } })
+            case 'leave_shelter': return leaveShelter(this)
             case Actions.ESCAPE: return this.escapeFrom(state.hostile)
             case Actions.DESCEND: return this.descendSafely()
             case Actions.ASCEND: return this.escapeVerticalShaft()
@@ -804,6 +830,7 @@ class SurvivalController {
 
             const previousY = this.bot.entity.position.y
             this.bot.clearControlStates()
+        this.bot.deactivateItem?.()
             this.log.info(`Safely descending from isolated ${trap.support.name} pillar at ${trap.support.position}.`)
             await this.bot.dig(trap.support, true)
             await waitUntil(() => this.bot.entity.position.y < previousY - 0.6, 4000, 100)
@@ -1142,49 +1169,82 @@ class SurvivalController {
         await this.bot.consume()
     }
 
-    async fight (entity, hunt = false) {
+    async fight (entity, hunt = false, guard = null) {
+        const signal = this.actionAbort?.signal
+        this.checkAction(signal)
         if (!entity || !entity.isValid) {
             throw new Error('target disappeared')
         }
         const weapon = this.bestItem(['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword', 'netherite_axe', 'diamond_axe', 'iron_axe', 'stone_axe', 'wooden_axe'])
         if (weapon) {
             await this.bot.equip(weapon, 'hand')
+            this.checkAction(signal)
         }
         const deadline = Date.now() + 20000
         let following = false
-        while (entity.isValid && Date.now() < deadline) {
-            if (!hunt && this.bot.health <= 8) {
-                return this.escapeFrom(entity)
-            }
-            const distance = this.bot.entity.position.distanceTo(entity.position)
-            if (distance > 3.1) {
-                if (!following) {
-                    this.bot.pathfinder.setGoal(new GoalFollow(entity, 2), true)
-                    following = true
+        try {
+            while (entity.isValid && Date.now() < deadline) {
+                this.checkAction(signal)
+                const reason = guard?.()
+                if (reason) {
+                    throw new Error(reason)
                 }
-                await sleep(300)
-            } else {
-                this.bot.pathfinder.setGoal(null)
-                following = false
-                await this.bot.lookAt(entity.position.offset(0, Math.min(entity.height || 1, 1.4), 0), true)
-                this.bot.attack(entity)
-                await sleep(650)
+                if (!hunt && this.bot.health <= 8) {
+                    throw new Error('combat health too low; replanning escape')
+                }
+                const distance = this.bot.entity.position.distanceTo(entity.position)
+                if (distance > 3.1) {
+                    if (!following) {
+                        this.bot.pathfinder.setGoal(new GoalFollow(entity, 2), true)
+                        following = true
+                    }
+                    await sleep(300)
+                } else {
+                    this.bot.pathfinder.setGoal(null)
+                    following = false
+                    await this.bot.lookAt(entity.position.offset(0, Math.min(entity.height || 1, 1.4), 0), true)
+                    this.checkAction(signal)
+                    if (this.bot.inventory?.slots[45]?.name === 'shield' && (!hunt || guard)) {
+                        this.bot.activateItem(true)
+                        await sleep(350)
+                        this.bot.deactivateItem()
+                        this.checkAction(signal)
+                        const changed = guard?.()
+                        if (changed) {
+                            throw new Error(changed)
+                        }
+                    }
+                    if (!entity.isValid) {
+                        break
+                    }
+                    this.bot.attack(entity)
+                    await sleep(650)
+                }
             }
-        }
-        this.bot.pathfinder.setGoal(null)
-        if (entity.isValid) {
+            this.checkAction(signal)
+            this.bot.pathfinder.setGoal(null)
+            if (entity.isValid) {
+                if (hunt) {
+                    this.rememberBlockedTarget(entity, 'prey', new Error('combat timed out'))
+                }
+                throw new Error('combat timed out')
+            }
+            await sleep(800)
+            this.checkAction(signal)
+            const reason = guard?.()
+            if (reason) {
+                throw new Error(reason)
+            }
             if (hunt) {
-                this.rememberBlockedTarget(entity, 'prey', new Error('combat timed out'))
+                const drops = Object.values(this.bot.entities || {}).filter(drop => drop.isValid && drop.name === 'item' &&
+                    drop.position.distanceTo(entity.position) <= 4)
+                if (drops.length > 0) {
+                    await this.collectTarget(drops, null, 'hunting drops')
+                }
             }
-            throw new Error('combat timed out')
-        }
-        await sleep(800)
-        if (hunt) {
-            const drops = Object.values(this.bot.entities || {}).filter(drop => drop.isValid && drop.name === 'item' &&
-                drop.position.distanceTo(entity.position) <= 4)
-            if (drops.length > 0) {
-                await this.collectTarget(drops, null, 'hunting drops')
-            }
+        } finally {
+            this.bot.pathfinder.setGoal(null)
+            this.bot.deactivateItem?.()
         }
     }
 
@@ -1236,19 +1296,6 @@ class SurvivalController {
     async makeNightSafe () {
         const signal = this.actionAbort?.signal
         this.checkAction(signal)
-        const bed = this.findNearestBlock(name => name.endsWith('_bed'), 24)
-        if (bed && this.bot.isABed(bed) && this.bot.time.isDay === false) {
-            try {
-                await this.bot.sleep(bed)
-                this.checkAction(signal)
-                this.shelterCenter = null
-                this.sheltered = true
-                return
-            } catch (error) {
-                this.checkAction(signal)
-                this.log.warn(`Could not sleep: ${error.message}`)
-            }
-        }
         if (this.countItems(BUILDING_BLOCKS) < 17) {
             const dirt = this.findNearestBlock(name => name === 'dirt' || name === 'cobblestone', 16)
             if (dirt) {
@@ -1282,6 +1329,7 @@ class SurvivalController {
             throw new Error(`shelter enclosure incomplete; ${failures.length} placement errors${failures.length ? `: ${failures.at(-1)}` : ''}`)
         }
         this.shelterCenter = center.clone()
+        this.memory.shelter = { x: center.x, y: center.y, z: center.z, dimension: this.bot.game.dimension }
         this.sheltered = true
         this.log.info('Emergency shelter enclosure verified; waiting for daylight.')
         await sleep(1000)
@@ -1762,6 +1810,7 @@ class SurvivalController {
             this.followPlayer = null
             this.memory.followPlayer = null
             this.memory.paused = false
+            this.memory.disposalFailures = 0
             this.clearCurrentTask()
             this.paused = false
             this.bot.chat('Resumed.')

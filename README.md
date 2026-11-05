@@ -76,6 +76,14 @@ from the surface first reserves twelve hunger points of carried food. These new
 policies have automated coverage; live cave validation is pending. See
 [cave-opportunities.md](cave-opportunities.md) for researched branches and limits.
 
+Nightfall alone does not stop underground work. On the surface, a prepared bot
+can hunt isolated useful mobs within a small budget; weak or overwhelmed bots
+try safe sleep or shelter. Bed preparation uses available same-color wool, and
+beds are only used in the Overworld. Night hunts, shield timing, sleeping and
+shelter exits have focused tests but still need full live night validation.
+See [night-opportunities.md](night-opportunities.md) for researched drops,
+advancement dependencies, readiness thresholds and remaining skills.
+
 Path searches and actions have limits; an operation that refuses cancellation triggers reconnection before another action starts.
 
 ## State and debugging
