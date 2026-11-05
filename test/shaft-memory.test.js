@@ -79,3 +79,31 @@ test('a shallower descent does not replace a deeper remembered shaft', () => {
     rememberShaft(c)
     assert.equal(c.memory.shaft.cells.length, 125)
 })
+
+test('a shaft step walked down by a drop gets its headroom carved once instead of being forgotten', async () => {
+    const dug = new Set()
+    let attempts = 0
+    const c = shaftWorld(new Vec3(124.5, -54, 0.5))
+    c.bestItem = () => undefined
+    c.bot.blockAt = p => {
+        const k = 70 - p.x
+        const open = dug.has(p.toString()) || (p.z === 0 && p.x >= 0 && p.x <= 124 && p.y >= k && p.y <= k + (p.x === 60 ? 1 : 2))
+        return { name: open ? 'air' : 'stone', position: p, boundingBox: open ? 'empty' : 'block', diggable: true }
+    }
+    c.bot.canDigBlock = () => true
+    c.bot.equip = async () => {}
+    c.bot.dig = async block => { dug.add(block.position.toString()) }
+    const goto = c.gotoWithTimeout
+    c.gotoWithTimeout = async (goal, ms, label) => {
+        // The stair from x=60 up to x=59 lacks headroom above x=60 until it is carved.
+        if (goal.x === 59 && !dug.has(new Vec3(60, 12, 0).toString())) {
+            attempts++
+            throw new Error('world verification timed out')
+        }
+        return goto(goal, ms, label)
+    }
+    assert.equal(await followShaft(c, 'up'), true)
+    assert.ok(dug.has(new Vec3(60, 12, 0).toString()))
+    assert.ok(attempts >= 1)
+    assert.ok(c.memory.shaft)
+})
