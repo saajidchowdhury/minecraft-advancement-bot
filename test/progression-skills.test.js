@@ -155,3 +155,34 @@ test('tunneling preserves iron and diamond picks but selects a sufficient tier f
     assert.equal(miningPickaxe(c, { canHarvest: type => type >= 3 }).name, 'iron_pickaxe')
     assert.equal(miningPickaxe(c, { canHarvest: type => type >= 4 }).name, 'diamond_pickaxe')
 })
+
+test('a stalled prepared stair can use a short checked jump and releases controls afterward', async () => {
+    const { climbStep } = require('../src/progression-skills')
+    const target = new Vec3(1, 65, 0)
+    let jumping = false
+    let jumped = false
+    let cleared = false
+    const bot = {
+        health: 20, entity: { position: new Vec3(0.5, 64, 0.5) },
+        blockAt: p => ({ name: p.y === 64 ? 'stone' : 'air', boundingBox: p.y === 64 ? 'block' : 'empty' }),
+        pathfinder: { setGoal() {} }, lookAt: async () => {},
+        setControlState(name, value) {
+            if (name === 'jump') {
+                jumping = value
+            }
+            if (name === 'forward' && jumping && value) {
+                bot.entity.position = target.offset(0.5, 0, 0.5)
+                jumped = true
+            }
+        },
+        clearControlStates() { cleared = true }
+    }
+    const c = { bot, running: true, paused: false, actionAbort: new AbortController(),
+        log: { warn() {} }, gotoWithTimeout: async () => { throw new Error('simulated pathfinder stall') } }
+    await climbStep(c, target)
+    assert.equal(jumped, true)
+    assert.equal(cleared, true)
+    bot.entity.position = new Vec3(0.5, 64, 0.5)
+    bot.blockAt = () => ({ name: 'water', boundingBox: 'empty' })
+    await assert.rejects(climbStep(c, target), /simulated pathfinder stall/)
+})

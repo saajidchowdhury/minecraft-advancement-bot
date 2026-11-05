@@ -20,13 +20,13 @@ Logs and snapshots are local in outputs/. The run beginning 23:33:29 captured ir
 
 ## Automated checks
 
-`npm run check` and `npm test` pass; the current baseline has 64 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
+`npm run check` and `npm test` pass; the current baseline has 67 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
 
 The inherited Mineflayer patch was applied successfully to reconstructed pristine 4.39.0 craft/inventory sources. Dependency versions are locked. No gameplay result is inferred solely from a passing unit test.
 
 ## Still being tested
 
-Food pursuit is currently being debugged: repeated dynamic-follow goal resets may interrupt navigation to animals. Later armor, bucket, diamond, obsidian-casting, portal and redstone behavior has not yet completed an end-to-end live survival test. No claim of autonomous dragon completion or all-advancement support is made.
+A repeated dynamic-follow reset in food pursuit was reproduced in a regression test and fixed by keeping one live follow goal; the new revision is undergoing live testing. Later armor, bucket, diamond, obsidian-casting, portal and redstone behavior has not yet completed an end-to-end live survival test. No claim of autonomous dragon completion or all-advancement support is made.
 
 ## Comment ceiling
 

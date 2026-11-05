@@ -338,17 +338,18 @@ class SurvivalController {
             if (!this.running || this.paused || this.followPlayer || this.bot.health <= 0) {
                 return
             }
+            this.actionAbort = new AbortController()
             const recoveryKind = mobilityRecoveryKind(
                 this.detectVerticalShaft(),
                 Boolean(this.detectElevationTrap())
             )
             if (recoveryKind === 'shaft' && action !== Actions.ASCEND) {
                 this.log.info('The failed action left the bot in a vertical shaft; attempting a bounded staircase escape.')
-                await this.escapeVerticalShaft()
+                await this.performWithTimeout(Actions.ASCEND, this.observe())
                     .catch(recoveryError => this.log.warn(`Shaft recovery failed: ${recoveryError.message}`))
             } else if (recoveryKind === 'elevation') {
                 this.log.info('The failed action left the bot on an isolated pillar; attempting a bounded descent.')
-                await this.recoverMobility()
+                await this.performWithTimeout(Actions.DESCEND, this.observe())
                     .catch(recoveryError => this.log.warn(`Pillar recovery failed: ${recoveryError.message}`))
             }
             if (!this.running || this.paused || this.followPlayer || this.bot.health <= 0) {
@@ -1112,16 +1113,21 @@ class SurvivalController {
             await this.bot.equip(weapon, 'hand')
         }
         const deadline = Date.now() + 20000
+        let following = false
         while (entity.isValid && Date.now() < deadline) {
             if (!hunt && this.bot.health <= 8) {
                 return this.escapeFrom(entity)
             }
             const distance = this.bot.entity.position.distanceTo(entity.position)
             if (distance > 3.1) {
-                this.bot.pathfinder.setGoal(new GoalFollow(entity, 2), true)
+                if (!following) {
+                    this.bot.pathfinder.setGoal(new GoalFollow(entity, 2), true)
+                    following = true
+                }
                 await sleep(300)
             } else {
                 this.bot.pathfinder.setGoal(null)
+                following = false
                 await this.bot.lookAt(entity.position.offset(0, Math.min(entity.height || 1, 1.4), 0), true)
                 this.bot.attack(entity)
                 await sleep(650)
@@ -1129,9 +1135,19 @@ class SurvivalController {
         }
         this.bot.pathfinder.setGoal(null)
         if (entity.isValid) {
+            if (hunt) {
+                this.rememberBlockedTarget(entity, 'prey', new Error('combat timed out'))
+            }
             throw new Error('combat timed out')
         }
         await sleep(800)
+        if (hunt) {
+            const drops = Object.values(this.bot.entities || {}).filter(drop => drop.isValid && drop.name === 'item' &&
+                drop.position.distanceTo(entity.position) <= 4)
+            if (drops.length > 0) {
+                await this.collectTarget(drops, null, 'hunting drops')
+            }
+        }
     }
 
     async escapeFrom (entity) {
@@ -1456,7 +1472,7 @@ class SurvivalController {
         this.log.info(`Land scout selected ${selected.x},${Math.floor(here.y)},${selected.z} ` +
             `(land=${selected.landSamples}, water=${selected.waterSamples}, visited=${selected.visits}).`)
         try {
-            await this.bot.pathfinder.goto(new GoalNear(selected.x, Math.floor(here.y), selected.z, 3))
+            await this.gotoWithTimeout(new GoalNear(selected.x, Math.floor(here.y), selected.z, 3), 25000, 'land scouting')
             this.memory.scoutVisits.set(selected.visitKey, selected.visits + 1)
             this.scoutAngle = selected.angle + Math.PI / 8
             this.scoutSteps += 1
@@ -1508,7 +1524,8 @@ class SurvivalController {
     nearestEntity (names, maxDistance = 16) {
         return this.bot.nearestEntity(entity => {
             const name = entity.name || entity.mobType
-            return entity.isValid && names.has(name) && this.bot.entity.position.distanceTo(entity.position) <= maxDistance
+            return entity.isValid && names.has(name) && (!PREY.has(name) || !this.isBlockedTarget(entity)) &&
+                this.bot.entity.position.distanceTo(entity.position) <= maxDistance
         })
     }
 
