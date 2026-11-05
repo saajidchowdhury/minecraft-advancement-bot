@@ -297,7 +297,7 @@ danger. Phase 1 (`55923a4`): a chest beside the shaft entrance, placed once the 
 iron pickaxe on the surface; surplus beyond carry levels (duplicate tools, armor no better
 than worn, diamonds > 8, iron > 16, ores, coal, logs, food, mob drops) is stored when
 passing; after a death a base within 256 blocks holding better gear is visited before
-rebuilding. Next phases: enclose and light the base properly; keep a spare kit stored
+rebuilding. Next phases: (done in `90e95b4`: sealed underground vault with lit doorway); keep a spare kit stored
 (craft a spare iron pickaxe/sword when ingots allow); let the planner count stored iron and
 diamonds before mining more; consider a bed at the base as the spawn point so restocks are
 immediate. Completion: a live death followed by a restock that re-arms the bot within a few

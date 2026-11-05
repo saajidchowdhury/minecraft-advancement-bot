@@ -11,7 +11,7 @@ Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 41971, 
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 204 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 207 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -703,3 +703,17 @@ Base live (`8fe959e`): the chest was crafted and placed at (-245,68,-185) at 22:
 where the bot was working, and the first deposit stored 1 wooden_sword (a better sword is
 carried), 13 lapis_lazuli, 8 raw_copper and 2 spare furnaces. Restock after a death is
 still unobserved. Note for the Enchanter: lapis is stored but not in the restock list.
+
+## F038 — Base hardened into a sealed underground vault [user direction + regression]
+
+User report: the phase-1 base chest at (-245,68,-185) stood exposed on the surface at
+night without lighting; a creeper exploding beside the bot (surface or underground) could
+destroy it. Threat model: creepers detonate only near a player, so risk peaks during
+visits; mobs spawning in the dark turn visits into fights; lava nearby endangers the bot;
+endermen cannot take chests and chests do not burn. `90e95b4` builds the base as a vault
+cut into solid dry rock beside an underground tunnel: chest two cells from the tunnel,
+natural rock on every face but a one-cell niche, the niche refilled with two cobblestone
+after every visit, and a torch at the tunnel spot. An existing surface chest is emptied by
+day, picked up, and its items go to the next vault. Vault visits are allowed at night
+underground. Five regressions cover site rules, decisions, the open/reseal sequence and
+migration; live vault construction is pending.
