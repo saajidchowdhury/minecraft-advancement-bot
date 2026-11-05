@@ -6,12 +6,12 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-05 ~12:20 Eastern. Bot is RUNNING on LAN port 51718, PID 31422, code
-`73aaefd`, rebuilding from nothing in daylight after four deaths today (F023, F025, F026). Verify PID and connection before stopping it; `pgrep -f src/index.js`
+Updated 2026-11-05 ~12:43 Eastern. Bot is RUNNING on LAN port 51718, PID 32764, code
+`beec699`, rebuilding after five deaths today (F023, F025–F027). Verify PID and connection before stopping it; `pgrep -f src/index.js`
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 152 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 156 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -466,3 +466,19 @@ the roof cell touches only the head cell and air. `73aaefd` seats it on a wall-t
 block first and falls back to burrowing. A recovered-dirt shelter was then verified
 at 17:18:21Z and held until daylight; the creeper interrupt fired at 5.9 blocks.
 Four deaths today: survival under weak gear dominates throughput (G001).
+
+## F027 — Creeper chase, critical-health thrash and an archer death [live + regression]
+
+17:19:30Z (`73aaefd`): fleeing in single 16-block legs let a creeper close in and
+explode (18.3 to 0.22 hp). At health <= 6 each regeneration update cancelled the next
+work action. `ba59971` keeps fleeing for up to four legs and rests at critical health
+when food >= 18 and no threat is near. Live after that: walled shelter with the new
+roof support verified at 17:33:59Z.
+
+Death 5 (17:40:50Z): a skeleton 0.8 blocks away dropped the bot from 12.5 hp; it fled
+at 8.5 hp (below the fight threshold) through its tunnel and, at 1.5 hp, resumed
+return_surface because the archer was 7.7 blocks away, outside the five-block escape
+rule. `beec699` melees archers within 3.5 blocks above 4 hp, and at <= 10 hp takes
+cover from a visible archer within 16 blocks (seal narrow openings, else flee until
+out of sight), sharing the creeper routine. Five deaths today; all regressions fail
+before their fixes. Live archer handling pending.
