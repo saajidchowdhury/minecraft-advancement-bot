@@ -439,3 +439,20 @@ test('threat cancellations replan within 100 ms instead of the routine 1.5 s', a
     await SurvivalController.prototype.tick.call(c)
     assert.deepEqual(delays, [100, 1500])
 })
+
+test('an off-centre burrow steps into its own hole instead of failing the descent', async () => {
+    const c = burrowWorld()
+    let stuck = true
+    const dig = c.bot.dig
+    c.bot.dig = async block => {
+        await dig(block)
+        if (stuck) {
+            stuck = false
+            c.bot.entity.position = new Vec3(0.95, 64, 0.5)
+        }
+    }
+    c.gotoWithTimeout = async goal => { c.bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5) }
+    await SurvivalController.prototype.burrow.call(c)
+    assert.deepEqual(c.bot.entity.position.floored(), new Vec3(0, 61, 0))
+    assert.equal(c.sheltered, true)
+})

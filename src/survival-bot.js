@@ -1518,6 +1518,11 @@ class SurvivalController {
             this.checkAction(signal)
             await this.bot.dig(at(p), true)
             await this.bot.waitForTicks(8)
+            // An off-centre bot keeps standing on the neighbouring block's edge; step into the hole.
+            if (this.bot.entity.position.y > p.y + 0.5) {
+                await this.gotoWithTimeout(new goals.GoalBlock(p.x, p.y, p.z), 3000, 'burrow step')
+                await this.bot.waitForTicks(4)
+            }
         }
         this.checkAction(signal)
         if (!this.bot.entity.position.floored().equals(center)) {
