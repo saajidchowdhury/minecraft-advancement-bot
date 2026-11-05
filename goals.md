@@ -267,3 +267,24 @@ Challenge), then G006 Nether entry, keeping the F025–F031 survival fixes under
 Update ~16:20 Eastern: shaft memory implemented (F033). Validate live: record on the
 next descent, follow it down after a surface trip or death, follow it up when returning.
 Measure descent time versus carving (~4–5 min per 124 steps today).
+
+## G012 — Long-term / not started — Relocate mining when a shaft's area is exhausted
+
+User direction (2026-11-05): reusing one shaft forever is not required. When the area
+reached from a shaft is drained, the bot should become increasingly likely to open a
+new mining site elsewhere, travelling up and down by the same remembered-shaft method
+(F033) at the new location.
+
+Design sketch for later, kept small:
+1. Per-shaft statistics in memory: blocks mined, valuable ores collected (diamond,
+   iron, redstone, gold, lapis), branch length and elapsed mining time near the bottom.
+2. Exhaustion score = recent ore yield per block mined (or per minute) versus a running
+   baseline; branch tunnels already beyond a radius also count against the site.
+3. Relocation is probabilistic, rising with exhaustion, seeded through the bot's rng
+   for reproducibility; pick a new surface start some distance away (avoiding known
+   danger sites from F029) and record a new shaft; keep several shafts, never delete a
+   working one just because another exists.
+4. Measure, do not assume: compare ore per minute before and after relocations (G008),
+   counting travel time against the new site.
+Completion: a live relocation chosen by measured exhaustion, with the new shaft reused
+afterwards and yield data supporting the change.

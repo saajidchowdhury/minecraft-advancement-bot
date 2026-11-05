@@ -599,3 +599,7 @@ blocked shaft is forgotten; an unreachable one is skipped for five minutes. Five
 regressions cover recording, gaps, both directions and failure handling. Live: the
 first post-restart descent should log 'Remembered a … shaft'; reuse pending.
 Possible later upgrades: a water elevator or ladder column for faster vertical travel.
+
+User direction on F033: the same stairs need not be reused indefinitely; drained sites
+should make relocation increasingly likely, using the same shaft travel method at the
+new site. Recorded as long-term goal G012; not implemented yet.
