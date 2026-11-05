@@ -10,9 +10,26 @@ function nightReady(state) {
         !state.retreatForNight && !state.dangerousNightThreat && state.hostileCount <= 2
 }
 
+function sleepPartnerReady(c) {
+    const bot = c.bot
+    const sleeping = name => {
+        const entity = bot.players?.[name]?.entity
+        if (!entity || entity.isValid === false) {
+            return false
+        }
+        const keys = bot.registry.entitiesByName.player.metadataKeys
+        return entity.metadata?.[keys.indexOf('sleeping_pos')] != null || entity.metadata?.[keys.indexOf('pose')] === 2
+    }
+    if (c.owner) {
+        return sleeping(c.owner)
+    }
+    return Object.keys(bot.players || {}).filter(name => name !== bot.username).every(sleeping)
+}
+
 function updateNightState(c, state) {
     const bot = c.bot
     state.sleeping = Boolean(bot.isSleeping)
+    state.sleepPartnerReady = sleepPartnerReady(c)
     state.hasNightWeapon = Boolean(c.bestItem(WEAPONS))
     state.armorPoints = [5, 6, 7, 8].reduce((sum, slot, i) =>
         sum + (ARMOR[bot.inventory.slots[slot]?.name.split('_')[0]]?.[i] || 0), 0)
@@ -34,7 +51,7 @@ function updateNightState(c, state) {
     state.canCraftBed = Boolean(state.bedWool && state.planks + state.logs * 4 >= 3 && state.hasCraftingTable)
     const rest = c.memory.sleepRetry
     const retryBlocked = rest?.dimension === state.dimension && rest.until > Date.now()
-    state.canSleep = state.isNight && state.dimension === 'overworld' && !retryBlocked &&
+    state.canSleep = state.sleepPartnerReady && state.isNight && state.dimension === 'overworld' && !retryBlocked &&
         bot.time.timeOfDay >= 12541 && bot.time.timeOfDay <= 23458 && state.hostileDistance > 12 &&
         (state.hasBed || state.canCraftBed || Boolean(c.findNearestBlock(name => name.endsWith('_bed'), 4)))
     state.nightCombatReady = nightReady(state)
@@ -73,4 +90,4 @@ function retreatForNight(c, reason) {
     }
 }
 
-module.exports = { WEAPONS, nightReady, updateNightState, retreatForNight }
+module.exports = { WEAPONS, nightReady, updateNightState, retreatForNight, sleepPartnerReady }

@@ -199,3 +199,13 @@ test('bed placement waits for rotation to be transmitted before using the select
     await sleepSafely(c, state)
     assert.equal(c.bot.isSleeping, true)
 })
+
+test('an owner waking during bed preparation prevents the bot from entering sleep', async () => {
+    const { c, state } = restWorld()
+    state.sleepPartnerReady = false
+    c.findNearestBlock = () => ({ name: 'white_bed' })
+    c.bot.sleep = async () => assert.fail('sleep after owner wakes')
+    await sleepSafely(c, state)
+    assert.equal(c.bot.isSleeping, undefined)
+    assert.equal(c.memory.sleepRetry, undefined)
+})

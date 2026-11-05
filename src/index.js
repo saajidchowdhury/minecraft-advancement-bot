@@ -112,7 +112,7 @@ function connect () {
                 equipment: Object.fromEntries(['head', 'torso', 'legs', 'feet', 'offhand'].map((name, i) =>
                     [name, bot.inventory.slots[[5, 6, 7, 8, 45][i]]?.name || null])),
                 night: { timeOfDay: bot.time.timeOfDay, underground: state.underground,
-                    ready: state.nightCombatReady, hostiles: state.hostileCount, retreat: state.retreatForNight },
+                    ownerSleeping: state.sleepPartnerReady, ready: state.nightCombatReady, hostiles: state.hostileCount, retreat: state.retreatForNight },
                 confirmedAdvancements: controller.advancements.summary()
             }, null, 4))
         }

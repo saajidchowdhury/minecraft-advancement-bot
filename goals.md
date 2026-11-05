@@ -187,3 +187,12 @@ credentials, profiles, world state or logs.
 The 01:06:47 run was stopped at 06:17:30Z for persistent disposal movement failures.
 See F015: bounded retries and stair fallback need a live retry; the trigger is
 still uncertain. Do not assume the prior disposal follow-up solved the problem.
+
+
+Night follow-up: staged trials found placement/rotation timing bugs, now fixed
+with regressions. Sweet Dreams was server-confirmed in the 01:46:05 staged run,
+but via an unintended shelter click, so clean bed-skill completion remains open.
+The LAN owner must be observably sleeping before the bot pursues sleep; waking
+or losing sight of that state makes the bot wake. Cooperative sleep, corrected
+placement, natural combat and projectile blocking remain the next live checks.
+121 automated tests pass. Do not lose the unresolved F015 disposal/stair failure.

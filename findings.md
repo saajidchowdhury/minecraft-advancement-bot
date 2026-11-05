@@ -279,3 +279,27 @@ potatoes do NOT satisfy this version's A Seedy Place predicates. Ordinary loot
 collection, shield activation or a sleep request never substitutes for a server
 advancement packet. Hunt readiness/retreat, cancellation, beds and shelter exits
 have focused tests; night hunting, projectile blocking and sleep are not live-proven.
+
+## F017 — Controlled night evidence and LAN sleep coordination [live + regression]
+
+The user authorizes commands solely for staged initial conditions, outside bot
+feature code. Test setup records remain ignored. Runs 01:39:28 and 01:42:09 exposed
+vegetation/bed-space limits and a setup canopy mistakenly treated as ground.
+Vegetation is now cleared safely; the setup helper now excludes leaf supports.
+
+The 01:46:05 run (`2c1a714`) received Sweet Dreams at 06:46:14.594Z using staged
+bed/food/time. Its first sleep-skill placement failed verification; a subsequent
+shelter click activated the placed bed. Do not claim a clean sleep-skill pass.
+Source inspection found that forced look returns before transmission; `097f6a2`
+waits for rotation packets and both bed halves, with regression coverage.
+
+LAN sleep now requires observable sleeping state for the configured owner. If
+the owner is awake or cannot be observed, the bot does not enter bed and wakes
+if already sleeping. No gamerule is changed. This avoids waiting in bed while
+the host must remain awake to keep the LAN world active. Owner/bot cooperation
+still needs a live trial. Full suite: 121 passing tests plus syntax checks.
+
+Correction to F015 diagnostic wording: the standalone pathfinder reported success
+while the bot was still airborne below the target Y; that is not proof of a
+settled stair landing. The 01:34:25 run hit the same stair failure and then paused
+at the retry cap, confirming containment but not the underlying navigation fix.

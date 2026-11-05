@@ -61,6 +61,12 @@ After escaping immediate danger, the bot tries safe sleep or a checked shelter
 and does not resume hunting merely because the crowd dispersed. Daylight exits
 open a checked doorway; intact shelter coordinates survive reconnects.
 
+For the visible LAN workflow, sleep is pursued only when the configured owner
+is observably sleeping. If the owner wakes or their sleeping state is no longer
+observable, the bot wakes too. Unknown/distant owner state does not trigger
+automatic sleep. A safe attempt can also be made underground; an unsafe or
+unavailable bed site still prevents joining. No sleep gamerule is changed.
+
 The bot crafts a bed opportunistically from three same-color wool plus three
 planks, or uses a nearby bed. Placement checks dry support, clear two-block space,
 orientation, both bed halves and the server's sleeping state. It never activates
@@ -73,3 +79,13 @@ expansion for a bed remain future improvements.
 Automated tests cover policy, cancellation, shield release, bed verification,
 retreat scope and shelter exit. Live night hunting, projectile blocking, sleep
 and a complete retreat/night/exit sequence still need natural survival trials.
+
+
+Controlled-test evidence is separate from natural survival evidence. Commands may
+set initial time, supplies, position or mobs only in an external ignored setup
+script; no further commands are used during an autonomous trial. The 01:46:05
+run received Sweet Dreams at 06:46:14.594Z with supplied bed/food and set night.
+Its first placement verification failed, and a shelter click activated the bed;
+this proves server-confirmed staged sleep but not a clean sleep-skill pass.
+The later fix waits for forced rotation to transmit and for both bed halves.
+Owner-gated sleep/wake has automated coverage and awaits a cooperative live trial.

@@ -22,7 +22,7 @@ Logs and snapshots are local in outputs/. The run beginning 23:33:29 captured ir
 
 ## Automated checks
 
-`npm run check` and `npm test` pass; the current baseline has 116 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
+`npm run check` and `npm test` pass; the current baseline has 121 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
 
 The inherited Mineflayer patch was applied successfully to reconstructed pristine 4.39.0 craft/inventory sources. Dependency versions are locked. No gameplay result is inferred solely from a passing unit test.
 
@@ -134,3 +134,32 @@ Changed code comment ratios: new night modules/tests 0%; decision-engine.js
 4/98 (4.08%); survival-bot.js 23/1844 (1.25%); progression-skills.js 1/757
 (0.13%); index.js 2/166 (1.20%); other changed tests 0%. All are below 10%.
 AGENTS.md and CLAUDE.md were updated together and compare byte-for-byte equal.
+
+
+## Controlled night trials and owner sleep
+
+The user explicitly authorized setup-only Minecraft commands. Ignored per-run
+`test-setup.json` files record the supplied bed/food, teleports, rubble clearing,
+nearby hostile clearing and night changes; these trials are not natural survival
+progression. Setup helpers disconnected before autonomous runs and no commands
+were sent during the trials.
+
+The 01:39:28 and 01:42:09 trials exposed natural-ground placement limitations,
+including vegetation and a setup site mistakenly selected on leaves. Those runs
+were stopped and the setup selector was corrected to ground. Bed/shelter skills
+now clear ordinary vegetation, with a focused regression.
+
+The 01:46:05 trial (`2c1a714`) received the Sweet Dreams server packet at
+06:46:14.594Z. Its intended sleep action had rejected the bed's orientation;
+shelter placement later activated it. Treat this as staged server sleep evidence,
+not a clean sleep-skill success. Pinned Mineflayer's forced look returns before
+its next movement packet transmits rotation. `097f6a2` adds a transmission wait,
+checks both halves with a bounded wait and has a failing-before-fix regression.
+
+The user's LAN correction is implemented: sleep requires the owner's observable
+sleeping metadata/pose, and an awake/unobservable owner triggers waking. Tests
+cover awake, sleeping, waking, unloaded, sheltered and underground cases, plus an
+owner waking during bed preparation. The full suite passes 121 tests and syntax
+checks. Cooperative owner/bot sleep and the corrected placement need live retry.
+Current new modules/tests remain below 10% comment-bearing lines; the highest
+changed-code ratio remains decision-engine.js, below 5%.

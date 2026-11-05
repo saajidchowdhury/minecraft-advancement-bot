@@ -79,7 +79,8 @@ policies have automated coverage; live cave validation is pending. See
 Nightfall alone does not stop underground work. On the surface, a prepared bot
 can hunt isolated useful mobs within a small budget; weak or overwhelmed bots
 try safe sleep or shelter. Bed preparation uses available same-color wool, and
-beds are only used in the Overworld. Night hunts, shield timing, sleeping and
+beds are only used in the Overworld. In this LAN setup, the bot joins sleep
+only when it can observe the owner sleeping, and wakes when the owner wakes. Night hunts, shield timing, sleeping and
 shelter exits have focused tests but still need full live night validation.
 See [night-opportunities.md](night-opportunities.md) for researched drops,
 advancement dependencies, readiness thresholds and remaining skills.

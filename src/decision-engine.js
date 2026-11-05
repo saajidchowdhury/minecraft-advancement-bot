@@ -36,13 +36,13 @@ function chooseAction (state) {
         return Actions.ESCAPE
     }
     if (state.sleeping) {
-        return 'wait'
+        return state.sleepPartnerReady === false ? 'wake' : 'wait'
     }
     if (state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood) {
         return Actions.EAT
     }
     if (state.isNight && state.sheltered && !state.underground) {
-        return 'wait'
+        return state.canSleep ? 'leave_shelter' : 'wait'
     }
     if (state.needsShelterExit) {
         return 'leave_shelter'
@@ -59,12 +59,15 @@ function chooseAction (state) {
     if (state.recoveryAvailable) {
         return Actions.RECOVER
     }
+    if (state.canSleep) {
+        return 'sleep'
+    }
     if (state.isNight && !state.underground) {
         if (!state.nightCombatReady) {
             if (state.canPrepareNightWeapon) {
                 return 'prepare_night_weapon'
             }
-            return state.canSleep ? 'sleep' : Actions.SHELTER
+            return Actions.SHELTER
         }
         if (state.nightTarget && !state.inventoryFull) {
             return 'hunt_night'

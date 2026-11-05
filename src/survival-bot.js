@@ -8,7 +8,7 @@ const { Actions, chooseAction } = require('./decision-engine')
 const { RECIPES, nextAdvancement } = require('./advancement-plan')
 const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight } = require('./night-policy')
-const { prepareBed, huntAtNight, sleepSafely, leaveShelter, clearPlants } = require('./night-skills')
+const { prepareBed, huntAtNight, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
 const { exploreCave, collectOpportunity } = require('./cave-exploration')
 const { performProgression, redstonePlan, mineTunnel, until, climbStep } = require('./progression-skills')
@@ -71,13 +71,13 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
     clear_inventory: 30000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000,
-    hunt_night: 45000, sleep: 30000, prepare_bed: 45000, prepare_night_weapon: 30000, leave_shelter: 20000,
+    wake: 10000, hunt_night: 45000, sleep: 30000, prepare_bed: 45000, prepare_night_weapon: 30000, leave_shelter: 20000,
     [Actions.EXPLORE]: 60000
 })
 const STATIONARY_ACTIONS = new Set([
     Actions.DESCEND,
     Actions.ASCEND,
-    'sleep', 'prepare_bed', 'prepare_night_weapon', 'leave_shelter',
+    'wake', 'sleep', 'prepare_bed', 'prepare_night_weapon', 'leave_shelter',
     Actions.CRAFT_TABLE, Actions.CRAFT_WOODEN_PICKAXE, Actions.CRAFT_WOODEN_SWORD, Actions.CRAFT_STONE_PICKAXE,
     Actions.CRAFT_FURNACE, Actions.SMELT_IRON, Actions.CRAFT_IRON_PICKAXE,
     'clear_inventory', 'smelt_charcoal', 'craft_progression', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', Actions.SHELTER
@@ -504,6 +504,7 @@ class SurvivalController {
     async perform (action, state) {
         switch (action) {
             case 'hunt_night': return huntAtNight(this, state)
+            case 'wake': return wakeWithOwner(this)
             case 'sleep': return sleepSafely(this, state)
             case 'prepare_bed': return prepareBed(this, state.bedWool)
             case 'prepare_night_weapon': return performProgression(this, 'craft_progression', { sideGoal: { item: 'stone_sword' } })

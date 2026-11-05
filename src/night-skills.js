@@ -140,6 +140,9 @@ async function sleepSafely(c, state) {
             c.log.info(`Placed travel bed at ${site.foot}.`)
         }
         const current = c.observe()
+        if (current.sleepPartnerReady === false) {
+            return
+        }
         if (current.hostileDistance <= 12) {
             throw new Error('monsters approached the bed')
         }
@@ -157,6 +160,17 @@ async function sleepSafely(c, state) {
         c.checkAction(signal)
         c.memory.sleepRetry = { dimension: 'overworld', until: Date.now() + 60000 }
         c.log.warn(`Safe sleep unavailable: ${error.message}; replanning protection.`)
+    }
+}
+
+async function wakeWithOwner(c) {
+    const signal = c.actionAbort?.signal
+    c.checkAction(signal)
+    if (c.bot.isSleeping) {
+        await c.bot.wake()
+        await until(c, () => !c.bot.isSleeping, 2000)
+        c.checkAction(signal)
+        c.log.info('Owner is awake or not observable; resumed work after waking.')
     }
 }
 
@@ -194,4 +208,4 @@ async function leaveShelter(c) {
     throw new Error('no safe supported shelter exit')
 }
 
-module.exports = { prepareBed, huntAtNight, sleepSafely, leaveShelter, bedPlacement, clearPlants }
+module.exports = { prepareBed, huntAtNight, sleepSafely, leaveShelter, bedPlacement, clearPlants, wakeWithOwner }

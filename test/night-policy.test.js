@@ -176,3 +176,37 @@ test('a daytime shelter exit outranks shaft recovery and a simple weapon can be 
     updateNightState(c, state)
     assert.equal(chooseAction(state), 'prepare_night_weapon')
 })
+
+test('LAN bot only chooses sleep when its owner is visibly sleeping and wakes when the owner wakes', () => {
+    const { c, state, inventory } = nightWorld()
+    c.owner = 'newflag'
+    inventory.push({ name: 'white_bed', count: 1 })
+    c.bot.players = { newflag: { entity: { isValid: true, metadata: [] } } }
+    updateNightState(c, state)
+    assert.equal(state.canSleep, false)
+    assert.equal(chooseAction(state), 'gather_diamonds')
+    c.bot.players.newflag.entity.metadata[14] = { x: 1, y: 64, z: 1 }
+    updateNightState(c, state)
+    assert.equal(chooseAction(state), 'sleep')
+    c.bot.isSleeping = true
+    c.bot.players.newflag.entity.metadata[14] = null
+    updateNightState(c, state)
+    assert.equal(chooseAction(state), 'wake')
+    delete c.bot.players.newflag.entity
+    updateNightState(c, state)
+    assert.equal(state.canSleep, false)
+})
+
+test('owner sleep can trigger a sheltered exit and a safe underground sleep attempt', () => {
+    const { c, state, inventory } = nightWorld()
+    c.owner = 'newflag'
+    inventory.push({ name: 'white_bed', count: 1 })
+    c.bot.players = { newflag: { entity: { metadata: { 6: 2 } } } }
+    state.sheltered = true
+    updateNightState(c, state)
+    assert.equal(chooseAction(state), 'leave_shelter')
+    state.sheltered = false
+    state.underground = true
+    updateNightState(c, state)
+    assert.equal(chooseAction(state), 'sleep')
+})
