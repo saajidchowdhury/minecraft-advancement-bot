@@ -6,12 +6,12 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-05 ~14:01 Eastern. Bot is RUNNING on LAN port 51718, PID 35904, code
-`e75cc79`, rebuilding after seven deaths today (F023, F025–F029). Verify PID and connection before stopping it; `pgrep -f src/index.js`
+Updated 2026-11-05 ~14:01 Eastern. Bot is RUNNING on LAN port 51718, PID 36683, code
+`de766af`, rebuilding after seven deaths today (F023, F025–F029). Verify PID and connection before stopping it; `pgrep -f src/index.js`
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 160 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 161 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -513,3 +513,8 @@ Shelter exit follow-up: at dawn (18:59Z, `4ae003a`) leave_shelter and the stairc
 escape failed 25+ times; past the wall top the flat ground lay two blocks lower and the
 rim rule required level ground. `e75cc79` accepts any supported non-hazard landing within
 the 3-block safe drop; live it climbed out at 19:00:23Z and resumed work.
+
+Mixed planks: live `e75cc79` failed the shield craft 100+ times (19:05–19:12Z) with
+5 birch + 1 oak plank, because Mineflayer matches each recipe variant against one plank
+type. `de766af` grows a single type; live it crafted birch planks and the shield at
+19:12:32Z.
