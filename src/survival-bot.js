@@ -1430,12 +1430,18 @@ class SurvivalController {
                 }
             }
         }
+        // The roof cell only touches the bot's head cell and air; seat it on a block atop a wall first.
+        await this.placeSurvivalBlock(center.offset(1, 2, 0)).catch(error => failures.push(error.message))
         await this.placeSurvivalBlock(center.offset(0, 2, 0)).catch(error => failures.push(error.message))
         this.checkAction(signal)
         if (!this.hasEnclosedShelter(center)) {
             this.sheltered = false
             this.shelterCenter = null
-            throw new Error(`shelter enclosure incomplete; ${failures.length} placement errors${failures.length ? `: ${failures.at(-1)}` : ''}`)
+            const reason = `shelter enclosure incomplete; ${failures.length} placement errors${failures.length ? `: ${failures.at(-1)}` : ''}`
+            await this.burrow().catch(error => {
+                throw new Error(`${reason}; burrow fallback failed: ${error.message}`)
+            })
+            return
         }
         this.shelterCenter = center.clone()
         this.memory.shelter = { x: center.x, y: center.y, z: center.z, dimension: this.bot.game.dimension }

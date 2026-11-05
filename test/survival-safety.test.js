@@ -20,8 +20,9 @@ function shelterWorld() {
                     shapes: name === 'air' ? [] : [[0, 0, 0, 1, 1, 1]] }
             }
         },
-        async placeSurvivalBlock(p) { blocks.set(p.toString(), 'cobblestone') },
-        blocks
+        async placeSurvivalBlock(p) { blocks.set(p.toString(), 'cobblestone'); c.placed.push(p) },
+        async burrow() { throw new Error('no hand-diggable enclosed column below') },
+        blocks, placed: []
     }
     c.isEmptyPlacementBlock = SurvivalController.prototype.isEmptyPlacementBlock.bind(c)
     c.checkAction = SurvivalController.prototype.checkAction.bind(c)
@@ -342,4 +343,23 @@ test('burrowing is refused over water, falling blocks or an open cave below', as
         await assert.rejects(SurvivalController.prototype.burrow.call(c), /no hand-diggable enclosed column/)
         assert.equal(c.bot.entity.position.y, 64)
     }
+})
+
+test('the shelter roof is seated on a wall-top block, and a failed shell falls back to burrowing', async () => {
+    const c = shelterWorld()
+    await SurvivalController.prototype.makeNightSafe.call(c)
+    const order = c.placed.map(String)
+    assert.ok(order.indexOf(String(new Vec3(1, 66, 0))) < order.indexOf(String(new Vec3(0, 66, 0))))
+    const failing = shelterWorld()
+    let burrowed = false
+    failing.burrow = async () => { burrowed = true }
+    const place = failing.placeSurvivalBlock
+    failing.placeSurvivalBlock = async p => {
+        if (p.equals(new Vec3(1, 65, 0))) {
+            throw new Error('simulated placement failure')
+        }
+        await place(p)
+    }
+    await SurvivalController.prototype.makeNightSafe.call(failing)
+    assert.equal(burrowed, true)
 })
