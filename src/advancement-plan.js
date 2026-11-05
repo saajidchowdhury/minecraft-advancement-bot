@@ -68,8 +68,12 @@ function resourceAction(state, costs) {
         return 'gather_wood'
     }
     if (state.ironIngots < (costs.ironIngots || 0)) {
-        if (state.pendingSmelt && state.hasSmeltingFuel) {
+        if (state.smeltReady || (state.pendingSmelt && state.hasSmeltingFuel)) {
             return 'smelt_iron'
+        }
+        // The furnace works on its own; keep mining iron nearby until the job is ready.
+        if (state.smeltRunning) {
+            return 'gather_iron'
         }
         if (!state.hasFurnace) {
             return state.cobblestone < 8 ? 'gather_stone' : 'craft_furnace'

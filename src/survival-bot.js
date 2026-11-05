@@ -140,6 +140,18 @@ function actionMadeProgress (action, before, after, moved) {
     return !Object.hasOwn(progressed, action) || progressed[action] || moved
 }
 
+// A running job is ready once its time has passed, or at once if the bot has strayed far
+// enough that the furnace might be left behind.
+function smeltJobState (c) {
+    const job = c.memory.smeltJob
+    if (!job || job.dimension !== c.bot.game.dimension) {
+        return { smeltRunning: false, smeltReady: false }
+    }
+    const far = c.bot.entity.position.distanceTo(new Vec3(job.x, job.y, job.z)) > 48
+    const ready = Date.now() >= job.readyAt || far
+    return { smeltRunning: !ready, smeltReady: ready }
+}
+
 class SurvivalController {
     constructor (bot, options = {}) {
         this.bot = bot
@@ -544,6 +556,7 @@ class SurvivalController {
             foodUnits: this.foodUnits(),
             coal: this.countItems(['coal', 'charcoal']),
             pendingSmelt: Boolean(this.memory.pendingSmelt),
+            ...smeltJobState(this),
             hasSmeltingFuel: this.countItems(['coal', 'charcoal']) > 0,
             rawIron: this.countItems(['raw_iron']),
             ironIngots,
@@ -1229,51 +1242,78 @@ class SurvivalController {
         return true
     }
 
+    // Fire-and-forget smelting: load all raw iron with enough fuel, record a job and keep
+    // working; standing at furnaces cost ~29 min on 2026-11-05 (strategy.md).
     async smeltIron () {
+        // The pre-job pendingSmelt flag is retired here so a stale value cannot loop the planner.
+        this.memory.pendingSmelt = false
+        const job = this.memory.smeltJob
+        if (job && job.dimension === this.bot.game.dimension) {
+            return this.collectSmelt(job)
+        }
         const furnaceBlock = await this.getFurnace()
         const furnace = await this.bot.openFurnace(furnaceBlock)
-        this.memory.pendingSmelt = true
-        let completed = false
         try {
             if (furnace.outputItem()?.name === 'iron_ingot') {
                 await furnace.takeOutput()
             }
-            let inputCount = furnace.inputItem()?.count || 0
             if (furnace.inputItem() && furnace.inputItem().name !== 'raw_iron') {
                 throw new Error(`furnace contains unexpected input: ${furnace.inputItem().name}`)
             }
-            if (!inputCount) {
-                const rawIron = this.bestItem(['raw_iron'])
-                if (!rawIron) {
-                    completed = true
-                    return
-                }
-                const wanted = RECIPES[nextAdvancement(this.observe()).item]?.ironIngots || 3
-                inputCount = Math.min(rawIron.count, 3, Math.max(1, wanted - this.countItems(['iron_ingot'])))
-                await furnace.putInput(rawIron.type, rawIron.metadata, inputCount)
+            const rawIron = this.bestItem(['raw_iron'])
+            if (!rawIron) {
+                return
             }
-            if (!furnace.fuelItem() && (!furnace.fuel || furnace.fuel <= 0)) {
+            const count = Math.min(64 - (furnace.inputItem()?.count || 0), this.countItems(['raw_iron']))
+            await furnace.putInput(rawIron.type, rawIron.metadata, count)
+            const total = furnace.inputItem()?.count || count
+            // One coal or charcoal smelts eight items.
+            const fuelNeeded = Math.ceil(total / 8) - (furnace.fuelItem()?.count || 0)
+            if (fuelNeeded > 0) {
                 const fuel = this.bestItem(['coal', 'charcoal'])
                 if (!fuel) {
                     throw new Error('coal or charcoal is missing')
                 }
-                await furnace.putFuel(fuel.type, fuel.metadata, Math.ceil(inputCount / 8))
+                await furnace.putFuel(fuel.type, fuel.metadata, Math.min(fuelNeeded, this.countItems([fuel.name])))
             }
-            await until(this, () => furnace.outputItem()?.name === 'iron_ingot' && furnace.outputItem().count >= inputCount,
-                inputCount * 12000 + 5000)
-            await furnace.takeOutput()
-            if (furnace.fuelItem()) {
-                await furnace.takeFuel()
-            }
-            completed = true
+            const p = furnaceBlock.position
+            this.memory.smeltJob = { dimension: this.bot.game.dimension, x: p.x, y: p.y, z: p.z, count: total, readyAt: Date.now() + total * 10000 + 1000 }
+            this.log.info(`Smelting ${total} raw iron at ${p}; continuing work until about ${Math.ceil(total * 10)} s from now.`)
         } finally {
             await this.bot.closeWindow(furnace).catch(() => {})
-            if (completed) {
-                this.memory.pendingSmelt = false
+        }
+    }
+
+    async collectSmelt (job) {
+        const position = new Vec3(job.x, job.y, job.z)
+        if (this.bot.entity.position.distanceTo(position.offset(0.5, 0.5, 0.5)) > 4) {
+            await this.gotoWithTimeout(new GoalNear(position.x, position.y, position.z, 2), 30000, 'furnace return')
+        }
+        const block = this.bot.blockAt(position)
+        if (block?.name !== 'furnace') {
+            this.memory.smeltJob = null
+            throw new Error(`smelting furnace at ${position} is gone`)
+        }
+        const furnace = await this.bot.openFurnace(block)
+        let finished = false
+        try {
+            await until(this, () => !furnace.inputItem(), Math.max(0, job.readyAt - Date.now()) + 5000).catch(() => {})
+            if (furnace.outputItem()) {
+                await furnace.takeOutput()
             }
-            if (completed && this.running && !this.paused && !this.actionAbort?.signal.aborted) {
-                await this.reclaimStation(furnaceBlock).catch(error => this.log.warn(`Could not reclaim furnace: ${error.message}`))
+            if (!furnace.inputItem()) {
+                if (furnace.fuelItem()) {
+                    await furnace.takeFuel()
+                }
+                finished = true
+                this.memory.smeltJob = null
             }
+        } finally {
+            await this.bot.closeWindow(furnace).catch(() => {})
+        }
+        this.log.info(`Collected smelted iron at ${position}; ${finished ? 'job complete' : 'input still smelting'}.`)
+        if (finished && !this.hasItem('raw_iron') && this.running && !this.actionAbort?.signal.aborted) {
+            await this.reclaimStation(block).catch(error => this.log.warn(`Could not reclaim furnace: ${error.message}`))
         }
     }
 
