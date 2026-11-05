@@ -442,14 +442,13 @@ test('threat cancellations replan within 100 ms instead of the routine 1.5 s', a
 
 test('an off-centre burrow steps into its own hole instead of failing the descent', async () => {
     const c = burrowWorld()
-    let stuck = true
+    c.bot.entity.position = new Vec3(0.95, 64, 0.5)
     const dig = c.bot.dig
+    // The bot only drops when its 0.6-wide box is over the dug cell, not resting on a neighbour.
     c.bot.dig = async block => {
+        const before = c.bot.entity.position
         await dig(block)
-        if (stuck) {
-            stuck = false
-            c.bot.entity.position = new Vec3(0.95, 64, 0.5)
-        }
+        c.bot.entity.position = Math.abs(before.x - 0.5) < 0.2 ? block.position.offset(0.5, 0, 0.5) : before
     }
     c.gotoWithTimeout = async goal => { c.bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5) }
     await SurvivalController.prototype.burrow.call(c)
