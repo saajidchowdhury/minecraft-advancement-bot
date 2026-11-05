@@ -6,12 +6,13 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-05 ~11:35 Eastern. Bot is RUNNING on LAN port 51718, PID 24786,
-code `cedc6f8`, branch mining near Y=-54 for diamond-pickaxe material (F022). Verify PID and
-connection before stopping it; `pgrep -f src/index.js` must return one PID.
+Updated 2026-11-05 ~11:50 Eastern. Bot is RUNNING on LAN port 51718, code `f6aba27`,
+rebuilding from an empty inventory after the F023 death (hand-digging out of a cave
+near Y=58). Verify PID and connection before stopping it; `pgrep -f src/index.js`
+must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 137 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 141 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -405,3 +406,32 @@ ray-casts each air-exposed face, remembers probe-exposed ores for ten minutes, s
 tunnel segments when a diamond comes into view, and adds `mine_diamond`, which outranks
 cleanup and routine goals but not escape, eating or combat. Liquid-adjacent diamonds
 are still refused. Three regressions fail before the fix; live evidence pending.
+
+## F023 — A perception exception killed the bot; respawn recovery gaps [live failure + regression]
+
+Live `cedc6f8` threw `Cannot read properties of undefined (reading 'equals')` in
+`observe()`: prismarine-world's sync raycast returns blocks with an intersection but
+no position. Every decision cycle failed, so the bot never escaped a skeleton and
+died at 16:27:05.763Z at (-131,-50,-36), four seconds before it was stopped. All
+equipment, two diamonds and 15 raw iron were dropped at Y=-50. `e6078ea` locates the
+hit from the intersection, makes the test raycast return the real shape, and logs
+and ignores diamond-search errors so perception cannot disable safety again.
+Lesson: mocks of library calls must mirror the library's actual return shape.
+
+Respawn exposed two loops. At the bed (-95,73,56) the bot stood in a two-deep hole
+inside roofless staged shelter walls and the shaft escape demanded eight upward
+steps; `a980f7c` accepts a supported level rim exit (live: out in 1.3 s). Recovery
+from Y=-50 with no tools failed, scouting led into a cave at Y=53, and return_surface
+failed 245 times for lack of a pickaxe; `7454615` lets upward staircases dig by hand
+(live: slow, about one step per 60 s action). The drops were not recovered.
+
+## F024 — Throughput principle and the gear route [user direction + regression]
+
+The user made expected advancement throughput an explicit project goal (CLAUDE.md
+and AGENTS.md, `ef8234d`): fast progress without large risks, since deaths cost
+recovery time or a restart; compounding investments such as a diamond pickaxe,
+weapons and a full armor set come early. `f6aba27` crafts an iron sword and the
+remaining iron armor after Hot Stuff, then the diamond pickaxe and sword, then any
+affordable diamond armor piece (Cover Me with Diamonds, `minecraft:story/shiny_gear`);
+`equip_armor` upgrades all four slots. Tests cover order and slot upgrades; no live
+crafting of the new pieces yet. Ingot and diamond costs are vanilla recipe counts.

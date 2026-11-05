@@ -220,3 +220,8 @@ liquid/loose-roof refusals; face-level diamond visibility, probe-exposed ore mem
 liquid refusal and decision priority (three fail before the fix). Live: pit disposal
 at 16:23:50Z and the Diamonds! server packet at 16:20:34.805Z. Diamond priority awaits
 a live sighting.
+
+Later follow-up (`e6078ea`–`f6aba27`; 141 tests). A live death at 16:27:05Z was caused
+by a raycast-shape bug the mock hid; the mock now mirrors prismarine-world. Live
+fixes verified: shallow-pit shaft escape (16:29:16Z). Hand-dug return is live but slow.
+Full iron set, diamond sword and diamond armor ordering are unit-tested only.

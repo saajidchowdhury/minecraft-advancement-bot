@@ -230,3 +230,17 @@ Next actions, in order:
 5. G005: Diamonds! is server-confirmed (16:20:34Z). Next: three diamonds and a
    crafted diamond pickaxe; confirm live that probe-exposed or face-visible diamonds
    trigger `mine_diamond` (F022) and that liquid-adjacent ones are skipped safely.
+
+
+## Throughput update 2026-11-05 ~11:50 Eastern
+
+Per the user's efficiency principle (CLAUDE.md), rank work by expected advancements
+per unit time including death risk. Next actions:
+1. G001: the bot died through a code fault (F023). Before more features, add a
+   watchdog test that `observe()`/`chooseAction` survive any single perception error,
+   and live-validate the rebuild from nothing (wood → stone → iron) without deaths.
+2. F024: live-validate the iron sword and full iron set, then diamond pickaxe/sword.
+3. Measure throughput: log advancements and elapsed time per run in session output
+   so policies can be compared (G008), separating staged from unaided time.
+4. Recovery policy: a deep death with no tools cannot recover drops; skip doomed
+   recovery quickly and rebuild instead of scouting into caves.
