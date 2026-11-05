@@ -507,7 +507,7 @@ class SurvivalController {
             dimension: this.bot.game.dimension, items,
             inventoryFull: this.bot.inventory.emptySlotCount() <= 4 && !(this.memory.disposalBackoffUntil > Date.now()),
             surfaceY: this.home?.y || 64, y: this.bot.entity.position.y,
-            underground: this.bot.entity.position.y < (this.home?.y || 64) - 3,
+            underground: this.bot.entity.position.y < (this.home?.y || 64) - 3 && !(this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0))?.skyLight >= 12),
             portalInProgress: Boolean(this.memory.portalOrigin),
             redstoneInProgress: Boolean(this.memory.redstoneOrigin),
             redstoneRequested: Boolean(this.memory.redstoneRequested)

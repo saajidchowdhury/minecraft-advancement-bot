@@ -181,7 +181,7 @@ async function exploreCave(c, targetY) {
     bot.pathfinder.setMovements(walking)
     let moved = false
     try {
-        for (const p of route.slice(0, c.countItems(['torch']))) {
+        for (const p of route) {
             check(c, signal)
             const current = c.observe()
             if (c.memory.caveSurvey.steps >= 24 || current.health < 16 || current.food < 18 || current.hostileDistance <= 12 || !safeFooting(bot, p)) {
@@ -193,7 +193,9 @@ async function exploreCave(c, targetY) {
             if (c.memory.caveVisits.size > 2048) {
                 c.memory.caveVisits.delete(c.memory.caveVisits.keys().next().value)
             }
-            if (c.countItems(['torch']) > 0 && bot.blockAt(feet)?.name !== 'torch') {
+            // Torch light 14 falls by one per block; one per ~7 cells keeps survey floors lit.
+            const lit = bot.blockAt(feet)?.skyLight >= 12 || c.findNearestBlock?.(name => name === 'torch' || name === 'wall_torch', 6)
+            if (c.countItems(['torch']) > 0 && !lit) {
                 await bot.equip(c.bestItem(['torch']), 'hand')
                 check(c, signal)
                 await bot.placeBlock(bot.blockAt(feet.offset(0, -1, 0)), new Vec3(0, 1, 0))

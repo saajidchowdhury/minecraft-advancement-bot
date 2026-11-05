@@ -211,3 +211,12 @@ test('large caverns with high ceilings still receive a survey', () => {
         boundingBox: p.y < 64 || p.y >= 110 ? 'block' : 'empty' })
     assert.ok(findCaveRoute(c.bot, new Map(), -54).length > 0)
 })
+
+test('a cave survey spaces torches instead of lighting every step', async () => {
+    const { c, blocks, inventory, state, moves } = caveWorld()
+    c.findNearestBlock = (match, distance) => [...blocks].map(([key, name]) => ({ name, p: new Vec3(...key.slice(1, -1).split(',').map(Number)) }))
+        .find(b => match(b.name) && b.p.distanceTo(c.bot.entity.position.floored()) <= distance) || null
+    assert.equal(await exploreCave(c, 16), true)
+    assert.ok(moves.length >= 4)
+    assert.equal(16 - inventory.find(item => item.name === 'torch').count, 1)
+})
