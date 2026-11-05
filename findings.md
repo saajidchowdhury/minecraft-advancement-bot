@@ -6,12 +6,12 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 39984, code
-`6f077df`, rebuilding after nine deaths today (F023, F025–F031). Verify PID and connection before stopping it; `pgrep -f src/index.js`
+Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 41971, code
+`19be10b`, rebuilding after ten deaths today (F023, F025–F032). Verify PID and connection before stopping it; `pgrep -f src/index.js`
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 166 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 168 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -572,3 +572,15 @@ protective affordable piece) at 20:57:49Z, with the server's minecraft:story/shi
 equip_armor then wore the diamond helmet over the iron one. The planner moved on to the
 water bucket for obsidian (G005). Throughput: from an empty inventory at the 20:14Z
 burrow to Cover Me with Diamonds in about 44 min with no deaths.
+
+## F032 — Death 10 lost the diamond gear to a creeper flight under zombie hits [live + regression]
+
+21:00:23–39Z (`6f077df`): a creeper 2.9 blocks away started an escape; seal placements
+were refused and the bot fled for 16 s while one, then two zombies hit it about once a
+second. Escape is exempt from melee interruption, so the diamond sword was never used;
+the creeper finished the bot at -176,25,-48. The death was marked dangerous, so the
+diamond pickaxe, sword and helmet were not recovered — the costliest death today.
+`19be10b`: creeper flight ends at eight blocks (beyond the seven-block fuse range);
+melee damage interrupts an escape when no creeper is within seven blocks and 12+ armor
+points are worn; armored duels cover up to two melee attackers. Both regressions fail
+on the prior source. Ten deaths today.
