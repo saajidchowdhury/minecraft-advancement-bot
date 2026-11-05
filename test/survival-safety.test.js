@@ -480,3 +480,27 @@ test('an armored bot stops fleeing to fight a zombie that keeps hitting it, but 
     bot.emit('health')
     assert.deepEqual(cancels, ['attacked while fleeing by zombie'])
 })
+
+test('charging an archer keeps the shield raised and lowers it only to strike', async () => {
+    const events = []
+    const skeleton = { name: 'skeleton', isValid: true, position: new Vec3(6, 64, 0), height: 1.99 }
+    const c = {
+        running: true, paused: false, actionAbort: new AbortController(), log: { warn() {} },
+        bestItem: () => ({ name: 'iron_sword' }), rememberBlockedTarget() {}, collectTarget: async () => {},
+        bot: {
+            health: 20, entity: { position: new Vec3(0, 64, 0) }, entities: {},
+            inventory: { slots: Object.assign([], { 45: { name: 'shield' } }) },
+            equip: async () => {}, lookAt: async () => {},
+            activateItem: offhand => events.push(offhand && c.bot.entity.position.distanceTo(skeleton.position) > 3.1 ? 'raise at range' : 'raise'),
+            deactivateItem: () => events.push('lower'),
+            attack: () => { events.push('attack'); skeleton.isValid = false },
+            pathfinder: { setGoal: goal => { if (goal) { c.bot.entity.position = new Vec3(4, 64, 0) } } }
+        }
+    }
+    c.checkAction = SurvivalController.prototype.checkAction.bind(c)
+    await SurvivalController.prototype.fight.call(c, skeleton)
+    assert.equal(events[0], 'raise at range')
+    assert.ok(events.indexOf('lower') < events.indexOf('attack'))
+    assert.ok(events.filter(e => e === 'lower').length >= events.filter(e => e.startsWith('raise')).length)
+    assert.equal(events.at(-1), 'lower')
+})

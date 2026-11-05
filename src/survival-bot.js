@@ -1292,6 +1292,7 @@ class SurvivalController {
         }
         const deadline = Date.now() + 20000
         let following = false
+        let shielding = false
         try {
             while (entity.isValid && Date.now() < deadline) {
                 this.checkAction(signal)
@@ -1309,8 +1310,18 @@ class SurvivalController {
                         this.bot.pathfinder.setGoal(new GoalFollow(entity, 2), true)
                         following = true
                     }
+                    // Charging an archer, keep the shield up: the follow path faces it, so arrows
+                    // hit the shield (Not Today, Thank You) instead of the bot (F027, F031).
+                    if (ARCHERS.has(entity.name) && this.bot.inventory?.slots[45]?.name === 'shield' && !shielding) {
+                        this.bot.activateItem(true)
+                        shielding = true
+                    }
                     await sleep(300)
                 } else {
+                    if (shielding) {
+                        this.bot.deactivateItem()
+                        shielding = false
+                    }
                     this.bot.pathfinder.setGoal(null)
                     following = false
                     await this.bot.lookAt(entity.position.offset(0, Math.min(entity.height || 1, 1.4), 0), true)
@@ -1354,6 +1365,9 @@ class SurvivalController {
                 }
             }
         } finally {
+            if (shielding) {
+                this.bot.deactivateItem()
+            }
             this.bot.pathfinder.setGoal(null)
             this.bot.deactivateItem?.()
         }

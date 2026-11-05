@@ -202,3 +202,12 @@ test('an armored bot fights two zombies once a creeper is beyond its fuse range'
     assert.equal(chooseAction(state({ ...pair, creeperDistance: 5 })), Actions.ESCAPE)
     assert.equal(chooseAction(state({ ...pair, visibleHostiles: 3 })), Actions.ESCAPE)
 })
+
+test('a non-urgent surface trip waits underground in shelter at night', () => {
+    const night = { underground: true, isNight: true, hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true,
+        hasStonePickaxe: true, hasFurnace: true, hasIronPickaxe: true, hasStoneUtilityPickaxe: false, cobblestone: 10, food: 17, hasFood: true, logs: 0, planks: 0, sticks: 0 }
+    assert.equal(chooseAction(state(night)), Actions.SHELTER)
+    assert.equal(chooseAction(state({ ...night, sheltered: true })), 'wait')
+    assert.equal(chooseAction(state({ ...night, isNight: false })), 'return_surface')
+    assert.equal(chooseAction(state({ ...night, food: 10, hasFood: false })), 'return_surface')
+})

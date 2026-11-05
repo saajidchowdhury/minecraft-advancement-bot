@@ -133,6 +133,10 @@ function chooseAction (state) {
     if (!state.underground && mining && (state.planks || 0) + (state.logs || 0) * 4 + (state.sticks || 0) / 2 < 12) {
         return Actions.WOOD
     }
+    // Surfacing at night walked a weak bot into archers twice (F035); hunger returns stay above.
+    if (surfaceBound && state.isNight) {
+        return state.sheltered ? 'wait' : Actions.SHELTER
+    }
     return surfaceBound ? 'return_surface' : action
 }
 
