@@ -329,7 +329,7 @@ async function smeltCharcoal(c) {
     try {
         if (furnace.outputItem()?.name !== 'charcoal') {
             if (!furnace.inputItem()) {
-                const log = c.bot.inventory.items().find(item => item.name.endsWith('_log'))
+                const log = furnace.items().find(item => item.name.endsWith('_log'))
                 if (!log) {
                     throw new Error('a log is required for charcoal')
                 }
@@ -341,7 +341,7 @@ async function smeltCharcoal(c) {
             if (!furnace.fuelItem() && (furnace.fuelSeconds || 0) < 11) {
                 let remaining = 2
                 while (remaining > 0) {
-                    const planks = c.bot.inventory.items().find(item => item.name.endsWith('_planks') && item.count > 0)
+                    const planks = furnace.items().find(item => item.name.endsWith('_planks') && item.count > 0)
                     if (!planks) {
                         throw new Error('two planks are required for charcoal fuel')
                     }

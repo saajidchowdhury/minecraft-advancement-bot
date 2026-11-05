@@ -13,6 +13,8 @@ Server advancement packets confirmed:
 - Isn't It Iron Pick (`minecraft:story/iron_tools`)
 - Adventure (`minecraft:adventure/root`)
 - Monster Hunter (`minecraft:adventure/kill_a_mob`)
+- Husbandry (`minecraft:husbandry/root`)
+- Suit Up (`minecraft:story/obtain_armor`)
 
 The bot also crafted/retrieved workstations, made charcoal, replaced broken tools, resumed after reconnects, mined supported stairs, and opened both side probes at one station. The first live probe pair mined eight blocks without advancing the bot off the main tunnel. Spacing eight is configurable and has not been optimized by a comparative experiment.
 
@@ -26,7 +28,9 @@ The inherited Mineflayer patch was applied successfully to reconstructed pristin
 
 ## Still being tested
 
-A repeated dynamic-follow reset in food pursuit was reproduced in a regression test and fixed by keeping one live follow goal; the new revision has rejoined successfully and is currently sheltering at night, so successful food pursuit remains a pending live check. Later armor, bucket, diamond, obsidian-casting, portal and redstone behavior has not yet completed an end-to-end live survival test. No claim of autonomous dragon completion or all-advancement support is made.
+The 00:06:22 run on LAN port 50330 verified pursuit, food pickup, eating, Husbandry, chestplate crafting and equipping, and Suit Up. It also recorded probes exposing ore. The bot reached nine server-confirmed advancements.
+
+A mixed-plank charcoal failure was reproduced with an inventory snapshot that remains stale while a furnace window is open. Fuel selection now reads the open furnace window's inventory. The corrected regression passes; the new revision still needs a live mixed-plank retry. Later bucket, diamond, obsidian-casting, portal and redstone behavior has not yet completed an end-to-end live survival test. No claim of autonomous dragon completion or all-advancement support is made.
 
 ## Comment ceiling
 
