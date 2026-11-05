@@ -326,3 +326,9 @@ during passive watching; strategy.md ranks levers. Done: replan latency, async s
 Next by strategy.md: verify base deposit/restock live and add a bed at the base (death
 cost), then the Nether route (Ice Bucket Challenge → portal → Oh Shiny, Hidden in the
 Depths), then Enchanter.
+
+Update ~18:00 Eastern: async smelting verified live; Hired Help, Nether return and
+post-route diamond armor implemented. Next strategic items: Enchanter (book from sugar
+cane + leather, table from 2 diamonds + 4 obsidian, lapis), gold boots before any longer
+Nether stay (piglins), and a bed at the base. Measure throughput with state.json's
+advancementsPerHour across a full run.
