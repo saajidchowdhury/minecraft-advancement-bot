@@ -16,7 +16,7 @@ function nightWorld() {
         hasFood: true, hasWeapon: true, hostileDistance: Infinity, isNight: true, underground: false,
         dimension: 'overworld', logs: 3, planks: 0, sticks: 0, cobblestone: 8, hasCraftingTable: true,
         hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true,
-        hasIronPickaxe: true, hasStoneUtilityPickaxe: true, hasIronArmor: true, hasShield: true,
+        hasIronPickaxe: true, hasStoneUtilityPickaxe: true, hasIronArmor: true, hasShield: true, gear: new Set(['iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']), 
         diamonds: 0, completedAdvancements: new Set(['minecraft:story/lava_bucket', 'minecraft:adventure/kill_a_mob']) }
     const c = {
         memory: {}, hostileNames: HOSTILES, log: { warn() {} }, isBlockedTarget: () => false,

@@ -90,7 +90,7 @@ test('an unarmed recovery does not run through a nearby hostile even at full hea
 test('deep mining prepares food reserves at the surface without interrupting an underground return', () => {
     const ready = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true,
         hasStonePickaxe: true, hasStoneUtilityPickaxe: true, hasFurnace: true, hasIronPickaxe: true,
-        hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true,
+        hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true, gear: new Set(['iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']), 
         logs: 3, planks: 4, sticks: 4, diamonds: 0, hasFood: false,
         completedAdvancements: new Set(['minecraft:story/lava_bucket']) })
     assert.equal(chooseAction({ ...ready, foodUnits: 0 }), Actions.FOOD)
@@ -110,7 +110,7 @@ test('deep mining does not abandon the trip for sticks and departs with a wood r
     const { nextAdvancement } = require('../src/advancement-plan')
     const geared = {
         hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasStoneUtilityPickaxe: true,
-        hasFurnace: true, hasIronPickaxe: true, hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true,
+        hasFurnace: true, hasIronPickaxe: true, hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true, gear: new Set(['iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']), 
         hasBucket: true, completedAdvancements: new Set(['minecraft:story/lava_bucket']), foodUnits: 30, hasFood: true,
         cobblestone: 64, diamonds: 0, sticks: 1, planks: 0, logs: 0
     }

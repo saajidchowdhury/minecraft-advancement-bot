@@ -192,3 +192,14 @@ test('no pit is dug next to liquid or under a loose roof', async () => {
         assert.equal(digs, 0)
     }
 })
+
+test('armor upgrades fill every slot with the best carried tier and never downgrade', () => {
+    const { armorUpgrades } = require('../src/progression-skills')
+    const items = [{ name: 'iron_helmet' }, { name: 'diamond_helmet' }, { name: 'iron_boots' }, { name: 'iron_leggings' }, { name: 'iron_chestplate' }]
+    const slots = []
+    slots[6] = { name: 'diamond_chestplate' }
+    slots[7] = { name: 'golden_leggings' }
+    const bot = { inventory: { items: () => items, slots } }
+    const plan = armorUpgrades(bot).map(u => `${u.destination}:${u.item.name}`)
+    assert.deepEqual(plan, ['head:diamond_helmet', 'legs:iron_leggings', 'feet:iron_boots'])
+})

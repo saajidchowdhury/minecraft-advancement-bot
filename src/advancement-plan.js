@@ -9,6 +9,7 @@ const EARLY_ADVANCEMENTS = Object.freeze([
     { id: 'minecraft:story/obtain_armor', title: 'Suit Up' },
     { id: 'minecraft:story/lava_bucket', title: 'Hot Stuff' },
     { id: 'minecraft:story/mine_diamond', title: 'Diamonds!' },
+    { id: 'minecraft:story/shiny_gear', title: 'Cover Me with Diamonds' },
     { id: 'minecraft:story/form_obsidian', title: 'Ice Bucket Challenge' },
     { id: 'minecraft:story/enter_the_nether', title: 'We Need to Go Deeper' }
 ])
@@ -20,10 +21,26 @@ const RECIPES = Object.freeze({
     furnace: { cobblestone: 8 }, iron_pickaxe: { ironIngots: 3, sticks: 2 },
     iron_chestplate: { ironIngots: 8 }, shield: { ironIngots: 1, planks: 6 },
     bucket: { ironIngots: 3 }, diamond_pickaxe: { diamonds: 3, sticks: 2 },
+    iron_sword: { ironIngots: 2, sticks: 1 }, iron_helmet: { ironIngots: 5 },
+    iron_leggings: { ironIngots: 7 }, iron_boots: { ironIngots: 4 },
+    diamond_sword: { diamonds: 2, sticks: 1 }, diamond_chestplate: { diamonds: 8 },
+    diamond_leggings: { diamonds: 7 }, diamond_helmet: { diamonds: 5 }, diamond_boots: { diamonds: 4 },
     flint_and_steel: { ironIngots: 1, flint: 1 },
     piston: { planks: 3, cobblestone: 4, ironIngots: 1, redstone: 1 },
     lever: { sticks: 1, cobblestone: 1 }
 })
+
+// Armor tiers in protection order; pieces listed by protection per material spent.
+const ARMOR_TIERS = ['leather', 'golden', 'chainmail', 'iron', 'diamond', 'netherite']
+const ARMOR_PIECES = ['chestplate', 'leggings', 'helmet', 'boots']
+
+function owns(state, names) {
+    return names.some(name => state.gear?.has(name))
+}
+
+function ownsTier(state, piece, tier) {
+    return owns(state, ARMOR_TIERS.slice(ARMOR_TIERS.indexOf(tier)).map(t => `${t}_${piece}`))
+}
 
 function plankPotential(state) {
     return state.planks + state.logs * 4
@@ -117,8 +134,27 @@ function nextAdvancement(state) {
         }
         return target('minecraft:story/lava_bucket', 'fill_lava_bucket', 'collect a reachable lava source')
     }
+    // Cheap survival upgrades compound: fewer deaths means fewer lost trips and inventories.
+    if (state.armorUpgrade) {
+        return target('minecraft:story/obtain_armor', 'equip_armor', 'wear the best armor carried')
+    }
+    if (!owns(state, ['iron_sword', 'diamond_sword', 'netherite_sword'])) {
+        return craft(state, 'prep:iron sword', 'iron_sword')
+    }
+    for (const piece of ARMOR_PIECES.filter(piece => piece !== 'chestplate')) {
+        if (!ownsTier(state, piece, 'iron')) {
+            return craft(state, `prep:iron ${piece}`, `iron_${piece}`)
+        }
+    }
     if (!state.hasDiamondPickaxe) {
         return craft(state, state.diamonds < 1 ? 'minecraft:story/mine_diamond' : 'prep:diamond pickaxe', 'diamond_pickaxe')
+    }
+    if (!owns(state, ['diamond_sword', 'netherite_sword'])) {
+        return craft(state, 'prep:diamond sword', 'diamond_sword')
+    }
+    const affordable = ARMOR_PIECES.find(piece => !ownsTier(state, piece, 'diamond') && state.diamonds >= RECIPES[`diamond_${piece}`].diamonds)
+    if (affordable) {
+        return craft(state, 'minecraft:story/shiny_gear', `diamond_${affordable}`)
     }
     if (!state.hasWaterBucket && !state.portalInProgress && !state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
         if (!state.hasEmptyBucket) {
@@ -144,4 +180,4 @@ function nextAdvancement(state) {
     return target('survival:established', 'wait', 'supported advancement route complete; use !come or !redstone')
 }
 
-module.exports = { EARLY_ADVANCEMENTS, RECIPES, nextAdvancement, plankPotential, resourceAction }
+module.exports = { EARLY_ADVANCEMENTS, RECIPES, ARMOR_TIERS, nextAdvancement, plankPotential, resourceAction }

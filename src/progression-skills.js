@@ -4,7 +4,7 @@ const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { discardableStacks } = require('./inventory')
 const { exploreCave, collectOpportunity, safeFooting, dryMovements, rememberOre, findPriorityDiamond } = require('./cave-exploration')
-const { RECIPES, nextAdvancement, resourceAction } = require('./advancement-plan')
+const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
 
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
@@ -844,6 +844,18 @@ async function clearInventory(c) {
     }
 }
 
+// Player inventory armor slots: 5 head, 6 torso, 7 legs, 8 feet.
+const ARMOR_SLOTS = [['helmet', 'head', 5], ['chestplate', 'torso', 6], ['leggings', 'legs', 7], ['boots', 'feet', 8]]
+
+function armorUpgrades(bot) {
+    const tier = name => name ? ARMOR_TIERS.indexOf(name.split('_')[0]) : -1
+    return ARMOR_SLOTS.map(([piece, destination, slot]) => {
+        const item = bot.inventory.items().filter(i => i.name.endsWith(`_${piece}`) && tier(i.name) >= 0)
+            .sort((a, b) => tier(b.name) - tier(a.name))[0]
+        return item && tier(item.name) > tier(bot.inventory.slots[slot]?.name) ? { item, destination } : null
+    }).filter(Boolean)
+}
+
 async function performProgression(c, action, state) {
     switch (action) {
         case 'clear_inventory': return clearInventory(c)
@@ -853,7 +865,11 @@ async function performProgression(c, action, state) {
             return craftProgression(c, goal.item)
         }
         case 'equip_armor':
-            return c.bot.equip(c.bestItem(['netherite_chestplate', 'diamond_chestplate', 'iron_chestplate']), 'torso')
+            for (const { item, destination } of armorUpgrades(c.bot)) {
+                check(c)
+                await c.bot.equip(item, destination)
+            }
+            return
         case 'equip_shield':
             return c.bot.equip(c.bestItem(['shield']), 'off-hand')
         case 'fill_lava_bucket': return fillLavaBucket(c)
@@ -878,4 +894,4 @@ async function performProgression(c, action, state) {
     }
 }
 
-module.exports = { performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep }
+module.exports = { armorUpgrades, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep }

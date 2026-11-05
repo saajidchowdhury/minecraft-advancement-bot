@@ -11,7 +11,7 @@ const { updateNightState, retreatForNight } = require('./night-policy')
 const { prepareBed, huntAtNight, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
 const { exploreCave, collectOpportunity, findPriorityDiamond } = require('./cave-exploration')
-const { performProgression, redstonePlan, mineTunnel, until, climbStep } = require('./progression-skills')
+const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades } = require('./progression-skills')
 
 const { GoalNear, GoalFollow } = goals
 
@@ -512,6 +512,9 @@ class SurvivalController {
             redstoneInProgress: Boolean(this.memory.redstoneOrigin),
             redstoneRequested: Boolean(this.memory.redstoneRequested)
         }
+        state.gear = new Set([...this.bot.inventory.items(), ...[5, 6, 7, 8, 45].map(slot => this.bot.inventory.slots[slot])]
+            .filter(Boolean).map(item => item.name))
+        state.armorUpgrade = armorUpgrades(this.bot).length > 0
         try {
             state.diamondInView = Boolean(this.mcData && findPriorityDiamond(this))
         } catch (error) {
