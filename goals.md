@@ -263,3 +263,7 @@ Update ~16:00 Eastern: F024 complete live — full iron set, diamond pickaxe and
 diamond helmet worn, Cover Me with Diamonds server-confirmed (13 advancements). F022
 diamond priority verified live. Next: G005 water bucket and obsidian (Ice Bucket
 Challenge), then G006 Nether entry, keeping the F025–F031 survival fixes under watch.
+
+Update ~16:20 Eastern: shaft memory implemented (F033). Validate live: record on the
+next descent, follow it down after a surface trip or death, follow it up when returning.
+Measure descent time versus carving (~4–5 min per 124 steps today).

@@ -584,3 +584,18 @@ diamond pickaxe, sword and helmet were not recovered — the costliest death tod
 melee damage interrupts an escape when no creeper is within seven blocks and 12+ armor
 points are worn; armored duels cover up to two melee attackers. Both regressions fail
 on the prior source. Ten deaths today.
+
+## F033 — Remembered shaft for surface↔Y=-54 travel [user direction + regression]
+
+User direction: after a death or surface trip the bot should reuse its route between
+the surface (Y≈70) and Y=-54 instead of carving new stairs. Cause: returnSurface popped
+mineRoute step by step, so the next descent always dug a fresh ~124-step staircase.
+`e0691a3`: a descent from the surface that reaches its target stores the continuous
+tail of mineRoute (steps at most 6 blocks apart, starting at the last surface-level
+cell) as `memory.shaft`, per dimension, surviving deaths and reconnects. gather_diamonds
+and gather_redstone above the target walk to an entrance within 128 blocks and follow
+the shaft down with eight-cell pathfinder waypoints; return_surface follows it up. A
+blocked shaft is forgotten; an unreachable one is skipped for five minutes. Five
+regressions cover recording, gaps, both directions and failure handling. Live: the
+first post-restart descent should log 'Remembered a … shaft'; reuse pending.
+Possible later upgrades: a water elevator or ladder column for faster vertical travel.
