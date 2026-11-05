@@ -8,7 +8,7 @@ const { Actions, chooseAction } = require('./decision-engine')
 const { RECIPES, nextAdvancement } = require('./advancement-plan')
 const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight } = require('./night-policy')
-const { prepareBed, huntAtNight, sleepSafely, leaveShelter } = require('./night-skills')
+const { prepareBed, huntAtNight, sleepSafely, leaveShelter, clearPlants } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
 const { exploreCave, collectOpportunity } = require('./cave-exploration')
 const { performProgression, redstonePlan, mineTunnel, until, climbStep } = require('./progression-skills')
@@ -830,7 +830,6 @@ class SurvivalController {
 
             const previousY = this.bot.entity.position.y
             this.bot.clearControlStates()
-        this.bot.deactivateItem?.()
             this.log.info(`Safely descending from isolated ${trap.support.name} pillar at ${trap.support.position}.`)
             await this.bot.dig(trap.support, true)
             await waitUntil(() => this.bot.entity.position.y < previousY - 0.6, 4000, 100)
@@ -1339,6 +1338,8 @@ class SurvivalController {
     async placeSurvivalBlock (target) {
         const signal = this.actionAbort?.signal
         this.checkAction(signal)
+        await clearPlants(this, [target])
+        this.checkAction(signal)
         const existing = this.bot.blockAt(target)
         if (!this.isEmptyPlacementBlock(existing)) {
             return
@@ -1768,6 +1769,7 @@ class SurvivalController {
     clearCurrentTask () {
         this.actionAbort?.abort()
         this.bot.clearControlStates()
+        this.bot.deactivateItem?.()
         if (this.bot.currentWindow) {
             this.bot.closeWindow(this.bot.currentWindow).catch(() => {})
         }

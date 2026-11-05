@@ -168,3 +168,16 @@ test('daylight shelter exit opens a checked doorway and clears only the shelter 
     assert.equal(c.sheltered, false)
     assert.equal(c.bot.entity.position.x, 1.5)
 })
+
+test('ordinary ground vegetation is cleared before bed placement instead of preventing sleep', async () => {
+    const { c, state, blocks } = restWorld()
+    for (let x = -4; x <= 4; x++) {
+        for (let z = -4; z <= 4; z++) {
+            blocks.set(new Vec3(x, 64, z).toString(), 'short_grass')
+        }
+    }
+    c.bot.canDigBlock = () => true
+    c.bot.dig = async b => blocks.set(b.position.toString(), 'air')
+    await sleepSafely(c, state)
+    assert.equal(c.bot.isSleeping, true)
+})

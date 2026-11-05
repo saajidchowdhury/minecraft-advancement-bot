@@ -24,13 +24,13 @@ function check(c, signal) {
     }
 }
 
-function safeFooting(bot, p) {
+function safeFooting(bot, p, clearNames = AIR) {
     const floor = bot.blockAt(p.offset(0, -1, 0), false)
     if (!floor || floor.boundingBox !== 'block' || DANGER.has(floor.name)) {
         return false
     }
     for (const dy of [0, 1]) {
-        if (!AIR.has(bot.blockAt(p.offset(0, dy, 0), false)?.name)) {
+        if (!clearNames.has(bot.blockAt(p.offset(0, dy, 0), false)?.name)) {
             return false
         }
         for (const [dx, dz] of DIRECTIONS) {

@@ -23,7 +23,11 @@ interesting, functional redstone contraptions is an optional, lower priority.
 
 Preserve the visible LAN workflow: the user opens a Java singleplayer survival
 world to LAN and watches the bot as a separate player from a third-person view.
-Do not use cheats to make a survival test appear successful.
+Do not use cheats to make a survival test appear successful. The user authorizes
+Minecraft commands solely to stage initial test conditions (time, supplies,
+position or mobs). Keep this setup outside the bot feature code, record it
+explicitly, then run the live trial without subsequent commands. Distinguish
+staged-condition evidence and supplied items from survival-earned progression.
 
 ## Read first
 

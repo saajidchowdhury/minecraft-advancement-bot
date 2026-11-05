@@ -5,6 +5,8 @@ const { goals } = require('mineflayer-pathfinder')
 const { dryMovements, safeFooting } = require('./cave-exploration')
 const { nightReady, retreatForNight } = require('./night-policy')
 
+const PLANTS = new Set(['short_grass', 'tall_grass', 'fern', 'large_fern', 'dead_bush', 'leaf_litter'])
+const BED_SPACE = new Set(['air', 'cave_air', 'void_air', ...PLANTS])
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 async function prepareBed(c, wool) {
@@ -52,14 +54,40 @@ async function huntAtNight(c, state) {
     }
 }
 
+async function clearPlants(c, positions) {
+    const signal = c.actionAbort?.signal
+    for (const p of positions) {
+        c.checkAction(signal)
+        const block = c.bot.blockAt(p)
+        if (PLANTS.has(block?.name)) {
+            if (!c.bot.canDigBlock(block)) {
+                throw new Error('vegetation is outside safe placement reach')
+            }
+            await c.bot.dig(block, true)
+            c.checkAction(signal)
+        }
+    }
+}
+
 function bedPlacement(c) {
     const feet = c.bot.entity.position.floored()
-    for (const [dx, dz] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
-        const foot = feet.offset(dx, 0, dz)
-        const head = foot.offset(dx, 0, dz)
-        if ([foot, head].every(p => safeFooting(c.bot, p) && c.isEmptyPlacementBlock(c.bot.blockAt(p)) &&
-            c.isEmptyPlacementBlock(c.bot.blockAt(p.offset(0, 1, 0))))) {
-            return { foot, head }
+    for (let r = 1; r <= 3; r++) {
+        for (let x = -r; x <= r; x++) {
+            for (let z = -r; z <= r; z++) {
+                if (Math.max(Math.abs(x), Math.abs(z)) !== r) {
+                    continue
+                }
+                const foot = feet.offset(x, 0, z)
+                if (c.bot.entity.position.distanceTo(foot.offset(0.5, 0, 0.5)) > 3.5) {
+                    continue
+                }
+                for (const [dx, dz] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
+                    const head = foot.offset(dx, 0, dz)
+                    if (!head.equals(feet) && [foot, head].every(p => safeFooting(c.bot, p, BED_SPACE))) {
+                        return { foot, head }
+                    }
+                }
+            }
         }
     }
     return null
@@ -89,6 +117,8 @@ async function sleepSafely(c, state) {
             if (!site) {
                 throw new Error('no dry two-block bed site within reach')
             }
+            await clearPlants(c, [site.foot, site.foot.offset(0, 1, 0), site.head, site.head.offset(0, 1, 0)])
+            c.checkAction(signal)
             const item = bot.inventory.items().find(item => item.name.endsWith('_bed'))
             await bot.equip(item, 'hand')
             c.checkAction(signal)
@@ -161,4 +191,4 @@ async function leaveShelter(c) {
     throw new Error('no safe supported shelter exit')
 }
 
-module.exports = { prepareBed, huntAtNight, sleepSafely, leaveShelter, bedPlacement }
+module.exports = { prepareBed, huntAtNight, sleepSafely, leaveShelter, bedPlacement, clearPlants }
