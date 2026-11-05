@@ -512,7 +512,12 @@ class SurvivalController {
             redstoneInProgress: Boolean(this.memory.redstoneOrigin),
             redstoneRequested: Boolean(this.memory.redstoneRequested)
         }
-        state.diamondInView = Boolean(this.mcData && findPriorityDiamond(this))
+        try {
+            state.diamondInView = Boolean(this.mcData && findPriorityDiamond(this))
+        } catch (error) {
+            state.diamondInView = false
+            this.log.warn(`Diamond search failed; ignoring it this cycle: ${error.message}`)
+        }
         if (state.redstoneRequested && nextAdvancement(state).action === 'wait' && state.dimension === 'overworld') {
             state.sideGoal = redstonePlan(state)
         }

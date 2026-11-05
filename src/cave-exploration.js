@@ -137,8 +137,10 @@ function oreSeen(bot, block, range = 16) {
         }
         const face = block.position.offset(0.5 + 0.49 * x, 0.5 + 0.49 * y, 0.5 + 0.49 * z)
         const distance = eye.distanceTo(face)
-        const hit = distance <= range && bot.world.raycast(eye, face.minus(eye).scaled(1 / distance), distance + 0.1)
-        return Boolean(hit?.position.equals(block.position))
+        const dir = face.minus(eye).scaled(1 / distance)
+        // prismarine-world's raycast returns blocks without positions; locate the hit cell from its intersection.
+        const hit = distance <= range && bot.world.raycast(eye, dir, distance + 0.1)
+        return Boolean(hit?.intersect && hit.intersect.plus(dir.scaled(1e-3)).floored().equals(block.position))
     })
 }
 

@@ -236,15 +236,17 @@ function diamondWorld(extra = {}) {
         world: {
             raycast(from, dir, range) {
                 for (let t = 0; t <= range; t += 0.01) {
-                    const b = blockAt(from.plus(dir.scaled(t)).floored())
+                    const point = from.plus(dir.scaled(t))
+                    const b = blockAt(point.floored())
                     if (b.boundingBox === 'block') {
-                        return b
+                        // Mirror prismarine-world: an intersection point and no position.
+                        return { name: b.name, intersect: point }
                     }
                 }
                 return null
             }
         },
-        canSeeBlock: b => bot.world.raycast(bot.entity.position.offset(0, 1.62, 0), b.position.offset(0.5, 0.5, 0.5).minus(bot.entity.position.offset(0, 1.62, 0)).normalize(), 16)?.position.equals(b.position)
+        canSeeBlock: b => bot.world.raycast(bot.entity.position.offset(0, 1.62, 0), b.position.offset(0.5, 0.5, 0.5).minus(bot.entity.position.offset(0, 1.62, 0)).normalize(), 16)?.intersect.floored().equals(b.position)
     }
     const c = {
         bot, memory: {},
