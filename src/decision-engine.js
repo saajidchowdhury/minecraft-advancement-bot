@@ -112,6 +112,9 @@ function chooseAction (state) {
     }
     const action = state.sideGoal?.action || nextAdvancement(state).action
     const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'enter_nether', 'build_redstone'].includes(action)
+    if (state.baseMigrate) {
+        return 'migrate_base'
+    }
     if (state.baseEstablish) {
         return 'establish_base'
     }

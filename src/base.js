@@ -125,24 +125,53 @@ function wornNames(bot) {
     return { helmet: slots[5]?.name, chestplate: slots[6]?.name, leggings: slots[7]?.name, boots: slots[8]?.name, offhand: slots[45]?.name }
 }
 
+const SOLID = new Set(['stone', 'deepslate', 'cobblestone', 'cobbled_deepslate', 'tuff', 'granite', 'diorite', 'andesite', 'calcite', 'dirt'])
+const CARDINAL = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+
+// Vault layout from the tunnel cell F the bot stands in, facing d: niche N = F+d (feet and
+// head), chest V = F+2d. V is closed by natural rock on every face but N, and N is sealed
+// with two cobblestone after each visit, so a creeper blast breaks at most the outer layer.
+function vaultSite(bot, feet) {
+    const solid = p => SOLID.has(bot.blockAt(p, false)?.name)
+    const wet = p => [[0, 0, 0], [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]
+        .some(([x, y, z]) => ['water', 'lava', 'bubble_column'].includes(bot.blockAt(p.offset(x, y, z), false)?.name))
+    for (const [dx, dz] of CARDINAL) {
+        const n = feet.offset(dx, 0, dz)
+        const v = feet.offset(2 * dx, 0, 2 * dz)
+        const shell = [v.offset(dx, 0, dz), v.offset(dz, 0, dx), v.offset(-dz, 0, -dx), v.offset(0, 1, 0), v.offset(0, -1, 0),
+            n.offset(dz, 0, dx), n.offset(-dz, 0, -dx), n.offset(dz, 1, dx), n.offset(-dz, 1, -dx), n.offset(0, 2, 0), n.offset(0, -1, 0)]
+        if ([n, n.offset(0, 1, 0), v, ...shell].every(solid) && ![n, v].some(wet)) {
+            return { door: feet, niche: n, chest: v, dir: [dx, dz] }
+        }
+    }
+    return null
+}
+
 function baseState(c, state) {
     const bot = c.bot
     const base = c.memory.base
     const here = bot.entity.position
     const items = bot.inventory.items()
     const worn = wornNames(bot)
-    const calm = !state.isNight && state.hostileDistance > 12 && !state.underground
+    // The vault sits underground, so night is no obstacle there; surface work still waits for day.
+    const calm = state.hostileDistance > 12 && (state.underground || !state.isNight)
     if (!base || base.dimension !== bot.game.dimension) {
-        state.baseEstablish = Boolean(calm && bot.game.dimension === 'overworld' && state.hasIronPickaxe &&
-            (items.some(item => item.name === 'chest') || (state.hasCraftingTable && state.planks + state.logs * 4 >= 8)))
+        state.baseEstablish = Boolean(calm && state.underground && bot.game.dimension === 'overworld' && state.hasIronPickaxe &&
+            (items.some(item => item.name === 'chest') || (state.hasCraftingTable && state.planks + state.logs * 4 >= 8)) &&
+            state.cobblestone >= 2 && vaultSite(bot, here.floored()))
         return state
     }
     const chest = new Vec3(base.chest.x, base.chest.y, base.chest.z)
     state.baseDistance = here.distanceTo(chest)
+    if (!base.door) {
+        // Pre-vault bases sit exposed on the surface; empty them by day and rebuild underground.
+        state.baseMigrate = !state.isNight && state.hostileDistance > 12 && state.baseDistance <= 64
+        return state
+    }
     const restock = restockPlan(base.contents || {}, items, worn)
     // A long trip pays only for gear; small refills happen when the bot passes by anyway.
-    state.baseRestock = state.baseDistance <= 256 && !state.isNight &&
-        (restock.some(entry => GEAR.test(entry.name)) || (state.baseDistance <= 32 && restock.length > 0 && !state.underground))
+    state.baseRestock = state.baseDistance <= 256 && (state.underground || !state.isNight) &&
+        (restock.some(entry => GEAR.test(entry.name)) || (state.baseDistance <= 32 && restock.length > 0))
     const deposit = depositPlan(items, worn)
     state.baseDeposit = calm && state.baseDistance <= 32 &&
         (deposit.some(entry => /diamond|iron|gold|lapis|emerald|redstone|_pickaxe|_sword|_helmet|_chestplate|_leggings|_boots|ender_pearl/.test(entry.name)) ||
@@ -150,34 +179,44 @@ function baseState(c, state) {
     return state
 }
 
-async function placeChest(c) {
+async function digIfSolid(c, p) {
     const bot = c.bot
-    const feet = bot.entity.position.floored()
-    const shaft = new Set((c.memory.shaft?.cells || []).map(p => `${p.x},${p.y},${p.z}`))
-    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
-        const cell = feet.offset(dx, 0, dz)
-        const floor = bot.blockAt(cell.offset(0, -1, 0), false)
-        if (shaft.has(`${cell.x},${cell.y},${cell.z}`) || !c.isEmptyPlacementBlock(bot.blockAt(cell, false)) ||
-            !c.isEmptyPlacementBlock(bot.blockAt(cell.offset(0, 1, 0), false)) || floor?.boundingBox !== 'block' ||
-            ['water', 'lava', 'magma_block'].includes(floor.name)) {
-            continue
+    const block = bot.blockAt(p, false)
+    if (block && block.boundingBox !== 'empty' && block.name !== 'chest') {
+        const tool = c.bestItem(['diamond_pickaxe', 'iron_pickaxe', 'stone_pickaxe', 'wooden_pickaxe'])
+        if (tool) {
+            await bot.equip(tool, 'hand')
         }
-        await bot.equip(c.bestItem(['chest']), 'hand')
+        await bot.dig(block, true)
         c.checkAction()
-        await bot.placeBlock(floor, new Vec3(0, 1, 0))
-        await bot.waitForTicks(4)
-        if (bot.blockAt(cell, false)?.name === 'chest') {
-            return cell
-        }
     }
-    throw new Error('no open supported cell beside the bot for a base chest')
+}
+
+async function seal(c, base) {
+    const n = new Vec3(base.niche.x, base.niche.y, base.niche.z)
+    if (c.countItems(['cobblestone', 'cobbled_deepslate']) < 2) {
+        c.log.warn('Too little cobblestone to reseal the base vault; leaving it open.')
+        return
+    }
+    await c.placeSurvivalBlock(n)
+    await c.placeSurvivalBlock(n.offset(0, 1, 0))
+    base.sealed = true
 }
 
 async function withChest(c, action) {
     const bot = c.bot
     const base = c.memory.base
     const chest = new Vec3(base.chest.x, base.chest.y, base.chest.z)
-    if (bot.entity.position.distanceTo(chest.offset(0.5, 0.5, 0.5)) > 3.5) {
+    if (base.door) {
+        const door = new Vec3(base.door.x, base.door.y, base.door.z)
+        if (!bot.entity.position.floored().equals(door)) {
+            await c.gotoWithTimeout(new goals.GoalBlock(door.x, door.y, door.z), 60000, 'base approach')
+        }
+        const n = new Vec3(base.niche.x, base.niche.y, base.niche.z)
+        await digIfSolid(c, n.offset(0, 1, 0))
+        await digIfSolid(c, n)
+        base.sealed = false
+    } else if (bot.entity.position.distanceTo(chest.offset(0.5, 0.5, 0.5)) > 3.5) {
         await c.gotoWithTimeout(new goals.GoalNear(chest.x, chest.y, chest.z, 2), 60000, 'base approach')
     }
     c.checkAction()
@@ -193,41 +232,62 @@ async function withChest(c, action) {
         base.contents = totals(window.containerItems())
     } finally {
         window.close()
+        if (base.door) {
+            await seal(c, base)
+        }
     }
-}
-
-// The bot roams hundreds of blocks; a base at a distant shaft or spawn would never be
-// visited, so it goes beside a shaft entrance within 48 blocks, else where the bot stands.
-function baseSite(c) {
-    const bot = c.bot
-    const shaft = c.memory.shaft?.dimension === bot.game.dimension ? c.memory.shaft.cells[0] : null
-    const here = bot.entity.position
-    return shaft && Math.hypot(here.x - shaft.x, here.z - shaft.z) <= 48 ? shaft : null
 }
 
 async function establishBase(c) {
     const bot = c.bot
-    const anchor = baseSite(c)
-    if (anchor && bot.entity.position.distanceTo(new Vec3(anchor.x + 0.5, anchor.y, anchor.z + 0.5)) > 4) {
-        await c.gotoWithTimeout(new goals.GoalNear(anchor.x, anchor.y, anchor.z, 2), 30000, 'base site')
+    const site = vaultSite(bot, bot.entity.position.floored())
+    if (!site) {
+        throw new Error('no solid, dry rock beside the tunnel for a base vault')
     }
     if (!c.hasItem('chest')) {
         await c.ensurePlanks(8)
         await c.ensureItem('chest', 1, true)
     }
     c.checkAction()
-    const cell = await placeChest(c)
-    c.memory.base = { dimension: bot.game.dimension, chest: { x: cell.x, y: cell.y, z: cell.z }, contents: {} }
-    c.log.info(`Base chest placed at ${cell}; surplus will be stored there.`)
-    for (const [dx, dz] of [[2, 0], [-2, 0]]) {
-        const spot = cell.offset(dx, 0, dz)
-        const floor = bot.blockAt(spot.offset(0, -1, 0), false)
-        if (c.hasItem('torch') && floor?.boundingBox === 'block' && c.isEmptyPlacementBlock(bot.blockAt(spot, false))) {
-            await bot.equip(c.bestItem(['torch']), 'hand')
-            await bot.placeBlock(floor, new Vec3(0, 1, 0)).catch(error => c.log.warn(`Base torch failed: ${error.message}`))
-        }
+    const [dx, dz] = site.dir
+    await digIfSolid(c, site.niche.offset(0, 1, 0))
+    await digIfSolid(c, site.niche)
+    await digIfSolid(c, site.chest)
+    await bot.equip(c.bestItem(['chest']), 'hand')
+    await bot.placeBlock(bot.blockAt(site.chest.offset(dx, 0, dz), false), new Vec3(-dx, 0, -dz))
+    await bot.waitForTicks(4)
+    if (bot.blockAt(site.chest, false)?.name !== 'chest') {
+        throw new Error(`base chest placement at ${site.chest} was not confirmed`)
+    }
+    const plain = p => ({ x: p.x, y: p.y, z: p.z })
+    c.memory.base = { dimension: bot.game.dimension, chest: plain(site.chest), niche: plain(site.niche), door: plain(site.door), contents: {}, sealed: false }
+    c.log.info(`Base vault built at ${site.chest}: chest in solid rock, niche ${site.niche} sealed after each visit.`)
+    if (c.hasItem('torch')) {
+        // A lit doorway stops mobs spawning where the bot stands to use the chest.
+        const floor = bot.blockAt(site.door.offset(0, -1, 0), false)
+        await bot.equip(c.bestItem(['torch']), 'hand')
+        await bot.placeBlock(floor, new Vec3(0, 1, 0)).catch(error => c.log.warn(`Base torch failed: ${error.message}`))
     }
     return depositAtBase(c)
+}
+
+// Move an exposed pre-vault surface chest: take everything, pick the chest up, and let the
+// next underground stop build a sealed vault for the items.
+async function migrateBase(c) {
+    const bot = c.bot
+    const base = c.memory.base
+    await withChest(c, async window => {
+        for (const item of window.containerItems()) {
+            c.checkAction()
+            await window.withdraw(item.type, null, item.count).catch(error => c.log.warn(`Could not take ${item.count} ${item.name}: ${error.message}`))
+        }
+    })
+    const chest = bot.blockAt(new Vec3(base.chest.x, base.chest.y, base.chest.z), false)
+    if (chest?.name === 'chest') {
+        await c.collectTarget(chest, chest, 'old base chest')
+    }
+    c.memory.base = null
+    c.log.info('Emptied the exposed surface base; a sealed underground vault will replace it.')
 }
 
 async function depositAtBase(c) {
@@ -271,4 +331,4 @@ async function withdrawItem(c, name, count) {
     })
 }
 
-module.exports = { depositPlan, restockPlan, baseState, establishBase, depositAtBase, restockAtBase, placeChest, withdrawItem }
+module.exports = { depositPlan, restockPlan, baseState, vaultSite, establishBase, migrateBase, depositAtBase, restockAtBase, withdrawItem }

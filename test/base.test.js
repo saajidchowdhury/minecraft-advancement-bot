@@ -50,20 +50,75 @@ function baseBot(items = [], position = new Vec3(0.5, 70, 0.5)) {
     }
 }
 
-test('base decisions: establish near the shaft once mid-game, deposit when passing, restock after a death', () => {
-    const calm = { isNight: false, hostileDistance: Infinity, underground: false, hasIronPickaxe: true, hasCraftingTable: true, planks: 8, logs: 0 }
-    const fresh = { bot: baseBot(), memory: { shaft: { dimension: 'overworld', cells: [{ x: 3, y: 70, z: 0 }] } }, home: { x: 0, y: 70, z: 0 } }
+function rock(overrides = {}) {
+    // Solid stone everywhere except a one-wide tunnel along z at x=0, y=64..65.
+    const blocks = new Map(Object.entries(overrides))
+    return p => {
+        const name = blocks.get(p.toString()) ?? (p.x === 0 && p.y >= 64 && p.y <= 65 ? 'air' : 'stone')
+        return { name, position: p, boundingBox: ['air', 'water', 'lava'].includes(name) ? 'empty' : 'block' }
+    }
+}
+
+test('a vault site needs solid dry rock around the chest cell and niche', () => {
+    const { vaultSite } = require('../src/base')
+    const site = vaultSite({ blockAt: rock() }, new Vec3(0, 64, 0))
+    assert.deepEqual([site.niche, site.chest].map(String), [new Vec3(1, 64, 0), new Vec3(2, 64, 0)].map(String))
+    const wet = { blockAt: rock({ [new Vec3(3, 64, 0)]: 'lava', [new Vec3(-3, 64, 0)]: 'water' }) }
+    assert.equal(vaultSite(wet, new Vec3(0, 64, 0)), null)
+})
+
+test('base decisions: build the vault underground, migrate an exposed chest by day, deposit and restock', () => {
+    const calm = { isNight: false, hostileDistance: Infinity, underground: true, hasIronPickaxe: true, hasCraftingTable: true, planks: 8, logs: 0, cobblestone: 10 }
+    const fresh = { bot: { ...baseBot(), blockAt: rock() }, memory: {} }
+    fresh.bot.entity.position = new Vec3(0.5, 64, 0.5)
     assert.equal(baseState(fresh, { ...calm }).baseEstablish, true)
-    assert.equal(baseState(fresh, { ...calm, isNight: true }).baseEstablish, false)
-    assert.equal(baseState(fresh, { ...calm, hasIronPickaxe: false }).baseEstablish, false)
-    const roaming = { bot: baseBot([], new Vec3(-255.5, 70, -167.5)), memory: { shaft: { dimension: 'overworld', cells: [{ x: 10, y: 68, z: -106 }] } }, home: { x: 29, y: 70, z: 23 } }
-    assert.equal(baseState(roaming, { ...calm }).baseEstablish, true)
-    const memory = { base: { dimension: 'overworld', chest: { x: 2, y: 70, z: 0 }, contents: { diamond_pickaxe: 1, iron_sword: 1, bread: 20 } } }
-    const rich = baseState({ bot: baseBot(kit), memory }, { ...calm })
-    assert.equal(rich.baseDeposit, true)
-    const dead = baseState({ bot: baseBot([], new Vec3(150.5, 70, 0.5)), memory }, { ...calm })
+    assert.equal(baseState(fresh, { ...calm, isNight: true }).baseEstablish, true)
+    assert.equal(baseState(fresh, { ...calm, underground: false }).baseEstablish, false)
+    assert.equal(baseState(fresh, { ...calm, cobblestone: 0 }).baseEstablish, false)
+    const legacy = { base: { dimension: 'overworld', chest: { x: 2, y: 70, z: 0 }, contents: { raw_gold: 6 } } }
+    assert.equal(baseState({ bot: baseBot(kit), memory: legacy }, { ...calm, underground: false }).baseMigrate, true)
+    assert.equal(baseState({ bot: baseBot(kit), memory: legacy }, { ...calm, underground: false, isNight: true }).baseMigrate, false)
+    const memory = { base: { dimension: 'overworld', chest: { x: 2, y: 70, z: 0 }, niche: { x: 1, y: 70, z: 0 }, door: { x: 0, y: 70, z: 0 },
+        contents: { diamond_pickaxe: 1, iron_sword: 1, bread: 20 } } }
+    assert.equal(baseState({ bot: baseBot(kit), memory }, { ...calm }).baseDeposit, true)
+    const dead = baseState({ bot: baseBot([], new Vec3(150.5, 70, 0.5)), memory }, { ...calm, underground: false })
     assert.equal(dead.baseRestock, true)
     assert.equal(baseState({ bot: baseBot([], new Vec3(400.5, 70, 0.5)), memory }, { ...calm }).baseRestock, false)
+})
+
+test('every vault visit digs the cobblestone seal out and puts it back afterwards', async () => {
+    const items = [{ name: 'raw_gold', count: 6 }, { name: 'cobblestone', count: 10 }]
+    const { c } = chestWorld(items, {})
+    const sealed = new Set([new Vec3(1, 70, 0).toString(), new Vec3(1, 71, 0).toString()])
+    c.memory.base = { dimension: 'overworld', chest: { x: 2, y: 70, z: 0 }, niche: { x: 1, y: 70, z: 0 }, door: { x: 0, y: 70, z: 0 }, contents: {}, sealed: true }
+    c.bot.blockAt = p => sealed.has(p.toString()) ? { name: 'cobblestone', position: p, boundingBox: 'block' } :
+        { name: p.equals(new Vec3(2, 70, 0)) ? 'chest' : 'air', position: p, boundingBox: 'empty' }
+    c.bot.entity.position = new Vec3(0.5, 70, 0.5)
+    c.bestItem = () => undefined
+    c.bot.equip = async () => {}
+    const events = []
+    c.bot.dig = async block => { sealed.delete(block.position.toString()); events.push('dig') }
+    c.countItems = names => items.filter(i => names.includes(i.name)).reduce((n, i) => n + i.count, 0)
+    c.placeSurvivalBlock = async p => { sealed.add(p.toString()); events.push('seal') }
+    const open = c.bot.openContainer
+    c.bot.openContainer = async block => { events.push(sealed.size === 0 ? 'open' : 'open while sealed'); return open(block) }
+    await depositAtBase(c)
+    assert.equal(c.memory.base.contents.raw_gold, 6)
+    assert.deepEqual(events, ['dig', 'dig', 'open', 'seal', 'seal'])
+    assert.equal(sealed.size, 2)
+    assert.equal(c.memory.base.sealed, true)
+})
+
+test('migrating an exposed surface base empties the chest, picks it up and clears the base', async () => {
+    const { migrateBase } = require('../src/base')
+    const items = []
+    const { c } = chestWorld(items, { diamond: 4, iron_ingot: 9 })
+    let collected = false
+    c.collectTarget = async () => { collected = true }
+    await migrateBase(c)
+    assert.deepEqual(items.map(i => [i.name, i.count]).sort(), [['diamond', 4], ['iron_ingot', 9]])
+    assert.equal(collected, true)
+    assert.equal(c.memory.base, null)
 })
 
 test('restock outranks rebuilding from wood; danger still comes first', () => {
@@ -74,15 +129,16 @@ test('restock outranks rebuilding from wood; danger still comes first', () => {
 })
 
 function chestWorld(items, contents) {
-    const stored = Object.entries(contents).map(([name, count]) => ({ name, count }))
     const registry = require('minecraft-data')('26.1')
+    // Mineflayer container items carry their numeric type, as the real window does.
+    const stored = Object.entries(contents).map(([name, count]) => ({ name, count, type: registry.itemsByName[name].id }))
     const byId = id => registry.items[id].name
     const window = {
         containerItems: () => stored.filter(item => item.count > 0),
         async deposit(id, meta, count) {
             const item = items.find(i => i.name === byId(id))
             item.count -= count
-            stored.push({ name: item.name, count })
+            stored.push({ name: item.name, count, type: id })
         },
         async withdraw(id, meta, count) {
             const item = stored.find(i => i.name === byId(id))
