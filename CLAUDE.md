@@ -1,88 +1,54 @@
 # Minecraft bot development
 
-## Repository and objective
-
-This directory is the Git working tree for the private GitHub repository
+This is the Git working tree for the private repository
 https://github.com/saajidchowdhury/minecraft-advancement-bot.
 
-The goal is to develop a Minecraft bot that gets a useful selection of
-advancements autonomously in a logical order. Develop reusable, reliable
-behavior; live gameplay is a test of that behavior, not the entire project.
-Do not target every advancement: exhaustive challenges such as visiting every
-biome are outside the intended scope. Prerequisites, survival, food, equipment
-and recovery should support sensible progression through the game.
+## Purpose
 
-An optional secondary goal is occasionally building interesting, functional
-redstone contraptions. Advancement capability and reliability take priority.
-The current route is an implementation milestone, not a permanent ceiling on
-the project's ambition. Read README.md and VALIDATION.md for current coverage
-and distinguish implemented skills from behavior verified in a live world.
+Develop a reliable Minecraft bot that autonomously gets a useful selection of
+advancements in a logical order. Live gameplay tests reusable bot behavior;
+finishing one playthrough is not the whole project. Exhaustive challenges such
+as visiting every biome are outside the intended scope. Occasionally building
+interesting, functional redstone contraptions is an optional, lower priority.
 
-## Preserve the visible LAN workflow
+Preserve the visible LAN workflow: the user opens a Java singleplayer survival
+world to LAN and watches the bot as a separate player from a third-person view.
+Do not use cheats to make a survival test appear successful.
 
-The user plays Java Edition singleplayer survival, opens the world to LAN,
-sets its current port in .env, and starts the script. The bot joins as a
-separate visible player so the user can watch it from a third-person view.
-Preserve this workflow when changing architecture or dependencies. Do not
-replace it with a simulation or a separate server the user cannot observe.
-Do not grant advancements/items, teleport, or change game mode to make a
-survival test appear successful unless the user explicitly requests cheats.
+## Read first
 
-Use the latest port supplied by the user; LAN ports change when worlds reopen.
-.env is local and ignored. Never commit credentials, account profiles, world
-state, logs, node_modules, .tools, or the original minecraft-iris directory.
-minecraft-iris is the preserved reference implementation.
+- `findings.md`: accumulated lessons, evidence, pitfalls and current limitations.
+- `goals.md`: specific next steps, in priority order, with completion criteria.
+- `README.md`: setup, controls and architecture; `VALIDATION.md`: test coverage.
 
-In-game commands go in Minecraft chat: press T, enter a command such as
-!status, and press Enter. They are not shell commands. MC_OWNER restricts who
-can control the bot. See README.md for all controls and authentication setup.
+Findings and goals provide informed direction, not rigid rules. Recheck
+changeable facts and adjust priorities to new evidence and user instructions.
 
-## Work and test discipline
+## Working discipline
 
-Read existing code, tests, README.md, VALIDATION.md and recent run logs before
-changing behavior. Resolve the host with hostname -s before environment-specific
-commands; do not assume the current machine has another machine's toolchain.
-Keep changes compact, direct and technically precise. Fix likely bugs before
-cosmetic issues; explain a minimal patch before a large rewrite. Use four-space
-indentation and braces. Do not silently reformat unrelated code. Comments explain
-invariants or reasons; comment-bearing lines must stay at or below 10% of each
-produced code file. No dead commented-out code or speculative abstractions.
+Keep changes compact, technically precise and focused on reproducible behavior.
+Fix bugs before cosmetic issues. Use four-space indentation, braces, focused
+regression tests and at most 10% comment-bearing lines per produced code file.
+Preserve user/concurrent-agent changes; do not reset or discard their work.
 
-Run ./scripts/run.sh from this directory; an optional numeric argument overrides
-the LAN port for one run. The launcher locates the prepared Node runtime. For
-checks, put an available Node 22+ runtime on PATH, then run npm run check and
-npm test. Use npm ci and retain the dependency lock and crafting patches when
-reinstalling. Do not assume the latest Minecraft release is protocol-compatible.
+The user authorizes iterative live testing in the supplied LAN world: run,
+observe, stop a misbehaving bot, diagnose, patch and rerun. Verify PID/process
+identity before stopping it; avoid duplicate bots. Use the latest supplied port.
+Keep actions and recovery bounded, cancellation exclusive, and memory scoped to
+the correct world/dimension. Only server packets confirm actual advancements.
 
-The user authorizes iterative live testing in the supplied LAN world: run the
-bot, inspect logs and in-game results, stop it when it stalls or misbehaves,
-reproduce the problem, patch it, and rerun. Avoid duplicate bot processes using
-the same identity. Check the recorded PID and process identity before stopping
-an existing process. Do not kill unrelated Minecraft or Node processes.
+New development may proceed while another revision runs. Keep tested and edited
+versions distinguishable through commits or isolated copies and startup hashes.
+Run appropriate checks; report live evidence separately from automated tests.
+Keep this repo private. Never commit credentials, runtime profiles, world state,
+logs, dependencies, tools or the preserved `minecraft-iris` reference directory.
 
-New features may be implemented while an earlier revision is being tested.
-Keep the tested version unambiguous through commits or an isolated copy.
-Record the exact commit and startup source hashes; do not attribute a running
-process's behavior to edits it has not loaded. Preserve user changes and never
-reset or discard another agent's work. Prefer small commits with evidence of
-what changed and what was tested. Never publish this repository publicly.
+## Session handoff
 
-For a bug, reproduce it and add a focused regression test at the actual failing
-boundary when practical. Keep actions and recovery paths bounded, cancellation
-exclusive, and memory scoped to the correct world and dimension. Check current
-inventory and tool tiers separately from historical advancement completion.
-Only server advancement packets establish actual completion. Unit tests and
-planner transitions alone are not proof of successful Minecraft gameplay.
+Near the end of a session, update `findings.md` with important discoveries and
+corrections, including evidence and uncertainty. Update `goals.md` with completed
+work, reordered priorities and concrete next actions. Refresh `VALIDATION.md`
+when coverage changes. Keep this general instruction file relatively steady.
 
-When tunneling, preserve support, check reach and hazards, retain an exit, and
-conserve higher-tier tools for blocks that need them. Side probes currently run
-every eight horizontal blocks, mining left and right without leaving the main
-tunnel until reach or safety checks stop them. BOT_PROBE_SPACING configures the
-interval; eight is a starting value, not an experimentally established optimum.
-
-Each run writes outputs/YYYY-MM-DD@HH.MM.SS/ with logs, state, runtime metadata,
-source hashes and a PID. Inspect these to diagnose behavior. Update VALIDATION.md
-with concrete live results and remaining limitations; do not overstate coverage.
-
-AGENTS.md and CLAUDE.md must remain byte-for-byte identical, with the complete
-instructions in both files. When editing either, update both and verify equality.
+`AGENTS.md` and `CLAUDE.md` must contain the same complete instructions and remain
+byte-for-byte identical. Update both together and verify equality.
