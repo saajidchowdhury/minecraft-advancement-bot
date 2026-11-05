@@ -82,6 +82,9 @@ function chooseAction (state) {
     if (state.food <= 16 && !state.hasFood) {
         return state.underground ? 'return_surface' : Actions.FOOD
     }
+    if (state.diamondInView && state.health > 10 && state.hostileDistance > 6) {
+        return 'mine_diamond'
+    }
     const action = state.sideGoal?.action || nextAdvancement(state).action
     const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'enter_nether', 'build_redstone'].includes(action)
     // The return trip walks back through earlier disposal drops; cleanup waits for the surface.

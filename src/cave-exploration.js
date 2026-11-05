@@ -124,6 +124,52 @@ async function collectOpportunity(c, excluded = []) {
     return false
 }
 
+const DIAMOND_ORES = ['diamond_ore', 'deepslate_diamond_ore']
+const FACES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]
+
+// Mineflayer's canSeeBlock aims only at the block centre; ore exposed on one face beside a
+// probe hole fails it although a player sees that face. Ray-cast to each air-exposed face.
+function oreSeen(bot, block, range = 16) {
+    const eye = bot.entity.position.offset(0, 1.62, 0)
+    return FACES.some(([x, y, z]) => {
+        if (!AIR.has(bot.blockAt(block.position.offset(x, y, z), false)?.name)) {
+            return false
+        }
+        const face = block.position.offset(0.5 + 0.49 * x, 0.5 + 0.49 * y, 0.5 + 0.49 * z)
+        const distance = eye.distanceTo(face)
+        const hit = distance <= range && bot.world.raycast(eye, face.minus(eye).scaled(1 / distance), distance + 0.1)
+        return Boolean(hit?.position.equals(block.position))
+    })
+}
+
+function rememberOre(c, position) {
+    const bot = c.bot
+    const block = bot.blockAt(position, false)
+    if (!block?.name.endsWith('_ore')) {
+        return
+    }
+    c.memory.knownOres = (c.memory.knownOres || []).filter(o => Date.now() - o.at < 600000 && !position.equals(new Vec3(o.x, o.y, o.z))).slice(-63)
+    c.memory.knownOres.push({ x: position.x, y: position.y, z: position.z, dimension: bot.game?.dimension, at: Date.now() })
+}
+
+function knownOre(c, block) {
+    return (c.memory.knownOres || []).some(o => o.dimension === c.bot.game?.dimension && Date.now() - o.at < 600000 &&
+        block.position.equals(new Vec3(o.x, o.y, o.z)))
+}
+
+// Diamonds outrank routine work once seen or exposed by a probe, unless mining them could
+// release liquid or remove the bot's own support.
+function findPriorityDiamond(c, range = 16) {
+    const bot = c.bot
+    const feet = bot.entity.position.floored()
+    return c.findNearestBlock(name => DIAMOND_ORES.includes(name), range, {
+        filter: b => !(b.position.x === feet.x && b.position.z === feet.z && b.position.y < feet.y) &&
+            FACES.every(([x, y, z]) => !['water', 'lava', 'bubble_column'].includes(bot.blockAt(b.position.offset(x, y, z), false)?.name ?? 'water')) &&
+            bot.inventory.items().some(item => item.name.endsWith('_pickaxe') && b.canHarvest(item.type)) &&
+            (knownOre(c, b) || oreSeen(bot, b, range))
+    })
+}
+
 function dryMovements(bot) {
     const walking = new Movements(bot)
     walking.canDig = false
@@ -231,4 +277,4 @@ async function exploreCave(c, targetY) {
     return moved
 }
 
-module.exports = { safeFooting, findCaveRoute, exploreCave, collectOpportunity, dryMovements }
+module.exports = { safeFooting, findCaveRoute, exploreCave, collectOpportunity, dryMovements, oreSeen, rememberOre, findPriorityDiamond }

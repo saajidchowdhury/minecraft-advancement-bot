@@ -3,7 +3,7 @@
 const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { discardableStacks } = require('./inventory')
-const { exploreCave, collectOpportunity, safeFooting, dryMovements } = require('./cave-exploration')
+const { exploreCave, collectOpportunity, safeFooting, dryMovements, rememberOre, findPriorityDiamond } = require('./cave-exploration')
 const { RECIPES, nextAdvancement, resourceAction } = require('./advancement-plan')
 
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
@@ -100,6 +100,7 @@ async function probeTunnelSides(c, direction) {
                 continue
             }
             if (block.name.endsWith('_ore')) {
+                rememberOre(c, position)
                 foundOre = true
                 break
             }
@@ -121,8 +122,11 @@ async function probeTunnelSides(c, direction) {
             check(c)
             await bot.dig(block, true)
             dug++
-            if (neighbors.some(b => b.name.endsWith('_ore'))) {
+            for (const b of neighbors.filter(b => b.name.endsWith('_ore'))) {
+                rememberOre(c, b.position)
                 foundOre = true
+            }
+            if (foundOre) {
                 break
             }
         }
@@ -249,6 +253,10 @@ async function mineTunnel(c, targetY, heading = null) {
         c.memory.mineRoute.push({ x: feet.x, y: feet.y, z: feet.z })
         if (c.memory.minedCells.size > 4096) {
             c.memory.minedCells.delete(c.memory.minedCells.values().next().value)
+        }
+        if (c.findNearestBlock && findPriorityDiamond(c, 8)) {
+            c.log.info('Diamond ore came into view; leaving the tunnel segment to mine it.')
+            return
         }
         if (target.y === feet.y && c.probeSpacing > 0) {
             c.memory.probeSteps = (c.memory.probeSteps || 0) + 1
@@ -845,6 +853,14 @@ async function performProgression(c, action, state) {
             return c.bot.equip(c.bestItem(['shield']), 'off-hand')
         case 'fill_lava_bucket': return fillLavaBucket(c)
         case 'fill_water_bucket': return fillWaterBucket(c)
+        case 'mine_diamond': {
+            const block = findPriorityDiamond(c)
+            if (!block) {
+                return
+            }
+            c.log.info(`Priority diamond: ${block.name} at ${block.position}.`)
+            return c.collectTarget(block, block, 'priority diamond')
+        }
         case 'gather_diamonds': return gatherDeep(c, ['diamond_ore', 'deepslate_diamond_ore'])
         case 'gather_redstone': return gatherDeep(c, ['redstone_ore', 'deepslate_redstone_ore'])
         case 'gather_obsidian': return gatherObsidian(c)

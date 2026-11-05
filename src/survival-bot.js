@@ -10,7 +10,7 @@ const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight } = require('./night-policy')
 const { prepareBed, huntAtNight, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
-const { exploreCave, collectOpportunity } = require('./cave-exploration')
+const { exploreCave, collectOpportunity, findPriorityDiamond } = require('./cave-exploration')
 const { performProgression, redstonePlan, mineTunnel, until, climbStep } = require('./progression-skills')
 
 const { GoalNear, GoalFollow } = goals
@@ -70,7 +70,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     smelt_charcoal: 45000, craft_progression: 45000, equip_armor: 10000, equip_shield: 10000,
     fill_water_bucket: 90000, fill_lava_bucket: 90000, gather_diamonds: 90000, gather_obsidian: 90000,
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
-    clear_inventory: 30000, build_redstone: 90000, return_surface: 60000, wait: 10000,
+    clear_inventory: 30000, mine_diamond: 45000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000,
     wake: 10000, hunt_night: 45000, sleep: 30000, prepare_bed: 45000, prepare_night_weapon: 30000, leave_shelter: 20000,
     [Actions.EXPLORE]: 60000
@@ -512,6 +512,7 @@ class SurvivalController {
             redstoneInProgress: Boolean(this.memory.redstoneOrigin),
             redstoneRequested: Boolean(this.memory.redstoneRequested)
         }
+        state.diamondInView = Boolean(this.mcData && findPriorityDiamond(this))
         if (state.redstoneRequested && nextAdvancement(state).action === 'wait' && state.dimension === 'overworld') {
             state.sideGoal = redstonePlan(state)
         }

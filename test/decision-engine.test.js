@@ -122,3 +122,11 @@ test('deep mining does not abandon the trip for sticks and departs with a wood r
     assert.equal(chooseAction(state({ ...needSticks, inventoryFull: true })), 'return_surface')
     assert.equal(chooseAction(state({ ...geared, underground: true, inventoryFull: true })), 'clear_inventory')
 })
+
+test('a seen diamond outranks cleanup and routine goals but not danger', () => {
+    const busy = { underground: true, inventoryFull: true, diamondInView: true, hasWeapon: true }
+    assert.equal(chooseAction(state(busy)), 'mine_diamond')
+    assert.equal(chooseAction(state({ ...busy, health: 8, hostileDistance: 4 })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ ...busy, hostileDistance: 3 })), Actions.FIGHT)
+    assert.notEqual(chooseAction(state({ ...busy, diamondInView: false })), 'mine_diamond')
+})

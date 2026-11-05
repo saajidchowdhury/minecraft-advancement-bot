@@ -3,7 +3,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { Vec3 } = require('vec3')
-const { safeFooting, findCaveRoute, exploreCave, collectOpportunity } = require('../src/cave-exploration')
+const { safeFooting, findCaveRoute, exploreCave, collectOpportunity, findPriorityDiamond } = require('../src/cave-exploration')
 const { performProgression } = require('../src/progression-skills')
 
 function caveWorld() {
@@ -219,4 +219,69 @@ test('a cave survey spaces torches instead of lighting every step', async () => 
     assert.equal(await exploreCave(c, 16), true)
     assert.ok(moves.length >= 4)
     assert.equal(16 - inventory.find(item => item.name === 'torch').count, 1)
+})
+
+function diamondWorld(extra = {}) {
+    const { oreSeen } = require('../src/cave-exploration')
+    // Main tunnel x=0,z=0..5 (feet/head y=64..65); probe hole at head height x=1..3,z=0.
+    const names = new Map([[new Vec3(2, 65, 1).toString(), 'deepslate_diamond_ore'], ...Object.entries(extra)])
+    const blockAt = p => {
+        const open = (p.x === 0 && p.z >= 0 && p.z <= 5 && (p.y === 64 || p.y === 65)) || (p.y === 65 && p.z === 0 && p.x >= 1 && p.x <= 3)
+        const name = names.get(p.toString()) || (open ? 'air' : 'deepslate')
+        return { name, position: p, boundingBox: ['air', 'water'].includes(name) ? 'empty' : 'block', canHarvest: () => true }
+    }
+    const bot = {
+        entity: { position: new Vec3(0.5, 64, 0.5) }, game: { dimension: 'overworld' }, blockAt,
+        inventory: { items: () => [{ name: 'iron_pickaxe', type: 1 }] },
+        world: {
+            raycast(from, dir, range) {
+                for (let t = 0; t <= range; t += 0.01) {
+                    const b = blockAt(from.plus(dir.scaled(t)).floored())
+                    if (b.boundingBox === 'block') {
+                        return b
+                    }
+                }
+                return null
+            }
+        },
+        canSeeBlock: b => bot.world.raycast(bot.entity.position.offset(0, 1.62, 0), b.position.offset(0.5, 0.5, 0.5).minus(bot.entity.position.offset(0, 1.62, 0)).normalize(), 16)?.position.equals(b.position)
+    }
+    const c = {
+        bot, memory: {},
+        findNearestBlock(match, range, options = {}) {
+            const found = []
+            for (let x = -range; x <= range; x++) {
+                for (let y = -4; y <= 4; y++) {
+                    for (let z = -range; z <= range; z++) {
+                        const b = blockAt(new Vec3(x, 64 + y, z))
+                        if (match(b.name) && (!options.filter || options.filter(b))) {
+                            found.push(b)
+                        }
+                    }
+                }
+            }
+            return found[0] || null
+        }
+    }
+    return { c, bot, oreSeen }
+}
+
+test('a diamond seen only by the face beside a probe hole still counts as in view', () => {
+    const { c, bot, oreSeen } = diamondWorld()
+    const ore = bot.blockAt(new Vec3(2, 65, 1))
+    assert.equal(bot.canSeeBlock(ore), false)
+    assert.equal(oreSeen(bot, ore), true)
+    assert.equal(oreSeen(bot, bot.blockAt(new Vec3(2, 65, 2))), false)
+    assert.deepEqual(findPriorityDiamond(c).position, ore.position)
+})
+
+test('probe-exposed diamonds are remembered even without a line of sight; liquid-adjacent ones are refused', () => {
+    const { rememberOre } = require('../src/cave-exploration')
+    const hidden = new Vec3(4, 65, -1).toString()
+    const { c } = diamondWorld({ [new Vec3(2, 65, 1).toString()]: 'deepslate', [hidden]: 'diamond_ore' })
+    assert.equal(findPriorityDiamond(c), null)
+    rememberOre(c, new Vec3(4, 65, -1))
+    assert.deepEqual(String(findPriorityDiamond(c).position), hidden)
+    const wet = diamondWorld({ [new Vec3(2, 66, 1).toString()]: 'water' })
+    assert.equal(findPriorityDiamond(wet.c), null)
 })
