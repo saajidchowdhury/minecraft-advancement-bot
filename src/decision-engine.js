@@ -79,6 +79,10 @@ function chooseAction (state) {
     if (state.recoveryAvailable) {
         return Actions.RECOVER
     }
+    // Re-arming from the base beats rebuilding from wood after a death (G013).
+    if (state.baseRestock && state.hostileDistance > 12) {
+        return 'restock_base'
+    }
     if (state.canSleep) {
         return 'sleep'
     }
@@ -107,6 +111,12 @@ function chooseAction (state) {
     }
     const action = state.sideGoal?.action || nextAdvancement(state).action
     const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'enter_nether', 'build_redstone'].includes(action)
+    if (state.baseEstablish) {
+        return 'establish_base'
+    }
+    if (state.baseDeposit) {
+        return 'deposit_base'
+    }
     // The return trip walks back through earlier disposal drops; cleanup waits for the surface.
     if (state.inventoryFull && !surfaceBound) {
         return 'clear_inventory'
