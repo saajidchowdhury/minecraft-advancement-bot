@@ -7,11 +7,11 @@ stable; correct or qualify an old finding when new evidence changes it.
 ## Current handoff
 
 Updated 2026-11-05 ~12:43 Eastern. Bot is RUNNING on LAN port 51718, PID 32764, code
-`25934b3`, recovering after six deaths today (F023, F025–F028). Verify PID and connection before stopping it; `pgrep -f src/index.js`
+`4ae003a` (PID 35155), rebuilding after seven deaths today (F023, F025–F029). Verify PID and connection before stopping it; `pgrep -f src/index.js`
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 157 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 159 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -496,3 +496,15 @@ at least six skeletons (possibly a spawner); the new archer melee rule fought th
 13.9 hp. `25934b3` makes three or more hostiles within twelve blocks trigger escape or
 cover at any time and depth, and allows archer melee only when no other hostile is
 near. Regression fails before the fix; live crowd behaviour pending.
+
+## F029 — Sealing works live; the skeleton nest needed line-of-sight threat logic [live + regression]
+
+18:41:49Z (`25934b3`): with recovered cobblestone the bot sealed three openings toward
+a skeleton, the first live cover seal. At 1.3 hp it then kept escaping because the
+crowd count and nearest hostile included skeletons behind its new walls; `c4b666f`
+requires line of sight for both (melee damage still interrupts). Death 7 (18:43:13Z)
+came at the same nest (-154,67,31) as death 6, and the next respawn walked back for its
+drops. The bot was stopped at 18:43:27Z; `4ae003a` marks a death with two or more
+hostiles within twelve blocks or an archer within sixteen as dangerous and skips its
+recovery. The live memory's last death was marked dangerous by hand (operator action,
+like `!resume`). The restarted bot skipped recovery and is rebuilding.
