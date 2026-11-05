@@ -288,3 +288,31 @@ Design sketch for later, kept small:
    counting travel time against the new site.
 Completion: a live relocation chosen by measured exhaustion, with the new shaft reused
 afterwards and yield data supporting the change.
+
+## G013 — High / phase 1 implemented, live pending — Base for storage and fast restock
+
+User direction (2026-11-05): a safe, easily reached base holding hard-earned items lets a
+dead bot catch up quickly instead of starting from scratch, and keeps valuables out of
+danger. Phase 1 (`55923a4`): a chest beside the shaft entrance, placed once the bot has an
+iron pickaxe on the surface; surplus beyond carry levels (duplicate tools, armor no better
+than worn, diamonds > 8, iron > 16, ores, coal, logs, food, mob drops) is stored when
+passing; after a death a base within 256 blocks holding better gear is visited before
+rebuilding. Next phases: enclose and light the base properly; keep a spare kit stored
+(craft a spare iron pickaxe/sword when ingots allow); let the planner count stored iron and
+diamonds before mining more; consider a bed at the base as the spawn point so restocks are
+immediate. Completion: a live death followed by a restock that re-arms the bot within a few
+minutes, with measured time saved versus rebuilding.
+
+## G014 — Medium / next — Cheap advancements that compound or cost little
+
+Candidates ranked by cost against current skills (verify ids/criteria against 26.1.2):
+1. Not Today, Thank You (story/deflect_arrow): raise the shield toward a visible archer;
+   also reduces the arrow deaths of F027/F031. Highest value.
+2. A Seedy Place (husbandry/plant_seed): craft a wooden hoe, till dirt, plant carried seeds.
+3. The Parrots and the Bats (husbandry/breed_an_animal): seeds for two chickens or wheat
+   for cows/sheep when found near the base.
+4. Take Aim (adventure/shoot_arrow): bow from spider string, shoot any mob.
+5. Fishy Business (husbandry/fishy_business): fishing rod from string near water.
+6. Best Friends Forever (husbandry/tame_an_animal): bones on a wolf when one is near.
+Then the planned Ice Bucket Challenge and Nether entry; Oh Shiny (barter stored gold) and
+Into Fire/A Terrible Fortress once the Nether route is reliable.

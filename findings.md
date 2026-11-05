@@ -11,7 +11,7 @@ Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 41971, 
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 175 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 183 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -616,3 +616,12 @@ the current shaft was forgotten and will be re-recorded on the next descent.
 F033 live: on `5f78a8e` the bot climbed a remembered 25-cell shaft from (10,53,-102) to
 the surface in about 12 s (21:28:46–21:28:58Z) with the per-cell climb, no stalls, then
 resumed surface work. Descent along a remembered shaft is still unobserved live.
+
+## F034 — Base chest phase 1 [user direction + regression]
+
+`55923a4` adds src/base.js: a chest at the shaft entrance once an iron pickaxe is held on
+the surface, deposits of surplus beyond carry levels when within 32 blocks, and restocks
+after deaths (gear trips up to 256 blocks; small refills when passing). Carry and restock
+levels are equal so restocking never triggers a deposit (tested). Seven regressions cover
+plans, decisions and mocked chest I/O. Live placement, deposit and restock are pending;
+the bot was rebuilding after death 11 when the revision started.
