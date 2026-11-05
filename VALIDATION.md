@@ -1,6 +1,6 @@
 # Validation
 
-Live tests: 2026-11-04, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
+Live tests: 2026-11-04–05, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
 ## Verified in the user's survival world
 
@@ -26,8 +26,10 @@ The inherited Mineflayer patch was applied successfully to reconstructed pristin
 
 ## Still being tested
 
-A repeated dynamic-follow reset in food pursuit was reproduced in a regression test and fixed by keeping one live follow goal; the new revision is undergoing live testing. Later armor, bucket, diamond, obsidian-casting, portal and redstone behavior has not yet completed an end-to-end live survival test. No claim of autonomous dragon completion or all-advancement support is made.
+A repeated dynamic-follow reset in food pursuit was reproduced in a regression test and fixed by keeping one live follow goal; the new revision has rejoined successfully and is currently sheltering at night, so successful food pursuit remains a pending live check. Later armor, bucket, diamond, obsidian-casting, portal and redstone behavior has not yet completed an end-to-end live survival test. No claim of autonomous dragon completion or all-advancement support is made.
 
 ## Comment ceiling
 
 All authored code and patch files are below 10% comment-bearing physical lines. The highest ratio is 7/78 (8.97%) in the dependency patch, including upstream context. The highest JavaScript ratio is 3/42 (7.14%) in terrain-scout.js. Other nonzero ratios at this baseline: advancement-tracker.js 1.82%, decision-engine.js 5.48%, index.js 1.23%, survival-bot.js about 1.4%, progression-skills.js below 0.2%; remaining authored scripts/tests have zero comments. Shebangs and URL text were excluded.
+
+The 00:01:14 run records commit f7f77293fa4a and its startup hashes match the current source. It restored all seven server-confirmed advancements and remained connected in its night shelter. The code and configured LAN viewing workflow are usable; later route completion remains unverified.
