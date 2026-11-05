@@ -7,11 +7,11 @@ stable; correct or qualify an old finding when new evidence changes it.
 ## Current handoff
 
 Updated 2026-11-05 ~14:01 Eastern. Bot is RUNNING on LAN port 51718, PID 36683, code
-`de766af`, rebuilding after seven deaths today (F023, F025–F029). Verify PID and connection before stopping it; `pgrep -f src/index.js`
+`de766af`, code `03561b5`, rebuilding after eight deaths today (F023, F025–F030). Verify PID and connection before stopping it; `pgrep -f src/index.js`
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 161 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 164 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -524,3 +524,18 @@ Gear milestone (live, `de766af`, run started 19:12Z after a rebuild from nothing
 19:29:15. state.json then showed all four iron armor slots plus the shield worn and the
 planner moved to gather_diamonds. This completes F024's iron stage live; diamond
 pickaxe/sword and diamond armor remain pending.
+
+## F030 — Fast replanning, live seals and burrow; a lone zombie killed an armored bot [live + regression]
+
+19:39:35Z (`cd21c27`): a second creeper 2.9 blocks away exploded 1.3 s after notice (20
+to 0.61 hp in full iron); every cancelled action waited 1.5 s before replanning.
+`122f5a2` replans 100 ms after threat cancellations. Live on `122f5a2`: a tunnel seal
+against a creeper at 19:47:58Z (first live creeper seal) and a damage-free open flight
+at 19:48:22Z. A crowd of two spiders, a zombie and a skeleton at 19:50:55Z was escaped.
+
+Death 8 (19:51:33Z): one zombie killed the bot in full iron armor with an iron sword.
+It ate four times under point-blank hits, then at 9.9 hp the near-and-hurt rule chose
+escape; in a cave the zombie hit it every second and the sword was never swung.
+`03561b5` fights an attacker within 3.5 blocks before eating (healthy, armed) and, with
+12+ worn armor points, duels a lone melee attacker to 4 hp. After respawning at night
+the emergency burrow was verified live for the first time (19:51:42Z at the bed).
