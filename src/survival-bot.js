@@ -486,7 +486,9 @@ class SurvivalController {
             needsShelterExit: Boolean(this.shelterCenter && !this.isNight()),
             shaftTrapped: this.detectVerticalShaft(),
             elevationTrapped: Boolean(this.detectElevationTrap()),
-            recoveryAvailable: Boolean(lastDeath && lastDeath.dimension === this.bot.game.dimension && recoveryAge < RECOVERY_WINDOW_MS && lastDeath.attempts < 3),
+            // Without a pickaxe a drop far above or below cannot be reached in time; rebuild instead.
+            recoveryAvailable: Boolean(lastDeath && lastDeath.dimension === this.bot.game.dimension && recoveryAge < RECOVERY_WINDOW_MS && lastDeath.attempts < 3 &&
+                (hasWoodPickNow || Math.abs(lastDeath.y - this.bot.entity.position.y) <= 12)),
             recoverySecondsLeft: lastDeath ? Math.max(0, Math.floor((RECOVERY_WINDOW_MS - recoveryAge) / 1000)) : 0,
             logs: this.countMatching(name => LOG_SUFFIXES.some(suffix => name.endsWith(suffix))),
             planks: this.countMatching(name => name.endsWith('_planks')),
