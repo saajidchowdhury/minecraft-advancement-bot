@@ -89,3 +89,10 @@ Its first placement verification failed, and a shelter click activated the bed;
 this proves server-confirmed staged sleep but not a clean sleep-skill pass.
 The later fix waits for forced rotation to transmit and for both bed halves.
 Owner-gated sleep/wake has automated coverage and awaits a cooperative live trial.
+
+
+The final 01:55:10 staged trial completed a stationary NoAI spider hunt and retained
+two string, then encountered an unrelated natural zombie while mining. Continued
+damage and recovery-cancellation failures led to stopping the bot; the patched
+event logic has regression coverage but still needs live validation. This trial
+is not evidence of reliable natural night combat or projectile blocking.

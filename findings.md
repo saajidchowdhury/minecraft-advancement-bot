@@ -6,16 +6,24 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-The 01:06:47 live run used `50f4151f5453`, PID 10165, port 50330 and
-`outputs/2026-11-05@01.06.47/`. It reached Y=-44 with health 20 and hunger 17–18,
-then repeated disposal movement timeouts more than fifty times. It was stopped
-at 06:17:30.511Z after identity/cwd/TCP checks. The earlier report that source
-hashes matched was correct; it did not establish that disposal was reliable.
+Bot is STOPPED. The final controlled run was
+`outputs/2026-11-05@01.55.10/`, startup `58d68eb`, PID 12962, port 50330.
+It was stopped at 06:56:14.900Z after a natural zombie encounter exposed unsafe
+continued mining and healing-triggered cancellation. Last saved snapshot: health
+7.56, hunger 20, at about (-83,77,127); this is not an updated current entity state.
+Identity and TCP connection were verified before stopping. No death was logged.
 
-New night decisions, bounded mob hunts, shield intervals, bed crafting/placement/
-sleep, persistent shelters and checked exits are implemented and regression-tested.
-Live validation of those behaviors remains pending. Two short diagnostic reconnects
-captured terrain and tested one non-digging stair; both quit afterward.
+Initial conditions were explicitly staged: supplied sword/food/bed, changed time,
+teleport, removed rubble and nearby hostiles, and a NoAI test spider. The autonomous
+run used no subsequent commands. It completed a night hunt and collected two string
+before an unrelated natural zombie approached. The final safety patches have
+regressions but have NOT been live-tested. Do not restart unattended until reviewing
+G001/G011 and current supplies/equipment. Ignored test-setup.json files preserve
+all setup commands; they are not a bot feature or survival-earned progress.
+
+Current suite: 123 passing tests plus syntax checks. Owner-coordinated sleep,
+placement fixes, night hunt limits, staged observations and unresolved navigation
+issues are detailed in F015–F018 and night-opportunities.md.
 
 The private repo is `saajidchowdhury/minecraft-advancement-bot`. The 00:33:48
 run on port 50330 used code `932b1ed4b671`, PID 8097, artifacts
@@ -303,3 +311,22 @@ Correction to F015 diagnostic wording: the standalone pathfinder reported succes
 while the bot was still airborne below the target Y; that is not proof of a
 settled stair landing. The 01:34:25 run hit the same stair failure and then paused
 at the retry cap, confirming containment but not the underlying navigation fix.
+
+## F018 — Staged hunt succeeded; natural encounter exposed earlier retreat needs [live + regression]
+
+The 01:55:10 run at `58d68eb` selected the supplied stationary NoAI spider,
+completed the hunt and retained two string by 06:55:20Z. This validates selection,
+approach, attacking and pickup under staged conditions. It does not validate a
+fighting spider or reliably blocking projectiles.
+
+A natural zombie approached while gather_diamonds was still executing. Repeated
+roughly 2.46-health hits did not meet the single-hit four-health interruption
+threshold, so mining continued too long. At critical health, even positive healing
+updates cancelled eat/shelter actions. The bot repeatedly escaped and stayed alive
+but was stopped at 06:56:14.900Z instead of leaving that encounter running.
+
+The follow-up interrupts surface night work when damaged at health <=16 as well
+as after a large single hit. Healing updates no longer cancel eating or shelter
+construction at critical health; actual damage can still interrupt those actions.
+Focused event regressions pass. This is not a live proof of safe escape, shelter,
+recovery or natural night combat. The bot remains stopped for the handoff.

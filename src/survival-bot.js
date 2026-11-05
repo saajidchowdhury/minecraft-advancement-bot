@@ -219,15 +219,17 @@ class SurvivalController {
         let previousHealth = this.bot.health
         this.bot.on('health', () => {
             const action = this.activeAction || this.lastAction
-            if (this.running && Number.isFinite(previousHealth) && previousHealth - this.bot.health > 0.01) {
+            const tookDamage = Number.isFinite(previousHealth) && previousHealth - this.bot.health > 0.01
+            if (this.running && tookDamage) {
                 const threats = Object.values(this.bot.entities || {}).filter(entity => entity.isValid && HOSTILES.has(entity.name) &&
                     this.bot.entity.position.distanceTo(entity.position) <= 12)
                     .map(entity => `${entity.name}:${this.bot.entity.position.distanceTo(entity.position).toFixed(1)}`)
                 this.log.warn(`Damage: hp=${previousHealth.toFixed(2)}->${this.bot.health.toFixed(2)}, action=${action}, ` +
                     `sheltered=${this.sheltered}, nearby threats=${threats.join(',') || 'none'}, at ${this.positionText()}.`)
                 if (this.memory && this.bot.game?.dimension === 'overworld' && this.isNight?.() &&
-                    this.bot.entity.position.y >= (this.home?.y || 64) - 3 && previousHealth - this.bot.health >= 4) {
-                    retreatForNight(this, 'sudden damage')
+                    this.bot.entity.position.y >= (this.home?.y || 64) - 3 &&
+                    (previousHealth - this.bot.health >= 4 || this.bot.health <= 16)) {
+                    retreatForNight(this, 'surface damage or reduced health')
                     if (this.busy && ![Actions.ESCAPE, Actions.SHELTER].includes(action)) {
                         this.cancelCurrentTask('night damage retreat')
                     }
@@ -241,7 +243,8 @@ class SurvivalController {
                 }
             }
             previousHealth = this.bot.health
-            if (this.bot.health <= 6 && this.busy && action !== Actions.ESCAPE && !this.actionAbort?.signal.aborted) {
+            if (this.bot.health <= 6 && this.busy && action !== Actions.ESCAPE &&
+                (tookDamage || ![Actions.EAT, Actions.SHELTER].includes(action)) && !this.actionAbort?.signal.aborted) {
                 this.cancelCurrentTask('critical health')
             }
         })

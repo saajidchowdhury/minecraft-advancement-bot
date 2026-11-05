@@ -196,3 +196,14 @@ The LAN owner must be observably sleeping before the bot pursues sleep; waking
 or losing sight of that state makes the bot wake. Cooperative sleep, corrected
 placement, natural combat and projectile blocking remain the next live checks.
 121 automated tests pass. Do not lose the unresolved F015 disposal/stair failure.
+
+
+Final handoff: bot STOPPED at 06:56:14.900Z, run 01:55:10, code `58d68eb`.
+A supplied stationary spider hunt yielded two string; a subsequent natural zombie
+encounter exposed mining that continued through damage and healing updates that
+cancelled recovery actions. Both event policies are patched with regressions;
+123 tests pass. The final fixes are not yet live-tested. G001 has priority again:
+review equipment/food and validate earlier withdrawal before an unattended restart.
+Owner-coordinated sleep remains implemented; joining the owner's real sleep and
+clean corrected bed placement remain pending. Respect the user's usage-limit
+request: this session ends here rather than continuing new experiments.

@@ -22,7 +22,7 @@ Logs and snapshots are local in outputs/. The run beginning 23:33:29 captured ir
 
 ## Automated checks
 
-`npm run check` and `npm test` pass; the current baseline has 121 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
+`npm run check` and `npm test` pass; the current baseline has 123 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
 
 The inherited Mineflayer patch was applied successfully to reconstructed pristine 4.39.0 craft/inventory sources. Dependency versions are locked. No gameplay result is inferred solely from a passing unit test.
 
@@ -163,3 +163,30 @@ owner waking during bed preparation. The full suite passes 121 tests and syntax
 checks. Cooperative owner/bot sleep and the corrected placement need live retry.
 Current new modules/tests remain below 10% comment-bearing lines; the highest
 changed-code ratio remains decision-engine.js, below 5%.
+
+
+## Final bounded trial and stop
+
+Run `outputs/2026-11-05@01.55.10/`, code `58d68eb`, has an ignored setup record:
+food/sword/bed supplied, time changed, bot teleported, rubble and nearby hostiles
+cleared, one stationary NoAI spider summoned. No commands were sent during the
+autonomous trial. It selected hunt_night, killed the stationary spider and retained
+two string, then resumed diamond work. This does not validate fighting live AI.
+
+A naturally arriving zombie exposed repeated modest damage during a long mining
+action and low-health healing events cancelling eating/shelter. The bot escaped
+several times without a logged death, but was stopped at 06:56:14.900Z. New event
+regressions cover earlier surface withdrawal at damaged health <=16 and healing
+that leaves eating/shelter active. All 123 tests and syntax checks pass. The final
+safety changes have not had a live retry. No bot remains connected/running.
+
+Final changed-source comment ratios (all <10%; changed tests 0%):
+
+- src/night-policy.js: 0/93 (0.00%)
+- src/night-skills.js: 1/211 (0.47%)
+- src/decision-engine.js: 4/101 (3.96%)
+- src/index.js: 2/166 (1.20%)
+- src/survival-bot.js: 23/1850 (1.24%)
+- src/progression-skills.js: 1/757 (0.13%)
+- src/cave-exploration.js: 0/232 (0.00%)
+- src/advancement-plan.js: 0/147 (0.00%)

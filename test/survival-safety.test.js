@@ -126,3 +126,29 @@ test('damage invalidates shelter and reports nearby threats without interrupting
     assert.equal(cancellations, 0)
     assert.equal(messages.some(message => message.includes('zombie:3.0')), true)
 })
+
+test('healing at critical health does not cancel eating or shelter construction', () => {
+    for (const action of [Actions.EAT, Actions.SHELTER]) {
+        const bot = new EventEmitter()
+        bot.health = 3
+        const c = { bot, busy: true, activeAction: action, actionAbort: new AbortController(),
+            cancelCurrentTask() { assert.fail('healing cancelled recovery work') } }
+        SurvivalController.prototype.bindEvents.call(c)
+        bot.health = 4
+        bot.emit('health')
+    }
+})
+
+test('repeated modest surface-night damage interrupts mining before critically low health', () => {
+    const bot = new EventEmitter()
+    Object.assign(bot, { health: 18, game: { dimension: 'overworld' }, time: { day: 4 },
+        entity: { position: new Vec3(0, 70, 0) }, entities: {} })
+    const c = { bot, running: true, busy: true, memory: {}, activeAction: 'gather_diamonds',
+        isNight: () => true, log: { warn() {} }, positionText: () => '0,70,0',
+        cancelCurrentTask() { c.cancelled = true } }
+    SurvivalController.prototype.bindEvents.call(c)
+    bot.health = 15.5
+    bot.emit('health')
+    assert.equal(c.cancelled, true)
+    assert.equal(c.memory.nightRetreat.day, 4)
+})
