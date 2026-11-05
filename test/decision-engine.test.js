@@ -195,3 +195,10 @@ test('a lone archer shooting from mid-range is charged when healthy, covered fro
     assert.equal(chooseAction(state({ ...archer, health: 9.3 })), Actions.ESCAPE)
     assert.notEqual(chooseAction(state({ ...archer, hasWeapon: false })), Actions.FIGHT)
 })
+
+test('an armored bot fights two zombies once a creeper is beyond its fuse range', () => {
+    const pair = { hostileDistance: 1.3, hasWeapon: true, armorPoints: 16, visibleHostiles: 2, health: 9.6 }
+    assert.equal(chooseAction(state(pair)), Actions.FIGHT)
+    assert.equal(chooseAction(state({ ...pair, creeperDistance: 5 })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ ...pair, visibleHostiles: 3 })), Actions.ESCAPE)
+})

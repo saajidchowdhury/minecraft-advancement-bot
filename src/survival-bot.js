@@ -248,6 +248,12 @@ class SurvivalController {
                         this.cancelCurrentTask('night damage retreat')
                     }
                 }
+                const fleeingArmored = action === Actions.ESCAPE && this.bot.health > 6 && wornArmorPoints(this.bot) >= 12 &&
+                    !this.nearestEntity?.(CREEPERS, 7) && this.nearestEntity?.(HOSTILES, 4)
+                if (fleeingArmored && this.busy && !this.actionAbort?.signal.aborted) {
+                    // Zombies keep pace with a fleeing bot; an armored one turns and fights instead (F032).
+                    this.cancelCurrentTask(`attacked while fleeing by ${fleeingArmored.name}`)
+                }
                 const attacker = this.nearestEntity?.(HOSTILES, 4) ||
                     Object.values(this.bot.entities || {}).find(e => e.isValid && ARCHERS.has(e.name) &&
                         this.bot.entity.position.distanceTo(e.position) <= 16 && this.canSee?.(e))
@@ -582,7 +588,8 @@ class SurvivalController {
             case 'leave_shelter': return leaveShelter(this)
             case Actions.ESCAPE:
                 if (state.creeperDistance <= 6) {
-                    return this.takeCover(state.creeper, 10)
+                    // A creeper's fuse winds back down once its target is more than seven blocks away.
+                    return this.takeCover(state.creeper, 8)
                 }
                 return state.rangedDistance <= 16 ? this.takeCover(state.ranged, 24) : this.escapeFrom(state.hostile)
             case Actions.DESCEND: return this.descendSafely()

@@ -455,3 +455,28 @@ test('an off-centre burrow steps into its own hole instead of failing the descen
     assert.deepEqual(c.bot.entity.position.floored(), new Vec3(0, 61, 0))
     assert.equal(c.sheltered, true)
 })
+
+test('an armored bot stops fleeing to fight a zombie that keeps hitting it, but never near a creeper', () => {
+    const cancels = []
+    const bot = new EventEmitter()
+    bot.health = 16.95
+    bot.entity = { position: new Vec3(0, 64, 0) }
+    bot.entities = {}
+    bot.game = { dimension: 'overworld' }
+    bot.inventory = { slots: Object.assign([], { 5: { name: 'diamond_helmet' }, 6: { name: 'iron_chestplate' }, 7: { name: 'iron_leggings' }, 8: { name: 'iron_boots' } }) }
+    const zombie = { name: 'zombie', position: new Vec3(1.3, 64, 0) }
+    let creeper = null
+    const c = { bot, busy: true, running: true, activeAction: Actions.ESCAPE, sheltered: false, log: { warn() {} },
+        positionText: () => '0,64,0', isNight: () => false, canSee: () => true,
+        nearestEntity: names => names.has('creeper') && !names.has('zombie') ? creeper : zombie,
+        cancelCurrentTask(reason) { cancels.push(reason) } }
+    SurvivalController.prototype.bindEvents.call(c)
+    creeper = { name: 'creeper', position: new Vec3(3, 64, 0) }
+    bot.health = 15.7
+    bot.emit('health')
+    assert.equal(cancels.length, 0)
+    creeper = null
+    bot.health = 14.5
+    bot.emit('health')
+    assert.deepEqual(cancels, ['attacked while fleeing by zombie'])
+})

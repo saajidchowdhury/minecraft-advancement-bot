@@ -36,9 +36,9 @@ function chooseAction (state) {
         ((state.rangedDistance <= 3.5 && state.health > 4) || (state.rangedDistance <= 12 && state.health > 10))) {
         return Actions.FIGHT
     }
-    // An armored, armed bot wins a lone melee duel; running lets the attacker keep hitting (F030).
-    if (!(state.creeperDistance <= 6) && state.hostileDistance <= 3.5 && state.hasWeapon && (state.armorPoints || 0) >= 12 &&
-        (state.visibleHostiles ?? 1) <= 1 && !(state.rangedDistance <= 16 && state.rangedDistance > 3.5) && state.health > 4) {
+    // An armored, armed bot beats one or two melee attackers; running lets them keep hitting (F030, F032).
+    if (!(state.creeperDistance <= 7) && state.hostileDistance <= 3.5 && state.hasWeapon && (state.armorPoints || 0) >= 12 &&
+        (state.visibleHostiles ?? 1) <= 2 && !(state.rangedDistance <= 16 && state.rangedDistance > 3.5) && state.health > 4) {
         return Actions.FIGHT
     }
     if (state.creeperDistance <= 6 || (state.hostileDistance <= 5 && state.health <= 10) || (state.hostileDistance <= 3.5 && !state.hasWeapon) ||
