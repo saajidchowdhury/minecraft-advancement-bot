@@ -3,6 +3,7 @@
 const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { dryMovements, safeFooting } = require('./cave-exploration')
+const { until } = require('./progression-skills')
 const { nightReady, retreatForNight } = require('./night-policy')
 
 const PLANTS = new Set(['short_grass', 'tall_grass', 'fern', 'large_fern', 'dead_bush', 'leaf_litter'])
@@ -123,16 +124,18 @@ async function sleepSafely(c, state) {
             await bot.equip(item, 'hand')
             c.checkAction(signal)
             await bot.lookAt(bot.entity.position.offset(4 * (site.head.x - site.foot.x), 1.62, 4 * (site.head.z - site.foot.z)), true)
+            // Forced look updates local rotation before the next movement packet transmits it.
+            await bot.waitForTicks(2)
             c.checkAction(signal)
             if (bot.game.dimension !== 'overworld') {
                 throw new Error('dimension changed before bed placement')
             }
             await bot._placeBlockWithOptions(bot.blockAt(site.foot.offset(0, -1, 0)), new Vec3(0, 1, 0), { forceLook: 'ignore' })
             c.checkAction(signal)
+            await until(c, () => bot.blockAt(site.foot)?.name.endsWith('_bed') &&
+                bot.blockAt(site.head)?.name.endsWith('_bed'), 1500)
+            c.checkAction(signal)
             bed = bot.blockAt(site.foot)
-            if (!bed?.name.endsWith('_bed') || !bot.blockAt(site.head)?.name.endsWith('_bed')) {
-                throw new Error('both bed halves were not confirmed')
-            }
             c.memory.travelBed = { x: site.foot.x, y: site.foot.y, z: site.foot.z, dimension: 'overworld' }
             c.log.info(`Placed travel bed at ${site.foot}.`)
         }

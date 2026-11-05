@@ -24,7 +24,7 @@ function restWorld() {
                 const name = blocks.get(p.toString()) || (p.y < 64 ? 'stone' : 'air')
                 return { name, position: p, boundingBox: name === 'air' ? 'empty' : 'block' }
             },
-            equip: async () => {}, lookAt: async () => {},
+            equip: async () => {}, lookAt: async () => {}, waitForTicks: async () => {},
             async _placeBlockWithOptions(floor, face, options) {
                 assert.equal(options.forceLook, 'ignore')
                 const foot = floor.position.offset(0, 1, 0)
@@ -182,6 +182,20 @@ test('ordinary ground vegetation is cleared before bed placement instead of prev
     }
     c.bot.canDigBlock = () => true
     c.bot.dig = async b => blocks.set(b.position.toString(), 'air')
+    await sleepSafely(c, state)
+    assert.equal(c.bot.isSleeping, true)
+})
+
+test('bed placement waits for rotation to be transmitted before using the selected orientation', async () => {
+    const { c, state } = restWorld()
+    let transmitted = false
+    c.bot.lookAt = async () => { transmitted = false }
+    c.bot.waitForTicks = async () => { transmitted = true }
+    const place = c.bot._placeBlockWithOptions
+    c.bot._placeBlockWithOptions = async (...args) => {
+        assert.equal(transmitted, true)
+        await place(...args)
+    }
     await sleepSafely(c, state)
     assert.equal(c.bot.isSleeping, true)
 })
