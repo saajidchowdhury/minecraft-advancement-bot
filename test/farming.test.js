@@ -38,6 +38,36 @@ function farm(items) {
     return { c, blocks, used }
 }
 
+test('planting breaks collision-free grass itself and picks up the dropped seeds', async () => {
+    const { c, blocks } = farm([])
+    const grassAt = new Vec3(2, 64, 0)
+    blocks.set(grassAt.toString(), 'short_grass')
+    const items = c.__items = []
+    c.hasAnyItem = names => names.some(n => items.includes(n))
+    c.findNearestBlock = (match, range, options = {}) => {
+        for (const p of [grassAt, new Vec3(1, 63, 0)]) {
+            const block = c.bot.blockAt(p)
+            if (match(block.name) && (!options.filter || options.filter(block))) {
+                return block
+            }
+        }
+        return null
+    }
+    c.gotoWithTimeout = async (goal, ms, label) => { if (label === 'seed pickup') { items.push('wheat_seeds') } }
+    c.bot.entities = {}
+    c.bot.waitForTicks = async () => {}
+    c.bot.dig = async block => {
+        blocks.set(block.position.toString(), 'air')
+        c.bot.entities[1] = { name: 'item', isValid: true, position: block.position.offset(0.5, 0, 0.5) }
+    }
+    c.hasItem = name => items.includes(name)
+    c.ensureItem = async name => items.push(name)
+    c.bestItem = names => ({ name: names.find(n => items.includes(n)) })
+    await plantSeed(c)
+    assert.equal(blocks.get(grassAt.toString()), 'air')
+    assert.equal(blocks.get(new Vec3(1, 64, 0).toString()), 'wheat')
+})
+
 test('planting crafts a hoe if needed, tills soil and plants seeds until the server confirms', async () => {
     const { c, blocks, used } = farm(['wheat_seeds'])
     await plantSeed(c)

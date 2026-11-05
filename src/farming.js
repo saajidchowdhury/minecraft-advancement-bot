@@ -31,7 +31,16 @@ async function plantSeed(c) {
             if (!grass) {
                 throw new Error('no grass nearby for seeds')
             }
-            await c.collectTarget(grass, grass, 'seed grass')
+            // collectTarget skips collision-free blocks, so break grass and walk over the drop here.
+            await c.gotoWithTimeout(new goals.GoalNear(grass.position.x, grass.position.y, grass.position.z, 2), 8000, 'seed grass')
+            await bot.dig(bot.blockAt(grass.position), true)
+            await bot.waitForTicks(6)
+            const drop = Object.values(bot.entities || {}).find(e => e.isValid && e.name === 'item' && e.position.distanceTo(grass.position.offset(0.5, 0, 0.5)) <= 3)
+            if (drop) {
+                const p = drop.position.floored()
+                await c.gotoWithTimeout(new goals.GoalNear(p.x, p.y, p.z, 0), 4000, 'seed pickup').catch(() => {})
+                await bot.waitForTicks(4)
+            }
         }
         if (!c.hasAnyItem(SEEDS)) {
             throw new Error('grass gave no seeds')
