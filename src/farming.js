@@ -32,7 +32,14 @@ async function plantSeed(c) {
                 throw new Error('no grass nearby for seeds')
             }
             // collectTarget skips collision-free blocks, so break grass and walk over the drop here.
-            await c.gotoWithTimeout(new goals.GoalNear(grass.position.x, grass.position.y, grass.position.z, 2), 8000, 'seed grass')
+            try {
+                await c.gotoWithTimeout(new goals.GoalNear(grass.position.x, grass.position.y, grass.position.z, 2), 8000, 'seed grass')
+            } catch (error) {
+                c.checkAction()
+                // findNearestBlock skips remembered targets, so the next pass tries other grass.
+                c.rememberBlockedTarget?.(grass, 'seed grass', error)
+                continue
+            }
             await bot.dig(bot.blockAt(grass.position), true)
             await bot.waitForTicks(6)
             const drop = Object.values(bot.entities || {}).find(e => e.isValid && e.name === 'item' && e.position.distanceTo(grass.position.offset(0.5, 0, 0.5)) <= 3)

@@ -115,3 +115,45 @@ test('fishing crafts a rod, walks to open water and casts until the server confi
     assert.deepEqual(calls, ['craft fishing_rod', 'fishing spot', 'cast'])
     assert.equal(fishingState(c, { ...calm }).canFish, false)
 })
+
+test('unreachable grass is remembered and skipped so other grass can supply seeds', async () => {
+    const { c, blocks } = farm([])
+    const far = new Vec3(9, 64, 9)
+    const near = new Vec3(2, 64, 0)
+    blocks.set(far.toString(), 'short_grass')
+    blocks.set(near.toString(), 'short_grass')
+    const items = []
+    const blocked = new Set()
+    c.hasAnyItem = names => names.some(n => items.includes(n))
+    c.hasItem = name => items.includes(name)
+    c.ensureItem = async name => items.push(name)
+    c.bestItem = names => ({ name: names.find(n => items.includes(n)) })
+    c.rememberBlockedTarget = block => blocked.add(block.position.toString())
+    c.findNearestBlock = (match, range, options = {}) => {
+        for (const p of [far, near, new Vec3(1, 63, 0)]) {
+            const block = c.bot.blockAt(p)
+            if (!blocked.has(p.toString()) && match(block.name) && (!options.filter || options.filter(block))) {
+                return block
+            }
+        }
+        return null
+    }
+    c.gotoWithTimeout = async (goal, ms, label) => {
+        if (label === 'seed grass' && goal.x === 9) {
+            throw new Error('seed grass timed out after 8s')
+        }
+        if (label === 'seed pickup') {
+            items.push('wheat_seeds')
+        }
+    }
+    c.bot.entities = {}
+    c.bot.waitForTicks = async () => {}
+    c.bot.dig = async block => {
+        blocks.set(block.position.toString(), 'air')
+        c.bot.entities[1] = { name: 'item', isValid: true, position: block.position.offset(0.5, 0, 0.5) }
+    }
+    await plantSeed(c)
+    assert.ok(blocked.has(far.toString()))
+    assert.equal(blocks.get(near.toString()), 'air')
+    assert.equal(blocks.get(new Vec3(1, 64, 0).toString()), 'wheat')
+})
