@@ -234,3 +234,16 @@ Y 66→78; melee interrupt and new scouting await a live encounter.
 Night follow-up (`c57fd6a`, `73aaefd`; 152 tests): burrow geometry and refusals, roof
 support ordering and burrow fallback. Live: walled shelter verified 17:18:21Z after the
 roof fix's predecessor; burrow refused on the tested hillside.
+
+
+## Session summary (2026-11-05, port 51718)
+
+214 automated tests and syntax checks pass at the handoff revision. New coverage this
+session: disposal pits/lanes, creeper/archer cover, melee and decision-fault fallbacks,
+burrow, shelter roof and exits, unstick, horizontal scouting, shaft memory (record, follow,
+repair), base plans and barrel vault (site, seal sequence, migration), husbandry branches
+(planting, fishing, breeding), golem, async smelting (record-before-fuel, refuel, collect),
+throughput logging, !inventory and planner gear order. Each regression was confirmed to
+fail on its pre-fix source where it guards a fix. Live evidence is recorded per finding in
+findings.md (F019–F039); not yet observed live: tunnel sealing vs. creeper (observed),
+vault restock, Nether entry/return, golem, fishing, breeding and deflect_arrow.

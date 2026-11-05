@@ -6,17 +6,18 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 41971, code
-`19be10b`, rebuilding after ten deaths today (F023, F025–F032). Verify PID and connection before stopping it; `pgrep -f src/index.js`
-must return one PID.
-Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
-(`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 213 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
-(`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
+Updated 2026-11-05 ~18:20 Eastern. Bot is RUNNING on LAN port 51718, PID 56696, code
+`a18c0ff`, rebuilding basic tools after a pickaxe loss; no log watcher is running. Verify the
+PID and connection before stopping it; `pgrep -f src/index.js` must return one PID.
+Fifteen advancements are server-confirmed. A furnace at (-283,68,-150) holds about 29 raw
+iron as the remembered smelt job, but the bot carries no coal or charcoal and nothing yet
+fetches fuel for a stalled job (top item in goals.md). The base is migrating to a barrel
+vault (F039), pending nine planks. Suite: 214 tests plus syntax checks. Staging helpers and
+setup records (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
 (`a80974a`) followed it unrecorded and is analysed in F019/F020. The server lists
-fourteen completed advancements, including the staged Sweet Dreams from F017.
+fifteen completed advancements, including the staged Sweet Dreams from F017.
 
 The private repo is `saajidchowdhury/minecraft-advancement-bot`. The 00:33:48
 run on port 50330 used code `932b1ed4b671`, PID 8097, artifacts
@@ -734,3 +735,10 @@ furnaces). The lost job was restored in memory by hand (operator action, overwri
 newer 2-iron job — memory holds one job); the bot collected 8 ingots at 23:12:17Z and the
 fuel had run out, so `3fa8dc0` refuels and reschedules a stalled job. Follow-up: support
 several smelt jobs at once.
+
+Later fix: `a18c0ff` stops a valley floor under tree leaves from counting as underground
+(the bot tried to carve stairs in open air for a food trip). Session evidence summary for
+the 51718 runs: Diamonds!, Cover Me with Diamonds and A Seedy Place were earned live; the
+gear route, diamond priority, shaft climb, async smelting, base deposit, creeper flight,
+tunnel and archer seals, burrow and melee interrupts were each observed working at least
+once; fifteen deaths informed F023–F035.

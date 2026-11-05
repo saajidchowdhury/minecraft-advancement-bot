@@ -332,3 +332,19 @@ post-route diamond armor implemented. Next strategic items: Enchanter (book from
 cane + leather, table from 2 diamonds + 4 obsidian, lapis), gold boots before any longer
 Nether stay (piglins), and a bed at the base. Measure throughput with state.json's
 advancementsPerHour across a full run.
+
+
+## Next session — start here (2026-11-05 ~18:20 Eastern)
+
+1. **Fuel for stalled smelt jobs.** A remembered job with input left and no fuel in the
+   furnace or inventory must trigger coal mining or charcoal (logs) and then refuel; today
+   about 29 raw iron sit at (-283,68,-150) with no fuel. Bound revisits so a fuel-less job
+   cannot draw the bot back repeatedly.
+2. **Several smelt jobs.** memory.smeltJob holds one job; a newer job overwrote a 2-iron one.
+   Keep a small list keyed by furnace position.
+3. **Barrel vault live check** (F039): build once nine planks are available, then a deposit,
+   a reseal and a restock after a death. Add lapis to the restock list before enchanting.
+4. **Throughput measurement:** compare state.json advancementsPerHour across a full run
+   against today's baseline (strategy.md).
+5. Then strategy.md order: Nether route live (portal, return), Enchanter, gold boots, a bed
+   at the base, golem/fishing/breeding live confirmation, smelting batches of ~8.
