@@ -114,6 +114,10 @@ function chooseAction (state) {
     if (state.baseEstablish) {
         return 'establish_base'
     }
+    // About a minute for an advancement (A Seedy Place) while calm on the surface.
+    if (state.canPlantSeed && !state.inventoryFull) {
+        return 'plant_seed'
+    }
     if (state.baseDeposit) {
         return 'deposit_base'
     }
