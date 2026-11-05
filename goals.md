@@ -367,3 +367,6 @@ advancementsPerHour across a full run.
   used it in the following mining work. Verify both night routes with a
   reachable remembered shaft and a shelter above a safe digging column. The
   hillside trial exposed refusal/recovery behavior, which now has a regression.
+- F044: stone axe crafting, log cutting and crafting-table reclaim verified live. Check
+  replacement when it wears out, and observe the axe on a base container when
+  migration is needed. The barrel vault has now been built and used for deposit.

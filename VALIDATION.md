@@ -283,3 +283,15 @@ Live without staging: the 18:45:08 run used carried plank fuel for one ingot,
 collected its third ingot, crafted and equipped the pick, and received the
 server advancement. Mining resumed with the iron pick in hand. See F043 for
 the unsuccessful hillside descent and the pending successful night trial.
+
+`d3f5068` passes 232 tests and syntax checks. The planner, optional-action
+priority, axe selection on real block data, base restock and chest/barrel
+migration checks each failed on the previous code. Changed source comment
+ratios are 5/209 (`advancement-plan.js`), 20/357 (`base.js`), 15/185
+(`decision-engine.js`), 20/1069 (`progression-skills.js`) and 63/2282
+(`survival-bot.js`). Changed tests are at most 0.82%.
+
+Live on port 53606, the 18:51:28 run crafted a stone axe on its first action
+and immediately reclaimed the crafting table with it. Debug logs confirmed it
+used the axe on oak logs during the next wood-gathering action. No staged
+supplies were used.

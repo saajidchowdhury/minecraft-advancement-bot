@@ -810,3 +810,19 @@ equipped it at 18:45:41, and the 18:46:22 mining trace showed it held after a
 completed tunnel segment. No commands or supplies were staged. The run stayed
 connected on port 53606 at handoff. The next night trial should demonstrate a
 successful descent. Audit cancellation between furnace placement and loading.
+
+## F044 — Stone axe for wood and workstation recovery
+
+User direction: craft a stone axe after the stone pickaxe and keep an axe handy
+for logs, planks, crafting tables and storage containers. `d3f5068` schedules
+the axe ahead of routine mining and optional advancements. It keeps the
+immediate three-ingot iron pick craft and survival interrupts ahead of the axe.
+Stone, iron, diamond and netherite axes satisfy the woodcutting reserve.
+Ordinary gathering and explicit workstation or container removal use the dig
+time selector. Tunnels and shaft repairs now select an axe for axe-mined blocks.
+Restocking can retrieve a stored axe.
+
+In the 18:51:28 Eastern run, the bot crafted the stone axe at 18:51:32 and
+immediately used it to reclaim its crafting table. Debug logs at 18:51:42–49
+show it breaking oak logs with the axe. The bot stayed connected. The earlier 18:45:08 run
+also built the sealed barrel vault at (9,76,23) and deposited items at 18:47:23.

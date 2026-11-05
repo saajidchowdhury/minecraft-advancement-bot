@@ -54,7 +54,9 @@ Ctrl-C in the terminal stops the bot. An ordinary LAN world accepts a distinct o
 The implemented route is:
 
 1. **Minecraft** — crafting table; prepare a wooden pickaxe and sword.
-2. **Stone Age** and **Getting an Upgrade** — cobblestone and a stone pickaxe.
+2. **Stone Age** and **Getting an Upgrade** — cobblestone and a stone pickaxe,
+   then a stone axe for wood. Replace a lost or broken axe unless a higher-tier
+   axe is already carried.
 3. Prepare a furnace; **Acquire Hardware** and **Isn't It Iron Pick** — smelt iron and craft an iron pickaxe.
 4. **Suit Up** — craft and wear an iron chestplate; prepare a shield.
 5. **Hot Stuff** — collect a lava source in a bucket.
