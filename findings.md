@@ -559,3 +559,9 @@ chestplate 20:31:30, shield 20:31:53, iron sword 20:35:51, leggings 20:39:56, he
 20:41:38 and boots 20:43:48 (about 29 min, versus about 45 min for the previous
 rebuild). A zombie attack at 20:37:09 was fought and won (hp 20 to 14.5, work resumed
 in about 6 s), the first live melee win under F030/F031 rules.
+
+Diamond priority live (F022, `6f077df`): at 20:55:38Z 'Diamond ore came into view' cut a
+tunnel segment short; mine_diamond then cleared a deepslate diamond vein around
+(-175,-54,-132) in nine targeted digs (20:55:40–20:57:08). The bot crafted its first
+diamond pickaxe at 20:57:29Z and still held 10 diamonds, enough for the planned
+diamond sword and chestplate (Cover Me with Diamonds).
