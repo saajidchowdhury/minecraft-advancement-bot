@@ -211,3 +211,11 @@ test('a non-urgent surface trip waits underground in shelter at night', () => {
     assert.equal(chooseAction(state({ ...night, isNight: false })), 'return_surface')
     assert.equal(chooseAction(state({ ...night, food: 10, hasFood: false })), 'return_surface')
 })
+
+test('a verified underground shelter is not mistaken for a shaft to escape from', () => {
+    const night = { underground: true, isNight: true, hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true,
+        hasStonePickaxe: true, hasFurnace: true, hasIronPickaxe: true, hasStoneUtilityPickaxe: false, cobblestone: 10,
+        food: 17, hasFood: true, logs: 0, planks: 0, sticks: 0, shaftTrapped: true }
+    assert.equal(chooseAction(state({ ...night, sheltered: true })), 'wait')
+    assert.equal(chooseAction(state({ ...night, sheltered: false })), Actions.ASCEND)
+})

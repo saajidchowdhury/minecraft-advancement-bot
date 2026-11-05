@@ -67,7 +67,8 @@ function chooseAction (state) {
     if (state.needsShelterExit) {
         return 'leave_shelter'
     }
-    if (state.shaftTrapped) {
+    // A verified night shelter is a sealed 1x1 column too; it must not trigger a shaft escape.
+    if (state.shaftTrapped && !state.sheltered) {
         return Actions.ASCEND
     }
     if (state.elevationTrapped) {
