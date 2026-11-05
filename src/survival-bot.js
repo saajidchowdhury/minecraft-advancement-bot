@@ -1681,6 +1681,9 @@ class SurvivalController {
         } finally {
             this.bot.pathfinder.setMovements(this.movements)
         }
+        // A failed goto defers its stop and would abort the first dig (F004).
+        this.bot.pathfinder.setGoal(null)
+        await this.bot.waitForTicks(2)
         await mineTunnel(this, Math.floor(this.bot.entity.position.y) + 4)
     }
 
