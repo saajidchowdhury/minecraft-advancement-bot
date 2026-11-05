@@ -51,3 +51,13 @@ obtain_ancient_debris, obtain_crying_obsidian, summon_iron_golem (36 iron + pump
 
 Out of scope: adventuring_time, explore_nether, all_effects, all_potions,
 balanced_diet, bred_all_animals, complete_catalogue and similar exhaustive goals.
+
+## Open refinements noticed live
+
+- Async smelting starts a job at three raw iron, so jobs of 3–5 repeat furnace placement
+  and pickup; batching to about eight when the need allows would cut overhead.
+- Enchanter needs a book (three sugar cane for paper, one leather), an enchanting table
+  (book, two diamonds, four obsidian) and lapis; without bookshelves levels cap at 8, which
+  still often offers Efficiency on a pickaxe. Obsidian comes from the Nether route casting.
+- A longer Nether stay needs one gold armor piece (gold boots: four ingots) against
+  piglins; the base currently stores all gold, so the planner must keep four ingots then.
