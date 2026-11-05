@@ -91,6 +91,9 @@ function chooseAction (state) {
         return 'sleep'
     }
     if (state.isNight && !state.underground) {
+        if (state.nightShaftReady && state.hasStonePickaxe && state.health >= 16 && state.food >= 17 && !state.visibleHostiles) {
+            return 'descend_shaft_at_night'
+        }
         if (!state.nightCombatReady) {
             if (state.canPrepareNightWeapon) {
                 return 'prepare_night_weapon'

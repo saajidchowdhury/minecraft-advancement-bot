@@ -15,7 +15,7 @@ const { inventoryReport } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
 const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnimals } = require('./farming')
 const { golemState, summonGolem } = require('./golem')
-const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, PROTECTED_CONTAINERS } = require('./progression-skills')
+const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, PROTECTED_CONTAINERS } = require('./progression-skills')
 
 const { GoalNear, GoalFollow } = goals
 
@@ -76,7 +76,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     fill_water_bucket: 90000, fill_lava_bucket: 90000, gather_diamonds: 90000, gather_obsidian: 90000,
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
     clear_inventory: 30000, mine_diamond: 45000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
-    [Actions.SHELTER]: 60000, mine_from_shelter: 60000,
+    [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
     wake: 10000, hunt_night: 45000, sleep: 30000, prepare_bed: 45000, prepare_night_weapon: 30000, leave_shelter: 20000,
     [Actions.EXPLORE]: 60000
 })
@@ -539,6 +539,12 @@ class SurvivalController {
         const armorNames = ['iron_chestplate', 'diamond_chestplate', 'netherite_chestplate']
         const armorEquipped = Boolean(torso && armorNames.includes(torso.name))
         const shieldEquipped = offhand?.name === 'shield'
+        const shaft = this.memory.shaft
+        const feet = this.bot.entity.position.floored()
+        const shaftEntrance = shaft?.cells?.[0]
+        const nightShaftReady = Boolean(shaftEntrance) && shaft.dimension === this.bot.game.dimension && shaft.cells.length >= 8 &&
+            !(shaft.retryAfter > Date.now()) && feet.distanceTo(new Vec3(shaftEntrance.x, shaftEntrance.y, shaftEntrance.z)) <= 12 &&
+            shaft.cells.at(-1).y <= feet.y - 6
         const state = {
             health: this.bot.health,
             food: this.bot.food,
@@ -553,6 +559,7 @@ class SurvivalController {
             isNight: this.isNight(),
             sheltered: this.sheltered,
             canMineFromShelter: this.sheltered && !this.memory.shelter?.descentFailed,
+            nightShaftReady,
             needsShelterExit: Boolean(this.shelterCenter && !this.isNight()),
             shaftTrapped: this.detectVerticalShaft(),
             elevationTrapped: Boolean(this.detectElevationTrap()),
@@ -632,6 +639,13 @@ class SurvivalController {
             case 'prepare_night_weapon': return performProgression(this, 'craft_progression', { sideGoal: { item: 'stone_sword' } })
             case 'leave_shelter': return leaveShelter(this)
             case 'mine_from_shelter': return this.mineFromShelter()
+            case 'descend_shaft_at_night': {
+                const shaft = this.memory.shaft
+                if (!await followShaft(this, 'down') && shaft) {
+                    shaft.retryAfter = Date.now() + 300000
+                }
+                return
+            }
             case Actions.ESCAPE:
                 if (state.creeperDistance <= 6) {
                     // A creeper's fuse winds back down once its target is more than seven blocks away.
@@ -1635,6 +1649,7 @@ class SurvivalController {
     // one with a drop: undisturbed ground forms the walls, so placement needs no scaffold.
     async mineFromShelter () {
         const shelter = this.memory.shelter
+        const center = this.shelterCenter
         try {
             await this.bot.equip(miningPickaxe(this), 'hand')
             this.checkAction()
@@ -1643,6 +1658,11 @@ class SurvivalController {
         } catch (error) {
             if (shelter) {
                 shelter.descentFailed = true
+            }
+            this.checkAction()
+            if (center && this.hasEnclosedShelter(center)) {
+                this.log.warn(`Shelter mining descent unavailable: ${error.message}; keeping the enclosure closed.`)
+                return
             }
             throw error
         }

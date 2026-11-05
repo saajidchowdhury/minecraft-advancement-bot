@@ -58,6 +58,13 @@ test('a healthy sheltered miner can head below ground at night', () => {
     assert.equal(chooseAction({ ...sheltered, canMineFromShelter: false }), 'wait')
 })
 
+test('a nearby known shaft lets a healthy bot continue work before it builds a night shelter', () => {
+    const outside = state({ isNight: true, nightShaftReady: true, hasStonePickaxe: true })
+    assert.equal(chooseAction(outside), 'descend_shaft_at_night')
+    assert.equal(chooseAction({ ...outside, health: 12 }), Actions.SHELTER)
+    assert.equal(chooseAction({ ...outside, visibleHostiles: 1 }), Actions.SHELTER)
+})
+
 test('an isolated spawn pillar is descended before progression', () => {
     assert.equal(chooseAction(state({ elevationTrapped: true })), Actions.DESCEND)
 })

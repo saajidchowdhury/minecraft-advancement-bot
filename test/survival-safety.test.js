@@ -353,6 +353,20 @@ test('burrowing is refused over water, falling blocks or an open cave below', as
     }
 })
 
+test('a refused mining descent leaves an intact shelter closed and disables retries there', async () => {
+    const c = shelterWorld()
+    const center = new Vec3(0, 64, 0)
+    c.shelterCenter = center
+    c.sheltered = true
+    c.memory.shelter = { x: center.x, y: center.y, z: center.z }
+    c.hasEnclosedShelter = p => p.equals(center)
+    c.bestItem = () => ({ name: 'stone_pickaxe' })
+    c.bot.equip = async () => {}
+    await SurvivalController.prototype.mineFromShelter.call(c)
+    assert.equal(c.memory.shelter.descentFailed, true)
+    assert.equal(c.sheltered, true)
+})
+
 test('the shelter roof is seated on a wall-top block, and a failed shell falls back to burrowing', async () => {
     const c = shelterWorld()
     await SurvivalController.prototype.makeNightSafe.call(c)
