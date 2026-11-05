@@ -241,6 +241,11 @@ class SurvivalController {
                         this.cancelCurrentTask('night damage retreat')
                     }
                 }
+                const attacker = this.nearestEntity?.(HOSTILES, 4)
+                if (attacker && this.busy && ![Actions.ESCAPE, Actions.FIGHT].includes(action) && !this.actionAbort?.signal.aborted) {
+                    // Work must not continue under melee attack; the next decision fights or escapes.
+                    this.cancelCurrentTask(`attacked by ${attacker.name}`)
+                }
                 if (this.sheltered) {
                     this.sheltered = false
                     this.shelterCenter = null

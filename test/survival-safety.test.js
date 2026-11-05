@@ -253,3 +253,28 @@ test('earned advancements and deaths are recorded for throughput comparisons', (
     assert.deepEqual(runStats.earned.map(e => e.id), ['minecraft:story/iron_tools'])
     assert.equal(runStats.deaths.length, 1)
 })
+
+test('daytime melee damage interrupts work so the bot fights or escapes before critical health', () => {
+    let cancels = []
+    const bot = new EventEmitter()
+    bot.health = 20
+    bot.entity = { position: new Vec3(0, 64, 0) }
+    bot.entities = {}
+    bot.game = { dimension: 'overworld' }
+    const zombie = { name: 'zombie', position: new Vec3(1.2, 64, 0) }
+    const c = { bot, busy: true, running: true, activeAction: Actions.WOOD, lastAction: Actions.WOOD, sheltered: false,
+        log: { warn() {} }, positionText: () => '0,64,0', isNight: () => false, nearestEntity: () => zombie, cancelCurrentTask(reason) { cancels.push(reason) } }
+    SurvivalController.prototype.bindEvents.call(c)
+    bot.health = 17.54
+    bot.emit('health')
+    assert.deepEqual(cancels, ['attacked by zombie'])
+    c.activeAction = Actions.FIGHT
+    bot.health = 15
+    bot.emit('health')
+    assert.equal(cancels.length, 1)
+    c.activeAction = Actions.WOOD
+    c.nearestEntity = () => null
+    bot.health = 14
+    bot.emit('health')
+    assert.equal(cancels.length, 1)
+})

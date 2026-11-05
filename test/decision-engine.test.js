@@ -141,3 +141,9 @@ test('iron and coal trips also carry a wood reserve for replacement picks', () =
     assert.equal(chooseAction(state({ ...early, logs: 3 })), 'gather_iron')
     assert.equal(chooseAction(state({ ...early, underground: true })), 'gather_iron')
 })
+
+test('an adjacent hostile is fought when armed and healthy, otherwise escaped', () => {
+    assert.equal(chooseAction(state({ hostileDistance: 1.2, hasWeapon: true, health: 17 })), Actions.FIGHT)
+    assert.equal(chooseAction(state({ hostileDistance: 1.2, hasWeapon: false, health: 17 })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ hostileDistance: 1.2, hasWeapon: true, health: 9 })), Actions.ESCAPE)
+})
