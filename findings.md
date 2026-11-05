@@ -16,7 +16,7 @@ evidence. Suite: 191 tests plus syntax checks. The user allows autonomous pushes
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
 (`a80974a`) followed it unrecorded and is analysed in F019/F020. The server lists
-thirteen completed advancements, including the staged Sweet Dreams from F017.
+fourteen completed advancements, including the staged Sweet Dreams from F017.
 
 The private repo is `saajidchowdhury/minecraft-advancement-bot`. The 00:33:48
 run on port 50330 used code `932b1ed4b671`, PID 8097, artifacts
@@ -654,3 +654,7 @@ seed drops; the next attempt timed out reaching mountainside grass, so `b651c68`
 unreachable grass and tries the next. `506cf48` adds breeding for The Parrots and the
 Bats (husbandry/breed_an_animal; foods from the 26.1.2 item tags). Live completion of
 A Seedy Place, Fishy Business and breeding is still pending.
+
+A Seedy Place live: on `506cf48` plant_seed started at 22:09:38Z, crafted a wooden hoe at
+22:09:41 and the server sent minecraft:husbandry/plant_seed at 22:09:46.475Z (about 8 s),
+the fourteenth confirmed advancement and the first from the G014 husbandry branch.
