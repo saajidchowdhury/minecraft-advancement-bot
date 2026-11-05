@@ -235,3 +235,21 @@ test('a perception fault still escapes a nearby hostile instead of idling to dea
     await SurvivalController.prototype.tick.call(c)
     assert.deepEqual(performed.at(-1), ['wait', null])
 })
+
+test('earned advancements and deaths are recorded for throughput comparisons', () => {
+    const bot = new EventEmitter()
+    bot._client = new EventEmitter()
+    bot.entity = { position: new Vec3(0, 64, 0) }
+    bot.game = { dimension: 'overworld' }
+    bot.chat = () => {}
+    bot.loadPlugin = () => {}
+    const runStats = { earned: [], deaths: [] }
+    const c = new SurvivalController(bot, { runStats, log: { info() {}, warn() {}, error() {} } })
+    c.running = true
+    c.cancelCurrentTask = () => {}
+    c.advancements.onComplete('minecraft:story/mine_diamond', true)
+    c.advancements.onComplete('minecraft:story/iron_tools', false)
+    bot.emit('death')
+    assert.deepEqual(runStats.earned.map(e => e.id), ['minecraft:story/iron_tools'])
+    assert.equal(runStats.deaths.length, 1)
+})

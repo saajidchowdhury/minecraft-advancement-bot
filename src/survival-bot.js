@@ -146,6 +146,8 @@ class SurvivalController {
         this.onState = options.onState || (() => {})
         this.log = options.log || console
         this.memory = options.memory || {}
+        // Process-wide throughput record shared across reconnects: earned ids with UTC times, deaths.
+        this.runStats = options.runStats || { earned: [], deaths: [] }
         if (!(this.memory.blockedTargets instanceof Map)) {
             this.memory.blockedTargets = new Map()
         }
@@ -154,6 +156,9 @@ class SurvivalController {
         }
         this.advancements = new AdvancementTracker((id, initial) => {
             this.log.info(`${initial ? 'Already completed' : 'Advancement earned'}: ${id}`)
+            if (!initial) {
+                this.runStats.earned.push({ id, at: new Date().toISOString() })
+            }
             if (!initial && this.running) {
                 this.bot.chat(`Advancement earned: ${id.split('/').at(-1)}`)
             }
@@ -212,6 +217,7 @@ class SurvivalController {
                 }
                 this.log.warn(`Remembered death position ${this.memory.lastDeath.x},${this.memory.lastDeath.y},${this.memory.lastDeath.z}; dropped items will be prioritized after respawn.`)
             }
+            this.runStats?.deaths.push({ at: new Date().toISOString(), position: this.memory.lastDeath })
             this.log.warn('Bot died; it will resume after respawning.')
             this.sheltered = false
             this.shelterCenter = null

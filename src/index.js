@@ -20,6 +20,7 @@ const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
 const runDir = path.join('outputs', `${parts.year}-${parts.month}-${parts.day}@${parts.hour}.${parts.minute}.${parts.second}`)
 fs.mkdirSync(runDir, { recursive: true })
 const startedAt = Date.now()
+const runStats = { earned: [], deaths: [] }
 const sourceHashes = Object.fromEntries(fs.readdirSync('src').filter(name => name.endsWith('.js')).map(name =>
     [name, createHash('sha256').update(fs.readFileSync(path.join('src', name))).digest('hex')]))
 let gitRevision = null
@@ -100,7 +101,7 @@ function connect () {
         survivalMemory.worldSeedFingerprint = fingerprint
     })
     controller = new SurvivalController(bot, {
-        owner: config.owner, seed: config.seed, probeSpacing: config.probeSpacing, log, memory: survivalMemory,
+        owner: config.owner, seed: config.seed, probeSpacing: config.probeSpacing, log, memory: survivalMemory, runStats,
         onState: (state, action) => {
             saveMemory(memoryFile, survivalMemory)
             const goal = nextAdvancement(state)
@@ -113,7 +114,8 @@ function connect () {
                     [name, bot.inventory.slots[[5, 6, 7, 8, 45][i]]?.name || null])),
                 night: { timeOfDay: bot.time.timeOfDay, underground: state.underground,
                     ownerSleeping: state.sleepPartnerReady, ready: state.nightCombatReady, hostiles: state.hostileCount, retreat: state.retreatForNight },
-                confirmedAdvancements: controller.advancements.summary()
+                confirmedAdvancements: controller.advancements.summary(),
+                throughput: { ...runStats, advancementsPerHour: runStats.earned.length * 3600000 / (Date.now() - startedAt) }
             }, null, 4))
         }
     })
