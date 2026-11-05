@@ -553,3 +553,9 @@ After respawn the burrow failed ('descent ended at -96,73,54'): an off-centre bo
 rests on the neighbouring block's edge. `980d0f7` steps into the dug cell; a burrow
 was then verified at 20:14:16Z. The regression models neighbour support and fails on
 the pre-fix source. Nine deaths today.
+
+Rebuild on `6f077df` after death 9: from the 20:14:16Z burrow to iron pick 20:26:31,
+chestplate 20:31:30, shield 20:31:53, iron sword 20:35:51, leggings 20:39:56, helmet
+20:41:38 and boots 20:43:48 (about 29 min, versus about 45 min for the previous
+rebuild). A zombie attack at 20:37:09 was fought and won (hp 20 to 14.5, work resumed
+in about 6 s), the first live melee win under F030/F031 rules.
