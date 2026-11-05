@@ -11,7 +11,7 @@ Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 41971, 
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 188 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 191 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -647,3 +647,10 @@ for seeds, wooden hoe, till, plant) and `cdf6e01` fishes (rod from two string, f
 bounded bot.fish() casts) when calm on the surface by day; each backs off ten minutes
 after three failures. bot.fish() detects bites from particle packets, so the 26.1 packet
 format is a live uncertainty. Three regressions; live evidence pending.
+
+Husbandry live follow-up: the first live plant_seed (cdf6e01) failed in 50 ms because
+collectTarget skips collision-free grass; `8d1cd43` breaks grass directly and walks onto
+seed drops; the next attempt timed out reaching mountainside grass, so `b651c68` marks
+unreachable grass and tries the next. `506cf48` adds breeding for The Parrots and the
+Bats (husbandry/breed_an_animal; foods from the 26.1.2 item tags). Live completion of
+A Seedy Place, Fishy Business and breeding is still pending.
