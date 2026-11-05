@@ -168,11 +168,14 @@ async function climbStep(c, target) {
 async function mineTunnel(c, targetY, heading = null) {
     const bot = c.bot
     const tool = miningPickaxe(c)
-    if (!tool) {
+    const start = bot.entity.position.floored()
+    // Climbing out needs no drops, so a bare hand is slow but sufficient; descending is not.
+    if (!tool && targetY <= start.y) {
         throw new Error('mining requires a pickaxe')
     }
-    await bot.equip(tool, 'hand')
-    const start = bot.entity.position.floored()
+    if (tool) {
+        await bot.equip(tool, 'hand')
+    }
     if (targetY < start.y && c.memory.surfaceByStaircase) {
         c.memory.surfaceByStaircase = false
         c.memory.mineRoute = []
@@ -224,10 +227,12 @@ async function mineTunnel(c, targetY, heading = null) {
                     throw new Error('tunnel block out of reach')
                 }
                 const currentTool = miningPickaxe(c, block)
-                if (!currentTool) {
+                if (!currentTool && tool) {
                     throw new Error('mining tool broke; rebuild it before continuing')
                 }
-                await bot.equip(currentTool, 'hand')
+                if (currentTool) {
+                    await bot.equip(currentTool, 'hand')
+                }
                 await bot.dig(block, true)
             }
         }
