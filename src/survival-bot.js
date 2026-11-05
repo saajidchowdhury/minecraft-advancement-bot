@@ -1564,18 +1564,24 @@ class SurvivalController {
         }
     }
 
+    // Mineflayer matches each recipe variant against one plank type, so mixed planks
+    // (5 birch + 1 oak) cannot craft a 6-plank shield; grow the most plentiful type.
     async ensurePlanks (minimum) {
-        while (this.countMatching(name => name.endsWith('_planks')) < minimum) {
-            const log = this.bot.inventory.items().find(item => LOG_SUFFIXES.some(suffix => item.name.endsWith(suffix)))
-            if (!log) {
+        const plankOf = name => name.replace(/_log$/, '_planks').replace(/_wood$/, '_planks').replace(/_stem$/, '_planks').replace(/_hyphae$/, '_planks')
+        for (;;) {
+            const counts = {}
+            for (const item of this.bot.inventory.items().filter(item => item.name.endsWith('_planks'))) {
+                counts[item.name] = (counts[item.name] || 0) + item.count
+            }
+            if (Math.max(0, ...Object.values(counts)) >= minimum) {
+                return
+            }
+            const logs = this.bot.inventory.items().filter(item => LOG_SUFFIXES.some(suffix => item.name.endsWith(suffix)))
+                .sort((a, b) => (counts[plankOf(b.name)] || 0) - (counts[plankOf(a.name)] || 0))
+            if (!logs.length) {
                 throw new Error('need more logs')
             }
-            const plankName = log.name
-                .replace(/_log$/, '_planks')
-                .replace(/_wood$/, '_planks')
-                .replace(/_stem$/, '_planks')
-                .replace(/_hyphae$/, '_planks')
-            await this.craftItem(plankName, 4, false)
+            await this.craftItem(plankOf(logs[0].name), 4, false)
         }
     }
 

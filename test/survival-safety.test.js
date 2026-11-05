@@ -406,3 +406,20 @@ test('a death among archers or a crowd is marked dangerous and its drops are not
     bot.emit('death')
     assert.equal(c.memory.lastDeath.dangerous, false)
 })
+
+test('plank preparation grows one wood type when mixed planks cannot fill a recipe', async () => {
+    const inventory = [{ name: 'birch_planks', count: 5 }, { name: 'oak_planks', count: 1 }, { name: 'oak_log', count: 1 }, { name: 'birch_log', count: 2 }]
+    const crafted = []
+    const c = {
+        bot: { inventory: { items: () => inventory } },
+        async craftItem(name, count) {
+            crafted.push(name)
+            const log = inventory.find(i => i.name === name.replace('_planks', '_log'))
+            log.count--
+            if (!log.count) { inventory.splice(inventory.indexOf(log), 1) }
+            inventory.push({ name, count: 4 })
+        }
+    }
+    await SurvivalController.prototype.ensurePlanks.call(c, 6)
+    assert.deepEqual(crafted, ['birch_planks'])
+})
