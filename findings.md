@@ -16,7 +16,7 @@ evidence. Suite: 166 tests plus syntax checks. The user allows autonomous pushes
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
 (`a80974a`) followed it unrecorded and is analysed in F019/F020. The server lists
-eleven completed advancements, including the staged Sweet Dreams from F017.
+thirteen completed advancements, including the staged Sweet Dreams from F017.
 
 The private repo is `saajidchowdhury/minecraft-advancement-bot`. The 00:33:48
 run on port 50330 used code `932b1ed4b671`, PID 8097, artifacts
@@ -565,3 +565,10 @@ tunnel segment short; mine_diamond then cleared a deepslate diamond vein around
 (-175,-54,-132) in nine targeted digs (20:55:40–20:57:08). The bot crafted its first
 diamond pickaxe at 20:57:29Z and still held 10 diamonds, enough for the planned
 diamond sword and chestplate (Cover Me with Diamonds).
+
+Gear route complete live: diamond sword crafted 20:57:42Z; a diamond helmet (the most
+protective affordable piece) at 20:57:49Z, with the server's minecraft:story/shiny_gear
+(Cover Me with Diamonds) packet at 20:57:49.261Z, the thirteenth confirmed advancement.
+equip_armor then wore the diamond helmet over the iron one. The planner moved on to the
+water bucket for obsidian (G005). Throughput: from an empty inventory at the 20:14Z
+burrow to Cover Me with Diamonds in about 44 min with no deaths.

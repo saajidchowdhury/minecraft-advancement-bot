@@ -258,3 +258,8 @@ single-zombie daytime fight to validate the melee interrupt (F025).
 Update ~14:30 Eastern: full iron set, iron sword and shield crafted and worn live
 (F024 iron stage done). Next: diamonds → diamond pickaxe and sword live, with the
 F022 diamond priority and the F028/F029 cover and crowd logic watched for regressions.
+
+Update ~16:00 Eastern: F024 complete live — full iron set, diamond pickaxe and sword,
+diamond helmet worn, Cover Me with Diamonds server-confirmed (13 advancements). F022
+diamond priority verified live. Next: G005 water bucket and obsidian (Ice Bucket
+Challenge), then G006 Nether entry, keeping the F025–F031 survival fixes under watch.
