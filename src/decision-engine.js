@@ -146,6 +146,10 @@ function chooseAction (state) {
     }
     // Surfacing at night walked a weak bot into archers twice (F035); hunger returns stay above.
     if (surfaceBound && state.isNight) {
+        // Nightfall should not stop safe underground work: bank iron for later gear instead of idling.
+        if (state.hasStonePickaxe && state.health > 12 && (state.rawIron || 0) + (state.ironIngots || 0) < 40) {
+            return Actions.IRON
+        }
         return state.sheltered ? 'wait' : Actions.SHELTER
     }
     return surfaceBound ? 'return_surface' : action
