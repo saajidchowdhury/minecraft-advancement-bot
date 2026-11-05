@@ -230,3 +230,7 @@ Survival/terrain follow-up (`7a8b75f`–`6628e8c`; 149 tests): melee-damage inte
 unarmed adjacent escape, best-effort drop pickup, unstick drop limit and movement
 restore, horizontal scout goal — each fails before its fix. Live: unstick hand-dug
 Y 66→78; melee interrupt and new scouting await a live encounter.
+
+Night follow-up (`c57fd6a`, `73aaefd`; 152 tests): burrow geometry and refusals, roof
+support ordering and burrow fallback. Live: walled shelter verified 17:18:21Z after the
+roof fix's predecessor; burrow refused on the tested hillside.

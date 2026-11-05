@@ -6,12 +6,12 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-05 ~12:12 Eastern. Bot is RUNNING on LAN port 51718, PID 30760, code
-`6628e8c`, rebuilding from an empty inventory after the F025 death (night shelter). Verify PID and connection before stopping it; `pgrep -f src/index.js`
+Updated 2026-11-05 ~12:20 Eastern. Bot is RUNNING on LAN port 51718, PID 31422, code
+`73aaefd`, rebuilding from nothing in daylight after four deaths today (F023, F025, F026). Verify PID and connection before stopping it; `pgrep -f src/index.js`
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 149 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 152 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -452,3 +452,17 @@ then a hand-dug stair up after clearing the deferred goal); live it climbed Y 66
 in about 4 min. The deeper cause of most 'No path' scouting was the goal itself:
 `GoalNear(x, current Y, z, 3)` lies in air or rock on hilly terrain. `6628e8c` uses
 `GoalNearXZ`. Regressions fail before each fix; live scouting after `6628e8c` pending.
+
+## F026 — Empty-handed nights: burrow, roof support and two more deaths [live + regression]
+
+Deaths 3 and 4 (17:15:39Z, 17:16:35Z, `6628e8c`): an empty-handed bot at night
+could not wall a shelter, could not collect dirt next to its own support, and could
+not outrun zombies on hilly ground; it was killed again just after respawning, then
+stopped. `c57fd6a` adds an emergency burrow (dig three hand-diggable blocks straight
+down, keep the drops, plug the cell above the head; liquids, falling blocks and voids
+refused). Live, the burrow was refused on that hillside, so its behaviour is still
+unproven in the world. Separately the walled shelter failed at the roof every time:
+the roof cell touches only the head cell and air. `73aaefd` seats it on a wall-top
+block first and falls back to burrowing. A recovered-dirt shelter was then verified
+at 17:18:21Z and held until daylight; the creeper interrupt fired at 5.9 blocks.
+Four deaths today: survival under weak gear dominates throughput (G001).

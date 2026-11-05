@@ -249,3 +249,8 @@ Update ~12:12 Eastern: two deaths today (F023 code fault, F025 unhandled daytime
 show G001 still dominates throughput. Next: live-validate melee interrupt + fight with
 a staged single zombie; consider night underground work instead of shelter for a weak
 bot; then resume the gear route (F024) and diamond priority (F022) live checks.
+
+Update ~12:20 Eastern: four deaths today. Before more features, make a fresh or
+tool-less bot survive its first night: craft a wooden sword and gather shelter
+blocks before dusk, keep night shelter cheap (burrow live check pending), and stage a
+single-zombie daytime fight to validate the melee interrupt (F025).
