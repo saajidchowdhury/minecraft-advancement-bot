@@ -815,10 +815,23 @@ class SurvivalController {
             const targetFeet = start.offset(dx * step, step, dz * step)
             const support = this.bot.blockAt(targetFeet.offset(0, -1, 0), false)
             if (!support || support.boundingBox === 'empty' || ['water', 'lava'].includes(support.name)) {
-                // A shallow pit ends at its rim: open, supported level ground beyond the last step is an exit.
+                // A pit or shelter wall ends at its rim: an open cell beyond the last step with a
+                // supported landing at most SAFE_PATHFINDER_DROP below it is an exit.
+                const empty = p => this.bot.blockAt(p, false)?.boundingBox === 'empty'
                 const level = targetFeet.offset(0, -1, 0)
-                const open = [level, level.offset(0, 1, 0)].every(p => this.bot.blockAt(p, false)?.boundingBox === 'empty')
-                return step > 1 && open && this.bot.blockAt(level.offset(0, -1, 0), false)?.boundingBox === 'block' ? score : Infinity
+                if (step === 1 || !empty(level) || !empty(level.offset(0, 1, 0))) {
+                    return Infinity
+                }
+                for (let drop = 0; drop <= SAFE_PATHFINDER_DROP; drop++) {
+                    const floor = this.bot.blockAt(level.offset(0, -1 - drop, 0), false)
+                    if (floor?.boundingBox === 'block') {
+                        return ['lava', 'magma_block', 'water'].includes(floor.name) ? Infinity : score
+                    }
+                    if (!empty(level.offset(0, -1 - drop, 0))) {
+                        return Infinity
+                    }
+                }
+                return Infinity
             }
             const spaces = [targetFeet, targetFeet.offset(0, 1, 0)]
                 .map(position => this.bot.blockAt(position, false))

@@ -80,7 +80,8 @@ test('a two-deep pit inside roofless shelter walls has a one-step exit', () => {
     }
     const score = SurvivalController.prototype.stairDirectionScore.call({ bot }, new Vec3(0, 0, 0), 1, 0, 8)
     assert.equal(score, 1)
-    const floating = { blockAt: p => ({ name: p.y < 0 || (p.x === 1 && p.y <= 1) ? 'dirt' : 'air', boundingBox: p.y < 0 || (p.x === 1 && p.y <= 1) ? 'block' : 'empty', diggable: true, position: p }) }
+    const cliffSolid = p => (p.y < 0 && p.x < 2) || (p.x === 1 && p.y <= 1)
+    const floating = { blockAt: p => ({ name: cliffSolid(p) ? 'dirt' : 'air', boundingBox: cliffSolid(p) ? 'block' : 'empty', diggable: true, position: p }) }
     assert.equal(SurvivalController.prototype.stairDirectionScore.call({ bot: floating }, new Vec3(0, 0, 0), 1, 0, 8), Infinity)
 })
 
@@ -112,4 +113,18 @@ test('land scouting targets a horizontal area so hills and valleys stay reachabl
     assert.equal(goal.constructor.name, 'GoalNearXZ')
     assert.equal(goal.isEnd({ x: goal.x, y: 66, z: goal.z }), true)
     assert.equal(goal.isEnd({ x: goal.x, y: 90, z: goal.z }), true)
+})
+
+test('a walled night shelter on flat ground can be left over the wall with a short drop', () => {
+    // Shelter: walls at y=0..1 around the bot, roof at y=2 plus its support at (1,2,0); flat ground outside at y=-1.
+    const bot = {
+        blockAt (p) {
+            const ring = Math.max(Math.abs(p.x), Math.abs(p.z))
+            const solid = p.y < 0 || (ring === 1 && p.y <= 1) || (ring === 0 && p.y === 2) || (p.x === 1 && p.z === 0 && p.y === 2)
+            return { name: solid ? 'cobblestone' : 'air', boundingBox: solid ? 'block' : 'empty', diggable: solid, position: p }
+        }
+    }
+    assert.equal(Number.isFinite(SurvivalController.prototype.stairDirectionScore.call({ bot }, new Vec3(0, 0, 0), 1, 0, 8)), true)
+    const cliff = { blockAt: p => bot.blockAt(p).boundingBox === 'block' && !(p.x >= 2 && p.y < 0 && p.y > -9) ? bot.blockAt(p) : { name: 'air', boundingBox: 'empty', position: p } }
+    assert.equal(SurvivalController.prototype.stairDirectionScore.call({ bot: cliff }, new Vec3(0, 0, 0), 1, 0, 8), Infinity)
 })
