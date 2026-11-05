@@ -9,8 +9,9 @@ when new evidence changes a ranking; goals.md carries the actionable queue.
 | Sink | Evidence | Rough cost |
 | --- | --- | --- |
 | Deaths and rebuilds | 13+ deaths; rebuilds to full iron took 29–45 min | Dominant: hours |
-| Waiting at furnaces | 60 smelt_iron actions, 1744 s total; batches of 3, ~10 s/item | ~29 min/day; ~5.5 min per rebuild |
-| Decision-loop idle | 1.5 s fixed delay after every action; median action gap 3.6 s | ~5% of run time |
+| Waiting at furnaces | 60 smelt_iron actions, 1744 s total; batches of 3, ~10 s/item | ~29 min/day; ~5.5 min per rebuild (async smelting `bc7b277`) |
+| Decision-loop idle | 1.5 s fixed delay after every action; median action gap 3.6 s | ~5% of run time (fixed `b85f0da`) |
+| Idle nights | sheltering a whole night (~7 min) with nothing to do | Fixed: night mining `8afbc05`, `242cb07` |
 | Re-digging stairs | ~124 steps, 4–5 min per descent before F033 | Now mostly removed |
 | Stuck loops | wood/scout 'No path', shelter exits, recipe mismatches | Tens of minutes, now fixed |
 
@@ -33,6 +34,9 @@ when new evidence changes a ranking; goals.md carries the actionable queue.
    Tactical Fishing. Each costs about a minute when conditions are met.
 7. **Mining yield** (G008): measure ore per block for probe spacing; later G012
    relocation when a site is exhausted.
+8. **Use banked iron.** Night mining now banks iron (up to 40) before diamonds. Spare
+   iron makes Hired Help cheap (4 iron blocks = 36 ingots, plus a carved pumpkin from a
+   pumpkin and shears) and fills the base's spare kit (G013).
 
 ## Advancements reachable with current or near-current skills
 
