@@ -1074,9 +1074,16 @@ class SurvivalController {
                     throw new Error('collection cancelled')
                 }
                 if (entry.name === 'item') {
+                    // Pickup reaches about one block; one unreachable stack must not strand the reachable rest.
                     if (entry.isValid) {
                         const p = entry.position.floored()
-                        await this.gotoWithTimeout(new goals.GoalBlock(p.x, p.y, p.z), 8000, 'item pickup')
+                        await this.gotoWithTimeout(new goals.GoalNear(p.x, p.y, p.z, 1), 8000, 'item pickup')
+                            .catch(error => {
+                                if (signal?.aborted || targets.length === 1) {
+                                    throw error
+                                }
+                                this.log.warn(`Skipping unreachable item at ${p}: ${error.message}`)
+                            })
                         await sleep(500)
                     }
                     continue

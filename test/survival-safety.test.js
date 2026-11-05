@@ -278,3 +278,21 @@ test('daytime melee damage interrupts work so the bot fights or escapes before c
     bot.emit('health')
     assert.equal(cancels.length, 1)
 })
+
+test('one unreachable death drop does not stop collection of the reachable stacks', async () => {
+    const visited = []
+    const c = {
+        running: true, paused: false, actionAbort: new AbortController(), log: { warn() {} }, rememberBlockedTarget() {},
+        bot: { entity: { position: new Vec3(0, 64, 0) } },
+        async gotoWithTimeout(goal) {
+            visited.push(goal.x)
+            if (goal.x === 4) {
+                throw new Error('item pickup timed out after 8s')
+            }
+        }
+    }
+    const item = x => ({ name: 'item', isValid: true, position: new Vec3(x + 0.3, 64, 0.4) })
+    await SurvivalController.prototype.collectTarget.call(c, [item(4), item(2)], null, 'death drops')
+    assert.deepEqual(visited, [4, 2])
+    await assert.rejects(SurvivalController.prototype.collectTarget.call(c, [item(4)], null, 'death drops'), /timed out/)
+})
