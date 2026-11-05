@@ -1398,6 +1398,14 @@ class SurvivalController {
         const signal = this.actionAbort?.signal
         this.checkAction(signal)
         if (this.countItems(BUILDING_BLOCKS) < 17) {
+            const burrowed = await this.burrow().then(() => true, error => {
+                this.log.warn(`Emergency burrow unavailable: ${error.message}`)
+                return false
+            })
+            if (burrowed) {
+                return
+            }
+            this.checkAction(signal)
             const dirt = this.findNearestBlock(name => name === 'dirt' || name === 'cobblestone', 16)
             if (dirt) {
                 await this.collectTarget(dirt, dirt, 'shelter blocks')
@@ -1435,6 +1443,47 @@ class SurvivalController {
         this.log.info('Emergency shelter enclosure verified; waiting for daylight.')
         await sleep(1000)
         this.checkAction(signal)
+    }
+
+    // Without walling blocks, dig three blocks straight down by hand and plug the top
+    // one with a drop: undisturbed ground forms the walls, so placement needs no scaffold.
+    async burrow () {
+        const signal = this.actionAbort?.signal
+        const top = this.bot.entity.position.floored()
+        const center = top.offset(0, -3, 0)
+        const at = p => this.bot.blockAt(p, false)
+        const solid = p => at(p)?.boundingBox === 'block' && !['lava', 'magma_block'].includes(at(p).name)
+        const column = [1, 2, 3].map(dy => top.offset(0, -dy, 0))
+        const diggable = column.every(p => {
+            const block = at(p)
+            return block?.boundingBox === 'block' && block.diggable && !['sand', 'red_sand', 'gravel', 'suspicious_sand', 'suspicious_gravel'].includes(block.name) &&
+                (this.bot.digTime?.(block) ?? 0) <= 8000 &&
+                [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]].every(([x, y, z]) => !['water', 'lava'].includes(at(p.offset(x, y, z))?.name))
+        })
+        const walls = [0, 1].every(level => [-1, 0, 1].every(dx => [-1, 0, 1].every(dz =>
+            (dx === 0 && dz === 0) || solid(center.offset(dx, level, dz)))))
+        if (!diggable || !walls || !solid(center.offset(0, -1, 0)) || !this.bot.registry || !column.every(p => at(p))) {
+            throw new Error('no hand-diggable enclosed column below')
+        }
+        for (const p of column) {
+            this.checkAction(signal)
+            await this.bot.dig(at(p), true)
+            await this.bot.waitForTicks(8)
+        }
+        this.checkAction(signal)
+        if (!this.bot.entity.position.floored().equals(center)) {
+            throw new Error(`burrow descent ended at ${this.positionText()}`)
+        }
+        await waitUntil(() => this.countItems(BUILDING_BLOCKS) > 0, 2000, 100).catch(() => {})
+        await this.placeSurvivalBlock(center.offset(0, 2, 0))
+        this.checkAction(signal)
+        if (!this.hasEnclosedShelter(center)) {
+            throw new Error('burrow enclosure incomplete')
+        }
+        this.shelterCenter = center.clone()
+        this.memory.shelter = { x: center.x, y: center.y, z: center.z, dimension: this.bot.game.dimension }
+        this.sheltered = true
+        this.log.info(`Emergency burrow enclosure verified at ${center}; waiting for daylight.`)
     }
 
     async placeSurvivalBlock (target) {

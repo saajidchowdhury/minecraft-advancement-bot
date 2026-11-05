@@ -296,3 +296,50 @@ test('one unreachable death drop does not stop collection of the reachable stack
     assert.deepEqual(visited, [4, 2])
     await assert.rejects(SurvivalController.prototype.collectTarget.call(c, [item(4)], null, 'death drops'), /timed out/)
 })
+
+function burrowWorld(overrides = {}) {
+    const blocks = new Map(Object.entries(overrides))
+    let dirt = 0
+    const c = {
+        memory: {}, running: true, paused: false, sheltered: false, actionAbort: new AbortController(), log: { info() {}, warn() {} },
+        countItems: () => dirt, positionText: () => String(c.bot.entity.position.floored()),
+        bot: {
+            registry: {}, game: { dimension: 'overworld' }, health: 20, entity: { position: new Vec3(0.5, 64, 0.5) },
+            blockAt(p) {
+                const name = blocks.get(p.toString()) || (p.y < 64 ? 'dirt' : 'air')
+                return { name, position: p, diggable: name !== 'air', boundingBox: name === 'air' || name === 'water' ? 'empty' : 'block',
+                    shapes: name === 'air' ? [] : [[0, 0, 0, 1, 1, 1]] }
+            },
+            digTime: () => 750,
+            async dig(block) {
+                blocks.set(block.position.toString(), 'air')
+                dirt++
+                c.bot.entity.position = block.position.offset(0.5, 0, 0.5)
+            },
+            waitForTicks: async () => {}
+        },
+        async placeSurvivalBlock(p) { blocks.set(p.toString(), 'dirt'); dirt-- },
+        blocks
+    }
+    for (const name of ['isEmptyPlacementBlock', 'checkAction', 'hasEnclosedShelter']) {
+        c[name] = SurvivalController.prototype[name].bind(c)
+    }
+    return c
+}
+
+test('an empty-handed bot burrows three blocks down and plugs the top before night threats arrive', async () => {
+    const c = burrowWorld()
+    await SurvivalController.prototype.burrow.call(c)
+    assert.deepEqual(c.bot.entity.position.floored(), new Vec3(0, 61, 0))
+    assert.equal(c.blocks.get(new Vec3(0, 63, 0).toString()), 'dirt')
+    assert.equal(c.sheltered, true)
+    assert.deepEqual(c.shelterCenter, new Vec3(0, 61, 0))
+})
+
+test('burrowing is refused over water, falling blocks or an open cave below', async () => {
+    for (const hazard of [{ [new Vec3(1, 62, 0)]: 'water' }, { [new Vec3(0, 62, 0)]: 'gravel' }, { [new Vec3(0, 60, 0)]: 'air' }, { [new Vec3(1, 61, 1)]: 'air' }]) {
+        const c = burrowWorld(hazard)
+        await assert.rejects(SurvivalController.prototype.burrow.call(c), /no hand-diggable enclosed column/)
+        assert.equal(c.bot.entity.position.y, 64)
+    }
+})
