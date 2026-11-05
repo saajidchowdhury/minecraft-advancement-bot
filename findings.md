@@ -6,24 +6,18 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Bot is STOPPED. The final controlled run was
-`outputs/2026-11-05@01.55.10/`, startup `58d68eb`, PID 12962, port 50330.
-It was stopped at 06:56:14.900Z after a natural zombie encounter exposed unsafe
-continued mining and healing-triggered cancellation. Last saved snapshot: health
-7.56, hunger 20, at about (-83,77,127); this is not an updated current entity state.
-Identity and TCP connection were verified before stopping. No death was logged.
+Updated 2026-11-05 ~11:15 Eastern. Bot is RUNNING on LAN port 51718, PID 22681,
+run `outputs/2026-11-05@11.08.26/`, code `944e832`, pursuing Diamonds! near Y=-38
+after a user-requested staged teleport (see F021's staging note). Verify PID and
+connection before stopping it; `pgrep -f src/index.js` must return one PID.
+Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
+(`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
+evidence. Suite: 132 tests plus syntax checks. Staging helpers and setup records
+(`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
-Initial conditions were explicitly staged: supplied sword/food/bed, changed time,
-teleport, removed rubble and nearby hostiles, and a NoAI test spider. The autonomous
-run used no subsequent commands. It completed a night hunt and collected two string
-before an unrelated natural zombie approached. The final safety patches have
-regressions but have NOT been live-tested. Do not restart unattended until reviewing
-G001/G011 and current supplies/equipment. Ignored test-setup.json files preserve
-all setup commands; they are not a bot feature or survival-earned progress.
-
-Current suite: 123 passing tests plus syntax checks. Owner-coordinated sleep,
-placement fixes, night hunt limits, staged observations and unresolved navigation
-issues are detailed in F015–F018 and night-opportunities.md.
+The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
+(`a80974a`) followed it unrecorded and is analysed in F019/F020. The server lists
+eleven completed advancements, including the staged Sweet Dreams from F017.
 
 The private repo is `saajidchowdhury/minecraft-advancement-bot`. The 00:33:48
 run on port 50330 used code `932b1ed4b671`, PID 8097, artifacts
@@ -330,3 +324,64 @@ as after a large single hit. Healing updates no longer cancel eating or shelter
 construction at critical health; actual damage can still interrupt those actions.
 Focused event regressions pass. This is not a live proof of safe escape, shelter,
 recovery or natural night combat. The bot remains stopped for the handoff.
+
+## F019 — Lane disposal fixed the tunnel-face pause; drops seed return routes [live + regression]
+
+The unrecorded 02:08:36 run (`a80974a`, port 50330) reached Y=-54 and then paused
+from 07:29:51Z until the LAN closed at 10:09Z. At the face of a one-wide tunnel the
+retreat search found no endpoint within four steps that was also four blocks from
+the preceding drop, so the third failure set a persistent `paused` flag. The state
+file still carried that pause; it was cleared like `!resume` before 10:54:41.
+
+`152ed85` throws every surplus stack along a four-cell open feet/head lane, after
+waiting two ticks for the forced look to transmit, with no movement. It prefers the
+lane toward the latest route point. Reserves are now 64 cobblestone, 64 cobbled
+deepslate and 16 dirt; stone variants are not reserved. Repeated failures back off
+for 60 s instead of pausing indefinitely. Live 15:54:43Z at the exact failing spot:
+nine stacks thrown in 1.6 s, mining resumed and none was re-collected while advancing.
+
+Return trips then walked through those drops: at 15:55:53–15:56:17Z the bot threw,
+re-collected, threw ahead along its own route and finally backed off. `e474275`
+lets `return_surface` proceed with a full inventory; cleanup waits for the surface.
+That return-path exemption has a regression, not yet a live retry.
+
+Descending staircases have no level lane. Live `2bcab2b` fell back to retreat, threw
+toward the face, walked back down over the drop and went from 226 to 270 cobblestone.
+`944e832` adds a rising lane (open feet/head cells one step up per block, plus jump
+room) with a 45-degree throw. Live 16:08:45Z at Y=31: seven stacks thrown up the
+stairs in 1.6 s, no retreat, 64 cobblestone kept and descent resumed.
+
+## F020 — Creepers: interrupt on sight, seal narrow passages, otherwise flee [live + regression]
+
+The 02:08:36 run took creeper blasts of 11.4 hp during a fight and 9.2 hp during a
+cave walk with the creeper logged 5.8 blocks away; mining continued until damage.
+Creepers only swell while they see their target. `152ed85` raycasts line of sight;
+a visible creeper within six blocks cancels any non-escape action and selects
+escape. Escape seals up to four facing openings when building blocks suffice and
+verifies lost sight, otherwise flees. Staged 16:04:50Z (creeper summoned 9–10
+blocks away with sight, all else natural): interrupt at 6.0 blocks within 0.9 s,
+six facing openings so the bot fled, no damage. Tunnel sealing is tested by mocks only.
+The bot's worn iron pickaxe disappeared during that flee, most likely broken by
+generic escape digging; escape does not yet conserve iron tools (compare F005).
+
+## F021 — Planner wood order, survey torches and the surface test [live + regression]
+
+`152ed85` climbed from Y=-54 for two sticks: resource order checked wood before
+diamonds, so a diamond pickaxe recipe with one stick sent the bot to the surface
+before any diamond was found. Location-bound ingredients (diamonds, obsidian,
+flint, redstone) now precede wood; surface departures for deep work carry twelve
+plank-equivalents. Live `e474275` then left at Y=65 with ~7.5, because an open
+valley five blocks under the home height already counted as underground, and its
+cave survey placed a torch on every step (coal 17 to 12 in 30 s). `2bcab2b`
+spaces torches (none within six blocks or under sky light 12+, regression fails
+before the fix) and requires the head cell to lack open sky before calling the
+bot underground. The sky-light state change has no focused regression yet.
+A placed crafting table was also left behind and replaced (`crafting_table=2`),
+consistent with F011's workstation-reclaim inefficiency.
+
+Staged depth setup 16:12:10Z (user-requested, `outputs/depth-setup.json`): from
+(-117,-6,-29) the helper sent `/fill` air at Y=-30..-29 and `/tp` to Y=-30. The
+cells were already cave air, so the bot fell to Y=-38 (health 20 to 15.2) beside
+water. The stop command also missed (two PIDs matched), so the helper's login kicked
+the live bot, which reconnected at the staged spot. The helper now places a floor
+before teleporting; stop scripts must match exactly one verified bot PID.

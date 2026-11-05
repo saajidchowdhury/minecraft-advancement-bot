@@ -207,3 +207,24 @@ review equipment/food and validate earlier withdrawal before an unattended resta
 Owner-coordinated sleep remains implemented; joining the owner's real sleep and
 clean corrected bed placement remain pending. Respect the user's usage-limit
 request: this session ends here rather than continuing new experiments.
+
+
+## Session 2026-11-05 10:50–11:20 Eastern (port 51718)
+
+Completed with live evidence (F019–F021): the tunnel-face disposal pause is fixed
+by level and stair toss lanes plus a 60 s back-off; visible creepers interrupt work
+and were fled without damage in one staged trial; deep trips no longer surface for
+sticks before diamonds; survey torches are spaced. G002's original F015 symptom has
+not recurred in about 15 minutes of live mining; keep it open until a full trip
+to Y=-54 and back completes.
+
+Next actions, in order:
+1. G002: observe a full surface→Y=-54→surface trip on `944e832`+; confirm the
+   return trip runs with a full inventory and no drop/pickup loop (regression only).
+2. G001/F020: live-test tunnel sealing against a creeper in a one-wide tunnel
+   (stage with the corrected `outputs/stage-depth-test.js`/`stage-creeper-test.js`);
+   make escape conserve iron tools instead of digging with them.
+3. F021: add a focused regression for the open-sky underground test and check
+   night-policy effects of the new definition.
+4. F011: reclaim placed crafting tables before crafting another.
+5. G005: with these fixes, continue to Diamonds! and server-confirmed completion.

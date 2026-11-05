@@ -190,3 +190,27 @@ Final changed-source comment ratios (all <10%; changed tests 0%):
 - src/progression-skills.js: 1/757 (0.13%)
 - src/cave-exploration.js: 0/232 (0.00%)
 - src/advancement-plan.js: 0/147 (0.00%)
+
+
+## Disposal lanes, creepers and deep-trip planning (port 51718)
+
+Code `152ed85`→`944e832`; 132 tests plus syntax checks pass. New regressions:
+batch surplus selection with lowered reserves; level-lane throw in the F015 dead-end
+geometry with no movement and a transmitted look; stair-lane throw while descending
+(fails on `2bcab2b`); retreat fallback; 60 s back-off instead of a persistent pause;
+creeper decision priority, sealing a one-wide tunnel, fleeing in the open, and the
+sight-gated interrupt; planner ordering of diamonds before sticks, the surface wood
+reserve and the full-inventory return trip; cave torch spacing (fails on `e474275`).
+
+Live (setup separated from autonomous play):
+
+- 15:54:43Z, unstaged except clearing the stale disposal pause: nine stacks thrown
+  along the tunnel at the exact 02:08:36 failure spot; mining resumed without re-pickup.
+- 16:05:04Z, after a setup-only creeper summon 9–10 blocks away: interrupt at 6.0
+  blocks, flee, no damage. Sealing has not been exercised live.
+- 16:08:45Z and 16:11:38Z, unstaged: stair-lane throws during descent, no retreat.
+- 16:12:10Z, user-requested staged teleport toward Y=-30 landed at Y=-38 after a
+  fall (setup error, now corrected). The run continued autonomously.
+
+No new advancement was earned in these runs. Changed-code comment ratios stay
+below 10% (highest changed source: survival-bot.js about 1.4%).
