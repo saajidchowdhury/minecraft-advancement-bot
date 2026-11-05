@@ -161,6 +161,8 @@ class SurvivalController {
         this.paused = Boolean(this.memory.paused)
         this.busy = false
         this.sheltered = false
+        this.shelterCenter = null
+        this.activeAction = null
         this.home = null
         this.lastAction = 'starting'
         this.failures = new Map()
@@ -192,18 +194,41 @@ class SurvivalController {
         this.bot.on('death', () => {
             const position = this.bot.entity && this.bot.entity.position
             if (position) {
+                const previous = this.memory.lastDeath
+                const sameRecovery = previous && previous.dimension === this.bot.game.dimension &&
+                    Date.now() - previous.diedAt < RECOVERY_WINDOW_MS &&
+                    Math.hypot(position.x - previous.x, position.y - previous.y, position.z - previous.z) <= 16
                 this.memory.lastDeath = {
                     x: Math.floor(position.x), y: Math.floor(position.y), z: Math.floor(position.z),
-                    diedAt: Date.now(), attempts: 0, dimension: this.bot.game.dimension
+                    diedAt: sameRecovery ? previous.diedAt : Date.now(),
+                    attempts: sameRecovery ? previous.attempts : 0, dimension: this.bot.game.dimension
                 }
                 this.log.warn(`Remembered death position ${this.memory.lastDeath.x},${this.memory.lastDeath.y},${this.memory.lastDeath.z}; dropped items will be prioritized after respawn.`)
             }
             this.log.warn('Bot died; it will resume after respawning.')
             this.sheltered = false
+            this.shelterCenter = null
             this.cancelCurrentTask('death')
         })
+        let previousHealth = this.bot.health
         this.bot.on('health', () => {
-            if (this.bot.health <= 6 && this.busy) {
+            const action = this.activeAction || this.lastAction
+            if (this.running && Number.isFinite(previousHealth) && previousHealth - this.bot.health > 0.01) {
+                const threats = Object.values(this.bot.entities || {}).filter(entity => entity.isValid && HOSTILES.has(entity.name) &&
+                    this.bot.entity.position.distanceTo(entity.position) <= 12)
+                    .map(entity => `${entity.name}:${this.bot.entity.position.distanceTo(entity.position).toFixed(1)}`)
+                this.log.warn(`Damage: hp=${previousHealth.toFixed(2)}->${this.bot.health.toFixed(2)}, action=${action}, ` +
+                    `sheltered=${this.sheltered}, nearby threats=${threats.join(',') || 'none'}, at ${this.positionText()}.`)
+                if (this.sheltered) {
+                    this.sheltered = false
+                    this.shelterCenter = null
+                    if (this.busy && action !== Actions.ESCAPE) {
+                        this.cancelCurrentTask('damage while sheltered')
+                    }
+                }
+            }
+            previousHealth = this.bot.health
+            if (this.bot.health <= 6 && this.busy && action !== Actions.ESCAPE && !this.actionAbort?.signal.aborted) {
                 this.cancelCurrentTask('critical health')
             }
         })
@@ -378,6 +403,12 @@ class SurvivalController {
     observe () {
         if (!this.isNight()) {
             this.sheltered = false
+            this.shelterCenter = null
+        } else if (this.sheltered && !this.bot.isSleeping &&
+            (!this.shelterCenter || !this.hasEnclosedShelter(this.shelterCenter))) {
+            this.sheltered = false
+            this.shelterCenter = null
+            this.log.warn('Shelter enclosure is no longer intact; replanning protection.')
         }
         const hostile = this.nearestEntity(HOSTILES)
         const lastDeath = this.memory.lastDeath
@@ -487,6 +518,8 @@ class SurvivalController {
             return this.perform(action, state)
         }
 
+        const previousAction = this.activeAction
+        this.activeAction = action
         let timeout
         let movementWatchdog
         let cancelledByGuard = false
@@ -550,6 +583,7 @@ class SurvivalController {
             clearTimeout(timeout)
             clearInterval(movementWatchdog)
             signal.removeEventListener('abort', abortListener)
+            this.activeAction = previousAction
             if (cancelledByGuard) {
                 // A cancelled action must release pathfinding before another action starts.
                 const settled = await Promise.race([
@@ -1162,64 +1196,115 @@ class SurvivalController {
         await this.bot.pathfinder.goto(new GoalNear(x, Math.floor(here.y), z, 3))
     }
 
+    checkAction (signal = this.actionAbort?.signal) {
+        if (!this.running || this.paused || this.bot.health <= 0 || signal?.aborted) {
+            throw new Error('action cancelled')
+        }
+    }
+
+    hasEnclosedShelter (center) {
+        if (!center || !this.bot.entity.position.floored().equals(center)) {
+            return false
+        }
+        const solid = position => {
+            const block = this.bot.blockAt(position, false)
+            return block?.boundingBox === 'block' && !['magma_block', 'cactus', 'powder_snow'].includes(block.name) &&
+                block.shapes.some(shape => shape.length === 6 && shape.every((x, i) => x === (i < 3 ? 0 : 1)))
+        }
+        if (!this.isEmptyPlacementBlock(this.bot.blockAt(center, false)) ||
+            !this.isEmptyPlacementBlock(this.bot.blockAt(center.offset(0, 1, 0), false)) ||
+            !solid(center.offset(0, -1, 0)) || !solid(center.offset(0, 2, 0))) {
+            return false
+        }
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dz = -1; dz <= 1; dz++) {
+                if (dx === 0 && dz === 0) {
+                    continue
+                }
+                if (!solid(center.offset(dx, 0, dz)) || !solid(center.offset(dx, 1, dz))) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
     async makeNightSafe () {
+        const signal = this.actionAbort?.signal
+        this.checkAction(signal)
         const bed = this.findNearestBlock(name => name.endsWith('_bed'), 24)
         if (bed && this.bot.isABed(bed) && this.bot.time.isDay === false) {
             try {
                 await this.bot.sleep(bed)
+                this.checkAction(signal)
+                this.shelterCenter = null
                 this.sheltered = true
                 return
             } catch (error) {
+                this.checkAction(signal)
                 this.log.warn(`Could not sleep: ${error.message}`)
             }
         }
-
         if (this.countItems(BUILDING_BLOCKS) < 17) {
             const dirt = this.findNearestBlock(name => name === 'dirt' || name === 'cobblestone', 16)
             if (dirt) {
                 await this.collectTarget(dirt, dirt, 'shelter blocks')
-            }
-            else {
+            } else {
                 await this.escapeFrom(this.nearestEntity(HOSTILES))
             }
+            this.checkAction(signal)
             return
         }
-
         const center = this.bot.entity.position.floored()
-        const walls = [
-            [1, 0], [-1, 0], [0, 1], [0, -1],
-            [1, 1], [1, -1], [-1, 1], [-1, -1]
-        ]
+        const failures = []
         for (let level = 0; level <= 1; level++) {
-            for (const [dx, dz] of walls) {
-                await this.placeSurvivalBlock(center.offset(dx, level, dz)).catch(() => {})
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dz = -1; dz <= 1; dz++) {
+                    if (dx === 0 && dz === 0) {
+                        continue
+                    }
+                    this.checkAction(signal)
+                    await this.placeSurvivalBlock(center.offset(dx, level, dz))
+                        .catch(error => failures.push(error.message))
+                    this.checkAction(signal)
+                }
             }
         }
-        await this.placeSurvivalBlock(center.offset(0, 2, 0)).catch(() => {})
+        await this.placeSurvivalBlock(center.offset(0, 2, 0)).catch(error => failures.push(error.message))
+        this.checkAction(signal)
+        if (!this.hasEnclosedShelter(center)) {
+            this.sheltered = false
+            this.shelterCenter = null
+            throw new Error(`shelter enclosure incomplete; ${failures.length} placement errors${failures.length ? `: ${failures.at(-1)}` : ''}`)
+        }
+        this.shelterCenter = center.clone()
         this.sheltered = true
-        this.log.info('Emergency shelter complete; waiting for daylight.')
+        this.log.info('Emergency shelter enclosure verified; waiting for daylight.')
         await sleep(1000)
+        this.checkAction(signal)
     }
 
     async placeSurvivalBlock (target) {
+        const signal = this.actionAbort?.signal
+        this.checkAction(signal)
         const existing = this.bot.blockAt(target)
-        if (existing && existing.name !== 'air' && !existing.name.includes('cave_air')) {
+        if (!this.isEmptyPlacementBlock(existing)) {
             return
         }
         const item = this.bestItem(BUILDING_BLOCKS)
         if (!item) {
             throw new Error('out of shelter blocks')
         }
-        const references = [
-            [0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]
-        ]
+        const references = [[0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]]
         for (const [dx, dy, dz] of references) {
             const ref = this.bot.blockAt(target.offset(dx, dy, dz))
-            if (!ref || ref.name === 'air' || ref.boundingBox === 'empty') {
+            if (!ref || ref.boundingBox !== 'block') {
                 continue
             }
             await this.bot.equip(item, 'hand')
+            this.checkAction(signal)
             await this.bot.placeBlock(ref, new Vec3(-dx, -dy, -dz))
+            this.checkAction(signal)
             return
         }
         throw new Error(`no support for block at ${target}`)

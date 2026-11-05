@@ -45,6 +45,9 @@ function chooseAction (state) {
     if (state.elevationTrapped) {
         return Actions.DESCEND
     }
+    if (state.recoveryAvailable && state.hostileDistance <= 6 && !state.hasWeapon) {
+        return Actions.ESCAPE
+    }
     if (state.recoveryAvailable) {
         return Actions.RECOVER
     }

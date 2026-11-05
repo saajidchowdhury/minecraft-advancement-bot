@@ -6,8 +6,8 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-The private repo is `saajidchowdhury/minecraft-advancement-bot`. The latest code
-checkpoint is `2ba6526`; later documentation commits need not change its behavior.
+The private repo is `saajidchowdhury/minecraft-advancement-bot`. The baseline before the survival follow-up was `2ba6526`; subsequent survival
+changes are described in F009–F010. Use Git and run metadata for the exact revision.
 The 00:16:00 run used that code on LAN port 50330 and was stopped with SIGINT at
 00:24:23 after repeated deaths. Do not assume an unfinished PID file is active.
 The bot had achieved nine advancements, including Suit Up, but subsequently lost
@@ -125,22 +125,36 @@ then dropped from full health to about 3.9 at 00:22:32 and died at 00:22:34. Dam
 source was not recorded; a creeper, another hostile, environmental damage or an
 external player action cannot be distinguished from this log alone.
 
-Inspection shows `makeNightSafe()` suppresses individual placement failures and
+Inspection of `2ba6526` shows `makeNightSafe()` suppresses individual placement failures and
 sets `sheltered=true` unconditionally. It does not verify the enclosing geometry
 or revalidate protection during waiting. A cancelled shelter operation also
 logged completion after disconnect at 00:23:52. Treat night shelter and its
 cancellation as unverified until G001 is addressed. Test physical enclosure and
 liveness, and do not present a tiny wall shell as explosion-proof.
 
+Follow-up: physical floor/wall/roof checks now gate success and are rechecked
+while waiting. Damage invalidates the shelter and logs active action and nearby
+threats. Shelter construction and individual placements capture and check their
+cancellation signal, including after equipping and before sending placement.
+Five focused regressions passed; live validation of the new night behavior is
+still pending. `test/survival-safety.test.js` contains the reproductions.
+
 ## F010 — Critical-health cancellation currently interrupts escape [live + inspection]
 
 In the same run, `Action: escape` was followed by `Cancelling current task:
-critical health`, then death. The health-event callback cancels every busy action
+critical health`, then death. The `2ba6526` health-event callback cancels every busy action
 at health <=6, including the escape it is supposed to allow. Reproduce this at the
 event boundary and exempt or explicitly prioritize the active escape operation.
 This is a concrete bug; it does not by itself establish the original damage cause.
 Repeated recovery deaths also replaced the saved last-death position; the first
 inventory's despawn clock must not be assumed to reset with a later death.
+
+Follow-up: the active escape is exempt from critical-health interruption; unsafe
+work is still cancelled. Nearby repeated deaths in the same dimension preserve
+the first incident's conservative recovery age and attempt count. A new dimension
+starts a separate incident. Unarmed recovery flees threats within six blocks.
+Event-boundary and priority-policy regressions pass. This reduces one death-loop
+mechanism; it is not proof that every recovery route or hostile encounter is safe.
 
 ## F011 — Wood, inventory and workstation logistics remain inefficient [observed]
 
@@ -154,7 +168,8 @@ wood batches and lost furnace burn time can force repeated surface trips.
 
 ## F012 — Coverage and source provenance [verified baseline]
 
-67 focused tests passed at `2ba6526`; see `VALIDATION.md` for commands and scope.
+67 focused tests passed at `2ba6526`; the survival follow-up passes 74 tests.
+See `VALIDATION.md` for commands and scope.
 The Mineflayer crafting patch applies to reconstructed pristine 4.39.0 sources.
 The installed dependencies are locked. Passing planner/geometry tests do not
 validate diamond mining, lava collection, casting, portals or redstone end to end.

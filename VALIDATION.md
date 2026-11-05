@@ -22,7 +22,7 @@ Logs and snapshots are local in outputs/. The run beginning 23:33:29 captured ir
 
 ## Automated checks
 
-`npm run check` and `npm test` pass; the current baseline has 67 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
+`npm run check` and `npm test` pass; the current baseline has 74 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
 
 The inherited Mineflayer patch was applied successfully to reconstructed pristine 4.39.0 craft/inventory sources. Dependency versions are locked. No gameplay result is inferred solely from a passing unit test.
 
@@ -37,3 +37,17 @@ A mixed-plank charcoal failure was reproduced with an inventory snapshot that re
 All authored code and patch files are below 10% comment-bearing physical lines. The highest ratio is 7/78 (8.97%) in the dependency patch, including upstream context. The highest JavaScript ratio is 3/42 (7.14%) in terrain-scout.js. Other nonzero ratios at this baseline: advancement-tracker.js 1.82%, decision-engine.js 5.48%, index.js 1.23%, survival-bot.js about 1.4%, progression-skills.js below 0.2%; remaining authored scripts/tests have zero comments. Shebangs and URL text were excluded.
 
 The 00:01:14 run records commit f7f77293fa4a and its startup hashes match the current source. It restored all seven server-confirmed advancements and remained connected in its night shelter. The code and configured LAN viewing workflow are usable; later route completion remains unverified.
+
+## Survival follow-up
+
+The 00:16:00 run failed after a shelter-complete message: sudden damage, escape
+cancellation at critical health, and repeated recovery deaths. It was stopped at
+00:24:23. Damage source is unknown. Earlier uneventful waiting did not establish
+night-shelter safety.
+
+New regressions verify that critical-health events leave escape running, failed
+walls cannot produce shelter success, enclosure can be rechecked, cancellation
+stops building before additional placement packets, nearby repeated deaths share
+a recovery budget, and unarmed recovery avoids nearby hostiles. The full suite
+passes 74 tests. The corrected behavior still needs live survival validation.
+See findings.md and goals.md for evidence and prioritized next work.

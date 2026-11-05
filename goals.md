@@ -24,6 +24,11 @@ Next actions, in order:
 5. Bound recovery attempts, consider local threat/health, and preserve the ages
    of older drops when repeated deaths occur. Prefer rebuilding over a death loop.
 
+Progress: critical-health escape, enclosure verification/rechecking, placement
+cancellation, damage diagnostics, nearby repeated-death budgets, and unarmed
+threat avoidance are implemented with focused regressions. The full suite passes
+74 tests. G001 remains active for live validation and any further route failures.
+
 Completion: focused regressions pass; a live night/damage/recovery sequence is
 observed without self-cancelling escape or false shelter success. Do not force a
 suicidal demonstration just to satisfy a test. The 00:16:00 run was stopped at
