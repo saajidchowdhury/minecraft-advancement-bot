@@ -16,6 +16,7 @@ const Actions = Object.freeze({
     CRAFT_WOODEN_SWORD: 'craft_wooden_sword',
     STONE: 'gather_stone',
     CRAFT_STONE_PICKAXE: 'craft_stone_pickaxe',
+    CRAFT_STONE_AXE: 'craft_stone_axe',
     CRAFT_FURNACE: 'craft_furnace',
     FOOD: 'gather_food',
     COAL: 'gather_coal',
@@ -117,11 +118,12 @@ function chooseAction (state) {
         return 'mine_diamond'
     }
     const progression = nextAdvancement(state)
-    if (progression.action === Actions.CRAFT_IRON_PICKAXE) {
-        return Actions.CRAFT_IRON_PICKAXE
+    if ([Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_AXE].includes(progression.action)) {
+        return progression.action
     }
     const preparingIronPick = progression.item === 'iron_pickaxe'
-    const action = preparingIronPick ? progression.action : state.sideGoal?.action || progression.action
+    const preparingTool = preparingIronPick || progression.item === 'stone_axe'
+    const action = preparingTool ? progression.action : state.sideGoal?.action || progression.action
     const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'enter_nether', 'build_redstone'].includes(action)
     if (state.baseMigrate) {
         return 'migrate_base'
@@ -130,16 +132,16 @@ function chooseAction (state) {
         return 'establish_base'
     }
     // About a minute for an advancement (A Seedy Place) while calm on the surface.
-    if (!preparingIronPick && state.canPlantSeed && !state.inventoryFull) {
+    if (!preparingTool && state.canPlantSeed && !state.inventoryFull) {
         return 'plant_seed'
     }
-    if (!preparingIronPick && state.canBreed) {
+    if (!preparingTool && state.canBreed) {
         return 'breed_animals'
     }
-    if (!preparingIronPick && state.canSummonGolem) {
+    if (!preparingTool && state.canSummonGolem) {
         return 'summon_golem'
     }
-    if (!preparingIronPick && state.canFish && !state.inventoryFull) {
+    if (!preparingTool && state.canFish && !state.inventoryFull) {
         return 'go_fish'
     }
     if (state.baseDeposit) {

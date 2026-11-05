@@ -38,6 +38,16 @@ test('advanced tools satisfy earlier tool tiers without crafting obsolete equipm
     assert.equal(nextAdvancement(established).action, 'gather_diamonds')
 })
 
+test('a stone pick unlocks the axe goal and a missing axe is replaced before routine mining', () => {
+    const starter = { ...established, hasIronPickaxe: false, hasFurnace: false, hasWoodcuttingAxe: false }
+    assert.equal(nextAdvancement(starter).action, 'craft_stone_axe')
+    assert.equal(nextAdvancement({ ...starter, cobblestone: 2 }).action, 'gather_stone')
+    assert.equal(nextAdvancement({ ...starter, sticks: 0, logs: 0, planks: 0 }).action, 'gather_wood')
+    assert.equal(nextAdvancement({ ...starter, ironIngots: 3 }).action, 'craft_iron_pickaxe')
+    assert.equal(nextAdvancement({ ...established, hasWoodcuttingAxe: false }).action, 'craft_stone_axe')
+    assert.equal(nextAdvancement({ ...established, hasWoodcuttingAxe: true }).action, 'gather_diamonds')
+})
+
 test('armor needs eight ingots and smelts available raw iron in bounded batches', () => {
     assert.equal(nextAdvancement({ ...established, hasIronArmor: false }).action, 'gather_iron')
     assert.equal(nextAdvancement({ ...established, hasIronArmor: false, rawIron: 3 }).action, 'smelt_iron')

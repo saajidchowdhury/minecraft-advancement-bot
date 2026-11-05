@@ -17,7 +17,7 @@ const EARLY_ADVANCEMENTS = Object.freeze([
 const RECIPES = Object.freeze({
     crafting_table: { planks: 4 }, wooden_pickaxe: { planks: 3, sticks: 2 },
     wooden_sword: { planks: 2, sticks: 1 }, stone_pickaxe: { cobblestone: 3, sticks: 2 },
-    stone_sword: { cobblestone: 2, sticks: 1 },
+    stone_sword: { cobblestone: 2, sticks: 1 }, stone_axe: { cobblestone: 3, sticks: 2 },
     furnace: { cobblestone: 8 }, iron_pickaxe: { ironIngots: 3, sticks: 2 },
     iron_chestplate: { ironIngots: 8 }, shield: { ironIngots: 1, planks: 6 },
     bucket: { ironIngots: 3 }, diamond_pickaxe: { diamonds: 3, sticks: 2 },
@@ -125,6 +125,9 @@ function nextAdvancement(state) {
     if (!state.hasStonePickaxe) {
         return craft(state, state.cobblestone < 3 ? 'minecraft:story/mine_stone' : 'minecraft:story/upgrade_tools',
             'stone_pickaxe', 'craft_stone_pickaxe')
+    }
+    if (state.hasWoodcuttingAxe === false) {
+        return craft(state, 'prep:woodcutting axe', 'stone_axe', 'craft_stone_axe')
     }
     if (!state.hasFurnace && !state.smeltReady && !state.smeltRunning && !state.smeltNeedsFuel) {
         return craft(state, 'prep:furnace', 'furnace', 'craft_furnace')

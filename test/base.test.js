@@ -28,11 +28,11 @@ test('an unworn better armor piece is not stored before it can be equipped', () 
 })
 
 test('after a death the restock takes the best gear and refills carry levels', () => {
-    const stored = { diamond_pickaxe: 1, iron_pickaxe: 1, stone_pickaxe: 2, diamond_sword: 1, iron_chestplate: 1, iron_helmet: 1,
+    const stored = { diamond_pickaxe: 1, iron_pickaxe: 1, stone_pickaxe: 2, diamond_sword: 1, stone_axe: 1, iron_chestplate: 1, iron_helmet: 1,
         shield: 1, diamond: 20, iron_ingot: 40, coal: 30, oak_log: 30, bread: 40, crafting_table: 2, raw_gold: 6 }
     const plan = asMap(restockPlan(stored, [], {}))
     assert.deepEqual(plan, {
-        diamond_pickaxe: 1, diamond_sword: 1, stone_pickaxe: 1, iron_helmet: 1, iron_chestplate: 1, shield: 1,
+        diamond_pickaxe: 1, diamond_sword: 1, stone_axe: 1, stone_pickaxe: 1, iron_helmet: 1, iron_chestplate: 1, shield: 1,
         diamond: 8, iron_ingot: 16, coal: 16, crafting_table: 1, oak_log: 16, bread: 16
     })
 })
@@ -111,19 +111,24 @@ test('every vault visit digs the cobblestone seal out and puts it back afterward
     assert.equal(c.memory.base.sealed, true)
 })
 
-test('migrating an exposed surface base empties the chest, picks it up and clears the base', async () => {
+test('migrating a base empties its container and equips a tool before reclaiming it', async () => {
     const { migrateBase } = require('../src/base')
-    const items = []
-    const { c } = chestWorld(items, { diamond: 4, iron_ingot: 9 })
-    let dug = false
-    c.collectTarget = async () => { throw new Error('unsafe block to mine: chest') }
-    c.bot.dig = async () => { dug = true }
-    c.bot.waitForTicks = async () => {}
-    c.bot.entities = {}
-    await migrateBase(c)
-    assert.deepEqual(items.map(i => [i.name, i.count]).sort(), [['diamond', 4], ['iron_ingot', 9]])
-    assert.equal(dug, true)
-    assert.equal(c.memory.base, null)
+    for (const name of ['chest', 'barrel']) {
+        const items = []
+        const { c } = chestWorld(items, { diamond: 4, iron_ingot: 9 })
+        const order = []
+        c.memory.base.container = name
+        c.bot.blockAt = position => ({ name, position })
+        c.collectTarget = async () => { throw new Error(`unsafe block to mine: ${name}`) }
+        c.bot.tool = { async equipForBlock(block) { order.push(`equip for ${block.name}`) } }
+        c.bot.dig = async block => { order.push(`dig ${block.name}`) }
+        c.bot.waitForTicks = async () => {}
+        c.bot.entities = {}
+        await migrateBase(c)
+        assert.deepEqual(items.map(i => [i.name, i.count]).sort(), [['diamond', 4], ['iron_ingot', 9]])
+        assert.deepEqual(order, [`equip for ${name}`, `dig ${name}`])
+        assert.equal(c.memory.base, null)
+    }
 })
 
 test('restock outranks rebuilding from wood; danger still comes first', () => {

@@ -15,7 +15,7 @@ const { inventoryReport } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
 const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnimals } = require('./farming')
 const { golemState, summonGolem } = require('./golem')
-const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, PROTECTED_CONTAINERS } = require('./progression-skills')
+const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, PROTECTED_CONTAINERS, WOODCUTTING_AXES } = require('./progression-skills')
 
 const { GoalNear, GoalFollow } = goals
 
@@ -66,6 +66,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     [Actions.CRAFT_WOODEN_SWORD]: 30000,
     [Actions.STONE]: 90000,
     [Actions.CRAFT_STONE_PICKAXE]: 30000,
+    [Actions.CRAFT_STONE_AXE]: 30000,
     [Actions.CRAFT_FURNACE]: 30000,
     [Actions.FOOD]: 60000,
     [Actions.COAL]: 90000,
@@ -85,7 +86,7 @@ const STATIONARY_ACTIONS = new Set([
     Actions.ASCEND,
     'wake', 'sleep', 'prepare_bed', 'prepare_night_weapon', 'leave_shelter',
     Actions.CRAFT_TABLE, Actions.CRAFT_WOODEN_PICKAXE, Actions.CRAFT_WOODEN_SWORD, Actions.CRAFT_STONE_PICKAXE,
-    Actions.CRAFT_FURNACE, Actions.SMELT_IRON, Actions.CRAFT_IRON_PICKAXE,
+    Actions.CRAFT_FURNACE, Actions.SMELT_IRON, Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_AXE,
     'clear_inventory', 'smelt_charcoal', 'craft_progression', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', Actions.SHELTER
 ])
 
@@ -576,6 +577,7 @@ class SurvivalController {
             hasEarlySword: hasSwordNow,
             cobblestone: this.countItems(['cobblestone', 'cobbled_deepslate']),
             hasStonePickaxe: hasStonePickNow,
+            hasWoodcuttingAxe: this.hasAnyItem(WOODCUTTING_AXES),
             hasFurnace: hasFurnaceNow,
             foodUnits: this.foodUnits(),
             coal: this.countItems(['coal', 'charcoal']),
@@ -1220,6 +1222,9 @@ class SurvivalController {
                 }
                 if (!block.canHarvest(this.bot.heldItem?.type)) {
                     throw new Error(`missing harvesting tool for ${block.name}`)
+                }
+                if (block.material === 'mineable/axe') {
+                    this.log.debug?.(`Breaking ${block.name} with ${this.bot.heldItem?.name || 'bare hands'}.`)
                 }
                 await this.bot.dig(block, true)
                 await sleep(600)
@@ -1941,6 +1946,9 @@ class SurvivalController {
             await this.gotoWithTimeout(new GoalNear(current.position.x, current.position.y, current.position.z, 2), 8000, 'workstation approach')
         }
         await this.bot.tool?.equipForBlock?.(current, { requireHarvest: true, getFromChest: false }).catch(() => {})
+        if (current.material === 'mineable/axe') {
+            this.log.debug?.(`Reclaiming ${current.name} with ${this.bot.heldItem?.name || 'bare hands'}.`)
+        }
         await this.bot.dig(current, true)
         await this.bot.waitForTicks(6)
         const drop = Object.values(this.bot.entities || {}).find(e => e.isValid && e.name === 'item' && e.position.distanceTo(current.position.offset(0.5, 0, 0.5)) <= 3)

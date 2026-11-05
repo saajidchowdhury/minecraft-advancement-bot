@@ -85,6 +85,14 @@ test('iron pick preparation outranks side advancements when survival permits', (
     assert.equal(chooseAction({ ...ready, health: 6, hostileDistance: 2 }), Actions.ESCAPE)
 })
 
+test('the axe upgrade outranks optional activities while keeping threat interrupts', () => {
+    const ready = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true,
+        hasWoodcuttingAxe: false, cobblestone: 3, sticks: 2, canPlantSeed: true })
+    assert.equal(chooseAction(ready), 'craft_stone_axe')
+    assert.equal(chooseAction({ ...ready, cobblestone: 0 }), Actions.STONE)
+    assert.equal(chooseAction({ ...ready, health: 6, hostileDistance: 2 }), Actions.ESCAPE)
+})
+
 test('critically injured bot seeks food instead of continuing progression', () => {
     assert.equal(chooseAction(state({ health: 4, food: 17 })), Actions.FOOD)
 })

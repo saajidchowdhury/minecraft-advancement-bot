@@ -82,7 +82,7 @@ function restockPlan(stored, items, worn = {}) {
     }
     const best = kind => Object.keys(stored).filter(name => name.endsWith(`_${kind}`) && stored[name] > 0 && tier(name) >= 0)
         .sort((a, b) => tier(b) - tier(a))[0]
-    for (const kind of ['pickaxe', 'sword']) {
+    for (const kind of ['pickaxe', 'sword', 'axe']) {
         const carried = Math.max(-1, ...Object.keys(counts).filter(name => name.endsWith(`_${kind}`)).map(tier))
         const stash = best(kind)
         if (stash && tier(stash) > carried) {
@@ -118,7 +118,7 @@ function restockPlan(stored, items, worn = {}) {
     return plan
 }
 
-const GEAR = /_(pickaxe|sword|helmet|chestplate|leggings|boots)$|^shield$/
+const GEAR = /_(pickaxe|sword|axe|helmet|chestplate|leggings|boots)$|^shield$/
 
 function wornNames(bot) {
     const slots = bot.inventory.slots
@@ -183,10 +183,8 @@ async function digIfSolid(c, p) {
     const bot = c.bot
     const block = bot.blockAt(p, false)
     if (block && block.boundingBox !== 'empty' && !['chest', 'barrel'].includes(block.name)) {
-        const tool = c.bestItem(['diamond_pickaxe', 'iron_pickaxe', 'stone_pickaxe', 'wooden_pickaxe'])
-        if (tool) {
-            await bot.equip(tool, 'hand')
-        }
+        await bot.tool?.equipForBlock(block, { requireHarvest: true, getFromChest: false })
+        c.checkAction()
         await bot.dig(block, true)
         c.checkAction()
     }
@@ -299,9 +297,10 @@ async function migrateBase(c) {
         }
     })
     const chest = bot.blockAt(new Vec3(base.chest.x, base.chest.y, base.chest.z), false)
-    c.memory.base = null
     if (['chest', 'barrel'].includes(chest?.name)) {
         // The pathfinder's movement rules refuse to break chests, so collectTarget cannot be used.
+        await bot.tool?.equipForBlock(chest, { requireHarvest: true, getFromChest: false })
+        c.checkAction()
         await bot.dig(chest, true)
         await bot.waitForTicks(6)
         const drop = Object.values(bot.entities || {}).find(e => e.isValid && e.name === 'item' && e.position.distanceTo(chest.position.offset(0.5, 0, 0.5)) <= 3)
@@ -310,6 +309,7 @@ async function migrateBase(c) {
             await c.gotoWithTimeout(new goals.GoalNear(p.x, p.y, p.z, 0), 4000, 'chest pickup').catch(() => {})
         }
     }
+    c.memory.base = null
     c.log.info('Emptied the old base; a sealed underground barrel vault will replace it.')
 }
 

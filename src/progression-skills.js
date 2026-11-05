@@ -8,6 +8,7 @@ const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./adv
 
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
 const PROTECTED_CONTAINERS = new Set(['furnace', 'barrel', 'chest'])
+const WOODCUTTING_AXES = ['netherite_axe', 'diamond_axe', 'iron_axe', 'stone_axe']
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -77,6 +78,16 @@ function miningPickaxe(c, block = null) {
         }
     }
     return null
+}
+
+function tunnelTool(c, block) {
+    if (block.material === 'mineable/axe') {
+        const axe = c.bestItem([...WOODCUTTING_AXES, 'golden_axe', 'wooden_axe'])
+        if (axe) {
+            return axe
+        }
+    }
+    return miningPickaxe(c, block)
 }
 
 async function probeTunnelSides(c, direction) {
@@ -228,7 +239,7 @@ async function mineTunnel(c, targetY, heading = null) {
                 if (!bot.canDigBlock(block)) {
                     throw new Error('tunnel block out of reach')
                 }
-                const currentTool = miningPickaxe(c, block)
+                const currentTool = tunnelTool(c, block)
                 if (!currentTool && tool) {
                     throw new Error('mining tool broke; rebuild it before continuing')
                 }
@@ -384,7 +395,7 @@ async function followShaft(c, direction) {
                 for (const p of cellsToClear) {
                     const block = bot.blockAt(p, false)
                     if (block && block.boundingBox !== 'empty' && !PROTECTED_CONTAINERS.has(block.name) && bot.canDigBlock(block)) {
-                        const tool = miningPickaxe(c, block)
+                        const tool = tunnelTool(c, block)
                         if (tool) {
                             await bot.equip(tool, 'hand')
                         }
@@ -1019,6 +1030,7 @@ async function performProgression(c, action, state) {
     switch (action) {
         case 'clear_inventory': return clearInventory(c)
         case 'smelt_charcoal': return smeltCharcoal(c)
+        case 'craft_stone_axe': return craftProgression(c, 'stone_axe')
         case 'craft_progression': {
             const goal = state.sideGoal || nextAdvancement(state)
             return craftProgression(c, goal.item)
@@ -1054,4 +1066,4 @@ async function performProgression(c, action, state) {
     }
 }
 
-module.exports = { armorUpgrades, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS }
+module.exports = { armorUpgrades, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS, WOODCUTTING_AXES }

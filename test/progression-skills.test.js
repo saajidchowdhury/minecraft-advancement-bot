@@ -166,6 +166,33 @@ test('tunneling uses the strongest available pick that can harvest the block', (
     assert.equal(miningPickaxe(c, { canHarvest: type => type >= 4 }).name, 'diamond_pickaxe')
 })
 
+test('tunnel digging uses an axe on wooden blocks and keeps the iron pick for stone', async () => {
+    const { mineTunnel } = require('../src/progression-skills')
+    const Block = require('prismarine-block')('26.1')
+    const data = require('minecraft-data')('26.1')
+    const wood = new Vec3(1, 65, 0)
+    const axe = { name: 'stone_axe', type: data.itemsByName.stone_axe.id }
+    const pick = { name: 'iron_pickaxe', type: data.itemsByName.iron_pickaxe.id }
+    const dug = []
+    const bot = {
+        health: 20, entity: { position: new Vec3(0, 64, 0) },
+        blockAt(p) {
+            const name = p.equals(wood) ? 'oak_planks' : 'stone'
+            const block = Block.fromStateId(data.blocksByName[name].defaultState, 0)
+            block.position = p
+            return block
+        },
+        async equip(item) { this.heldItem = item }, canDigBlock: () => true,
+        async dig(block) { dug.push([block.name, this.heldItem.name]) }
+    }
+    const c = {
+        bot, running: true, memory: {}, bestItem: names => names.map(name => [axe, pick].find(item => item.name === name)).find(Boolean),
+        log: { info() {} }, async gotoWithTimeout(goal) { bot.entity.position = new Vec3(goal.x, goal.y, goal.z) }
+    }
+    await mineTunnel(c, 64)
+    assert.deepEqual(dug.slice(0, 2), [['oak_planks', 'stone_axe'], ['stone', 'iron_pickaxe']])
+})
+
 test('a stalled prepared stair can use a short checked jump and releases controls afterward', async () => {
     const { climbStep } = require('../src/progression-skills')
     const target = new Vec3(1, 65, 0)
