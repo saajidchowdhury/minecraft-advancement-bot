@@ -423,7 +423,9 @@ class SurvivalController {
                 this.log.info(`Next objective: ${next.title}. Completion is confirmed separately by the server.`)
             }
             this.failures.set(action, 0)
+            this.lastActionFailed = false
         } catch (error) {
+            this.lastActionFailed = true
             const count = (this.failures.get(action) || 0) + 1
             this.failures.set(action, count)
             const message = error && error.message ? error.message : String(error)
@@ -470,8 +472,9 @@ class SurvivalController {
         } finally {
             this.busy = false
             if (this.running) {
-                // A lit creeper explodes 1.5 s after swelling; threat cancellations replan at once.
-                this.scheduleLoop(this.urgentReplan ? 100 : 1500)
+                // A lit creeper explodes 1.5 s after swelling, so threats replan at once; a fixed 1.5 s
+                // after every success idled ~5% of run time, so only failures keep that back-off.
+                this.scheduleLoop(this.urgentReplan ? 100 : this.lastActionFailed ? 1500 : 250)
             }
             this.urgentReplan = false
         }

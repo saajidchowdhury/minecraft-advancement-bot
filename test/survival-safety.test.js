@@ -437,7 +437,7 @@ test('threat cancellations replan within 100 ms instead of the routine 1.5 s', a
     await SurvivalController.prototype.tick.call(c)
     c.performWithTimeout = async () => {}
     await SurvivalController.prototype.tick.call(c)
-    assert.deepEqual(delays, [100, 1500])
+    assert.deepEqual(delays, [100, 250])
 })
 
 test('an off-centre burrow steps into its own hole instead of failing the descent', async () => {
@@ -503,4 +503,22 @@ test('charging an archer keeps the shield raised and lowers it only to strike', 
     assert.ok(events.indexOf('lower') < events.indexOf('attack'))
     assert.ok(events.filter(e => e === 'lower').length >= events.filter(e => e.startsWith('raise')).length)
     assert.equal(events.at(-1), 'lower')
+})
+
+test('successful actions replan after 250 ms while failures keep the 1.5 s back-off', async () => {
+    const delays = []
+    let fail = false
+    const state = { health: 20, food: 20, hostileDistance: Infinity, completedAdvancements: new Set() }
+    const c = {
+        running: true, paused: false, busy: false, followPlayer: null, failures: new Map(),
+        bot: { entity: { position: new Vec3(0, 64, 0) }, health: 20, food: 20 }, log: { info() {}, warn() {} },
+        observe: () => state, onState() {}, inventorySummary: () => '', positionText: () => '0,64,0',
+        verifyActionProgress() {}, clearCurrentTask() {}, scout: async () => {}, detectVerticalShaft: () => false, detectElevationTrap: () => null,
+        async performWithTimeout() { if (fail) { throw new Error('simulated failure') } },
+        scheduleLoop(delay) { delays.push(delay) }
+    }
+    await SurvivalController.prototype.tick.call(c)
+    fail = true
+    await SurvivalController.prototype.tick.call(c)
+    assert.deepEqual(delays, [250, 1500])
 })
