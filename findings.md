@@ -11,7 +11,7 @@ Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 41971, 
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 197 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 200 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -677,3 +677,10 @@ health > 12, under 40 iron banked) and, per user direction, `242cb07` mines for 
 once 40 iron is banked (iron pickaxe required); it shelters or waits only when hurt.
 `7acd838` places the base where the bot works when no shaft entrance is within 48 blocks,
 and lets a shaft over 128 blocks away be replaced by a local one.
+
+Shaft and work-pick follow-up: live 242cb07 forgot its shaft where the earlier shelter
+loop had walled the route; `5b942df` retries a failed eight-cell leg cell by cell and
+clears a blocked adjacent step in any direction once before forgetting. Logs showed 38
+stone pickaxes and 8 stick-driven surface trips today, and a carried wooden pick dug
+tunnels before the iron one; `0069f45` requires a stone work pick only below 6 iron
+(ingots plus raw) and orders iron before wood for digging.
