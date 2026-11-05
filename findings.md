@@ -11,7 +11,7 @@ Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 41971, 
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 183 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 185 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -625,3 +625,15 @@ after deaths (gear trips up to 256 blocks; small refills when passing). Carry an
 levels are equal so restocking never triggers a deposit (tested). Seven regressions cover
 plans, decisions and mocked chest I/O. Live placement, deposit and restock are pending;
 the bot was rebuilding after death 11 when the revision started.
+
+## F035 — Night surfacing deaths; shield while charging archers [live + regression]
+
+Deaths 11–13 (21:17:10, 21:36:18, 21:36:46Z): weak, rebuilding bots met skeleton/zombie/
+creeper groups near the surface at night. Deaths 12–13 began when the bot, with food 17,
+climbed its shaft at night for wood, then respawned beside the same mobs. `abe265d` makes
+a non-urgent surface trip at night shelter underground (or wait if sheltered); hunger
+returns are unchanged. While charging an archer the shield now stays raised until the
+strike (aims at story/deflect_arrow and fewer arrow hits). The first commit of that test
+failed on the fixed code; `1a0861c` corrected the mock's movement timing and the test was
+verified to fail only on the pre-fix source. Process lesson: a grep of test output does not
+stop a shell chain, so check the pass count before committing. Thirteen deaths today.
