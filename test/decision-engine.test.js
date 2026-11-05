@@ -105,3 +105,20 @@ test('a visible nearby creeper triggers avoidance even at full health undergroun
     assert.equal(chooseAction(state({ ...armed, creeperDistance: 5 })), Actions.ESCAPE)
     assert.equal(chooseAction(state({ ...armed, creeperDistance: Infinity })), Actions.FIGHT)
 })
+
+test('deep mining does not abandon the trip for sticks and departs with a wood reserve', () => {
+    const { nextAdvancement } = require('../src/advancement-plan')
+    const geared = {
+        hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasStoneUtilityPickaxe: true,
+        hasFurnace: true, hasIronPickaxe: true, hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true,
+        hasBucket: true, completedAdvancements: new Set(['minecraft:story/lava_bucket']), foodUnits: 30, hasFood: true,
+        cobblestone: 64, diamonds: 0, sticks: 1, planks: 0, logs: 0
+    }
+    assert.equal(nextAdvancement(state(geared)).action, 'gather_diamonds')
+    assert.equal(chooseAction(state({ ...geared, underground: true })), 'gather_diamonds')
+    assert.equal(chooseAction(state({ ...geared, underground: false })), Actions.WOOD)
+    assert.equal(chooseAction(state({ ...geared, underground: false, logs: 3 })), 'gather_diamonds')
+    const needSticks = { ...geared, diamonds: 3, underground: true }
+    assert.equal(chooseAction(state({ ...needSticks, inventoryFull: true })), 'return_surface')
+    assert.equal(chooseAction(state({ ...geared, underground: true, inventoryFull: true })), 'clear_inventory')
+})

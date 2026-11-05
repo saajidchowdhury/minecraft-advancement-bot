@@ -39,6 +39,14 @@ function resourceAction(state, costs) {
     if (state.cobblestone < (costs.cobblestone || 0)) {
         return 'gather_stone'
     }
+    for (const [field, action] of [
+        ['diamonds', 'gather_diamonds'], ['obsidian', 'gather_obsidian'],
+        ['flint', 'gather_flint'], ['redstone', 'gather_redstone']
+    ]) {
+        if (state[field] < (costs[field] || 0)) {
+            return action
+        }
+    }
     if (plankPotential(state) < planks) {
         return 'gather_wood'
     }
@@ -54,14 +62,6 @@ function resourceAction(state, costs) {
         }
         return state.hasSmeltingFuel ? 'smelt_iron' :
             (state.logs >= 2 || (state.logs >= 1 && state.planks >= 2) ? 'smelt_charcoal' : 'gather_wood')
-    }
-    for (const [field, action] of [
-        ['diamonds', 'gather_diamonds'], ['obsidian', 'gather_obsidian'],
-        ['flint', 'gather_flint'], ['redstone', 'gather_redstone']
-    ]) {
-        if (state[field] < (costs[field] || 0)) {
-            return action
-        }
     }
     return null
 }

@@ -82,20 +82,24 @@ function chooseAction (state) {
     if (state.food <= 16 && !state.hasFood) {
         return state.underground ? 'return_surface' : Actions.FOOD
     }
-    if (state.inventoryFull) {
+    const action = state.sideGoal?.action || nextAdvancement(state).action
+    const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'enter_nether', 'build_redstone'].includes(action)
+    // The return trip walks back through earlier disposal drops; cleanup waits for the surface.
+    if (state.inventoryFull && !surfaceBound) {
         return 'clear_inventory'
     }
     if (!state.underground && state.canCraftBed && !state.hasBed && state.hostileDistance > 12) {
         return 'prepare_bed'
     }
-    const action = state.sideGoal?.action || nextAdvancement(state).action
-    if (!state.underground && ['gather_diamonds', 'gather_redstone', 'gather_obsidian'].includes(action) && state.foodUnits < 12) {
+    const deep = ['gather_diamonds', 'gather_redstone', 'gather_obsidian'].includes(action)
+    if (!state.underground && deep && state.foodUnits < 12) {
         return Actions.FOOD
     }
-    if (state.underground && ['gather_wood', 'gather_food', 'enter_nether', 'build_redstone'].includes(action)) {
-        return 'return_surface'
+    // Torches and replacement picks need sticks; wood is only reachable on the surface.
+    if (!state.underground && deep && (state.planks || 0) + (state.logs || 0) * 4 + (state.sticks || 0) / 2 < 12) {
+        return Actions.WOOD
     }
-    return action
+    return surfaceBound ? 'return_surface' : action
 }
 
 module.exports = { Actions, chooseAction }

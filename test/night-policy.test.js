@@ -14,7 +14,7 @@ function nightWorld() {
     slots[45] = { name: 'shield' }
     const state = { health: 20, food: 20, foodUnits: 15, armorEquipped: true, shieldEquipped: true,
         hasFood: true, hasWeapon: true, hostileDistance: Infinity, isNight: true, underground: false,
-        dimension: 'overworld', logs: 2, planks: 0, sticks: 0, cobblestone: 8, hasCraftingTable: true,
+        dimension: 'overworld', logs: 3, planks: 0, sticks: 0, cobblestone: 8, hasCraftingTable: true,
         hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true,
         hasIronPickaxe: true, hasStoneUtilityPickaxe: true, hasIronArmor: true, hasShield: true,
         diamonds: 0, completedAdvancements: new Set(['minecraft:story/lava_bucket', 'minecraft:adventure/kill_a_mob']) }
