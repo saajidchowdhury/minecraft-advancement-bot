@@ -11,7 +11,7 @@ Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 41971, 
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 185 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 188 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -637,3 +637,13 @@ strike (aims at story/deflect_arrow and fewer arrow hits). The first commit of t
 failed on the fixed code; `1a0861c` corrected the mock's movement timing and the test was
 verified to fail only on the pre-fix source. Process lesson: a grep of test output does not
 stop a shell chain, so check the pass count before committing. Thirteen deaths today.
+
+## F036 — Cheap husbandry branches: A Seedy Place and Fishy Business [JAR criteria + regression]
+
+From the 26.1.2 JAR: husbandry/plant_seed accepts placed wheat, beetroots, melon/pumpkin
+stems, torchflower, pitcher crop or nether wart; husbandry/fishy_business triggers on
+fishing_rod_hooked with cod, salmon, pufferfish or tropical fish. `8f5282d` plants (grass
+for seeds, wooden hoe, till, plant) and `cdf6e01` fishes (rod from two string, four
+bounded bot.fish() casts) when calm on the surface by day; each backs off ten minutes
+after three failures. bot.fish() detects bites from particle packets, so the 26.1 packet
+format is a live uncertainty. Three regressions; live evidence pending.

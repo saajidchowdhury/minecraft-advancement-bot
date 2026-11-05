@@ -316,3 +316,7 @@ Candidates ranked by cost against current skills (verify ids/criteria against 26
 6. Best Friends Forever (husbandry/tame_an_animal): bones on a wolf when one is near.
 Then the planned Ice Bucket Challenge and Nether entry; Oh Shiny (barter stored gold) and
 Into Fire/A Terrible Fortress once the Nether route is reliable.
+
+G014 progress ~16:45 Eastern: shield raised while charging archers (`abe265d`), A Seedy
+Place (`8f5282d`) and Fishy Business (`cdf6e01`) implemented with tests; live pending.
+Next G014 items: breeding (chickens with seeds), Take Aim (bow), wolf taming.
