@@ -61,12 +61,22 @@ test('pathfinding is bounded and heap pressure trips before the Node limit', () 
 })
 
 test('safe movements prohibit generic A-star from mining straight down', () => {
-    const movements = {}
+    const movements = new (require('mineflayer-pathfinder').Movements)({ registry: require('minecraft-data')('26.1') })
     SurvivalController.prototype.configureSafeMovements(movements)
     const neighbors = []
     movements.getMoveDown({}, neighbors)
     assert.deepEqual(neighbors, [])
     assert.equal(movements.canDig, true)
+})
+
+test('generic pathfinder digging preserves furnaces and storage containers', () => {
+    const registry = require('minecraft-data')('26.1')
+    const movements = new (require('mineflayer-pathfinder').Movements)({ registry })
+    SurvivalController.prototype.configureSafeMovements(movements)
+    for (const name of ['furnace', 'barrel', 'chest']) {
+        assert.equal(Boolean(movements.safeToBreak({ type: registry.blocksByName[name].id })), false)
+    }
+    assert.equal(Boolean(movements.safeToBreak({ type: registry.blocksByName.stone.id })), true)
 })
 
 test('a two-deep pit inside roofless shelter walls has a one-step exit', () => {

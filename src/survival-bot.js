@@ -15,7 +15,7 @@ const { inventoryReport } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
 const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnimals } = require('./farming')
 const { golemState, summonGolem } = require('./golem')
-const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades } = require('./progression-skills')
+const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, PROTECTED_CONTAINERS } = require('./progression-skills')
 
 const { GoalNear, GoalFollow } = goals
 
@@ -2074,6 +2074,9 @@ class SurvivalController {
     }
 
     configureSafeMovements (movements) {
+        for (const name of PROTECTED_CONTAINERS) {
+            movements.blocksCantBreak.add(movements.bot.registry.blocksByName[name].id)
+        }
         movements.allow1by1towers = false
         movements.allowParkour = false
         movements.maxDropDown = SAFE_PATHFINDER_DROP

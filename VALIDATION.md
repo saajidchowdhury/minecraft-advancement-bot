@@ -247,3 +247,24 @@ throughput logging, !inventory and planner gear order. Each regression was confi
 fail on its pre-fix source where it guards a fix. Live evidence is recorded per finding in
 findings.md (F019–F039); not yet observed live: tunnel sealing vs. creeper (observed),
 vault restock, Nether entry/return, golem, fishing, breeding and deflect_arrow.
+
+## Fresh LAN world (port 53606)
+
+221 tests and syntax checks pass. Seven new regressions reproduced
+their failures on the earlier code: pre-plugin disconnect, stalled smelt with
+partial output, first-iron fuel recovery with a distant furnace, first-iron
+planning with a running job and fresh raw iron, obstructed roof support, and
+container protection in direct tunneling and generic pathfinder digging.
+Changed-file comment ratios: `survival-bot.js` 63/2225, `advancement-plan.js`
+7/201, `progression-skills.js` 21/1058, `smelting.test.js` 0/153,
+`survival-safety.test.js` 2/547, `mobility-recovery.test.js` 2/149 and
+`progression-skills.test.js` 0/262.
+
+Live, unstaged: four advancements from an empty inventory in the 18:26:34 run
+(`a6a138c`), server history restored on restart at 18:29:45 (`646ae27`), and a
+32-cell shaft recorded in the new world. The sandbox-denied connection before
+plugin injection was rerun after the teardown fix without the secondary crash.
+On `646ae27`, the first charcoal-fed job ran while four additional raw iron
+were mined. The bot returned, collected both ingots and received Acquire Hardware
+at 18:32:22 Eastern. Fuel-starved recovery and alternate roof support have
+automated coverage and await focused live trials.

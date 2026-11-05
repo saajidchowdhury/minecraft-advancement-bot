@@ -348,3 +348,18 @@ advancementsPerHour across a full run.
    against today's baseline (strategy.md).
 5. Then strategy.md order: Nether route live (portal, return), Enchanter, gold boots, a bed
    at the base, golem/fishing/breeding live confirmation, smelting batches of ~8.
+
+## Fresh LAN world (port 53606, 2026-11-05)
+
+- F040: empty-inventory start through wooden/stone tools and A Seedy Place verified
+  live. Use the new world ID `lan-53606-20261105` for subsequent restarts of this world.
+- F041: stalled iron jobs now request coal, preserving partial output and loaded ore.
+  Next focused trial is an empty fuel slot with partial output and no carried fuel.
+  Observe coal acquisition, the return and pickup. Track multiple jobs only after
+  checking which furnace callers can safely create or reclaim a second station.
+- G001: four-sided roof support search passes its regression. Live-check an
+  obstructed shelter roof and daylight exit before marking the night loop solved.
+- G013: barrel vault build, deposit and reseal remain the next storage milestones.
+- F042: check that a remembered furnace survives nearby mining, then collects
+  normally after a restart. Check the failed shaft step at (1,63,25) separately
+  if the return climb stalls again.

@@ -742,3 +742,42 @@ the 51718 runs: Diamonds!, Cover Me with Diamonds and A Seedy Place were earned 
 gear route, diamond priority, shaft climb, async smelting, base deposit, creeper flight,
 tunnel and archer seals, burrow and melee interrupts were each observed working at least
 once; fifteen deaths informed F023–F035.
+
+## F040 — Fresh-world bootstrap and clean early disconnect (port 53606)
+
+The new LAN world uses `lan-53606-20261105` for memory. The launch at 18:26:34
+Eastern (`a6a138c`) started empty-handed and earned the story root, A Seedy Place,
+Stone Age and Getting an Upgrade without staged supplies or commands. The 18:29:45
+restart (`646ae27`) recovered all four from server packets and continued the same
+descent. A sandbox-denied connection exposed a second error during teardown:
+Mineflayer had not installed `clearControlStates` yet. The regression reproduces
+the lifecycle failure and a repeat of the sandbox-denied launch exits cleanly.
+
+## F041 — Fuel-starved iron jobs and obstructed shelter roofs
+
+`646ae27` records when a furnace with raw iron has no active or queued fuel.
+When ingots are needed, the planner gathers coal before returning, including for
+the first ingot and when the furnace is out of local reach. It still collects
+partial output, caps the on-site smelt wait at five seconds and checks for
+cancellation before transfers. Existing single-job records remain readable.
+In the 18:29:45 run the bot made charcoal, started two iron at 18:31:58,
+mined four more raw iron while it ran, and collected both ingots at 18:32:22
+Eastern. The server confirmed Acquire Hardware. The empty-fuel recovery path
+still needs a live trial.
+
+The prior world's final run failed twelve times at the same open roof cell.
+`14546ef` reproduces its error with a non-solid block in the fixed east support
+cell. The bot now checks up to four wall-top supports and still verifies the
+enclosure. The old log lacks the support block's identity, so the obstruction
+repro establishes one possible cause for the old failure.
+
+## F042 — A loaded furnace disappeared during mining
+
+At 18:32:36 Eastern, `646ae27` loaded four raw iron at (16,50,21). During the
+following `gather_iron` action, the bot picked up a furnace and five raw iron.
+After reconnecting, `14546ef` found the remembered station gone. The recovered
+items point to the bot breaking it. Both generic pathfinder digging and direct
+tunneling accepted furnaces, so the exact dig path is uncertain. Both now protect
+furnaces, barrels and chests. Explicit station reclaim and vault migration still
+use their own dig paths. The first return climb stalled at (1,63,25) even after a
+shaft repair and reverted to carving a new staircase.

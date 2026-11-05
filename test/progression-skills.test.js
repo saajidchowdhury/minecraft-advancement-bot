@@ -28,6 +28,16 @@ test('stair mining rejects liquid, falling blocks, missing support and unloaded 
     assert.equal(safeTunnelStep(noFloor, feet, target), false)
 })
 
+test('tunneling routes around a furnace or storage container without discarding adjacent dry steps', () => {
+    const feet = new Vec3(0, 64, 0)
+    const target = feet.offset(1, 0, 0)
+    for (const name of ['furnace', 'barrel', 'chest']) {
+        const bot = world(new Map([[target.toString(), name]]))
+        assert.equal(safeTunnelStep(bot, feet, target), false)
+        assert.equal(safeTunnelStep(bot, feet, feet.offset(0, 0, 1)), true)
+    }
+})
+
 test('portal blueprint uses ten distinct obsidian blocks around a clear 2x3 interior', () => {
     const origin = new Vec3(0, 64, 0)
     const frame = portalFrame(origin)

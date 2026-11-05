@@ -7,6 +7,7 @@ const { exploreCave, collectOpportunity, safeFooting, dryMovements, rememberOre,
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
 
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
+const PROTECTED_CONTAINERS = new Set(['furnace', 'barrel', 'chest'])
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -54,7 +55,8 @@ function safeTunnelStep(bot, feet, target, allowFloorPlacement = false) {
     }
     for (const p of cells) {
         const block = bot.blockAt(p, false)
-        if (!block || HAZARDS.has(block.name) || (block.boundingBox !== 'empty' && !block.diggable)) {
+        if (!block || HAZARDS.has(block.name) || PROTECTED_CONTAINERS.has(block.name) ||
+            (block.boundingBox !== 'empty' && !block.diggable)) {
             return false
         }
         for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]]) {
@@ -382,7 +384,7 @@ async function followShaft(c, direction) {
                     : [next.offset(0, 2, 0), next.offset(0, 1, 0), next]
                 for (const p of cellsToClear) {
                     const block = bot.blockAt(p, false)
-                    if (block && block.boundingBox !== 'empty' && bot.canDigBlock(block)) {
+                    if (block && block.boundingBox !== 'empty' && !PROTECTED_CONTAINERS.has(block.name) && bot.canDigBlock(block)) {
                         const tool = miningPickaxe(c, block)
                         if (tool) {
                             await bot.equip(tool, 'hand')
@@ -1053,4 +1055,4 @@ async function performProgression(c, action, state) {
     }
 }
 
-module.exports = { armorUpgrades, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep }
+module.exports = { armorUpgrades, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS }
