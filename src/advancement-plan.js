@@ -71,6 +71,9 @@ function resourceAction(state, costs) {
         if (state.smeltReady || (state.pendingSmelt && state.hasSmeltingFuel)) {
             return 'smelt_iron'
         }
+        if (state.smeltNeedsFuel) {
+            return 'gather_coal'
+        }
         // The furnace works on its own; keep mining iron nearby until the job is ready.
         if (state.smeltRunning) {
             return 'gather_iron'
@@ -109,13 +112,13 @@ function nextAdvancement(state) {
         return craft(state, state.cobblestone < 3 ? 'minecraft:story/mine_stone' : 'minecraft:story/upgrade_tools',
             'stone_pickaxe', 'craft_stone_pickaxe')
     }
-    if (!state.hasFurnace) {
+    if (!state.hasFurnace && !state.smeltReady && !state.smeltRunning && !state.smeltNeedsFuel) {
         return craft(state, 'prep:furnace', 'furnace', 'craft_furnace')
     }
     if (!state.hasIronPickaxe) {
-        if (state.ironIngots === 0 && state.rawIron > 0 && !state.completedAdvancements?.has('minecraft:story/smelt_iron')) {
-            const action = state.hasSmeltingFuel ? 'smelt_iron' :
-                (state.logs >= 2 || (state.logs >= 1 && state.planks >= 2) ? 'smelt_charcoal' : 'gather_wood')
+        if (state.ironIngots === 0 && (state.rawIron > 0 || state.smeltReady || state.smeltRunning || state.smeltNeedsFuel) &&
+            !state.completedAdvancements?.has('minecraft:story/smelt_iron')) {
+            const action = resourceAction(state, { ironIngots: 1 })
             return target('minecraft:story/smelt_iron', action, 'retrieve the first iron ingot before collecting more')
         }
         return craft(state, state.ironIngots < 1 ? 'minecraft:story/smelt_iron' : 'minecraft:story/iron_tools',

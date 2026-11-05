@@ -7,6 +7,14 @@ const { Vec3 } = require('vec3')
 const { SurvivalController } = require('../src/survival-bot')
 const { Actions } = require('../src/decision-engine')
 
+test('disconnect before Mineflayer injects its plugins stops the controller cleanly', () => {
+    const bot = new EventEmitter()
+    bot._client = new EventEmitter()
+    bot.loadPlugin = () => {}
+    const controller = new SurvivalController(bot, { log: { warn() {} } })
+    assert.doesNotThrow(() => controller.stop())
+})
+
 function shelterWorld() {
     const blocks = new Map()
     const c = {

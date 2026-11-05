@@ -160,6 +160,9 @@ function smeltJobState (c) {
     if (!job || job.dimension !== c.bot.game.dimension) {
         return { smeltRunning: false, smeltReady: false }
     }
+    if (job.needsFuel) {
+        return { smeltRunning: false, smeltReady: c.hasAnyItem(['coal', 'charcoal']), smeltNeedsFuel: true }
+    }
     const far = c.bot.entity.position.distanceTo(new Vec3(job.x, job.y, job.z)) > 48
     const ready = Date.now() >= job.readyAt || far
     return { smeltRunning: !ready, smeltReady: ready }
@@ -1316,9 +1319,13 @@ class SurvivalController {
             throw new Error(`smelting furnace at ${position} is gone`)
         }
         const furnace = await this.bot.openFurnace(block)
+        const burning = () => furnace.fuel > 0 || this.bot.blockAt(position)?.getProperties?.().lit === true
         let finished = false
         try {
-            await until(this, () => !furnace.inputItem(), Math.max(0, job.readyAt - Date.now()) + 5000).catch(() => {})
+            if (!job.needsFuel && (burning() || furnace.fuelItem())) {
+                await until(this, () => !furnace.inputItem(), 5000).catch(() => {})
+            }
+            this.checkAction()
             if (furnace.outputItem()) {
                 await furnace.takeOutput()
             }
@@ -1329,19 +1336,23 @@ class SurvivalController {
                 finished = true
                 this.memory.smeltJob = null
             } else {
-                // Input left with no fuel would never finish and draw the bot back forever.
                 const left = furnace.inputItem().count
-                const fuel = this.bestItem(['coal', 'charcoal'])
-                if (!furnace.fuelItem() && !(furnace.fuel > 0) && fuel) {
-                    await furnace.putFuel(fuel.type, fuel.metadata, Math.min(Math.ceil(left / 8), this.countItems([fuel.name])))
-                }
                 job.count = left
+                job.needsFuel = !furnace.fuelItem() && !burning()
+                if (job.needsFuel) {
+                    const fuel = this.bestItem(['coal', 'charcoal'])
+                    if (fuel) {
+                        await furnace.putFuel(fuel.type, fuel.metadata, Math.min(Math.ceil(left / 8), this.countItems([fuel.name])))
+                        job.needsFuel = false
+                    }
+                }
                 job.readyAt = Date.now() + left * 10000 + 1000
             }
         } finally {
             await this.bot.closeWindow(furnace).catch(() => {})
         }
-        this.log.info(`Collected smelted iron at ${position}; ${finished ? 'job complete' : 'input still smelting'}.`)
+        const status = finished ? 'job complete' : job.needsFuel ? 'input waiting for fuel' : 'input still smelting'
+        this.log.info(`Checked iron smelt at ${position}; ${status}.`)
         if (finished && !this.hasItem('raw_iron') && this.running && !this.actionAbort?.signal.aborted) {
             await this.reclaimStation(block).catch(error => this.log.warn(`Could not reclaim furnace: ${error.message}`))
         }
@@ -2117,7 +2128,7 @@ class SurvivalController {
 
     clearCurrentTask () {
         this.actionAbort?.abort()
-        this.bot.clearControlStates()
+        this.bot.clearControlStates?.()
         this.bot.deactivateItem?.()
         if (this.bot.currentWindow) {
             this.bot.closeWindow(this.bot.currentWindow).catch(() => {})

@@ -6,6 +6,11 @@ const { Vec3 } = require('vec3')
 const { SurvivalController } = require('../src/survival-bot')
 const { nextAdvancement } = require('../src/advancement-plan')
 
+const ironPickGoal = {
+    hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true,
+    cobblestone: 8, planks: 4, sticks: 2, ironIngots: 0, rawIron: 1
+}
+
 function smelter(raw = 11, coal = 5) {
     const inv = { raw_iron: raw, coal, iron_ingot: 0 }
     const furnaceState = { input: null, fuel: null, output: null }
@@ -20,7 +25,7 @@ function smelter(raw = 11, coal = 5) {
     const c = {
         memory: { pendingSmelt: true }, running: true, actionAbort: new AbortController(), log: { info() {}, warn() {} },
         bot: {
-            game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) },
+            game: { dimension: 'overworld' }, health: 20, entity: { position: new Vec3(0.5, 64, 0.5) },
             openFurnace: async () => furnace, closeWindow: async () => {}, blockAt: () => furnaceBlock
         },
         getFurnace: async () => furnaceBlock, reclaimed: 0,
@@ -29,6 +34,7 @@ function smelter(raw = 11, coal = 5) {
         countItems: names => names.reduce((n, name) => n + (inv[name] || 0), 0),
         hasItem: name => inv[name] > 0, gotoWithTimeout: async () => {}
     }
+    c.checkAction = SurvivalController.prototype.checkAction.bind(c)
     c.collectSmelt = SurvivalController.prototype.collectSmelt.bind(c)
     return { c, inv, furnaceState }
 }
@@ -118,4 +124,30 @@ test('a job whose fuel ran out is refuelled and rescheduled instead of revisited
     assert.equal(furnaceState.fuel.count, 3)
     assert.equal(c.memory.smeltJob.count, 22)
     assert.ok(c.memory.smeltJob.readyAt > Date.now() + 200000)
+})
+
+test('a fuel-starved job keeps its input and is marked for fuel after collecting partial output', async () => {
+    const { c, inv, furnaceState } = smelter(0, 0)
+    c.memory.smeltJob = { dimension: 'overworld', x: 3, y: 64, z: 0, count: 30, readyAt: Date.now() - 1 }
+    furnaceState.input = { name: 'raw_iron', count: 22 }
+    furnaceState.output = { name: 'iron_ingot', count: 8 }
+    await SurvivalController.prototype.smeltIron.call(c)
+    assert.equal(inv.iron_ingot, 8)
+    assert.equal(furnaceState.input.count, 22)
+    assert.equal(c.memory.smeltJob.count, 22)
+    assert.equal(c.memory.smeltJob.needsFuel, true)
+    inv.coal = 3
+    await SurvivalController.prototype.smeltIron.call(c)
+    assert.equal(furnaceState.fuel.count, 3)
+    assert.equal(c.memory.smeltJob.needsFuel, false)
+})
+
+test('the first-iron goal gathers coal for a stalled job even if the furnace was left behind', () => {
+    const stalled = { ...ironPickGoal, hasFurnace: false, smeltNeedsFuel: true, hasSmeltingFuel: false }
+    assert.equal(nextAdvancement(stalled).action, 'gather_coal')
+    assert.equal(nextAdvancement({ ...stalled, hasSmeltingFuel: true, smeltReady: true }).action, 'smelt_iron')
+})
+
+test('the first-iron goal leaves a running furnace to work even after gathering more raw iron', () => {
+    assert.equal(nextAdvancement({ ...ironPickGoal, hasFurnace: true, smeltRunning: true }).action, 'gather_iron')
 })
