@@ -7,11 +7,11 @@ stable; correct or qualify an old finding when new evidence changes it.
 ## Current handoff
 
 Updated 2026-11-05 ~14:01 Eastern. Bot is RUNNING on LAN port 51718, PID 36683, code
-`de766af`, code `03561b5`, rebuilding after eight deaths today (F023, F025–F030). Verify PID and connection before stopping it; `pgrep -f src/index.js`
+`de766af`, code `6f077df` (PID 39984), rebuilding after nine deaths today (F023, F025–F031). Verify PID and connection before stopping it; `pgrep -f src/index.js`
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 164 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 166 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -539,3 +539,17 @@ escape; in a cave the zombie hit it every second and the sword was never swung.
 `03561b5` fights an attacker within 3.5 blocks before eating (healthy, armed) and, with
 12+ worn armor points, duels a lone melee attacker to 4 hp. After respawning at night
 the emergency burrow was verified live for the first time (19:51:42Z at the bed).
+
+## F031 — First fights back, mid-range archers and the off-centre burrow [live + regression]
+
+20:13:04Z (`03561b5`): a zombie hit for 3 and the bot chose fight at once (F030's
+rule, first live use); the zombie left the threat list. A skeleton 8–11 blocks away
+then shot it from 17 to 9.3 hp while it mined and crafted, since ranged damage never
+interrupted work. At 9.3 hp it sealed four openings toward the skeleton (live cover),
+then fled and died (death 9, 20:13:50Z). `c312ff8` lets damage from a visible archer
+within 16 blocks interrupt and charges a lone archer within 12 blocks above 10 hp.
+
+After respawn the burrow failed ('descent ended at -96,73,54'): an off-centre bot
+rests on the neighbouring block's edge. `980d0f7` steps into the dug cell; a burrow
+was then verified at 20:14:16Z. The regression models neighbour support and fails on
+the pre-fix source. Nine deaths today.
