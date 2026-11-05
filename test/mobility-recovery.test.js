@@ -68,3 +68,18 @@ test('safe movements prohibit generic A-star from mining straight down', () => {
     assert.deepEqual(neighbors, [])
     assert.equal(movements.canDig, true)
 })
+
+test('a two-deep pit inside roofless shelter walls has a one-step exit', () => {
+    // Live respawn 16:27:41Z at a bed: feet y=0 in a 1x1 hole, dirt/grass walls at y=0..1, flat ground beyond.
+    const bot = {
+        blockAt (p) {
+            const ring = Math.max(Math.abs(p.x), Math.abs(p.z))
+            const solid = p.y < 0 || (ring === 1 && p.y <= 1) || (ring >= 2 && p.y === 0) || (ring === 0 && p.y < 0)
+            return { name: solid ? 'dirt' : 'air', boundingBox: solid ? 'block' : 'empty', diggable: solid, position: p }
+        }
+    }
+    const score = SurvivalController.prototype.stairDirectionScore.call({ bot }, new Vec3(0, 0, 0), 1, 0, 8)
+    assert.equal(score, 1)
+    const floating = { blockAt: p => ({ name: p.y < 0 || (p.x === 1 && p.y <= 1) ? 'dirt' : 'air', boundingBox: p.y < 0 || (p.x === 1 && p.y <= 1) ? 'block' : 'empty', diggable: true, position: p }) }
+    assert.equal(SurvivalController.prototype.stairDirectionScore.call({ bot: floating }, new Vec3(0, 0, 0), 1, 0, 8), Infinity)
+})

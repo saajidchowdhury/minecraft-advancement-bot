@@ -768,7 +768,10 @@ class SurvivalController {
             const targetFeet = start.offset(dx * step, step, dz * step)
             const support = this.bot.blockAt(targetFeet.offset(0, -1, 0), false)
             if (!support || support.boundingBox === 'empty' || ['water', 'lava'].includes(support.name)) {
-                return Infinity
+                // A shallow pit ends at its rim: open, supported level ground beyond the last step is an exit.
+                const level = targetFeet.offset(0, -1, 0)
+                const open = [level, level.offset(0, 1, 0)].every(p => this.bot.blockAt(p, false)?.boundingBox === 'empty')
+                return step > 1 && open && this.bot.blockAt(level.offset(0, -1, 0), false)?.boundingBox === 'block' ? score : Infinity
             }
             const spaces = [targetFeet, targetFeet.offset(0, 1, 0)]
                 .map(position => this.bot.blockAt(position, false))
