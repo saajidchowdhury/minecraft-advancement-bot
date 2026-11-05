@@ -1270,17 +1270,22 @@ class SurvivalController {
             const count = Math.min(64 - (furnace.inputItem()?.count || 0), this.countItems(['raw_iron']))
             await furnace.putInput(rawIron.type, rawIron.metadata, count)
             const total = furnace.inputItem()?.count || count
-            // One coal or charcoal smelts eight items.
-            const fuelNeeded = Math.ceil(total / 8) - (furnace.fuelItem()?.count || 0)
-            if (fuelNeeded > 0) {
-                const fuel = this.bestItem(['coal', 'charcoal'])
-                if (!fuel) {
+            const p = furnaceBlock.position
+            // Record before fuelling: a fuel error once left 30 raw iron in an unremembered furnace.
+            this.memory.smeltJob = { dimension: this.bot.game.dimension, x: p.x, y: p.y, z: p.z, count: total, readyAt: Date.now() + total * 10000 + 1000 }
+            const present = furnace.fuelItem()
+            // One coal or charcoal smelts eight items; other fuel already in the slot is used as is.
+            const fuelNeeded = Math.ceil(total / 8) - (['coal', 'charcoal'].includes(present?.name) ? present.count : 0)
+            if (fuelNeeded > 0 && (!present || ['coal', 'charcoal'].includes(present.name))) {
+                const fuel = this.bestItem(present ? [present.name] : ['coal', 'charcoal'])
+                if (!fuel && !present) {
                     throw new Error('coal or charcoal is missing')
                 }
-                await furnace.putFuel(fuel.type, fuel.metadata, Math.min(fuelNeeded, this.countItems([fuel.name])))
+                if (fuel) {
+                    await furnace.putFuel(fuel.type, fuel.metadata, Math.min(fuelNeeded, this.countItems([fuel.name])))
+                        .catch(error => this.log.warn(`Could not add fuel: ${error.message}`))
+                }
             }
-            const p = furnaceBlock.position
-            this.memory.smeltJob = { dimension: this.bot.game.dimension, x: p.x, y: p.y, z: p.z, count: total, readyAt: Date.now() + total * 10000 + 1000 }
             this.log.info(`Smelting ${total} raw iron at ${p}; continuing work until about ${Math.ceil(total * 10)} s from now.`)
         } finally {
             await this.bot.closeWindow(furnace).catch(() => {})
@@ -1839,7 +1844,18 @@ class SurvivalController {
         if (!current || current.name !== station.name) {
             return
         }
-        await this.collectTarget(current, current, 'workstation')
+        // The pathfinder's movement rules refuse to break furnaces and chests, so dig directly.
+        if (this.bot.entity.position.distanceTo(current.position.offset(0.5, 0.5, 0.5)) > 4) {
+            await this.gotoWithTimeout(new GoalNear(current.position.x, current.position.y, current.position.z, 2), 8000, 'workstation approach')
+        }
+        await this.bot.tool?.equipForBlock?.(current, { requireHarvest: true, getFromChest: false }).catch(() => {})
+        await this.bot.dig(current, true)
+        await this.bot.waitForTicks(6)
+        const drop = Object.values(this.bot.entities || {}).find(e => e.isValid && e.name === 'item' && e.position.distanceTo(current.position.offset(0.5, 0, 0.5)) <= 3)
+        if (drop) {
+            const p = drop.position.floored()
+            await this.gotoWithTimeout(new GoalNear(p.x, p.y, p.z, 0), 4000, 'workstation pickup').catch(() => {})
+        }
         this.memory.ownedStations.delete(key)
     }
 

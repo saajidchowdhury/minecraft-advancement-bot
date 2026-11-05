@@ -68,3 +68,41 @@ test('the planner keeps mining while a job runs and collects once ready', () => 
     assert.equal(nextAdvancement({ ...state, smeltReady: true }).action, 'smelt_iron')
     assert.equal(nextAdvancement({ ...state, rawIron: 8 }).action, 'smelt_iron')
 })
+
+test('a fuel slot already holding planks does not stop the job from being recorded', async () => {
+    const { c, inv, furnaceState } = smelter(30, 5)
+    furnaceState.fuel = { name: 'oak_planks', count: 2 }
+    await SurvivalController.prototype.smeltIron.call(c)
+    assert.equal(inv.raw_iron, 0)
+    assert.equal(c.memory.smeltJob.count, 30)
+    assert.equal(furnaceState.fuel.name, 'oak_planks')
+})
+
+test('an existing coal stack in the fuel slot is topped up with coal', async () => {
+    const { c, furnaceState } = smelter(30, 5)
+    furnaceState.fuel = { name: 'coal', count: 1 }
+    let added = 0
+    const furnace = await c.bot.openFurnace()
+    furnace.putFuel = async (type, meta, count) => { added = count; furnaceState.fuel.count += count }
+    await SurvivalController.prototype.smeltIron.call(c)
+    assert.equal(added, 3)
+    assert.ok(c.memory.smeltJob)
+})
+
+test('reclaiming a placed furnace digs it directly instead of through collectTarget', async () => {
+    let dug = false
+    const station = { name: 'furnace', position: new Vec3(1, 64, 0) }
+    const c = {
+        memory: { ownedStations: new Set(['overworld:1,64,0']) },
+        targetKey: block => `${block.position.x},${block.position.y},${block.position.z}`,
+        collectTarget: async () => { throw new Error('unsafe block to mine: furnace') },
+        gotoWithTimeout: async () => {},
+        bot: {
+            game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) }, entities: {},
+            blockAt: () => station, dig: async () => { dug = true }, waitForTicks: async () => {}
+        }
+    }
+    await SurvivalController.prototype.reclaimStation.call(c, station)
+    assert.equal(dug, true)
+    assert.equal(c.memory.ownedStations.size, 0)
+})
