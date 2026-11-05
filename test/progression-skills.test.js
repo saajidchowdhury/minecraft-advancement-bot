@@ -215,3 +215,12 @@ test('without any pickaxe the bot can still hand-dig a staircase upward but not 
         }
     }
 })
+
+test('tunnel digging prefers an iron pick over a slow wooden pick when no stone pick remains', () => {
+    const { miningPickaxe } = require('../src/progression-skills')
+    const held = ['wooden_pickaxe', 'iron_pickaxe', 'diamond_pickaxe']
+    const c = { bestItem: names => held.includes(names[0]) ? { name: names[0], type: 1 } : null }
+    assert.equal(miningPickaxe(c).name, 'iron_pickaxe')
+    held.push('stone_pickaxe')
+    assert.equal(miningPickaxe(c).name, 'stone_pickaxe')
+})

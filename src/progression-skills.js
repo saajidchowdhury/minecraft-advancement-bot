@@ -68,7 +68,8 @@ function safeTunnelStep(bot, feet, target, allowFloorPlacement = false) {
 }
 
 function miningPickaxe(c, block = null) {
-    for (const name of ['stone_pickaxe', 'wooden_pickaxe', 'iron_pickaxe', 'diamond_pickaxe', 'netherite_pickaxe']) {
+    // Wooden picks mine stone about half as fast and wear out quickly, so iron goes before wood.
+    for (const name of ['stone_pickaxe', 'iron_pickaxe', 'wooden_pickaxe', 'diamond_pickaxe', 'netherite_pickaxe']) {
         const item = c.bestItem([name])
         if (item && (!block || block.canHarvest(item.type))) {
             return item

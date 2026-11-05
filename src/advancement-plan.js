@@ -117,7 +117,9 @@ function nextAdvancement(state) {
         return craft(state, state.ironIngots < 1 ? 'minecraft:story/smelt_iron' : 'minecraft:story/iron_tools',
             'iron_pickaxe', 'craft_iron_pickaxe')
     }
-    if (state.hasStoneUtilityPickaxe === false) {
+    // A stone work pick spares iron only while iron is scarce (F005); with iron banked, the 38
+    // stone picks and 8 surface wood trips of 2026-11-05 cost more than iron pick wear.
+    if (state.hasStoneUtilityPickaxe === false && (state.ironIngots || 0) + (state.rawIron || 0) < 6) {
         return craft(state, 'prep:stone work pickaxe', 'stone_pickaxe', 'craft_stone_pickaxe')
     }
     if (!state.hasIronArmor) {

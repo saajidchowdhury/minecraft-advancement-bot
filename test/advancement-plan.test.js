@@ -87,3 +87,9 @@ test('a full iron set and sword precede diamonds; diamond gear follows the picka
     assert.equal(nextAdvancement({ ...ironed, hasDiamondPickaxe: true, gear: diamondSword, diamonds: 4 }).item, 'diamond_boots')
     assert.equal(nextAdvancement({ ...established, diamondsArmorUpgrade: true, armorUpgrade: true }).action, 'equip_armor')
 })
+
+test('a stone work pick is only required while iron is scarce', () => {
+    const base = { ...established, hasStoneUtilityPickaxe: false, ironIngots: 0, rawIron: 0 }
+    assert.equal(nextAdvancement(base).item, 'stone_pickaxe')
+    assert.notEqual(nextAdvancement({ ...base, ironIngots: 4, rawIron: 3 }).item, 'stone_pickaxe')
+})
