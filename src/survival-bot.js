@@ -459,8 +459,10 @@ class SurvivalController {
         } finally {
             this.busy = false
             if (this.running) {
-                this.scheduleLoop()
+                // A lit creeper explodes 1.5 s after swelling; threat cancellations replan at once.
+                this.scheduleLoop(this.urgentReplan ? 100 : 1500)
             }
+            this.urgentReplan = false
         }
     }
 
@@ -1979,6 +1981,7 @@ class SurvivalController {
 
     cancelCurrentTask (reason) {
         this.log.warn(`Cancelling current task: ${reason}`)
+        this.urgentReplan = /creeper|attacked|critical health|night damage|sheltered/.test(reason)
         this.actionAbort?.abort()
         if (this.activeCollection && /(is stuck|timed out|memory guard)/.test(reason)) {
             this.rememberBlockedTarget(

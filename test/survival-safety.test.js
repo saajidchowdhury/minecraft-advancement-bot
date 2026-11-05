@@ -423,3 +423,19 @@ test('plank preparation grows one wood type when mixed planks cannot fill a reci
     await SurvivalController.prototype.ensurePlanks.call(c, 6)
     assert.deepEqual(crafted, ['birch_planks'])
 })
+
+test('threat cancellations replan within 100 ms instead of the routine 1.5 s', async () => {
+    const delays = []
+    const c = {
+        running: true, paused: false, busy: false, followPlayer: null, failures: new Map(),
+        bot: { entity: { position: new Vec3(0, 64, 0) }, health: 20, food: 20 }, log: { info() {}, warn() {} },
+        observe() { throw new Error('perception fault') }, nearestEntity: () => null,
+        async performWithTimeout() { c.cancelCurrentTask('creeper approaching') },
+        scheduleLoop(delay) { delays.push(delay) }, clearCurrentTask() {}
+    }
+    c.cancelCurrentTask = SurvivalController.prototype.cancelCurrentTask.bind(c)
+    await SurvivalController.prototype.tick.call(c)
+    c.performWithTimeout = async () => {}
+    await SurvivalController.prototype.tick.call(c)
+    assert.deepEqual(delays, [100, 1500])
+})
