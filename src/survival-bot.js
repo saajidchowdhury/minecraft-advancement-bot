@@ -211,12 +211,18 @@ class SurvivalController {
                 const sameRecovery = previous && previous.dimension === this.bot.game.dimension &&
                     Date.now() - previous.diedAt < RECOVERY_WINDOW_MS &&
                     Math.hypot(position.x - previous.x, position.y - previous.y, position.z - previous.z) <= 16
+                const near = Object.values(this.bot.entities || {}).filter(e => e.isValid && HOSTILES.has(e.name))
+                    .map(e => ({ name: e.name, distance: position.distanceTo(e.position) }))
+                // A fresh respawn cannot win where a crowd or an archer just killed a geared bot.
+                const dangerous = near.filter(e => e.distance <= 12).length >= 2 || near.some(e => ARCHERS.has(e.name) && e.distance <= 16)
                 this.memory.lastDeath = {
                     x: Math.floor(position.x), y: Math.floor(position.y), z: Math.floor(position.z),
                     diedAt: sameRecovery ? previous.diedAt : Date.now(),
-                    attempts: sameRecovery ? previous.attempts : 0, dimension: this.bot.game.dimension
+                    attempts: sameRecovery ? previous.attempts : 0, dimension: this.bot.game.dimension,
+                    dangerous: dangerous || Boolean(sameRecovery && previous.dangerous)
                 }
-                this.log.warn(`Remembered death position ${this.memory.lastDeath.x},${this.memory.lastDeath.y},${this.memory.lastDeath.z}; dropped items will be prioritized after respawn.`)
+                this.log.warn(`Remembered death position ${this.memory.lastDeath.x},${this.memory.lastDeath.y},${this.memory.lastDeath.z}; ` +
+                    (dangerous ? 'threats remain there, so the drops will not be recovered.' : 'dropped items will be prioritized after respawn.'))
             }
             this.runStats?.deaths.push({ at: new Date().toISOString(), position: this.memory.lastDeath })
             this.log.warn('Bot died; it will resume after respawning.')
@@ -506,7 +512,7 @@ class SurvivalController {
             shaftTrapped: this.detectVerticalShaft(),
             elevationTrapped: Boolean(this.detectElevationTrap()),
             // Without a pickaxe a drop far above or below cannot be reached in time; rebuild instead.
-            recoveryAvailable: Boolean(lastDeath && lastDeath.dimension === this.bot.game.dimension && recoveryAge < RECOVERY_WINDOW_MS && lastDeath.attempts < 3 &&
+            recoveryAvailable: Boolean(lastDeath && !lastDeath.dangerous && lastDeath.dimension === this.bot.game.dimension && recoveryAge < RECOVERY_WINDOW_MS && lastDeath.attempts < 3 &&
                 (hasWoodPickNow || Math.abs(lastDeath.y - this.bot.entity.position.y) <= 12)),
             recoverySecondsLeft: lastDeath ? Math.max(0, Math.floor((RECOVERY_WINDOW_MS - recoveryAge) / 1000)) : 0,
             logs: this.countMatching(name => LOG_SUFFIXES.some(suffix => name.endsWith(suffix))),

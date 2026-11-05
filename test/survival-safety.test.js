@@ -390,3 +390,19 @@ test('a visible archer is fled until out of sight, not just a fixed distance', a
     await SurvivalController.prototype.takeCover.call(c, skeleton, 24)
     assert.equal(legs, 2)
 })
+
+test('a death among archers or a crowd is marked dangerous and its drops are not recovered', () => {
+    const bot = new EventEmitter()
+    bot.health = 20
+    bot.game = { dimension: 'overworld' }
+    bot.entity = { position: new Vec3(-154, 67, 31) }
+    bot.entities = { 1: { name: 'skeleton', isValid: true, position: new Vec3(-152, 67, 31) } }
+    const c = { bot, memory: {}, log: { warn() {} }, cancelCurrentTask() {} }
+    SurvivalController.prototype.bindEvents.call(c)
+    bot.emit('death')
+    assert.equal(c.memory.lastDeath.dangerous, true)
+    bot.entities = { 1: { name: 'zombie', isValid: true, position: new Vec3(-140, 67, 31) } }
+    c.memory = {}
+    bot.emit('death')
+    assert.equal(c.memory.lastDeath.dangerous, false)
+})
