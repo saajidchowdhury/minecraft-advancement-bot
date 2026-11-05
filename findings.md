@@ -11,7 +11,7 @@ Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 41971, 
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 200 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 201 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -684,3 +684,10 @@ clears a blocked adjacent step in any direction once before forgetting. Logs sho
 stone pickaxes and 8 stick-driven surface trips today, and a carried wooden pick dug
 tunnels before the iron one; `0069f45` requires a stone work pick only below 6 iron
 (ingots plus raw) and orders iron before wood for digging.
+
+Pre-Nether review (`2b16f72`): the route ended by waiting beside the arrival portal with
+no Nether skills or gold armor, risking gear in the Nether, and the planner then idled.
+The bot now steps out of the arrival portal and back in once enter_the_nether is
+confirmed, and after the route mines diamonds toward a full diamond set before waiting.
+Async smelting live: at 22:45:03Z (`0069f45`) a job of 3 raw iron started and the bot kept
+working; collection not yet observed.
