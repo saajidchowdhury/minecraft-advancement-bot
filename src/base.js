@@ -283,10 +283,17 @@ async function migrateBase(c) {
         }
     })
     const chest = bot.blockAt(new Vec3(base.chest.x, base.chest.y, base.chest.z), false)
-    if (chest?.name === 'chest') {
-        await c.collectTarget(chest, chest, 'old base chest')
-    }
     c.memory.base = null
+    if (chest?.name === 'chest') {
+        // The pathfinder's movement rules refuse to break chests, so collectTarget cannot be used.
+        await bot.dig(chest, true)
+        await bot.waitForTicks(6)
+        const drop = Object.values(bot.entities || {}).find(e => e.isValid && e.name === 'item' && e.position.distanceTo(chest.position.offset(0.5, 0, 0.5)) <= 3)
+        if (drop) {
+            const p = drop.position.floored()
+            await c.gotoWithTimeout(new goals.GoalNear(p.x, p.y, p.z, 0), 4000, 'chest pickup').catch(() => {})
+        }
+    }
     c.log.info('Emptied the exposed surface base; a sealed underground vault will replace it.')
 }
 

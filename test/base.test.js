@@ -113,11 +113,14 @@ test('migrating an exposed surface base empties the chest, picks it up and clear
     const { migrateBase } = require('../src/base')
     const items = []
     const { c } = chestWorld(items, { diamond: 4, iron_ingot: 9 })
-    let collected = false
-    c.collectTarget = async () => { collected = true }
+    let dug = false
+    c.collectTarget = async () => { throw new Error('unsafe block to mine: chest') }
+    c.bot.dig = async () => { dug = true }
+    c.bot.waitForTicks = async () => {}
+    c.bot.entities = {}
     await migrateBase(c)
     assert.deepEqual(items.map(i => [i.name, i.count]).sort(), [['diamond', 4], ['iron_ingot', 9]])
-    assert.equal(collected, true)
+    assert.equal(dug, true)
     assert.equal(c.memory.base, null)
 })
 
