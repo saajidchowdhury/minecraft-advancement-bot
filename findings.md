@@ -11,7 +11,7 @@ Updated 2026-11-05 ~15:16 Eastern. Bot is RUNNING on LAN port 51718, PID 41971, 
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 207 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 213 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -717,3 +717,20 @@ after every visit, and a torch at the tunnel spot. An existing surface chest is 
 day, picked up, and its items go to the next vault. Vault visits are allowed at night
 underground. Five regressions cover site rules, decisions, the open/reseal sequence and
 migration; live vault construction is pending.
+
+## F039 — Vault container and forgotten furnace iron [user reports + regression]
+
+User reports: (1) the vault chest had a dirt block above it and could not open; deposit
+hung until the stuck watchdog reset the bot about every 25 s. A chest needs a non-solid
+block on top, which the vault roof forbids. `38eb7a1` uses a barrel (opens fully enclosed;
+six planks and two slabs), migrates chest vaults by digging the block above first, and puts
+the doorway torch on a wall at head height. Live: the chest vault was emptied and removed
+at 23:12:00Z; the barrel vault awaits nine planks. (2) About 30 raw iron sat in a furnace
+at (-283,68,-150) the bot did not remember: at 22:43:02Z the input went in, then putFuel
+failed ('destination full', planks left by a charcoal attempt) before the job was saved.
+`22570d1` saves the job right after the input, uses existing fuel and tolerates fuel
+errors; reclaiming furnaces/tables digs them directly (the pathfinder refuses to break
+furnaces). The lost job was restored in memory by hand (operator action, overwriting a
+newer 2-iron job — memory holds one job); the bot collected 8 ingots at 23:12:17Z and the
+fuel had run out, so `3fa8dc0` refuels and reschedules a stalled job. Follow-up: support
+several smelt jobs at once.
