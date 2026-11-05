@@ -67,6 +67,9 @@ function chooseAction (state) {
         return 'clear_inventory'
     }
     const action = state.sideGoal?.action || nextAdvancement(state).action
+    if (!state.underground && ['gather_diamonds', 'gather_redstone', 'gather_obsidian'].includes(action) && state.foodUnits < 12) {
+        return Actions.FOOD
+    }
     if (state.underground && ['gather_wood', 'gather_food', 'enter_nether', 'build_redstone'].includes(action)) {
         return 'return_surface'
     }

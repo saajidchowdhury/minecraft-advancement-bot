@@ -3,6 +3,7 @@
 const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { discardableStack } = require('./inventory')
+const { exploreCave, collectOpportunity, safeFooting, dryMovements } = require('./cave-exploration')
 const { RECIPES, nextAdvancement, resourceAction } = require('./advancement-plan')
 
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
@@ -276,7 +277,11 @@ async function gatherDeep(c, names) {
     if (block) {
         return c.collectTarget(block, block, block.name)
     }
-    return mineTunnel(c, bot.game.minY < 0 ? -54 : 11)
+    const targetY = bot.game.minY < 0 ? -54 : 11
+    if (await collectOpportunity(c, names) || await exploreCave(c, targetY)) {
+        return
+    }
+    return mineTunnel(c, targetY)
 }
 
 async function craftProgression(c, item) {
@@ -632,19 +637,75 @@ async function returnSurface(c) {
     }
 }
 
+async function clearInventory(c) {
+    const bot = c.bot
+    const item = discardableStack(bot.inventory.items())
+    if (!item) {
+        c.paused = true
+        c.memory.paused = true
+        bot.chat('Inventory full of useful items. Please make room, then use !resume.')
+        return
+    }
+    const signal = c.actionAbort?.signal
+    const start = bot.entity.position.floored()
+    const queue = [{ p: start, path: [] }]
+    const seen = new Set([start.toString()])
+    let retreat = null
+    for (let i = 0; i < queue.length && i < 64 && !retreat; i++) {
+        const node = queue[i]
+        if (Math.hypot(node.p.x - start.x, node.p.z - start.z) >= 3) {
+            retreat = node.path
+            break
+        }
+        if (node.path.length >= 4) {
+            continue
+        }
+        for (const [dx, dz] of DIRECTIONS) {
+            for (const dy of [0, 1, -1]) {
+                const p = node.p.offset(dx, dy, dz)
+                if (seen.has(p.toString()) || !safeFooting(bot, p) ||
+                    (dy !== 0 && !['air', 'cave_air', 'void_air'].includes(bot.blockAt((dy > 0 ? node.p : p).offset(0, 2, 0))?.name))) {
+                    continue
+                }
+                seen.add(p.toString())
+                queue.push({ p, path: [...node.path, p] })
+                break
+            }
+        }
+    }
+    if (!retreat) {
+        throw new Error('no supported disposal retreat; refusing a stationary drop/pickup loop')
+    }
+    const away = start.minus(retreat.at(-1))
+    await bot.lookAt(bot.entity.position.offset(away.x, 1.3, away.z), true)
+    check(c)
+    if (signal?.aborted) {
+        throw new Error('disposal cancelled')
+    }
+    c.log.info(`Freeing inventory space: dropping ${item.count} surplus ${item.name}; retreating ${retreat.length} steps.`)
+    await bot.tossStack(item)
+    check(c)
+    bot.pathfinder.setMovements(dryMovements(bot))
+    try {
+        for (const p of retreat) {
+            check(c)
+            if (signal?.aborted || !safeFooting(bot, p)) {
+                throw new Error('disposal retreat interrupted')
+            }
+            const feet = bot.entity.position.floored()
+            c.memory.mineRoute ??= []
+            c.memory.mineRoute.push({ x: feet.x, y: feet.y, z: feet.z })
+            await c.gotoWithTimeout(new goals.GoalBlock(p.x, p.y, p.z), 3000, 'disposal retreat')
+        }
+    } finally {
+        bot.pathfinder.setGoal(null)
+        bot.pathfinder.setMovements(c.movements)
+    }
+}
+
 async function performProgression(c, action, state) {
     switch (action) {
-        case 'clear_inventory': {
-            const item = discardableStack(c.bot.inventory.items())
-            if (!item) {
-                c.paused = true
-                c.memory.paused = true
-                c.bot.chat('Inventory full of useful items. Please make room, then use !resume.')
-                return
-            }
-            c.log.info(`Freeing inventory space: dropping ${item.count} surplus ${item.name}.`)
-            return c.bot.tossStack(item)
-        }
+        case 'clear_inventory': return clearInventory(c)
         case 'smelt_charcoal': return smeltCharcoal(c)
         case 'craft_progression': {
             const goal = state.sideGoal || nextAdvancement(state)

@@ -86,3 +86,16 @@ test('progresses through the popular early advancement path', () => {
 test('an unarmed recovery does not run through a nearby hostile even at full health', () => {
     assert.equal(chooseAction(state({ recoveryAvailable: true, hostileDistance: 4, hasWeapon: false })), Actions.ESCAPE)
 })
+
+test('deep mining prepares food reserves at the surface without interrupting an underground return', () => {
+    const ready = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true,
+        hasStonePickaxe: true, hasStoneUtilityPickaxe: true, hasFurnace: true, hasIronPickaxe: true,
+        hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true,
+        logs: 3, planks: 4, sticks: 4, diamonds: 0, hasFood: false,
+        completedAdvancements: new Set(['minecraft:story/lava_bucket']) })
+    assert.equal(chooseAction({ ...ready, foodUnits: 0 }), Actions.FOOD)
+    assert.equal(chooseAction({ ...ready, foodUnits: 12 }), 'gather_diamonds')
+    assert.equal(chooseAction({ ...ready, underground: true, foodUnits: 0 }), 'gather_diamonds')
+    assert.equal(chooseAction({ ...ready, underground: true, food: 16, foodUnits: 0 }), 'return_surface')
+    assert.equal(chooseAction({ ...ready, inventoryFull: true }), 'clear_inventory')
+})

@@ -67,6 +67,15 @@ Equipment and ingredient preparation are objectives, not invented Java advanceme
 
 Food, danger, recoverable death drops and night protection can interrupt the route. Mining uses exposed targets and checked staircase steps, avoids removing its own support, and replaces broken tools. Charcoal provides furnace fuel when coal is unavailable. Every eight horizontal tunnel blocks, it looks left and right and opens head-height probes from its current position until reach or safety checks stop it. Exposed ore returns control to resource harvesting. `BOT_PROBE_SPACING=8` sets the interval; `0` disables probing. Eight is a starting value, not a measured optimum.
 
+When no requested ore is exposed, mining also gathers nearby useful ores up to
+small reserve caps for later goals. A supplied and protected bot surveys connected
+large-cave floor before resuming a tunnel, with checked lighting, short supported
+steps, a visit cooldown and a shared exploration budget. Cave surveys disable
+digging and bridging, stop for threats, and append return waypoints. Deep mining
+from the surface first reserves twelve hunger points of carried food. These new
+policies have automated coverage; live cave validation is pending. See
+[cave-opportunities.md](cave-opportunities.md) for researched branches and limits.
+
 Path searches and actions have limits; an operation that refuses cancellation triggers reconnection before another action starts.
 
 ## State and debugging

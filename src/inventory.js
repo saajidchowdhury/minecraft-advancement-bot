@@ -10,8 +10,9 @@ function discardableStack(items) {
     for (const item of items) {
         counts[item.name] = (counts[item.name] || 0) + item.count
     }
-    return items.find(item => Object.hasOwn(RESERVES, item.name) &&
-        counts[item.name] - item.count >= RESERVES[item.name]) || null
+    return items.filter(item => Object.hasOwn(RESERVES, item.name) &&
+        counts[item.name] - item.count >= RESERVES[item.name])
+        .reduce((best, item) => !best || item.count > best.count ? item : best, null)
 }
 
 module.exports = { discardableStack }

@@ -22,7 +22,7 @@ Logs and snapshots are local in outputs/. The run beginning 23:33:29 captured ir
 
 ## Automated checks
 
-`npm run check` and `npm test` pass; the current baseline has 75 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
+`npm run check` and `npm test` pass; the current baseline has 93 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
 
 The inherited Mineflayer patch was applied successfully to reconstructed pristine 4.39.0 craft/inventory sources. Dependency versions are locked. No gameplay result is inferred solely from a passing unit test.
 
@@ -57,3 +57,30 @@ restored nine historical advancements, rebuilt a sword and stone work pick,
 re-equipped a recovered chestplate and resumed iron gathering for the shield.
 That is evidence of recovery/rebuilding behavior, not yet a successful live
 night/damage trial of the revised shelter and escape logic.
+
+
+## Cave and inventory follow-up
+
+The 00:33:48 run at `932b1ed` earned Hot Stuff from a server packet at
+2026-11-05T05:40:56.578Z, confirming ten advancements. It crafted/equipped a
+shield and retained an iron pick and armor. Its verified night enclosure held
+through the night without recorded damage; daylight exit still led to recovery
+and reconnections. This is not a hostile-damage escape validation.
+
+That run stopped at 06:00:46.294Z after a stationary rubble toss/re-pickup loop.
+New regressions cover selecting a full surplus stack, retaining valuables and
+building reserves, retreating beyond pickup range with digging disabled, and
+refusing a toss with no safe retreat. The caller-level regression failed before
+the retreat patch; the stack-selection regression failed before its patch.
+
+Fourteen cave tests cover connected supported routes, roofed-chamber detection,
+natural descent, hazards/unloaded blocks, expiring dimension-scoped visits,
+lighting confirmation, return anchors, cancellation, failed-route quarantine,
+new threats, reserve caps/tool tier/slot headroom and the real diamond-action
+fallback. A policy regression checks surface food preparation and underground
+return priority. These do not establish live cave exploration or better yields.
+
+Comment ratios in changed code: cave-exploration.js and the changed tests 0%;
+inventory.js 0%; progression-skills.js below 0.2%; survival-bot.js below 1.4%;
+decision-engine.js 4/79 (5.06%). All are under the 10% ceiling. Agent instruction
+files remain byte-for-byte identical.

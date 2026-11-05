@@ -8,6 +8,7 @@ const { Actions, chooseAction } = require('./decision-engine')
 const { RECIPES, nextAdvancement } = require('./advancement-plan')
 const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { AdvancementTracker } = require('./advancement-tracker')
+const { exploreCave, collectOpportunity } = require('./cave-exploration')
 const { performProgression, redstonePlan, mineTunnel, until, climbStep } = require('./progression-skills')
 
 const { GoalNear, GoalFollow } = goals
@@ -16,7 +17,7 @@ const HOSTILES = new Set([
     'zombie', 'husk', 'drowned', 'skeleton', 'stray', 'creeper', 'spider',
     'cave_spider', 'witch', 'pillager', 'vindicator', 'evoker', 'ravager',
     'slime', 'magma_cube', 'phantom', 'guardian', 'elder_guardian',
-    'blaze', 'ghast', 'piglin_brute', 'hoglin', 'zoglin', 'wither_skeleton'
+    'warden', 'blaze', 'ghast', 'piglin_brute', 'hoglin', 'zoglin', 'wither_skeleton'
 ])
 
 const PREY = new Set(['cow', 'pig', 'sheep', 'chicken', 'rabbit'])
@@ -466,7 +467,7 @@ class SurvivalController {
             redstone: this.countItems(['redstone']), flint: this.countItems(['flint']),
             completedAdvancements: this.advancements.completed,
             dimension: this.bot.game.dimension, items,
-            inventoryFull: this.bot.inventory.emptySlotCount() <= 2,
+            inventoryFull: this.bot.inventory.emptySlotCount() <= 4,
             surfaceY: this.home?.y || 64, y: this.bot.entity.position.y,
             underground: this.bot.entity.position.y < (this.home?.y || 64) - 3,
             portalInProgress: Boolean(this.memory.portalOrigin),
@@ -971,6 +972,9 @@ class SurvivalController {
             filter: candidate => candidate.position.x !== feet.x || candidate.position.z !== feet.z
         })
         if (!block) {
+            if (await collectOpportunity(this, names) || await exploreCave(this, names.includes('iron_ore') ? 16 : feet.y)) {
+                return
+            }
             const nearby = this.findNearestBlock(name => wanted.has(name), 12, {
                 filter: candidate => candidate.position.y <= feet.y && candidate.position.y >= feet.y - 4
             })

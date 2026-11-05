@@ -7,7 +7,13 @@ https://github.com/saajidchowdhury/minecraft-advancement-bot.
 
 Develop a reliable Minecraft bot that autonomously gets a useful selection of
 advancements in a logical order. Live gameplay tests reusable bot behavior;
-finishing one playthrough is not the whole project. Exhaustive challenges such
+finishing one playthrough is not the whole project. Consider bounded exploration
+of large caves before resuming tunnels: exposed resources, natural descent and
+other discoveries may help progression. Research relevant cave opportunities for
+the actual game version. Gather useful supplies for later advancements during
+current work when the detour is worthwhile; the planner need not pursue only one
+advancement at a time. Survival, supply reserves and a usable return route take
+priority over optional exploration. Exhaustive challenges such
 as visiting every biome are outside the intended scope. Occasionally building
 interesting, functional redstone contraptions is an optional, lower priority.
 
@@ -37,8 +43,10 @@ identity before stopping it; avoid duplicate bots. Use the latest supplied port.
 Keep actions and recovery bounded, cancellation exclusive, and memory scoped to
 the correct world/dimension. Only server packets confirm actual advancements.
 
-New development may proceed while another revision runs. Keep tested and edited
-versions distinguishable through commits or isolated copies and startup hashes.
+Use live runs primarily to validate behavior with little or no live evidence.
+While a run proceeds, continue planning and implementing other specific goals
+when useful. Keep tested and edited versions distinguishable through commits or
+isolated copies and startup hashes; a running process does not load later edits.
 Run appropriate checks; report live evidence separately from automated tests.
 Keep this repo private. Never commit credentials, runtime profiles, world state,
 logs, dependencies, tools or the preserved `minecraft-iris` reference directory.

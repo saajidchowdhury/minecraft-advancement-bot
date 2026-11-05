@@ -32,7 +32,9 @@ threat avoidance are implemented with focused regressions. The full suite passes
 Completion: focused regressions pass; a live night/damage/recovery sequence is
 observed without self-cancelling escape or false shelter success. Do not force a
 suicidal demonstration just to satisfy a test. The 00:16:00 run was stopped at
-00:24:23. The replacement 00:33:48 run is active at the last check; see
+00:24:23. The replacement 00:33:48 run waited through a night without recorded damage,
+but daylight exit/reconnection and hostile-damage escape remain open. It was
+stopped at 01:00:46 for the disposal loop; see
 findings.md for its version and verify its PID before taking over.
 
 ## G002 — High / ready — Stabilize supplies and finish shield preparation
@@ -44,8 +46,9 @@ failed tree. Maintain a useful wood/food reserve without endless gathering.
 Verify cleanup of surplus rubble while retaining building reserves and valuables;
 check duplicate/lost workstations and whether reclaiming them pays for its cost.
 
-Next live milestone: recover or rebuild necessary tools, retain the chestplate,
-craft/equip the shield, then prepare an empty bucket. The previous inventory and
+Live progress: the 00:33:48 run retained the chestplate, crafted/equipped the
+shield and prepared/filled a bucket. Largest-stack cleanup, a bounded disposal
+retreat and surface food reserves are implemented; live retry is next. The previous inventory and
 shield progress were interrupted by death; do not assume they are still present.
 Completion: repeatable collection/crafting with verified inventory changes and
 no repeated unproductive surface trips. Establish causes before optimizing quotas.
@@ -60,14 +63,17 @@ Completion: no duplicate consumed-stack selection and verified charcoal output.
 Keep the frozen-snapshot regression; extend it if live behavior exposes another
 container synchronization boundary.
 
-## G004 — High / not yet live verified — Reach Hot Stuff safely
+## G004 — Live milestone reached / retry hardening remains — Hot Stuff
 
 Dependencies: reliable survival/supplies; G002–G003 as needed.
 Validate iron acquisition and bucket crafting, locate a source reachable from
 supported dry ground, collect lava, and require the server's lava_bucket
 advancement confirmation. Diagnose inaccessible-source repetition rather than
 retrying forever. Preserve tools and avoid exposing feet/support to liquid.
-Completion: an autonomous live lava pickup and retained usable equipment.
+Live evidence: revision `932b1ed` received the lava-bucket advancement at
+05:40:56.578Z and retained its iron pick, chestplate and shield. This meets the
+first live milestone. Five approach/activation failures preceded success; source
+quarantine and repeatable dry-bank activation still need hardening.
 
 ## G005 — Medium / implemented, not yet live verified — Diamonds and obsidian
 
@@ -115,6 +121,26 @@ using gathered resources, correct orientation and observed actuation. Then add
 occasional more interesting functional blueprints with physical validation and
 resumption after interruption. Return priority to survival and advancements when
 needed. Completion: a real working build, not just a planner or inventory recipe.
+
+## G010 — High / implemented, live validation pending — Caves and parallel preparation
+
+User direction: live tests target under-tested behavior while development can
+continue on distinguishable revisions. Favor worthwhile cave surveys and useful
+later supplies alongside the current advancement. See F013 and the research in
+`cave-opportunities.md`; both agent instruction files carry this guidance.
+
+Implemented: dry supported cave routing, natural descent preference, lighting,
+food/protection/threat gates, visit cooldowns, a shared 24-step/two-minute budget,
+return waypoints and capped opportunistic ore reserves. The original primary
+ore target retains priority. Surface deep mining prepares carried food first.
+
+Next: live-test disposal retreat (F014), food provisioning, opportunity pickup,
+then a naturally encountered large cave survey and return. Record movement,
+lighting, ore/inventory changes and resource costs separately from server
+advancement evidence. Refine the supplies policy if it prevents useful surveys.
+After that, select one small cave branch (berry harvesting or safe axolotl
+capture) with real server confirmation. Do not expand into ancient-city/trial
+combat before dependable survival and return behavior.
 
 ## Completed groundwork
 

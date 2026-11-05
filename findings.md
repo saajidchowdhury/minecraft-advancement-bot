@@ -6,19 +6,23 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-The private repo is `saajidchowdhury/minecraft-advancement-bot`. The latest live
-run started 00:33:48 on port 50330, code `932b1ed4b671`, recorded PID
-8097. It was running when last checked (2026-11-05T05:36:08.093Z, UTC); verify
-PID identity and connection before taking control. Its local artifacts are in
-`outputs/2026-11-05@00.33.48/`. Source files have not changed since that launch.
+The private repo is `saajidchowdhury/minecraft-advancement-bot`. The 00:33:48
+run on port 50330 used code `932b1ed4b671`, PID 8097, artifacts
+`outputs/2026-11-05@00.33.48/`. It was stopped with SIGTERM at
+2026-11-05T06:00:46.294Z after a sustained rubble toss/re-pickup loop at Y=14.
+Identity, working directory and TCP connection were verified before stopping.
 
-The previous 00:16:00 run was stopped at 00:24:23 after repeated deaths. The new
-run restored the nine historical advancements and a partial recovered inventory,
-rebuilt a sword and stone work pick, re-equipped the recovered chestplate, and
-resumed gathering iron for a shield. Do not assume all pre-death items survived.
-Survival/recovery fixes are regression-tested; live night/damage validation remains
-the highest priority (G001). Local artifacts are ignored by Git and may be absent
-in a fresh clone. The baseline before the survival follow-up was `2ba6526`.
+That run crafted/equipped the shield, collected lava and received the server's
+Hot Stuff packet at 05:40:56.578Z, bringing the confirmed total to ten. It also
+verified a shelter enclosure at 05:45:11.762Z and waited through the night
+without recorded damage. A later daylight exit needed recovery/reconnections;
+night waiting is supported by evidence, reliable shelter exit still needs work.
+No new hostile-damage escape/recovery trial occurred. The charcoal fix completed
+ordinary smelts; the exact two-single-plank scenario remains unconfirmed live.
+
+New cave surveys, opportunistic reserves, surface food preparation and inventory
+cleanup fixes are implemented with automated coverage; their live status must be
+read separately below. Source edits did not change the stopped running process.
 
 ## F001 — Project scope and visibility [user requirement]
 
@@ -53,9 +57,9 @@ must be honored. Recipes are excluded from announcements. An inventory-based
 planner transition does not establish completion. Conversely, a completed
 advancement does not mean the bot still owns its tool after breakage or death.
 
-Nine confirmed IDs: story/root, story/mine_stone, story/upgrade_tools,
+Ten confirmed IDs: story/root, story/mine_stone, story/upgrade_tools,
 story/smelt_iron, story/iron_tools, story/obtain_armor, adventure/root,
-adventure/kill_a_mob and husbandry/root (all in the minecraft namespace).
+adventure/kill_a_mob husbandry/root and story/lava_bucket (all in the minecraft namespace).
 Evidence: `outputs/2026-11-05@00.06.22/`, especially 00:09 food/eating and
 00:13:30 armor. See `test/advancement-tracker.test.js` and
 `test/advancement-plan.test.js` for durable regressions.
@@ -186,3 +190,36 @@ and UTC event times under a directory named in America/New_York. Code edits are
 not loaded by an already-running process. Verify PID identity and current server
 connection before stopping/restarting; an absent `finished.json` is not proof a
 process is still alive. Keep local logs/state/credentials out of GitHub.
+
+## F013 — Cave surveys and shared-resource preparation [implementation + regression]
+
+The original mining fallback immediately carved a tunnel when no requested ore
+was exposed. There was no cave survey or general reserve policy. Mining now
+checks nearby harvestable ore for capped future reserves and searches connected
+roofed cave floor before tunneling. Short dry walking, verified torch placement,
+protection/food/threat gates, a shared step budget, dimension-scoped expiring
+visits and return anchors are covered in `test/cave-exploration.test.js`.
+The actual diamond-action dispatch is tested, not just the scoring function.
+
+Surface deep-mining departures reserve twelve hunger points of food; cleanup
+starts with four empty slots remaining to leave room for supplies and drops.
+These are initial policies, not measured optimum quotas or proof of safe return.
+`cave-opportunities.md` records official-source research and separates implemented
+ore reserves from later berry, axolotl, geode, container and enchanting skills.
+A large cave survey and return still need live evidence.
+
+## F014 — Rubble disposal can immediately undo itself [live failure + regression]
+
+At 05:58:20Z cleanup dropped a one-item stack while carrying 897 cobblestone.
+From roughly 05:59Z to shutdown the same-position inventory oscillated between
+about 856 and 896 as discarded rubble was picked up again. The original policy
+selects the first eligible stack and tosses without moving. Inventory arithmetic
+and caller-level regressions reproduce both shortcomings.
+
+Cleanup now chooses the largest eligible surplus stack, preserves existing
+building reserves/valuables, and preflights a three-block dry retreat before
+throwing in the opposite direction. It walks at most four checked adjacent steps
+with digging/bridging disabled and restores normal movement afterward. No safe
+retreat means no toss. Later revisiting the disposal area can still pick up
+rubble; this patch addresses the immediate stationary loop, not permanent storage.
+A live retry is required; no claims about permanent inventory economics yet.
