@@ -214,3 +214,9 @@ Live (setup separated from autonomous play):
 
 No new advancement was earned in these runs. Changed-code comment ratios stay
 below 10% (highest changed source: survival-bot.js about 1.4%).
+
+Follow-up (`7aa7c7c`, `cedc6f8`; 137 tests): shielded-pit disposal geometry and its
+liquid/loose-roof refusals; face-level diamond visibility, probe-exposed ore memory,
+liquid refusal and decision priority (three fail before the fix). Live: pit disposal
+at 16:23:50Z and the Diamonds! server packet at 16:20:34.805Z. Diamond priority awaits
+a live sighting.

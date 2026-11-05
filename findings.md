@@ -6,13 +6,12 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-05 ~11:15 Eastern. Bot is RUNNING on LAN port 51718, PID 22681,
-run `outputs/2026-11-05@11.08.26/`, code `944e832`, pursuing Diamonds! near Y=-38
-after a user-requested staged teleport (see F021's staging note). Verify PID and
+Updated 2026-11-05 ~11:35 Eastern. Bot is RUNNING on LAN port 51718, PID 24786,
+code `cedc6f8`, branch mining near Y=-54 for diamond-pickaxe material (F022). Verify PID and
 connection before stopping it; `pgrep -f src/index.js` must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 132 tests plus syntax checks. Staging helpers and setup records
+evidence. Suite: 137 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -385,3 +384,24 @@ cells were already cave air, so the bot fell to Y=-38 (health 20 to 15.2) beside
 water. The stop command also missed (two PIDs matched), so the helper's login kicked
 the live bot, which reconnected at the staged spot. The helper now places a floor
 before teleporting; stop scripts must match exactly one verified bot PID.
+
+## F022 — Shielded-pit disposal and diamond priority [user technique + live + regression]
+
+The user's disposal technique is now first choice (`7aa7c7c`): facing wall d from
+feet F, dig F+d+1 and F+2d+1 at head height, then the pit F+2d, and throw through
+the hole. Intact F+d and roof F+d+2 keep the bot out; the pit is two blocks away and
+below feet level, beyond the 1.3-block pickup reach. Cells next to liquids or under
+sand/gravel are refused; lanes and retreat remain fallbacks. Live 16:23:50Z at Y=-54:
+pit dug and four stacks plus tuff thrown in ~5 s; deepslate stayed at 64 afterwards.
+
+The server confirmed Diamonds! at 16:20:34.805Z (run 11.16.50, `7aa7c7c`, natural
+mining after the staged teleport). Twelve advancements are now confirmed.
+
+User report: probes exposed diamonds that the bot never mined. Cause: every ore
+search required `canSeeBlock`, a single ray to the block centre; a diamond beside a
+one-high probe hole shows only one face, so `foundOre=true` led nowhere. `gatherDeep`
+also rejected diamonds unless the block below was air/stone/deepslate. `cedc6f8`
+ray-casts each air-exposed face, remembers probe-exposed ores for ten minutes, stops
+tunnel segments when a diamond comes into view, and adds `mine_diamond`, which outranks
+cleanup and routine goals but not escape, eating or combat. Liquid-adjacent diamonds
+are still refused. Three regressions fail before the fix; live evidence pending.

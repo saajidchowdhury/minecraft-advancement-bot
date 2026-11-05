@@ -227,4 +227,6 @@ Next actions, in order:
 3. F021: add a focused regression for the open-sky underground test and check
    night-policy effects of the new definition.
 4. F011: reclaim placed crafting tables before crafting another.
-5. G005: with these fixes, continue to Diamonds! and server-confirmed completion.
+5. G005: Diamonds! is server-confirmed (16:20:34Z). Next: three diamonds and a
+   crafted diamond pickaxe; confirm live that probe-exposed or face-visible diamonds
+   trigger `mine_diamond` (F022) and that liquid-adjacent ones are skipped safely.
