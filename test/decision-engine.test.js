@@ -168,3 +168,8 @@ test('a crowd of hostiles is escaped rather than fought, even at full health', (
     assert.equal(chooseAction(state({ ...crowd, hostileCount: 1 })), Actions.FIGHT)
     assert.equal(chooseAction(state({ ...crowd, hostileCount: 2, rangedDistance: Infinity })), Actions.FIGHT)
 })
+
+test('hostiles hidden behind a sealed pocket do not force the bot back out', () => {
+    assert.equal(chooseAction(state({ health: 1.3, food: 20, hostileCount: 6, visibleHostiles: 0, hostileDistance: 13 })), 'wait')
+    assert.equal(chooseAction(state({ health: 18, hostileCount: 6, visibleHostiles: 4, hostileDistance: 3 })), Actions.ESCAPE)
+})

@@ -468,7 +468,8 @@ class SurvivalController {
             this.shelterCenter = null
             this.log.warn('Shelter enclosure is no longer intact; replanning protection.')
         }
-        const hostile = this.nearestEntity(HOSTILES, 24)
+        const hostile = this.bot.nearestEntity(entity => entity.isValid && HOSTILES.has(entity.name) &&
+            this.bot.entity.position.distanceTo(entity.position) <= 24 && this.canSee(entity))
         const creeper = this.nearestEntity(CREEPERS, 8)
         const creeperVisible = Boolean(creeper && this.canSee(creeper))
         const archer = this.nearestEntity(ARCHERS, 16)
@@ -542,6 +543,9 @@ class SurvivalController {
             redstoneInProgress: Boolean(this.memory.redstoneOrigin),
             redstoneRequested: Boolean(this.memory.redstoneRequested)
         }
+        // Hostiles behind walls cannot reach a sealed pocket; only visible ones make a crowd.
+        state.visibleHostiles = Object.values(this.bot.entities || {}).filter(entity => entity.isValid && HOSTILES.has(entity.name) &&
+            this.bot.entity.position.distanceTo(entity.position) <= 12 && this.canSee(entity)).length
         state.gear = new Set([...this.bot.inventory.items(), ...[5, 6, 7, 8, 45].map(slot => this.bot.inventory.slots[slot])]
             .filter(Boolean).map(item => item.name))
         state.armorUpgrade = armorUpgrades(this.bot).length > 0
