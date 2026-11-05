@@ -256,4 +256,19 @@ async function restockAtBase(c) {
     c.log.info(`Restocked from base: ${taken.map(entry => `${entry.count} ${entry.name}`).join(', ') || 'nothing useful stored'}.`)
 }
 
-module.exports = { depositPlan, restockPlan, baseState, establishBase, depositAtBase, restockAtBase, placeChest }
+// Take a specific item for a one-off build (the golem's iron) without a full restock.
+async function withdrawItem(c, name, count) {
+    const base = c.memory.base
+    if (!base || base.dimension !== c.bot.game.dimension || !(base.contents?.[name] > 0)) {
+        return
+    }
+    await withChest(c, async window => {
+        const stored = window.containerItems().filter(item => item.name === name).reduce((n, item) => n + item.count, 0)
+        const n = Math.min(stored, count)
+        if (n > 0) {
+            await window.withdraw(c.bot.registry.itemsByName[name].id, null, n)
+        }
+    })
+}
+
+module.exports = { depositPlan, restockPlan, baseState, establishBase, depositAtBase, restockAtBase, placeChest, withdrawItem }

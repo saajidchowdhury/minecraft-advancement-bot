@@ -122,6 +122,9 @@ function chooseAction (state) {
     if (state.canBreed) {
         return 'breed_animals'
     }
+    if (state.canSummonGolem) {
+        return 'summon_golem'
+    }
     if (state.canFish && !state.inventoryFull) {
         return 'go_fish'
     }
