@@ -7,27 +7,43 @@ https://github.com/saajidchowdhury/minecraft-advancement-bot.
 
 Develop a reliable Minecraft bot that autonomously gets a useful selection of
 advancements in a logical order. Live gameplay tests reusable bot behavior;
-finishing one playthrough is not the whole project. Consider bounded exploration
-of large caves before resuming tunnels: exposed resources, natural descent and
-other discoveries may help progression. Research relevant cave opportunities for
-the actual game version. Gather useful supplies for later advancements during
-current work when the detour is worthwhile; the planner need not pursue only one
-advancement at a time. Survival, supply reserves and a usable return route take
-priority over optional exploration. Nightfall alone should not stop safe underground
-work. On the surface, use gear, health, food, nearby threats and useful drops to
-choose bounded hunting or productive work versus sleep or shelter. Withdraw when
-overwhelmed or badly hurt; beds are an Overworld-only option. In the LAN
-workflow, pursue sleep only when the configured owner is observably sleeping,
-and wake when the owner wakes or their sleep state is no longer observable. Research mob drops
-and their advancement dependencies before expanding hunting goals. Exhaustive challenges such
-as visiting every biome are outside the intended scope.
+finishing one playthrough is not the whole project. Exhaustive challenges such as
+visiting every biome or having every effect at once are outside the intended scope.
+Occasionally building interesting, functional redstone contraptions is an optional,
+lower priority.
 
-Optimize expected advancement throughput, not just ordering: reach advancements
-as quickly as possible without large risks, since a death costs recovery time or,
-if items despawn, a restart from scratch. Favor investments that compound, such as
-diamonds for a faster pickaxe, weapons and armor, and a full armor set rather than a
-lone chestplate. Judge a policy by advancements per unit time including risk. Occasionally building
-interesting, functional redstone contraptions is an optional, lower priority.
+## Two efficiency goals
+
+1. **The bot's efficiency.** Optimize expected advancement throughput, not just
+   ordering: reach advancements as quickly as possible without large risks, since a
+   death costs recovery time or, if items despawn, a restart from scratch. Favor
+   investments that compound, such as diamonds for a faster pickaxe, weapons and
+   armor, and a full armor set rather than a lone chestplate. Judge a policy by
+   advancements per unit time including risk.
+2. **The development's efficiency.** The process of building and optimizing this bot
+   should itself be as efficient as possible. Prefer the change with the largest
+   expected gain per unit of effort, reuse existing skills and evidence, avoid
+   re-deriving what findings already record, and choose live tests that resolve the
+   most uncertainty per minute of play.
+
+## Gameplay strategy
+
+Consider bounded exploration of large caves before resuming tunnels: exposed
+resources, natural descent and other discoveries may help progression. Research
+relevant cave opportunities for the actual game version. Gather useful supplies for
+later advancements during current work when the detour is worthwhile; the planner
+need not pursue only one advancement at a time. Survival, supply reserves and a
+usable return route take priority over optional exploration.
+
+Nightfall alone should not stop safe underground work. On the surface, use gear,
+health, food, nearby threats and useful drops to choose bounded hunting or
+productive work versus sleep or shelter. Withdraw when overwhelmed or badly hurt;
+beds are an Overworld-only option. In the LAN workflow, pursue sleep only when the
+configured owner is observably sleeping, and wake when the owner wakes or their
+sleep state is no longer observable. Research mob drops and their advancement
+dependencies before expanding hunting goals.
+
+## LAN workflow and staged tests
 
 Preserve the visible LAN workflow: the user opens a Java singleplayer survival
 world to LAN and watches the bot as a separate player from a third-person view.
@@ -40,6 +56,22 @@ feature of the bot. Record the setup explicitly, then let the bot live-test
 autonomously without subsequent commands. Distinguish staged-condition evidence
 and supplied items from survival-earned progression; do not present a staged
 survival test as an unaided playthrough.
+
+The user authorizes iterative live testing in the supplied LAN world: run,
+observe, stop a misbehaving bot, diagnose, patch and rerun. Verify PID/process
+identity before stopping it; avoid duplicate bots. Use the latest supplied port.
+Use live runs primarily to validate behavior with little or no live evidence.
+
+## Work in parallel with live runs
+
+Watching a live run through a log watcher is passive and costs little. Do not
+spend that time idle or only waiting for the next event. Between check-ins, put
+most of the effort into higher-level work: think abstractly about whether the
+current strategies and algorithms are optimal, strategize future advancement
+branches, plan and implement the next goals, and optimize existing skills so they
+are ready for later live tests. When the watcher reports a stuck or misbehaving
+bot, fix it promptly, restart onto the fix, then return to that strategic and
+implementation work.
 
 ## Read first
 
@@ -57,17 +89,16 @@ Fix bugs before cosmetic issues. Use four-space indentation, braces, focused
 regression tests and at most 10% comment-bearing lines per produced code file.
 Preserve user/concurrent-agent changes; do not reset or discard their work.
 
-The user authorizes iterative live testing in the supplied LAN world: run,
-observe, stop a misbehaving bot, diagnose, patch and rerun. Verify PID/process
-identity before stopping it; avoid duplicate bots. Use the latest supplied port.
 Keep actions and recovery bounded, cancellation exclusive, and memory scoped to
 the correct world/dimension. Only server packets confirm actual advancements.
+Make regression tests mirror the real library's behavior and confirm that each one
+fails on the pre-fix source. Commit only when the full suite reports zero
+failures; a filtered test summary in a shell chain does not stop the commit.
 
-Use live runs primarily to validate behavior with little or no live evidence.
-While a run proceeds, continue planning and implementing other specific goals
-when useful. Keep tested and edited versions distinguishable through commits or
-isolated copies and startup hashes; a running process does not load later edits.
-Run appropriate checks; report live evidence separately from automated tests.
+Keep tested and edited versions distinguishable through commits or isolated
+copies and startup hashes; a running process does not load later edits. Run
+appropriate checks; report live evidence separately from automated tests.
+The user allows pushing commits to the private repository without asking first.
 Keep this repo private. Never commit credentials, runtime profiles, world state,
 logs, dependencies, tools or the preserved `minecraft-iris` reference directory.
 
