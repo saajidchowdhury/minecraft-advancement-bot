@@ -118,6 +118,9 @@ function chooseAction (state) {
     if (state.canPlantSeed && !state.inventoryFull) {
         return 'plant_seed'
     }
+    if (state.canFish && !state.inventoryFull) {
+        return 'go_fish'
+    }
     if (state.baseDeposit) {
         return 'deposit_base'
     }

@@ -58,3 +58,30 @@ test('planting is skipped once earned, at night, underground and after repeated 
     assert.equal(farmingState(c, { ...calm }).canPlantSeed, false)
     assert.equal(chooseAction({ health: 20, food: 20, hostileDistance: Infinity, canPlantSeed: true, cobblestone: 0, logs: 0, planks: 0, sticks: 0 }), 'plant_seed')
 })
+
+test('fishing crafts a rod, walks to open water and casts until the server confirms Fishy Business', async () => {
+    const { fishingState, goFish } = require('../src/farming')
+    const items = ['string']
+    const completed = new Set()
+    const water = { name: 'water', position: new Vec3(5, 62, 0), getProperties: () => ({ level: 0 }) }
+    const calls = []
+    const c = {
+        running: true, paused: false, actionAbort: new AbortController(), memory: {}, log: { info() {} },
+        advancements: { completed }, checkAction() {},
+        hasItem: name => items.includes(name), countItems: names => names.includes('string') ? 3 : 4,
+        bestItem: names => ({ name: names[0] }), ensurePlanks: async () => {}, ensureItem: async name => { items.push(name); calls.push(`craft ${name}`) },
+        findNearestBlock: (match, range, options) => match('water') && options.filter(water) ? water : null,
+        async gotoWithTimeout(goal, ms, label) { calls.push(label) },
+        bot: {
+            blockAt: p => ({ name: p.y >= 63 ? 'air' : 'water', position: p }),
+            equip: async () => {}, lookAt: async () => {}, activateItem() {},
+            async fish() { calls.push('cast'); completed.add('minecraft:husbandry/fishy_business') }
+        }
+    }
+    const calm = { completedAdvancements: completed, dimension: 'overworld', underground: false, isNight: false,
+        hostileDistance: Infinity, hasCraftingTable: true, sticks: 4, planks: 0, logs: 0 }
+    assert.equal(fishingState(c, { ...calm }).canFish, true)
+    await goFish(c)
+    assert.deepEqual(calls, ['craft fishing_rod', 'fishing spot', 'cast'])
+    assert.equal(fishingState(c, { ...calm }).canFish, false)
+})

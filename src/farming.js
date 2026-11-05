@@ -1,6 +1,7 @@
 'use strict'
 
 const { Vec3 } = require('vec3')
+const { goals } = require('mineflayer-pathfinder')
 const { until } = require('./progression-skills')
 
 // A Seedy Place (husbandry/plant_seed) in 26.1.2 accepts wheat, beetroots, melon/pumpkin
@@ -15,7 +16,7 @@ function farmingState(c, state) {
         !state.underground && !state.isNight && state.hostileDistance > 16 && state.hasCraftingTable &&
         (c.hasItem('wooden_hoe') || c.hasAnyItem(['stone_hoe', 'iron_hoe', 'diamond_hoe']) || state.planks + state.logs * 4 >= 4) &&
         (c.hasAnyItem(SEEDS) || c.findNearestBlock(name => GRASS.includes(name), 16)) &&
-        !(memory?.failures >= 3 && Date.now() - memory.at < 600000))
+        !backedOff(memory))
     return state
 }
 
@@ -69,4 +70,63 @@ async function plantSeed(c) {
     }
 }
 
-module.exports = { farmingState, plantSeed, SEEDS }
+const backedOff = memory => memory?.failures >= 3 && Date.now() - memory.at < 600000
+
+function nearWater(c) {
+    return c.findNearestBlock(name => name === 'water', 16, {
+        filter: b => Number(b.getProperties?.().level ?? 0) === 0 && ['air', 'cave_air'].includes(c.bot.blockAt(b.position.offset(0, 1, 0))?.name)
+    })
+}
+
+function fishingState(c, state) {
+    state.canFish = Boolean(!state.completedAdvancements?.has('minecraft:husbandry/fishy_business') && state.dimension === 'overworld' &&
+        !state.underground && !state.isNight && state.hostileDistance > 16 && !backedOff(c.memory.fishing) &&
+        (c.hasItem('fishing_rod') || (c.countItems(['string']) >= 2 && state.hasCraftingTable && state.sticks + (state.planks + state.logs * 4) / 2 >= 3)) &&
+        nearWater(c))
+    return state
+}
+
+// Fishy Business: any fish hooked with a rod. bot.fish() reels in on the bite particles;
+// each cast is bounded because bite detection depends on the particle packet format.
+async function goFish(c) {
+    const bot = c.bot
+    const memory = c.memory.fishing ??= { failures: 0, at: 0 }
+    try {
+        if (!c.hasItem('fishing_rod')) {
+            if (c.countItems(['stick']) < 3) {
+                await c.ensurePlanks(2)
+                await c.ensureItem('stick', 4, false)
+            }
+            await c.ensureItem('fishing_rod', 1, true)
+        }
+        const water = nearWater(c)
+        if (!water) {
+            throw new Error('no open water source within 16 blocks')
+        }
+        await c.gotoWithTimeout(new goals.GoalNear(water.position.x, water.position.y + 1, water.position.z, 3), 20000, 'fishing spot')
+        for (let cast = 0; cast < 4 && !c.advancements.completed.has('minecraft:husbandry/fishy_business'); cast++) {
+            c.checkAction()
+            await bot.equip(c.bestItem(['fishing_rod']), 'hand')
+            await bot.lookAt(water.position.offset(0.5, 1, 0.5), true)
+            let timer
+            await Promise.race([bot.fish(), new Promise((resolve, reject) => { timer = setTimeout(() => reject(new Error('no bite within 45s')), 45000) })])
+                .catch(error => {
+                    bot.activateItem()
+                    c.log.info(`Fishing cast ${cast + 1}: ${error.message}`)
+                })
+                .finally(() => clearTimeout(timer))
+            await until(c, () => c.advancements.completed.has('minecraft:husbandry/fishy_business'), 2000).catch(() => {})
+        }
+        if (!c.advancements.completed.has('minecraft:husbandry/fishy_business')) {
+            throw new Error('four casts without a server-confirmed catch')
+        }
+        c.log.info('Caught a fish; Fishy Business confirmed by the server.')
+        memory.failures = 0
+    } catch (error) {
+        memory.failures += 1
+        memory.at = Date.now()
+        throw error
+    }
+}
+
+module.exports = { farmingState, fishingState, plantSeed, goFish, SEEDS }
