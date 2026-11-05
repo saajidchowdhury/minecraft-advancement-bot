@@ -39,6 +39,10 @@ function restWorld() {
 
 test('sleep places both bed halves without overriding orientation and requires server sleep state', async () => {
     const { c, state } = restWorld()
+    c.bot.lookAt = async p => {
+        assert.ok(p.x > c.bot.entity.position.x)
+        assert.equal(p.z, c.bot.entity.position.z)
+    }
     await sleepSafely(c, state)
     assert.equal(c.bot.isSleeping, true)
     assert.equal(c.memory.travelBed.dimension, 'overworld')

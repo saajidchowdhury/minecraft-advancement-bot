@@ -122,7 +122,7 @@ async function sleepSafely(c, state) {
             const item = bot.inventory.items().find(item => item.name.endsWith('_bed'))
             await bot.equip(item, 'hand')
             c.checkAction(signal)
-            await bot.lookAt(site.foot.offset(site.head.x - site.foot.x, 0, site.head.z - site.foot.z), true)
+            await bot.lookAt(bot.entity.position.offset(4 * (site.head.x - site.foot.x), 1.62, 4 * (site.head.z - site.foot.z)), true)
             c.checkAction(signal)
             if (bot.game.dimension !== 'overworld') {
                 throw new Error('dimension changed before bed placement')
