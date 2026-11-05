@@ -128,3 +128,12 @@ test('a walled night shelter on flat ground can be left over the wall with a sho
     const cliff = { blockAt: p => bot.blockAt(p).boundingBox === 'block' && !(p.x >= 2 && p.y < 0 && p.y > -9) ? bot.blockAt(p) : { name: 'air', boundingBox: 'empty', position: p } }
     assert.equal(SurvivalController.prototype.stairDirectionScore.call({ bot: cliff }, new Vec3(0, 0, 0), 1, 0, 8), Infinity)
 })
+
+test('a canopy of leaves does not count as being underground, but rock overhead does', () => {
+    const { coveredAbove } = require('../src/survival-bot')
+    const { Vec3 } = require('vec3')
+    const canopy = { blockAt: p => ({ name: p.y >= 70 && p.y <= 72 ? 'oak_leaves' : 'air', boundingBox: p.y >= 70 && p.y <= 72 ? 'block' : 'empty' }) }
+    assert.equal(coveredAbove(canopy, new Vec3(0, 67, 0)), false)
+    const cave = { blockAt: p => ({ name: p.y === 75 ? 'stone' : 'air', boundingBox: p.y === 75 ? 'block' : 'empty' }) }
+    assert.equal(coveredAbove(cave, new Vec3(0, 67, 0)), true)
+})

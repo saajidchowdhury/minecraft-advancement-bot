@@ -141,6 +141,18 @@ function actionMadeProgress (action, before, after, moved) {
     return !Object.hasOwn(progressed, action) || progressed[action] || moved
 }
 
+// Tree canopies dim sky light without making the bot underground: only a solid non-leaf block
+// within 24 blocks overhead counts as cover (a valley floor under leaves stayed "underground").
+function coveredAbove (bot, head) {
+    for (let dy = 1; dy <= 24; dy++) {
+        const block = bot.blockAt(head.offset(0, dy, 0), false)
+        if (block?.boundingBox === 'block' && !block.name.endsWith('_leaves')) {
+            return true
+        }
+    }
+    return false
+}
+
 // A running job is ready once its time has passed, or at once if the bot has strayed far
 // enough that the furnace might be left behind.
 function smeltJobState (c) {
@@ -575,7 +587,8 @@ class SurvivalController {
             dimension: this.bot.game.dimension, items,
             inventoryFull: this.bot.inventory.emptySlotCount() <= 4 && !(this.memory.disposalBackoffUntil > Date.now()),
             surfaceY: this.home?.y || 64, y: this.bot.entity.position.y,
-            underground: this.bot.entity.position.y < (this.home?.y || 64) - 3 && !(this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0))?.skyLight >= 12),
+            underground: this.bot.entity.position.y < (this.home?.y || 64) - 3 && !(this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0))?.skyLight >= 12) &&
+                coveredAbove(this.bot, this.bot.entity.position.floored().offset(0, 1, 0)),
             portalInProgress: Boolean(this.memory.portalOrigin),
             redstoneInProgress: Boolean(this.memory.redstoneOrigin),
             redstoneRequested: Boolean(this.memory.redstoneRequested)
@@ -2184,5 +2197,5 @@ module.exports = {
     SurvivalController, HOSTILES, PREY, FOOD_VALUES, actionMadeProgress,
     shouldRelocateAfterStationFailure, mobilityRecoveryKind,
     pathfinderDropLimitForLanding, SAFE_PATHFINDER_DROP,
-    heapPressureExceeded, PATH_SEARCH_RADIUS, HEAP_GUARD_BYTES
+    heapPressureExceeded, PATH_SEARCH_RADIUS, HEAP_GUARD_BYTES, coveredAbove
 }
