@@ -11,6 +11,7 @@ const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-
 const { prepareBed, huntAtNight, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
 const { exploreCave, collectOpportunity, findPriorityDiamond } = require('./cave-exploration')
+const { inventoryReport } = require('./inventory')
 const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades } = require('./progression-skills')
 
 const { GoalNear, GoalFollow } = goals
@@ -2044,6 +2045,12 @@ class SurvivalController {
             this.memory.paused = true
             this.cancelCurrentTask(`paused by ${username}`)
             this.bot.chat('Paused.')
+        } else if (message === '!inventory' || message === '!inv') {
+            const slots = this.bot.inventory.slots
+            const worn = { head: slots[5], torso: slots[6], legs: slots[7], feet: slots[8], offhand: slots[45] }
+            for (const line of inventoryReport(this.bot.inventory.items(), worn)) {
+                this.bot.chat(line)
+            }
         } else if (message === '!advancements') {
             const completed = this.advancements.summary()
             this.bot.chat(`${completed.length} confirmed: ${completed.map(id => id.split('/').at(-1)).join(', ') || 'none yet'}`)

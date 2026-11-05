@@ -41,6 +41,7 @@ Only `MC_OWNER` can issue controls when that field is populated.
 | --- | --- |
 | `!status` | Current action, advancement objective, health, hunger and coordinates |
 | `!advancements` | Advancements confirmed by the Minecraft server |
+| `!inventory` (`!inv`) | Tools with remaining durability, worn armor/offhand, then item counts |
 | `!pause` | Cancel work and remain paused |
 | `!resume` | Stop following and resume autonomous progression |
 | `!come` | Suspend progression and follow the requesting player while visible/loaded |

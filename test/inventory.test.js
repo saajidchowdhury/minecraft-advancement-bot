@@ -203,3 +203,22 @@ test('armor upgrades fill every slot with the best carried tier and never downgr
     const plan = armorUpgrades(bot).map(u => `${u.destination}:${u.item.name}`)
     assert.deepEqual(plan, ['head:diamond_helmet', 'legs:iron_leggings', 'feet:iron_boots'])
 })
+
+test('!inventory reports tools with durability first, then worn gear, then item counts within chat limits', () => {
+    const { inventoryReport } = require('../src/inventory')
+    const items = [
+        { name: 'stone_pickaxe', count: 1, maxDurability: 131, durabilityUsed: 120 },
+        { name: 'cobblestone', count: 64 }, { name: 'cobblestone', count: 30 },
+        { name: 'diamond_pickaxe', count: 1, maxDurability: 1561, durabilityUsed: 61 },
+        { name: 'iron_sword', count: 1, maxDurability: 250, durabilityUsed: 0 },
+        { name: 'bread', count: 12 }, { name: 'bucket', count: 1 },
+        ...Array.from({ length: 40 }, (_, i) => ({ name: `filler_block_number_${i}`, count: 1 }))
+    ]
+    const lines = inventoryReport(items, { head: { name: 'diamond_helmet', maxDurability: 363, durabilityUsed: 36 }, torso: null, offhand: { name: 'shield', maxDurability: 336, durabilityUsed: 0 } })
+    assert.equal(lines[0], 'Tools: bucket, diamond_pickaxe 96%, stone_pickaxe 8%, iron_sword 100%')
+    assert.equal(lines[1], 'Worn: head diamond_helmet 90%, offhand shield 100%')
+    assert.ok(lines[2].startsWith('Items: 94 cobblestone, 12 bread'))
+    assert.ok(lines.length <= 4 && lines.every(line => line.length <= 256))
+    assert.match(lines.at(-1), /\+\d+ more$/)
+    assert.deepEqual(inventoryReport([], {}), ['Tools: none', 'Worn: nothing', 'Items: none'])
+})
