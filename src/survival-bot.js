@@ -364,8 +364,18 @@ class SurvivalController {
         this.actionAbort = new AbortController()
         let action = Actions.EXPLORE
         try {
-            const state = this.observe()
-            action = chooseAction(state)
+            let state
+            try {
+                state = this.observe()
+                action = chooseAction(state)
+            } catch (error) {
+                // A perception or policy fault must not disable self-defence (F023).
+                const hostile = this.nearestEntity(HOSTILES, 8)
+                this.log.warn(`Decision failed: ${error.message}; ${hostile ? `escaping ${hostile.name}` : 'waiting'} instead.`)
+                action = hostile ? Actions.ESCAPE : 'wait'
+                await this.performWithTimeout(action, { hostile, creeperDistance: Infinity })
+                return
+            }
             const advancement = nextAdvancement(state)
             this.lastAction = action
             if (advancement.id !== this.loggedGoalId) {

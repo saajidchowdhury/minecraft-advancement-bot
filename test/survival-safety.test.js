@@ -215,3 +215,23 @@ test('a visible creeper interrupts mining but not escape, and hidden creepers ar
     bot.emit('entityMoved', creeper)
     assert.equal(cancels, 1)
 })
+
+test('a perception fault still escapes a nearby hostile instead of idling to death', async () => {
+    const performed = []
+    const zombie = { name: 'zombie', position: new Vec3(2, 64, 0) }
+    const c = {
+        running: true, paused: false, busy: false, followPlayer: null, failures: new Map(),
+        bot: { entity: { position: new Vec3(0, 64, 0) }, health: 12, food: 20 },
+        log: { info() {}, warn() {} },
+        observe() { throw new Error("Cannot read properties of undefined (reading 'equals')") },
+        nearestEntity: () => zombie,
+        async performWithTimeout(action, state) { performed.push([action, state.hostile]) },
+        scheduleLoop() {}, clearCurrentTask() {}
+    }
+    await SurvivalController.prototype.tick.call(c)
+    assert.deepEqual(performed, [[Actions.ESCAPE, zombie]])
+    assert.equal(c.busy, false)
+    c.nearestEntity = () => null
+    await SurvivalController.prototype.tick.call(c)
+    assert.deepEqual(performed.at(-1), ['wait', null])
+})
