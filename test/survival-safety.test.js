@@ -372,6 +372,21 @@ test('the shelter roof is seated on a wall-top block, and a failed shell falls b
     assert.equal(burrowed, true)
 })
 
+test('the shelter uses another wall when a non-solid block obstructs the first roof support', async () => {
+    const c = shelterWorld()
+    const east = new Vec3(1, 66, 0)
+    const west = new Vec3(-1, 66, 0)
+    const blockAt = c.bot.blockAt
+    c.bot.blockAt = p => p.equals(east) ? { name: 'vine', position: p, boundingBox: 'empty', shapes: [] } : blockAt(p)
+    c.bestItem = () => ({ name: 'cobblestone' })
+    c.bot.equip = async () => {}
+    c.bot.placeBlock = async (ref, face) => { c.blocks.set(ref.position.plus(face).toString(), 'cobblestone') }
+    c.placeSurvivalBlock = SurvivalController.prototype.placeSurvivalBlock.bind(c)
+    await SurvivalController.prototype.makeNightSafe.call(c)
+    assert.equal(c.blocks.get(west.toString()), 'cobblestone')
+    assert.equal(c.sheltered, true)
+})
+
 test('fleeing a creeper keeps running until it is ten blocks away', async () => {
     const c = creeperWorld(p => p.y >= 64)
     let legs = 0

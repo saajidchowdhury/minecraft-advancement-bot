@@ -1587,10 +1587,20 @@ class SurvivalController {
                 }
             }
         }
-        // The roof cell only touches the bot's head cell and air; seat it on a block atop a wall first.
-        await this.placeSurvivalBlock(center.offset(1, 2, 0)).catch(error => failures.push(error.message))
-        await this.placeSurvivalBlock(center.offset(0, 2, 0)).catch(error => failures.push(error.message))
-        this.checkAction(signal)
+        const roof = center.offset(0, 2, 0)
+        // Obstructions can make any one wall unusable as a seat for the roof.
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            if (!this.isEmptyPlacementBlock(this.bot.blockAt(roof, false))) {
+                break
+            }
+            const support = roof.offset(dx, 0, dz)
+            await this.placeSurvivalBlock(support).catch(error => failures.push(error.message))
+            this.checkAction(signal)
+            if (this.bot.blockAt(support, false)?.boundingBox === 'block') {
+                await this.placeSurvivalBlock(roof).catch(error => failures.push(error.message))
+                this.checkAction(signal)
+            }
+        }
         if (!this.hasEnclosedShelter(center)) {
             this.sheltered = false
             this.shelterCenter = null
