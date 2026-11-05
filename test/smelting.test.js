@@ -106,3 +106,16 @@ test('reclaiming a placed furnace digs it directly instead of through collectTar
     assert.equal(dug, true)
     assert.equal(c.memory.ownedStations.size, 0)
 })
+
+test('a job whose fuel ran out is refuelled and rescheduled instead of revisited forever', async () => {
+    const { c, inv, furnaceState } = smelter(0, 5)
+    c.memory.smeltJob = { dimension: 'overworld', x: 3, y: 64, z: 0, count: 30, readyAt: Date.now() - 1 }
+    furnaceState.input = { name: 'raw_iron', count: 22 }
+    furnaceState.output = { name: 'iron_ingot', count: 8 }
+    furnaceState.fuel = null
+    await SurvivalController.prototype.smeltIron.call(c)
+    assert.equal(inv.iron_ingot, 8)
+    assert.equal(furnaceState.fuel.count, 3)
+    assert.equal(c.memory.smeltJob.count, 22)
+    assert.ok(c.memory.smeltJob.readyAt > Date.now() + 200000)
+})

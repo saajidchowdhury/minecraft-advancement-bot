@@ -1315,6 +1315,15 @@ class SurvivalController {
                 }
                 finished = true
                 this.memory.smeltJob = null
+            } else {
+                // Input left with no fuel would never finish and draw the bot back forever.
+                const left = furnace.inputItem().count
+                const fuel = this.bestItem(['coal', 'charcoal'])
+                if (!furnace.fuelItem() && !(furnace.fuel > 0) && fuel) {
+                    await furnace.putFuel(fuel.type, fuel.metadata, Math.min(Math.ceil(left / 8), this.countItems([fuel.name])))
+                }
+                job.count = left
+                job.readyAt = Date.now() + left * 10000 + 1000
             }
         } finally {
             await this.bot.closeWindow(furnace).catch(() => {})
