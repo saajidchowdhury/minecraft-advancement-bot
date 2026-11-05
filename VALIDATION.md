@@ -225,3 +225,8 @@ Later follow-up (`e6078ea`–`f6aba27`; 141 tests). A live death at 16:27:05Z wa
 by a raycast-shape bug the mock hid; the mock now mirrors prismarine-world. Live
 fixes verified: shallow-pit shaft escape (16:29:16Z). Hand-dug return is live but slow.
 Full iron set, diamond sword and diamond armor ordering are unit-tested only.
+
+Survival/terrain follow-up (`7a8b75f`–`6628e8c`; 149 tests): melee-damage interrupt,
+unarmed adjacent escape, best-effort drop pickup, unstick drop limit and movement
+restore, horizontal scout goal — each fails before its fix. Live: unstick hand-dug
+Y 66→78; melee interrupt and new scouting await a live encounter.

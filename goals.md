@@ -244,3 +244,8 @@ per unit time including death risk. Next actions:
    so policies can be compared (G008), separating staged from unaided time.
 4. Recovery policy: a deep death with no tools cannot recover drops; skip doomed
    recovery quickly and rebuild instead of scouting into caves.
+
+Update ~12:12 Eastern: two deaths today (F023 code fault, F025 unhandled daytime melee)
+show G001 still dominates throughput. Next: live-validate melee interrupt + fight with
+a staged single zombie; consider night underground work instead of shelter for a weak
+bot; then resume the gear route (F024) and diamond priority (F022) live checks.

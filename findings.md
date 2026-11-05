@@ -6,14 +6,12 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-05 ~11:42 Eastern. Bot is RUNNING on LAN port 51718, PID 26798, code
-`9adaf8c` (decision-fault fallback), rebuilding from nothing after the F023 death; it
-left the cave and crafted a wooden pickaxe at 16:40:30Z. `4e26364` (recovery gate) is
-committed but not loaded. Verify PID and connection before stopping it; `pgrep -f src/index.js`
+Updated 2026-11-05 ~12:12 Eastern. Bot is RUNNING on LAN port 51718, PID 30760, code
+`6628e8c`, rebuilding from an empty inventory after the F025 death (night shelter). Verify PID and connection before stopping it; `pgrep -f src/index.js`
 must return one PID.
 Earlier runs today on 51718: 10.54.41 (`152ed85`), 11.01.36 (`e474275`) and 11.05.01
 (`2bcab2b`), each stopped deliberately to load the next fix. F019–F021 hold their
-evidence. Suite: 141 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
+evidence. Suite: 149 tests plus syntax checks. The user allows autonomous pushes to GitHub. Staging helpers and setup records
 (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local files.
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
@@ -436,3 +434,21 @@ remaining iron armor after Hot Stuff, then the diamond pickaxe and sword, then a
 affordable diamond armor piece (Cover Me with Diamonds, `minecraft:story/shiny_gear`);
 `equip_armor` upgrades all four slots. Tests cover order and slot upgrades; no live
 crafting of the new pieces yet. Ingot and diamond costs are vanilla recipe counts.
+
+## F025 — Second death and stuck-terrain fixes [live + regression]
+
+16:59:37Z (`804e2f3`): at dawn a zombie 1.2 blocks away hit the bot eight times in
+7 s during gather_wood; only surface-night and critical-health damage interrupted
+work, and escape at 3.8 hp came too late. `7a8b75f` cancels non-combat work on any
+damage with a hostile within four blocks and escapes adjacent hostiles when unarmed.
+Recovery reached the drops but the first unreachable stack aborted all pickup;
+`f0583eb` approaches each stack within pickup reach and skips failures.
+
+The tool-less bot then stood on a ravine ledge and failed gather_wood 26 times with
+'No path'. Probing from that spot showed partial paths after 20–66 nodes: stone it
+cannot hand-dig within the pathfinder's cost cutoff and drops beyond the 3-block
+limit. `f3aa690`/`8bd0fcb` add an unstick step (6-block drop limit at health 16+,
+then a hand-dug stair up after clearing the deferred goal); live it climbed Y 66→78
+in about 4 min. The deeper cause of most 'No path' scouting was the goal itself:
+`GoalNear(x, current Y, z, 3)` lies in air or rock on hilly terrain. `6628e8c` uses
+`GoalNearXZ`. Regressions fail before each fix; live scouting after `6628e8c` pending.
