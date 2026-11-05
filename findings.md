@@ -9,7 +9,7 @@ stable; correct or qualify an old finding when new evidence changes it.
 Updated 2026-11-05 ~18:20 Eastern. Bot is RUNNING on LAN port 51718, PID 56696, code
 `a18c0ff`, rebuilding basic tools after a pickaxe loss; no log watcher is running. Verify the
 PID and connection before stopping it; `pgrep -f src/index.js` must return one PID.
-Fifteen advancements are server-confirmed. A furnace at (-283,68,-150) holds about 29 raw
+Fourteen advancements are server-confirmed. A furnace at (-283,68,-150) holds about 29 raw
 iron as the remembered smelt job, but the bot carries no coal or charcoal and nothing yet
 fetches fuel for a stalled job (top item in goals.md). The base is migrating to a barrel
 vault (F039), pending nine planks. Suite: 214 tests plus syntax checks. Staging helpers and
@@ -17,7 +17,7 @@ setup records (`outputs/stage-*.js`, `outputs/*-setup.json`) are ignored local f
 
 The previous 01:55:10 handoff is in git history and VALIDATION.md; the 02:08:36 run
 (`a80974a`) followed it unrecorded and is analysed in F019/F020. The server lists
-fifteen completed advancements, including the staged Sweet Dreams from F017.
+fourteen completed advancements, including the staged Sweet Dreams from F017.
 
 The private repo is `saajidchowdhury/minecraft-advancement-bot`. The 00:33:48
 run on port 50330 used code `932b1ed4b671`, PID 8097, artifacts
