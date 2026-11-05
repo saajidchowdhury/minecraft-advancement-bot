@@ -1,0 +1,73 @@
+'use strict'
+
+const { nextAdvancement } = require('./advancement-plan')
+
+const Actions = Object.freeze({
+    ESCAPE: 'escape',
+    DESCEND: 'descend_safely',
+    ASCEND: 'escape_shaft',
+    RECOVER: 'recover_items',
+    FIGHT: 'fight',
+    EAT: 'eat',
+    SHELTER: 'shelter',
+    WOOD: 'gather_wood',
+    CRAFT_TABLE: 'craft_table',
+    CRAFT_WOODEN_PICKAXE: 'craft_wooden_pickaxe',
+    CRAFT_WOODEN_SWORD: 'craft_wooden_sword',
+    STONE: 'gather_stone',
+    CRAFT_STONE_PICKAXE: 'craft_stone_pickaxe',
+    CRAFT_FURNACE: 'craft_furnace',
+    FOOD: 'gather_food',
+    COAL: 'gather_coal',
+    IRON: 'gather_iron',
+    SMELT_IRON: 'smelt_iron',
+    CRAFT_IRON_PICKAXE: 'craft_iron_pickaxe',
+    EXPLORE: 'explore'
+})
+
+/**
+  * Pure priority policy. Keeping this separate makes the bot's choices testable
+  * without connecting to Minecraft.
+  */
+function chooseAction (state) {
+    if (state.hostileDistance <= 5 && state.health <= 10) {
+        return Actions.ESCAPE
+    }
+    if (state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood) {
+        return Actions.EAT
+    }
+    if (state.isNight && state.sheltered && !state.underground) {
+        return 'wait'
+    }
+    if (state.shaftTrapped) {
+        return Actions.ASCEND
+    }
+    if (state.elevationTrapped) {
+        return Actions.DESCEND
+    }
+    if (state.recoveryAvailable) {
+        return Actions.RECOVER
+    }
+    if (state.isNight && !state.underground) {
+        return state.sheltered ? 'wait' : Actions.SHELTER
+    }
+    if (state.health <= 10 && !state.hasFood) {
+        return state.underground ? 'return_surface' : Actions.FOOD
+    }
+    if (state.hostileDistance <= 3.5 && state.hasWeapon && state.health > 10) {
+        return Actions.FIGHT
+    }
+    if (state.food <= 16 && !state.hasFood) {
+        return state.underground ? 'return_surface' : Actions.FOOD
+    }
+    if (state.inventoryFull) {
+        return 'clear_inventory'
+    }
+    const action = state.sideGoal?.action || nextAdvancement(state).action
+    if (state.underground && ['gather_wood', 'gather_food', 'enter_nether', 'build_redstone'].includes(action)) {
+        return 'return_surface'
+    }
+    return action
+}
+
+module.exports = { Actions, chooseAction }

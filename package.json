@@ -1,0 +1,26 @@
+{
+    "name": "minecraft-advancement-bot",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Visible LAN survival player with server-confirmed Java advancements",
+    "main": "src/index.js",
+    "type": "commonjs",
+    "scripts": {
+        "postinstall": "patch-package",
+        "start": "node --env-file-if-exists=.env src/index.js",
+        "check": "node scripts/check.js",
+        "test": "node --test test/*.test.js"
+    },
+    "engines": {
+        "node": ">=22"
+    },
+    "dependencies": {
+        "mineflayer": "4.39.0",
+        "mineflayer-collectblock": "1.6.0",
+        "mineflayer-pathfinder": "2.4.5",
+        "vec3": "0.2.0"
+    },
+    "devDependencies": {
+        "patch-package": "8.0.1"
+    }
+}

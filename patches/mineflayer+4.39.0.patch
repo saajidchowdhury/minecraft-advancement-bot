@@ -1,0 +1,78 @@
+diff --git a/node_modules/mineflayer/lib/plugins/craft.js b/node_modules/mineflayer/lib/plugins/craft.js
+index fb2766a..2a7d7c2 100644
+--- a/node_modules/mineflayer/lib/plugins/craft.js
++++ b/node_modules/mineflayer/lib/plugins/craft.js
+@@ -18,6 +18,7 @@ function inject (bot) {
+     try {
+       for (let i = 0; i < count; i++) {
+         await craftOnce(recipe, craftingTable)
++        if (!craftingTable) await settleInventoryGrid()
+       }
+ 
+       if (windowCraftingTable) {
+@@ -31,11 +32,24 @@ function inject (bot) {
+       if (windowCraftingTable) {
+         bot.closeWindow(windowCraftingTable)
+         windowCraftingTable = undefined
++      } else if (!craftingTable) {
++        await settleInventoryGrid().catch(() => {})
+       }
+       throw new Error(err)
+     }
+   }
+ 
++  // Sync the persistent 2x2 grid before another recipe uses server-owned ingredients.
++  async function settleInventoryGrid () {
++    if (!bot.supportFeature('stateIdUsed')) return
++    const inv = bot.inventory
++    for (let tries = 0; tries < 3; tries++) {
++      await bot._syncWindow(inv)
++      if (!inv.selectedItem && [1, 2, 3, 4].every(slot => !inv.slots[slot])) return
++      bot._client.write('close_window', { windowId: 0 })
++    }
++  }
++
+   async function craftOnce (recipe, craftingTable) {
+     if (craftingTable) {
+       if (!windowCraftingTable) {
+diff --git a/node_modules/mineflayer/lib/plugins/inventory.js b/node_modules/mineflayer/lib/plugins/inventory.js
+index bab0eef..4276b33 100644
+--- a/node_modules/mineflayer/lib/plugins/inventory.js
++++ b/node_modules/mineflayer/lib/plugins/inventory.js
+@@ -569,6 +569,26 @@ function inject (bot, { hideErrors }) {
+     return changedSlots
+   }
+ 
++  // Report consumed grid slots so late server corrections cannot erase newer ingredients.
++  function takeCraftingIngredients (window, click, resultCount) {
++    const gridSize = window.type === 'minecraft:inventory' ? 4 : window.type === 'minecraft:crafting' ? 9 : 0
++    if (!gridSize || click.slot !== window.craftingResultSlot || !resultCount) return []
++    if ((window.slots[click.slot]?.count ?? 0) >= resultCount) return []
++    const changed = []
++    for (let slot = click.slot + 1; slot <= click.slot + gridSize; slot++) {
++      const item = window.slots[slot]
++      if (!item) continue
++      let left = null
++      if (item.count > 1) {
++        left = Item.fromNotch(Item.toNotch(item))
++        left.count = item.count - 1
++      }
++      window.updateSlot(slot, left)
++      changed.push(slot)
++    }
++    return changed
++  }
++
+   async function clickWindow (slot, mouseButton, mode) {
+     // if you click on the quick bar and have dug recently,
+     // wait a bit
+@@ -607,7 +627,9 @@ function inject (bot, { hideErrors }) {
+           // 5,
+           // 6
+         ].includes(click.mode)) {
++        const resultCount = click.item?.count ?? 0
+         changedSlots = window.acceptClick(click)
++        if (click.mode === 0) changedSlots.push(...takeCraftingIngredients(window, click, resultCount))
+       } else {
+         // this is used as a fallback
+         const oldSlots = JSON.parse(JSON.stringify(window.slots))

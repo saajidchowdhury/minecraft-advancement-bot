@@ -1,0 +1,33 @@
+# Validation
+
+Live tests: 2026-11-04, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
+
+## Verified in the user's survival world
+
+Server advancement packets confirmed:
+
+- Minecraft (`minecraft:story/root`)
+- Stone Age (`minecraft:story/mine_stone`)
+- Getting an Upgrade (`minecraft:story/upgrade_tools`)
+- Acquire Hardware (`minecraft:story/smelt_iron`)
+- Isn't It Iron Pick (`minecraft:story/iron_tools`)
+- Adventure (`minecraft:adventure/root`)
+- Monster Hunter (`minecraft:adventure/kill_a_mob`)
+
+The bot also crafted/retrieved workstations, made charcoal, replaced broken tools, resumed after reconnects, mined supported stairs, and opened both side probes at one station. The first live probe pair mined eight blocks without advancing the bot off the main tunnel. Spacing eight is configurable and has not been optimized by a comparative experiment.
+
+Logs and snapshots are local in outputs/. The run beginning 23:33:29 captured iron smelting and the iron-pick advancement. The run beginning 23:46:42 captured the side probes. The run beginning 23:52:54 captured the updated stair ascent from Y=48 to Y=68 and use of a stone work pickaxe.
+
+## Automated checks
+
+`npm run check` and `npm test` pass; the current baseline has 64 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
+
+The inherited Mineflayer patch was applied successfully to reconstructed pristine 4.39.0 craft/inventory sources. Dependency versions are locked. No gameplay result is inferred solely from a passing unit test.
+
+## Still being tested
+
+Food pursuit is currently being debugged: repeated dynamic-follow goal resets may interrupt navigation to animals. Later armor, bucket, diamond, obsidian-casting, portal and redstone behavior has not yet completed an end-to-end live survival test. No claim of autonomous dragon completion or all-advancement support is made.
+
+## Comment ceiling
+
+All authored code and patch files are below 10% comment-bearing physical lines. The highest ratio is 7/78 (8.97%) in the dependency patch, including upstream context. The highest JavaScript ratio is 3/42 (7.14%) in terrain-scout.js. Other nonzero ratios at this baseline: advancement-tracker.js 1.82%, decision-engine.js 5.48%, index.js 1.23%, survival-bot.js about 1.4%, progression-skills.js below 0.2%; remaining authored scripts/tests have zero comments. Shebangs and URL text were excluded.
