@@ -1358,7 +1358,11 @@ class SurvivalController {
             }
         }
         this.log.info(`Fleeing creeper at ${creeper.position.floored()}; ${openings.length} facing opening(s) could not be sealed.`)
-        return this.escapeFrom(creeper)
+        // A creeper keeps following; pausing between single legs let one close in and explode (F027).
+        for (let leg = 0; leg < 4 && creeper.isValid !== false && this.bot.entity.position.distanceTo(creeper.position) < 10; leg++) {
+            this.checkAction(signal)
+            await this.escapeFrom(creeper)
+        }
     }
 
     checkAction (signal = this.actionAbort?.signal) {

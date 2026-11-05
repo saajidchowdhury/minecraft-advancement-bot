@@ -41,6 +41,10 @@ function chooseAction (state) {
     if (state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood) {
         return Actions.EAT
     }
+    // At critical health each regeneration update cancels work; with food >= 18 rest while it regenerates.
+    if (state.health <= 6 && state.food >= 18 && state.hostileDistance > 12 && !state.sleeping) {
+        return 'wait'
+    }
     if (state.isNight && state.sheltered && !state.underground) {
         return state.canSleep ? 'leave_shelter' : 'wait'
     }

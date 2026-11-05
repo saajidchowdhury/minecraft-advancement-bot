@@ -363,3 +363,16 @@ test('the shelter roof is seated on a wall-top block, and a failed shell falls b
     await SurvivalController.prototype.makeNightSafe.call(failing)
     assert.equal(burrowed, true)
 })
+
+test('fleeing a creeper keeps running until it is ten blocks away', async () => {
+    const c = creeperWorld(p => p.y >= 64)
+    let legs = 0
+    const creeper = { name: 'creeper', isValid: true, position: new Vec3(4.5, 64, 4.5) }
+    c.escapeFrom = async () => {
+        legs++
+        c.bot.entity.position = c.bot.entity.position.offset(-3, 0, -3)
+    }
+    await SurvivalController.prototype.avoidCreeper.call(c, creeper)
+    assert.equal(legs, 2)
+    assert.ok(c.bot.entity.position.distanceTo(creeper.position) >= 10)
+})

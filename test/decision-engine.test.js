@@ -147,3 +147,9 @@ test('an adjacent hostile is fought when armed and healthy, otherwise escaped', 
     assert.equal(chooseAction(state({ hostileDistance: 1.2, hasWeapon: false, health: 17 })), Actions.ESCAPE)
     assert.equal(chooseAction(state({ hostileDistance: 1.2, hasWeapon: true, health: 9 })), Actions.ESCAPE)
 })
+
+test('critical health with no nearby threat rests instead of starting cancellable work', () => {
+    assert.equal(chooseAction(state({ health: 4, food: 20 })), 'wait')
+    assert.equal(chooseAction(state({ health: 4, food: 16, hasFood: true })), Actions.EAT)
+    assert.equal(chooseAction(state({ health: 4, hostileDistance: 3 })), Actions.ESCAPE)
+})
