@@ -154,15 +154,15 @@ test('ascending across an open cave places attached stair supports before walkin
     assert.equal(placed.size, 7)
 })
 
-test('tunneling preserves iron and diamond picks but selects a sufficient tier for ore', () => {
+test('tunneling uses the strongest available pick that can harvest the block', () => {
     const { miningPickaxe } = require('../src/progression-skills')
     const items = [
         { name: 'wooden_pickaxe', type: 1 }, { name: 'stone_pickaxe', type: 2 },
         { name: 'iron_pickaxe', type: 3 }, { name: 'diamond_pickaxe', type: 4 }
     ]
     const c = { bestItem: names => items.find(item => names.includes(item.name)) }
-    assert.equal(miningPickaxe(c, { canHarvest: () => true }).name, 'stone_pickaxe')
-    assert.equal(miningPickaxe(c, { canHarvest: type => type >= 3 }).name, 'iron_pickaxe')
+    assert.equal(miningPickaxe(c, { canHarvest: () => true }).name, 'diamond_pickaxe')
+    assert.equal(miningPickaxe(c, { canHarvest: type => type >= 3 }).name, 'diamond_pickaxe')
     assert.equal(miningPickaxe(c, { canHarvest: type => type >= 4 }).name, 'diamond_pickaxe')
 })
 
@@ -226,13 +226,13 @@ test('without any pickaxe the bot can still hand-dig a staircase upward but not 
     }
 })
 
-test('tunnel digging prefers an iron pick over a slow wooden pick when no stone pick remains', () => {
+test('tunnel digging prefers an iron pick even when the stone and wooden picks remain', () => {
     const { miningPickaxe } = require('../src/progression-skills')
-    const held = ['wooden_pickaxe', 'iron_pickaxe', 'diamond_pickaxe']
+    const held = ['wooden_pickaxe', 'iron_pickaxe']
     const c = { bestItem: names => held.includes(names[0]) ? { name: names[0], type: 1 } : null }
     assert.equal(miningPickaxe(c).name, 'iron_pickaxe')
     held.push('stone_pickaxe')
-    assert.equal(miningPickaxe(c).name, 'stone_pickaxe')
+    assert.equal(miningPickaxe(c).name, 'iron_pickaxe')
 })
 
 test('after entering the Nether the bot steps out of the arrival portal and walks back in', async () => {

@@ -62,7 +62,10 @@ function chooseAction (state) {
         return 'wait'
     }
     if (state.isNight && state.sheltered && !state.underground) {
-        return state.canSleep ? 'leave_shelter' : 'wait'
+        if (state.canSleep) {
+            return 'leave_shelter'
+        }
+        return state.canMineFromShelter && state.hasStonePickaxe && state.health >= 16 && state.food >= 17 ? 'mine_from_shelter' : 'wait'
     }
     if (state.needsShelterExit) {
         return 'leave_shelter'
@@ -110,7 +113,12 @@ function chooseAction (state) {
     if (state.diamondInView && state.health > 10 && state.hostileDistance > 6) {
         return 'mine_diamond'
     }
-    const action = state.sideGoal?.action || nextAdvancement(state).action
+    const progression = nextAdvancement(state)
+    if (progression.action === Actions.CRAFT_IRON_PICKAXE) {
+        return Actions.CRAFT_IRON_PICKAXE
+    }
+    const preparingIronPick = progression.item === 'iron_pickaxe'
+    const action = preparingIronPick ? progression.action : state.sideGoal?.action || progression.action
     const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'enter_nether', 'build_redstone'].includes(action)
     if (state.baseMigrate) {
         return 'migrate_base'
@@ -119,16 +127,16 @@ function chooseAction (state) {
         return 'establish_base'
     }
     // About a minute for an advancement (A Seedy Place) while calm on the surface.
-    if (state.canPlantSeed && !state.inventoryFull) {
+    if (!preparingIronPick && state.canPlantSeed && !state.inventoryFull) {
         return 'plant_seed'
     }
-    if (state.canBreed) {
+    if (!preparingIronPick && state.canBreed) {
         return 'breed_animals'
     }
-    if (state.canSummonGolem) {
+    if (!preparingIronPick && state.canSummonGolem) {
         return 'summon_golem'
     }
-    if (state.canFish && !state.inventoryFull) {
+    if (!preparingIronPick && state.canFish && !state.inventoryFull) {
         return 'go_fish'
     }
     if (state.baseDeposit) {
@@ -152,6 +160,10 @@ function chooseAction (state) {
     }
     // Surfacing at night walked a weak bot into archers twice (F035); hunger returns stay above.
     if (surfaceBound && state.isNight) {
+        if (preparingIronPick && action === Actions.WOOD && !state.hasSmeltingFuel && state.sticks >= 2 &&
+            state.rawIron + state.ironIngots >= 3 && state.health > 12) {
+            return Actions.COAL
+        }
         // Nightfall should not stop safe underground work: bank iron for later gear instead of idling.
         if (state.hasStonePickaxe && state.health > 12 && (state.rawIron || 0) + (state.ironIngots || 0) < 40) {
             return Actions.IRON

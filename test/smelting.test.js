@@ -35,6 +35,7 @@ function smelter(raw = 11, coal = 5) {
         hasItem: name => inv[name] > 0, gotoWithTimeout: async () => {}
     }
     c.checkAction = SurvivalController.prototype.checkAction.bind(c)
+    c.smeltIron = SurvivalController.prototype.smeltIron.bind(c)
     c.collectSmelt = SurvivalController.prototype.collectSmelt.bind(c)
     return { c, inv, furnaceState }
 }
@@ -50,6 +51,27 @@ test('starting a smelt loads all raw iron with enough fuel, records a job and re
     assert.ok(c.memory.smeltJob.readyAt >= started + 110000)
     assert.equal(c.memory.pendingSmelt, false)
     assert.equal(c.reclaimed, 0)
+})
+
+test('the first pickaxe smelts only its missing ingots when more raw iron is available', async () => {
+    const { c, inv, furnaceState } = smelter(11, 5)
+    await SurvivalController.prototype.perform.call(c, 'smelt_iron', { ironIngots: 2, hasIronPickaxe: false })
+    assert.equal(inv.raw_iron, 10)
+    assert.equal(furnaceState.input.count, 1)
+})
+
+test('one spare plank can fuel the final ingot without a surface trip for charcoal', async () => {
+    const { c, inv } = smelter(5, 0)
+    inv.oak_planks = 1
+    const state = { ...ironPickGoal, hasFurnace: true, ironIngots: 2, items: { oak_planks: 1 }, planks: 1 }
+    assert.equal(nextAdvancement(state).action, 'smelt_iron')
+    const furnace = await c.bot.openFurnace()
+    let added = 0
+    furnace.putFuel = async (type, meta, count) => { added = count }
+    await SurvivalController.prototype.perform.call(c, 'smelt_iron', state)
+    assert.equal(added, 1)
+    assert.equal(inv.raw_iron, 4)
+    assert.equal(nextAdvancement({ ...state, items: { crimson_planks: 1 } }).action, 'gather_wood')
 })
 
 test('collecting a finished job takes the ingots, clears the job and reclaims the furnace', async () => {

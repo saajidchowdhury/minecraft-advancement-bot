@@ -5,7 +5,7 @@ const { plugin: collectBlockPlugin } = require('mineflayer-collectblock')
 const { Vec3 } = require('vec3')
 const { createRng } = require('./random')
 const { Actions, chooseAction } = require('./decision-engine')
-const { RECIPES, nextAdvancement } = require('./advancement-plan')
+const { RECIPES, nextAdvancement, ironPickPlankFuel } = require('./advancement-plan')
 const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
 const { prepareBed, huntAtNight, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
@@ -15,7 +15,7 @@ const { inventoryReport } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
 const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnimals } = require('./farming')
 const { golemState, summonGolem } = require('./golem')
-const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, PROTECTED_CONTAINERS } = require('./progression-skills')
+const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, PROTECTED_CONTAINERS } = require('./progression-skills')
 
 const { GoalNear, GoalFollow } = goals
 
@@ -76,7 +76,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     fill_water_bucket: 90000, fill_lava_bucket: 90000, gather_diamonds: 90000, gather_obsidian: 90000,
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
     clear_inventory: 30000, mine_diamond: 45000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
-    [Actions.SHELTER]: 60000,
+    [Actions.SHELTER]: 60000, mine_from_shelter: 60000,
     wake: 10000, hunt_night: 45000, sleep: 30000, prepare_bed: 45000, prepare_night_weapon: 30000, leave_shelter: 20000,
     [Actions.EXPLORE]: 60000
 })
@@ -552,6 +552,7 @@ class SurvivalController {
             hasFood: Boolean(this.bestFood()),
             isNight: this.isNight(),
             sheltered: this.sheltered,
+            canMineFromShelter: this.sheltered && !this.memory.shelter?.descentFailed,
             needsShelterExit: Boolean(this.shelterCenter && !this.isNight()),
             shaftTrapped: this.detectVerticalShaft(),
             elevationTrapped: Boolean(this.detectElevationTrap()),
@@ -577,7 +578,6 @@ class SurvivalController {
             rawIron: this.countItems(['raw_iron']),
             ironIngots,
             hasIronPickaxe: hasIronPickNow,
-            hasStoneUtilityPickaxe: this.hasItem('stone_pickaxe'),
             hasDiamondPickaxe: this.hasAnyItem(['diamond_pickaxe', 'netherite_pickaxe']),
             hasIronArmor: armorEquipped || this.hasAnyItem(armorNames), armorEquipped,
             hasShield: shieldEquipped || this.hasItem('shield'), shieldEquipped,
@@ -590,8 +590,9 @@ class SurvivalController {
             dimension: this.bot.game.dimension, items,
             inventoryFull: this.bot.inventory.emptySlotCount() <= 4 && !(this.memory.disposalBackoffUntil > Date.now()),
             surfaceY: this.home?.y || 64, y: this.bot.entity.position.y,
-            underground: this.bot.entity.position.y < (this.home?.y || 64) - 3 && !(this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0))?.skyLight >= 12) &&
-                coveredAbove(this.bot, this.bot.entity.position.floored().offset(0, 1, 0)),
+            underground: Boolean(this.sheltered && this.memory.shelter?.burrowed) ||
+                (this.bot.entity.position.y < (this.home?.y || 64) - 3 && !(this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0))?.skyLight >= 12) &&
+                    coveredAbove(this.bot, this.bot.entity.position.floored().offset(0, 1, 0))),
             portalInProgress: Boolean(this.memory.portalOrigin),
             redstoneInProgress: Boolean(this.memory.redstoneOrigin),
             redstoneRequested: Boolean(this.memory.redstoneRequested)
@@ -630,6 +631,7 @@ class SurvivalController {
             case 'prepare_bed': return prepareBed(this, state.bedWool)
             case 'prepare_night_weapon': return performProgression(this, 'craft_progression', { sideGoal: { item: 'stone_sword' } })
             case 'leave_shelter': return leaveShelter(this)
+            case 'mine_from_shelter': return this.mineFromShelter()
             case Actions.ESCAPE:
                 if (state.creeperDistance <= 6) {
                     // A creeper's fuse winds back down once its target is more than seven blocks away.
@@ -652,7 +654,8 @@ class SurvivalController {
             case Actions.FOOD: return this.gatherFood()
             case Actions.COAL: return this.gatherOre(['coal_ore', 'deepslate_coal_ore'], 32)
             case Actions.IRON: return this.gatherOre(['iron_ore', 'deepslate_iron_ore'], 32)
-            case Actions.SMELT_IRON: return this.smeltIron()
+            case Actions.SMELT_IRON:
+                return this.smeltIron(state.hasIronPickaxe ? 64 : Math.max(1, RECIPES.iron_pickaxe.ironIngots - state.ironIngots), ironPickPlankFuel(state))
             case Actions.CRAFT_IRON_PICKAXE: return this.craftIronPickaxe()
             case Actions.EXPLORE: return this.explore()
             default: return performProgression(this, action, state)
@@ -1118,6 +1121,8 @@ class SurvivalController {
             await this.ensureItem('stick', 4, false)
         }
         await this.ensureItem('iron_pickaxe', 1, true)
+        await this.bot.equip(this.bestItem(['iron_pickaxe']), 'hand')
+        this.log.info('Equipped iron_pickaxe for mining.')
     }
 
     async gatherFood () {
@@ -1263,7 +1268,7 @@ class SurvivalController {
 
     // Fire-and-forget smelting: load all raw iron with enough fuel, record a job and keep
     // working; standing at furnaces cost ~29 min on 2026-11-05 (strategy.md).
-    async smeltIron () {
+    async smeltIron (batchSize = 64, plankFuel = null) {
         // The pre-job pendingSmelt flag is retired here so a stale value cannot loop the planner.
         this.memory.pendingSmelt = false
         const job = this.memory.smeltJob
@@ -1283,8 +1288,10 @@ class SurvivalController {
             if (!rawIron) {
                 return
             }
-            const count = Math.min(64 - (furnace.inputItem()?.count || 0), this.countItems(['raw_iron']))
-            await furnace.putInput(rawIron.type, rawIron.metadata, count)
+            const count = Math.min(batchSize - (furnace.inputItem()?.count || 0), this.countItems(['raw_iron']))
+            if (count > 0) {
+                await furnace.putInput(rawIron.type, rawIron.metadata, count)
+            }
             const total = furnace.inputItem()?.count || count
             const p = furnaceBlock.position
             // Record before fuelling: a fuel error once left 30 raw iron in an unremembered furnace.
@@ -1292,7 +1299,13 @@ class SurvivalController {
             const present = furnace.fuelItem()
             // One coal or charcoal smelts eight items; other fuel already in the slot is used as is.
             const fuelNeeded = Math.ceil(total / 8) - (['coal', 'charcoal'].includes(present?.name) ? present.count : 0)
-            if (fuelNeeded > 0 && (!present || ['coal', 'charcoal'].includes(present.name))) {
+            if (!present && plankFuel) {
+                const plank = this.bestItem([plankFuel.name])
+                if (!plank || this.countItems([plank.name]) < plankFuel.count) {
+                    throw new Error('plank fuel is missing')
+                }
+                await furnace.putFuel(plank.type, plank.metadata, plankFuel.count)
+            } else if (fuelNeeded > 0 && (!present || ['coal', 'charcoal'].includes(present.name))) {
                 const fuel = this.bestItem(present ? [present.name] : ['coal', 'charcoal'])
                 if (!fuel && !present) {
                     throw new Error('coal or charcoal is missing')
@@ -1620,7 +1633,22 @@ class SurvivalController {
 
     // Without walling blocks, dig three blocks straight down by hand and plug the top
     // one with a drop: undisturbed ground forms the walls, so placement needs no scaffold.
-    async burrow () {
+    async mineFromShelter () {
+        const shelter = this.memory.shelter
+        try {
+            await this.bot.equip(miningPickaxe(this), 'hand')
+            this.checkAction()
+            await this.burrow(true)
+            await mineTunnel(this, this.bot.entity.position.floored().y - 4)
+        } catch (error) {
+            if (shelter) {
+                shelter.descentFailed = true
+            }
+            throw error
+        }
+    }
+
+    async burrow (forMining = false) {
         const signal = this.actionAbort?.signal
         const top = this.bot.entity.position.floored()
         const center = top.offset(0, -3, 0)
@@ -1629,7 +1657,8 @@ class SurvivalController {
         const column = [1, 2, 3].map(dy => top.offset(0, -dy, 0))
         const diggable = column.every(p => {
             const block = at(p)
-            return block?.boundingBox === 'block' && block.diggable && !['sand', 'red_sand', 'gravel', 'suspicious_sand', 'suspicious_gravel'].includes(block.name) &&
+            return block?.boundingBox === 'block' && block.diggable && !PROTECTED_CONTAINERS.has(block.name) &&
+                !['sand', 'red_sand', 'gravel', 'suspicious_sand', 'suspicious_gravel'].includes(block.name) &&
                 (this.bot.digTime?.(block) ?? 0) <= 8000 &&
                 [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]].every(([x, y, z]) => !['water', 'lava'].includes(at(p.offset(x, y, z))?.name))
         })
@@ -1659,9 +1688,9 @@ class SurvivalController {
             throw new Error('burrow enclosure incomplete')
         }
         this.shelterCenter = center.clone()
-        this.memory.shelter = { x: center.x, y: center.y, z: center.z, dimension: this.bot.game.dimension }
+        this.memory.shelter = { x: center.x, y: center.y, z: center.z, dimension: this.bot.game.dimension, burrowed: true }
         this.sheltered = true
-        this.log.info(`Emergency burrow enclosure verified at ${center}; waiting for daylight.`)
+        this.log.info(`Burrow enclosure verified at ${center}; ${forMining ? 'continuing underground' : 'replanning protection'}.`)
     }
 
     async placeSurvivalBlock (target) {

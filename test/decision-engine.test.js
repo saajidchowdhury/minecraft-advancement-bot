@@ -51,6 +51,13 @@ test('night shelter outranks resource progression', () => {
     assert.equal(chooseAction(state({ isNight: true })), Actions.SHELTER)
 })
 
+test('a healthy sheltered miner can head below ground at night', () => {
+    const sheltered = state({ isNight: true, sheltered: true, canMineFromShelter: true, hasStonePickaxe: true })
+    assert.equal(chooseAction(sheltered), 'mine_from_shelter')
+    assert.equal(chooseAction({ ...sheltered, health: 12 }), 'wait')
+    assert.equal(chooseAction({ ...sheltered, canMineFromShelter: false }), 'wait')
+})
+
 test('an isolated spawn pillar is descended before progression', () => {
     assert.equal(chooseAction(state({ elevationTrapped: true })), Actions.DESCEND)
 })
@@ -61,6 +68,14 @@ test('a vertical mining shaft is escaped before progression', () => {
 
 test('recovering time-limited death drops outranks ordinary progression', () => {
     assert.equal(chooseAction(state({ recoveryAvailable: true })), Actions.RECOVER)
+})
+
+test('iron pick preparation outranks side advancements when survival permits', () => {
+    const ready = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true,
+        hasFurnace: true, hasSmeltingFuel: true, ironIngots: 3, rawIron: 3, sticks: 2, canPlantSeed: true, canBreed: true })
+    assert.equal(chooseAction(ready), Actions.CRAFT_IRON_PICKAXE)
+    assert.equal(chooseAction({ ...ready, ironIngots: 0 }), Actions.SMELT_IRON)
+    assert.equal(chooseAction({ ...ready, health: 6, hostileDistance: 2 }), Actions.ESCAPE)
 })
 
 test('critically injured bot seeks food instead of continuing progression', () => {
@@ -205,7 +220,7 @@ test('an armored bot fights two zombies once a creeper is beyond its fuse range'
 
 test('a non-urgent surface trip waits underground in shelter at night', () => {
     const night = { underground: true, isNight: true, hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true,
-        hasStonePickaxe: true, hasFurnace: true, hasIronPickaxe: true, hasStoneUtilityPickaxe: false, cobblestone: 10, food: 17, hasFood: true, logs: 0, planks: 0, sticks: 0 }
+        hasStonePickaxe: true, hasFurnace: true, hasIronPickaxe: true, rawIron: 3, cobblestone: 10, food: 17, hasFood: true, logs: 0, planks: 0, sticks: 0 }
     assert.equal(chooseAction(state(night)), Actions.IRON)
     assert.equal(chooseAction(state({ ...night, health: 12, hasFood: false })), Actions.SHELTER)
     assert.equal(chooseAction(state({ ...night, health: 12, hasFood: false, sheltered: true })), 'wait')
@@ -217,7 +232,7 @@ test('a non-urgent surface trip waits underground in shelter at night', () => {
 
 test('a verified underground shelter is not mistaken for a shaft to escape from', () => {
     const night = { underground: true, isNight: true, hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true,
-        hasStonePickaxe: true, hasFurnace: true, hasIronPickaxe: true, hasStoneUtilityPickaxe: false, cobblestone: 10,
+        hasStonePickaxe: true, hasFurnace: true, hasIronPickaxe: true, rawIron: 3, cobblestone: 10,
         food: 17, hasFood: true, logs: 0, planks: 0, sticks: 0, shaftTrapped: true }
     assert.equal(chooseAction(state({ ...night, sheltered: true, health: 12, hasFood: false })), 'wait')
     assert.equal(chooseAction(state({ ...night, sheltered: false })), Actions.ASCEND)

@@ -92,8 +92,18 @@ test('a full iron set and sword precede diamonds; diamond gear follows the picka
     assert.equal(nextAdvancement({ ...established, diamondsArmorUpgrade: true, armorUpgrade: true }).action, 'equip_armor')
 })
 
-test('a stone work pick is only required while iron is scarce', () => {
+test('an existing iron pick satisfies mining needs even with scarce iron and no stone pick', () => {
     const base = { ...established, hasStoneUtilityPickaxe: false, ironIngots: 0, rawIron: 0 }
-    assert.equal(nextAdvancement(base).item, 'stone_pickaxe')
-    assert.notEqual(nextAdvancement({ ...base, ironIngots: 4, rawIron: 3 }).item, 'stone_pickaxe')
+    assert.equal(nextAdvancement(base).action, 'gather_diamonds')
+})
+
+test('the first iron pick uses the first three ingots even after the stone pick and furnace are gone', () => {
+    const base = { ...established, hasIronPickaxe: false, hasFurnace: false, hasStonePickaxe: false, ironIngots: 3 }
+    assert.equal(nextAdvancement(base).action, 'craft_iron_pickaxe')
+})
+
+test('the first iron batch aims for three ingots instead of smelting a lone piece of raw iron', () => {
+    const base = { ...established, hasIronPickaxe: false, rawIron: 1 }
+    assert.equal(nextAdvancement(base).action, 'gather_iron')
+    assert.equal(nextAdvancement({ ...base, ironIngots: 2 }).action, 'smelt_iron')
 })

@@ -46,6 +46,17 @@ function plankPotential(state) {
     return state.planks + state.logs * 4
 }
 
+function ironPickPlankFuel(state) {
+    if (state.hasIronPickaxe || state.hasSmeltingFuel) {
+        return null
+    }
+    const count = Math.ceil((RECIPES.iron_pickaxe.ironIngots - state.ironIngots) * 2 / 3)
+    const reserve = state.sticks < RECIPES.iron_pickaxe.sticks ? 2 : 0
+    const available = Object.entries(state.items || {}).find(([name, n]) =>
+        name.endsWith('_planks') && !['crimson_planks', 'warped_planks'].includes(name) && n >= count + reserve)
+    return count > 0 && available ? { name: available[0], count } : null
+}
+
 function target(id, action, reason, extra = {}) {
     const entry = EARLY_ADVANCEMENTS.find(item => item.id === id)
     return { id, title: entry ? entry.title : id.replace('prep:', ''), action, reason, ...extra }
@@ -84,7 +95,7 @@ function resourceAction(state, costs) {
         if (state.rawIron < Math.min(3, costs.ironIngots - state.ironIngots)) {
             return 'gather_iron'
         }
-        return state.hasSmeltingFuel ? 'smelt_iron' :
+        return state.hasSmeltingFuel || (costs === RECIPES.iron_pickaxe && ironPickPlankFuel(state)) ? 'smelt_iron' :
             (state.logs >= 2 || (state.logs >= 1 && state.planks >= 2) ? 'smelt_charcoal' : 'gather_wood')
     }
     return null
@@ -102,6 +113,9 @@ function nextAdvancement(state) {
     if (!state.hasCraftingTable) {
         return craft(state, 'minecraft:story/root', 'crafting_table', 'craft_table')
     }
+    if (!state.hasIronPickaxe && state.ironIngots >= RECIPES.iron_pickaxe.ironIngots) {
+        return craft(state, 'minecraft:story/iron_tools', 'iron_pickaxe', 'craft_iron_pickaxe')
+    }
     if (!state.hasWoodenPickaxe) {
         return craft(state, 'minecraft:story/mine_stone', 'wooden_pickaxe', 'craft_wooden_pickaxe')
     }
@@ -116,18 +130,9 @@ function nextAdvancement(state) {
         return craft(state, 'prep:furnace', 'furnace', 'craft_furnace')
     }
     if (!state.hasIronPickaxe) {
-        if (state.ironIngots === 0 && (state.rawIron > 0 || state.smeltReady || state.smeltRunning || state.smeltNeedsFuel) &&
-            !state.completedAdvancements?.has('minecraft:story/smelt_iron')) {
-            const action = resourceAction(state, { ironIngots: 1 })
-            return target('minecraft:story/smelt_iron', action, 'retrieve the first iron ingot before collecting more')
-        }
-        return craft(state, state.ironIngots < 1 ? 'minecraft:story/smelt_iron' : 'minecraft:story/iron_tools',
+        const hasSmeltedIron = state.ironIngots > 0 || state.completedAdvancements?.has('minecraft:story/smelt_iron')
+        return craft(state, hasSmeltedIron ? 'minecraft:story/iron_tools' : 'minecraft:story/smelt_iron',
             'iron_pickaxe', 'craft_iron_pickaxe')
-    }
-    // A stone work pick spares iron only while iron is scarce (F005); with iron banked, the 38
-    // stone picks and 8 surface wood trips of 2026-11-05 cost more than iron pick wear.
-    if (state.hasStoneUtilityPickaxe === false && (state.ironIngots || 0) + (state.rawIron || 0) < 6) {
-        return craft(state, 'prep:stone work pickaxe', 'stone_pickaxe', 'craft_stone_pickaxe')
     }
     if (!state.hasIronArmor) {
         return craft(state, 'minecraft:story/obtain_armor', 'iron_chestplate')
@@ -198,4 +203,4 @@ function nextAdvancement(state) {
     return target('survival:established', 'wait', 'supported advancement route complete; use !come or !redstone')
 }
 
-module.exports = { EARLY_ADVANCEMENTS, RECIPES, ARMOR_TIERS, nextAdvancement, plankPotential, resourceAction }
+module.exports = { EARLY_ADVANCEMENTS, RECIPES, ARMOR_TIERS, nextAdvancement, plankPotential, resourceAction, ironPickPlankFuel }
