@@ -146,3 +146,49 @@ test('a descending staircase throws surplus up the carved steps instead of retre
     const look = c.looks[0].minus(origin)
     assert.ok(look.z === 4 && Math.abs(look.y - 5.62) < 1e-9 && look.x === 0)
 })
+
+test('cleanup digs a shielded pit beside the tunnel and throws surplus into it', async () => {
+    const { Vec3 } = require('vec3')
+    const { performProgression } = require('../src/progression-skills')
+    const inventory = [{ name: 'cobblestone', count: 64 }, { name: 'cobblestone', count: 64 }, { name: 'tuff', count: 5 }]
+    const c = disposalContext(() => false, inventory, [{ x: 0, y: 64, z: 1 }])
+    const dug = new Set()
+    // One-wide tunnel along +z from the face at z=0; everything else is diggable stone.
+    c.bot.blockAt = p => {
+        const air = dug.has(p.toString()) || (p.x === 0 && p.z >= 0 && p.y >= 64 && p.y <= 65)
+        return { name: air ? 'air' : 'stone', position: p, boundingBox: air ? 'empty' : 'block', diggable: !air }
+    }
+    c.bot.dig = async block => { dug.add(block.position.toString()) }
+    c.bestItem = () => undefined
+    const origin = c.bot.entity.position.clone()
+    await performProgression(c, 'clear_inventory', {})
+    assert.deepEqual(c.bot.entity.position, origin)
+    assert.equal(dug.size, 3)
+    const side = [...dug].map(k => new Vec3(...k.slice(1, -1).split(',').map(Number)))
+    const dx = Math.sign(side[0].x)
+    assert.ok(dx !== 0 && side.every(p => p.z === 0))
+    assert.deepEqual(side.map(String).sort(), [new Vec3(dx, 65, 0), new Vec3(2 * dx, 65, 0), new Vec3(2 * dx, 64, 0)].map(String).sort())
+    assert.equal(c.bot.blockAt(new Vec3(dx, 64, 0)).boundingBox, 'block')
+    assert.deepEqual(inventory.map(i => i.name), ['cobblestone'])
+    const look = c.looks[0].minus(origin)
+    assert.ok(look.x === 3 * dx && look.z === 0 && Math.abs(look.y - 1.62) < 1e-9)
+})
+
+test('no pit is dug next to liquid or under a loose roof', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    for (const hazard of ['water', 'gravel']) {
+        const inventory = [{ name: 'cobblestone', count: 64 }, { name: 'cobblestone', count: 64 }]
+        const c = disposalContext(() => false, inventory)
+        let digs = 0
+        c.bot.blockAt = p => {
+            const air = p.x === 0 && p.z === 0 && p.y >= 64 && p.y <= 65
+            const ring = Math.abs(p.x) + Math.abs(p.z) === 2 && (p.x === 0 || p.z === 0)
+            const name = air ? 'air' : ring && p.y === (hazard === 'water' ? 63 : 66) ? hazard : 'stone'
+            return { name, position: p, boundingBox: air || name === 'water' ? 'empty' : 'block', diggable: !air }
+        }
+        c.bot.dig = async () => { digs++ }
+        c.bestItem = () => undefined
+        await assert.rejects(performProgression(c, 'clear_inventory', {}), /no open toss lane/)
+        assert.equal(digs, 0)
+    }
+})

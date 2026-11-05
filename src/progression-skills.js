@@ -660,6 +660,57 @@ function tossLane(c, start) {
     return best
 }
 
+// User technique: from feet cell F facing wall d, dig F+d+1 and F+2d+1 at head height, then
+// the pit F+2d. Items thrown through the hole fall into the pit; the intact F+d and roof
+// F+d+2 keep the bot out, and the pit is 2 blocks away, beyond the 1.3-block pickup reach.
+function disposalPit(c, start) {
+    const bot = c.bot
+    const back = (c.memory.mineRoute || []).findLast(p => p.x !== start.x || p.z !== start.z)
+    const solid = b => b?.boundingBox === 'block' && !HAZARDS.has(b.name)
+    const liquid = b => !b || ['water', 'lava', 'bubble_column'].includes(b.name)
+    let best = null
+    for (const [dx, dz] of DIRECTIONS) {
+        const at = (k, dy) => start.offset(dx * k, dy, dz * k)
+        const cells = [at(1, 1), at(2, 1), at(2, 0)]
+        const sound = cells.every(p => {
+            const block = bot.blockAt(p, false)
+            return block && !HAZARDS.has(block.name) && (block.boundingBox === 'empty' || (block.diggable && bot.canDigBlock?.(block) !== false)) &&
+                [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0], [0, -1, 0]].every(([x, y, z]) => !liquid(bot.blockAt(p.offset(x, y, z), false)))
+        })
+        if (!sound || !solid(bot.blockAt(at(1, 0), false)) || !solid(bot.blockAt(at(1, 2), false)) ||
+            !solid(bot.blockAt(at(2, -1), false)) || ['sand', 'red_sand', 'gravel'].includes(bot.blockAt(at(2, 2), false)?.name)) {
+            continue
+        }
+        const score = back ? -Math.abs(dx * (back.x - start.x) + dz * (back.z - start.z)) : 0
+        if (!best || score > best.score) {
+            best = { dx, dz, cells, score }
+        }
+    }
+    return best
+}
+
+async function digDisposalPit(c, pit, signal) {
+    const bot = c.bot
+    for (const p of pit.cells) {
+        check(c)
+        if (signal?.aborted) {
+            throw new Error('disposal cancelled')
+        }
+        const block = bot.blockAt(p, false)
+        if (block?.boundingBox === 'empty') {
+            continue
+        }
+        const tool = miningPickaxe(c, block)
+        if (tool) {
+            await bot.equip(tool, 'hand')
+        }
+        await bot.dig(block, true)
+        if (bot.blockAt(p, false)?.boundingBox !== 'empty') {
+            throw new Error(`disposal pit cell ${p} was not cleared`)
+        }
+    }
+}
+
 function disposalFailed(c, message) {
     c.memory.disposalFailures = (c.memory.disposalFailures || 0) + 1
     if (c.memory.disposalFailures >= 3) {
@@ -696,6 +747,15 @@ async function clearInventory(c) {
     const signal = c.actionAbort?.signal
     const start = bot.entity.position.floored()
     const summary = surplus.map(item => `${item.count} ${item.name}`).join(', ')
+    const pit = disposalPit(c, start)
+    if (pit) {
+        c.log.info(`Freeing inventory space: digging a shielded pit toward ${pit.dx},${pit.dz} and throwing ${summary} into it.`)
+        await digDisposalPit(c, pit, signal)
+        await tossAll(c, surplus, bot.entity.position.offset(3 * pit.dx, 1.62, 3 * pit.dz), signal)
+        c.memory.lastDisposal = { x: pit.cells[2].x, z: pit.cells[2].z, dimension: bot.game.dimension, at: Date.now() }
+        c.memory.disposalFailures = 0
+        return
+    }
     const lane = tossLane(c, start)
     if (lane) {
         c.log.info(`Freeing inventory space: throwing ${summary} along an open ${lane.rise ? 'stair' : 'level'} lane; no retreat needed.`)
