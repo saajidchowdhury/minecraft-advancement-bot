@@ -80,7 +80,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     smelt_charcoal: 45000, craft_progression: 45000, equip_armor: 10000, equip_shield: 10000,
     fill_water_bucket: 90000, fill_lava_bucket: 90000, gather_diamonds: 90000, gather_obsidian: 90000,
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
-    clear_inventory: 30000, mine_diamond: 45000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, escape_lava: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
+    clear_inventory: 30000, mine_diamond: 45000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
     wake: 10000, hunt_night: 45000, sleep: 30000, prepare_bed: 45000, prepare_night_weapon: 30000, leave_shelter: 20000,
     [Actions.EXPLORE]: 60000
@@ -316,7 +316,7 @@ class SurvivalController {
                 }
             }
             previousHealth = this.bot.health
-            if (this.bot.health <= 6 && this.busy && ![Actions.ESCAPE, 'escape_lava', 'surface_for_air'].includes(action) &&
+            if (this.bot.health <= 6 && this.busy && ![Actions.ESCAPE, 'escape_lava', 'surface_for_air', 'clear_head'].includes(action) &&
                 (tookDamage || ![Actions.EAT, Actions.SHELTER].includes(action)) && !this.actionAbort?.signal.aborted) {
                 this.cancelCurrentTask('critical health')
             }
@@ -672,6 +672,7 @@ class SurvivalController {
         }
         state.cornered = this.corneredUntil > Date.now() && state.hostileDistance <= 3
         state.inLava = this.inLava()
+        state.suffocating = Boolean(this.suffocatingBlock())
         state.oxygen = this.bot.oxygenLevel ?? 20
         state.headInWater = this.bot.blockAt(this.bot.entity.position.offset(0, this.bot.entity.eyeHeight ?? 1.62, 0), false)?.name === 'water'
         // Hostiles behind walls cannot reach a sealed pocket; only visible ones make a crowd.
@@ -711,6 +712,7 @@ class SurvivalController {
             case 'shoot_arrow': return shootArrow(this)
             case 'surface_for_air': return this.surfaceForAir()
             case 'escape_lava': return this.escapeLava()
+            case 'clear_head': return this.clearHead()
             case 'gather_leather': return gatherLeather(this)
             case 'enchant_item': return enchantItem(this)
             case 'breed_animals': return breedAnimals(this)
@@ -1770,6 +1772,23 @@ class SurvivalController {
                 return this.braceAgainst(threat)
             }
         }
+    }
+
+    // The solid, non-liquid block filling the bot's eye cell, if any.
+    suffocatingBlock () {
+        const entity = this.bot.entity
+        const eye = entity && this.bot.blockAt?.(entity.position.offset(0, entity.eyeHeight ?? 1.62, 0), false)
+        return eye?.boundingBox === 'block' && eye.diggable !== false ? eye : null
+    }
+
+    async clearHead () {
+        const block = this.suffocatingBlock()
+        if (!block) {
+            return
+        }
+        this.log.warn(`Suffocating inside ${block.name} at ${block.position}; digging it out.`)
+        await this.bot.tool?.equipForBlock?.(block, { requireHarvest: false, getFromChest: false }).catch(() => {})
+        await this.bot.dig(block, true)
     }
 
     inLava () {

@@ -48,6 +48,10 @@ function chooseAction (state) {
     if (state.inLava) {
         return 'escape_lava'
     }
+    // Sand or gravel landing on the head suffocates at 1 HP per half second.
+    if (state.suffocating) {
+        return 'clear_head'
+    }
     if (state.headInWater && (state.oxygen ?? 20) <= 12) {
         return 'surface_for_air'
     }

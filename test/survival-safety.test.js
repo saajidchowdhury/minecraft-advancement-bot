@@ -714,3 +714,22 @@ test('burning in lava pre-empts everything: water is poured at the feet and the 
     assert.equal(c.bot.blockAt(new Vec3(goal.x, goal.y, goal.z)).name, 'air')
     assert.notDeepEqual([goal.x, goal.z], [246, -156])
 })
+
+test('a block filling the eye cell is dug out before any other work', async () => {
+    const { chooseAction } = require('../src/decision-engine')
+    assert.equal(chooseAction({ health: 12, food: 20, hostileDistance: Infinity, suffocating: true }), 'clear_head')
+    const gravel = { name: 'gravel', position: new Vec3(0, 65, 0), boundingBox: 'block', diggable: true }
+    const c = Object.create(SurvivalController.prototype)
+    const dug = []
+    c.log = { warn() {} }
+    c.bot = {
+        entity: { position: new Vec3(0.5, 64, 0.5), eyeHeight: 1.62 },
+        // Like Mineflayer, blockAt floors a fractional eye position.
+        blockAt: p => Math.floor(p.y) === 65 ? gravel : { name: 'air', boundingBox: 'empty' },
+        async dig(block) { dug.push(block.name) }
+    }
+    await c.clearHead()
+    assert.deepEqual(dug, ['gravel'])
+    c.bot.blockAt = () => ({ name: 'air', boundingBox: 'empty' })
+    assert.equal(c.suffocatingBlock(), null)
+})
