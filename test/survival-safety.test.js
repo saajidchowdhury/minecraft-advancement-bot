@@ -747,3 +747,27 @@ test('an underground login gets a provisional sea-level home that open sky above
     assert.equal(updateHome(stale, new Vec3(3, -19, 140), 0), true)
     assert.deepEqual(stale.home, { x: 3, y: 63, z: 140, provisional: true })
 })
+
+test('a resource walk yields once iron or food comes into view, and the yield counts as progress', async t => {
+    const { actionMadeProgress } = require('../src/survival-bot')
+    t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] })
+    let seen = null
+    let cancelled = null
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, {
+        bot: { entity: { position: new Vec3(0, 64, 0) }, targetDigBlock: null }, log: { info() {}, warn() {} },
+        actionAbort: new AbortController(), priorityTargetInView: () => seen,
+        perform: () => new Promise(resolve => c.actionAbort.signal.addEventListener('abort', resolve)),
+        cancelCurrentTask(reason) { cancelled = reason; c.actionAbort.abort(reason) }
+    })
+    const run = c.performWithTimeout(Actions.IRON, {})
+    await new Promise(resolve => setImmediate(resolve))
+    t.mock.timers.tick(1500)
+    assert.equal(cancelled, null)
+    seen = 'pick_glow_berries'
+    t.mock.timers.tick(1500)
+    await run
+    assert.equal(cancelled, 'pick_glow_berries came into view during gather_iron')
+    assert.equal(actionMadeProgress(Actions.IRON, {}, { ironInView: true }, false), true)
+    assert.equal(actionMadeProgress(Actions.IRON, { ironInView: true }, { ironInView: true }, false), false)
+})

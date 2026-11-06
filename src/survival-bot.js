@@ -10,7 +10,7 @@ const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
 const { prepareBed, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
-const { FOOD_VALUES, foodState, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
+const { FOOD_VALUES, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
 const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, oreSight, rememberExposedDiamonds } = require('./cave-exploration')
 const { findNearbyLoot, lootChest } = require('./loot')
 const { discardableStack, inventoryReport } = require('./inventory')
@@ -89,6 +89,10 @@ const STATIONARY_ACTIONS = new Set([
 ])
 
 const OPPORTUNISTIC = new Set(['mine_iron', 'pick_glow_berries', 'hunt_fish', 'gather_mushroom_stew'])
+// Long resource walks that yield when a priority target appears; the user saw the bot walk past
+// iron and glow berries mid-action, and the next decision would have taken them (17:23Z).
+const INTERRUPTIBLE = new Set([Actions.WOOD, Actions.STONE, Actions.COAL, Actions.IRON, Actions.FOOD, Actions.SMELT_IRON,
+    Actions.EXPLORE, 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'return_surface'])
 
 // Home anchors surfaceY. A login underground (after a memory reset, 17:11Z at Y=-19) gives a
 // provisional sea-level home that the first open-sky position above Y=50 replaces.
@@ -141,7 +145,7 @@ async function waitUntil (predicate, timeoutMs, intervalMs = 250) {
 }
 
 function actionMadeProgress (action, before, after, moved) {
-    if ([Actions.STONE, Actions.COAL, Actions.IRON].includes(action) && after.diamondInView && !before.diamondInView) {
+    if (INTERRUPTIBLE.has(action) && ['diamondInView', 'ironInView', 'foodOpportunity'].some(key => after[key] && !before[key])) {
         return true
     }
     if ([Actions.STONE, Actions.COAL, Actions.IRON].includes(action) &&
@@ -807,6 +811,7 @@ class SurvivalController {
         this.activeAction = action
         let timeout
         let movementWatchdog
+        let opportunityWatchdog
         let cancelledByGuard = false
         const signal = this.actionAbort.signal
         let abortListener
@@ -863,10 +868,26 @@ class SurvivalController {
                     movementWatchdog.unref()
                 }))
             }
+            if (INTERRUPTIBLE.has(action)) {
+                const initial = this.priorityTargetInView()
+                attempts.push(new Promise(resolve => {
+                    opportunityWatchdog = setInterval(() => {
+                        const seen = this.priorityTargetInView()
+                        if (seen && seen !== initial) {
+                            clearInterval(opportunityWatchdog)
+                            cancelledByGuard = true
+                            resolve()
+                            this.cancelCurrentTask(`${seen} came into view during ${action}`)
+                        }
+                    }, 1500)
+                    opportunityWatchdog.unref?.()
+                }))
+            }
             return await Promise.race(attempts)
         } finally {
             clearTimeout(timeout)
             clearInterval(movementWatchdog)
+            clearInterval(opportunityWatchdog)
             signal.removeEventListener('abort', abortListener)
             this.activeAction = previousAction
             if (cancelledByGuard) {
@@ -1349,6 +1370,31 @@ class SurvivalController {
             return mineTunnel(this, nearby ? nearby.position.y : (names.includes('iron_ore') ? 16 : feet.y), nearby?.position)
         }
         await this.collectTarget(block, block, block.name)
+    }
+
+    // The decision loop's opportunistic targets, cheaply: null, 'diamond', 'iron' or a food action.
+    priorityTargetInView () {
+        try {
+            if (!this.mcData || !this.canPursueDiamond()) {
+                return null
+            }
+            if (findPriorityDiamond(this)) {
+                return 'diamond'
+            }
+            if (this.ironWanted && findPriorityOre(this, IRON_ORES)) {
+                return 'iron'
+            }
+            const items = this.bot.inventory.items()
+            if (this.bot.health < 12 || mealReserve(items) >= MIN_MINING_MEALS || this.bot.inventory.emptySlotCount() < 1 ||
+                this.visibleThreatCount(12) > 0) {
+                return null
+            }
+            const food = foodOpportunity(this, { hasCraftingTable: false, planks: 0, logs: 0 })
+            return food && food.action !== 'gather_mushroom_stew' ? food.action : null
+        } catch (error) {
+            this.log.warn(`Opportunity check failed: ${error.message}`)
+            return null
+        }
     }
 
     canPursueDiamond () {

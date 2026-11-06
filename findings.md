@@ -1398,5 +1398,13 @@ put the diamond sword after the full iron set and Hot Stuff; it now follows the 
 as soon as two diamonds are spare. Log: from 17:23:18 to 17:23:46 the bot was ~8 blocks from
 that ore choosing `gather_iron`, so the priority filter rejected it. The face test accepted
 only air neighbours; faces behind glow lichen, vines or moss carpet (no collision box) now
-count as visible. Unverified alternative: an adjacent water or lava block, which still excludes
-an ore by design. If such an ore is skipped again, inspect its neighbours before changing more.
+count as visible. Correction: the user then reported only air and deepslate beside that ore,
+and that the bot walked through tall grass a few blocks from it, so neither lichen nor liquid
+explains this case. Better explanation (code inspection): priority targets were re-checked
+only between actions and tunnel steps, so a long walk (the furnace return tunnel, a
+`gather_iron` route) passed visible iron and glow berries (-6,-15,136) without yielding. An
+opportunity watchdog now checks every 1.5 s during resource walks (`INTERRUPTIBLE`) and ends
+the action as progress when a new diamond, wanted iron, fish or ripe berry comes into view.
+Remaining sight differences from a player, by design: rays sample nine points per exposed face
+(a grazing sliver can be missed), glass and other collision blocks stop rays, and ores beside
+liquid are excluded; the bot needs no light and no facing direction.
