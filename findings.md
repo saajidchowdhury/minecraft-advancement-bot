@@ -6,9 +6,10 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~00:50 Eastern. A fresh LAN world on port 55502 uses world ID
+Updated 2026-11-06 ~01:07 Eastern. At handoff the bot was RUNNING on `ca042f8` (PID 82290,
+`outputs/2026-11-06@00.54.52`), seeking lava for Hot Stuff with six diamonds. A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-after `ae4fb62` passes all 281 tests and syntax checks. Read the latest
+at `f12d1d9` passes all 284 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1078,9 +1079,17 @@ restarted onto newer code at 05:22, 05:35 and 05:41.
    at 05:44:22. `ae4fb62` keeps `return_surface` climbing while a solid
    non-leaf block covers the bot. It is not yet live-tested.
 
+Later on `ca042f8` (`outputs/2026-11-06@00.54.52`): in-place recovery fired
+again at 05:55:29 on a liquid-blocked tunnel and the bot moved on. Diamonds!
+was server-confirmed at 06:00:56, about 45 minutes after the empty-handed
+start, and the bot carried six diamonds. The F056 lava quarantine was
+observed live: (-27,-16,27) was remembered after "No path to the goal!", and
+the bot tunneled toward Y=-54 to look for another source. The widened action
+summary showed `diamond=6 bucket=1`.
+
 Also seen: savanna acacia trees cost one 10 s approach timeout per log.
-`c65d476` now blocks the whole trunk vein after one failure, but acacia's
-diagonal trunks can still fall outside the three-block vein. The iron pick
+`c65d476` and `f12d1d9` now block a 12-log vein after one failure, which
+should cover diagonal acacia trunks. The iron pick
 wore out at 05:36 while carving a staircase. The bot rebuilt it from six
 carried ingots once it had wood.
 
