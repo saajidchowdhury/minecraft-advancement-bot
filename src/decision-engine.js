@@ -3,6 +3,7 @@
 const { nextAdvancement } = require('./advancement-plan')
 const MIN_MINING_WOOD_PLANKS = 32
 const MIN_MINING_FOOD_UNITS = 16
+const NIGHT_CARVE_ACTIONS = new Set(['gather_iron', 'gather_coal', 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'fill_lava_bucket'])
 
 const Actions = Object.freeze({
     ESCAPE: 'escape',
@@ -111,6 +112,15 @@ function chooseAction (state) {
     if (state.isNight && !state.underground) {
         if (state.nightShaftReady && state.hasStonePickaxe && state.health >= 16 && state.food >= 17 && !state.visibleHostiles) {
             return 'descend_shaft_at_night'
+        }
+        // Without a remembered shaft, a protected and supplied miner carves down instead of idling
+        // the night in a surface shelter (00.41.40: the shelter's burrow was refused on a hillside).
+        const carveDown = NIGHT_CARVE_ACTIONS.has(progression.action) && state.hasIronPickaxe && state.shieldEquipped &&
+            (state.armorPoints || 0) >= 6 && state.health >= 16 && state.food >= 17 && !state.visibleHostiles &&
+            state.hostileDistance > 16 && (state.planks || 0) + (state.logs || 0) * 4 >= MIN_MINING_WOOD_PLANKS &&
+            state.foodUnits >= MIN_MINING_FOOD_UNITS
+        if (carveDown) {
+            return progression.action
         }
         if (!state.nightCombatReady) {
             if (state.canPrepareNightWeapon) {

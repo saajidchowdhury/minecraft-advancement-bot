@@ -315,3 +315,17 @@ test('a verified underground shelter is not mistaken for a shaft to escape from'
     assert.equal(chooseAction(state({ ...night, sheltered: true, health: 12, hasFood: false })), 'wait')
     assert.equal(chooseAction(state({ ...night, sheltered: false })), Actions.ASCEND)
 })
+
+test('a protected, supplied miner on the surface at night carves down instead of sheltering', () => {
+    const dusk = state({ isNight: true, food: 17, hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true,
+        hasStonePickaxe: true, hasWoodcuttingAxe: true, hasDiggingShovel: true, hasFurnace: true, hasIronPickaxe: true,
+        hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true, armorPoints: 6, hasWeapon: true,
+        logs: 9, planks: 3, sticks: 3, cobblestone: 49, foodUnits: 16, ironIngots: 0, rawIron: 0,
+        nightCombatReady: false, visibleHostiles: 0, completedAdvancements: new Set() })
+    assert.equal(chooseAction(dusk), Actions.IRON)
+    assert.equal(chooseAction({ ...dusk, hostileDistance: 12 }), Actions.SHELTER)
+    assert.equal(chooseAction({ ...dusk, health: 14 }), Actions.SHELTER)
+    assert.equal(chooseAction({ ...dusk, shieldEquipped: false }), Actions.SHELTER)
+    assert.equal(chooseAction({ ...dusk, logs: 0 }), Actions.SHELTER)
+    assert.equal(chooseAction({ ...dusk, isNight: false }), Actions.IRON)
+})
