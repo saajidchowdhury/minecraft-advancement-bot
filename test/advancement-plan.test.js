@@ -162,3 +162,10 @@ test('a full pair of water buckets without lava or an empty bucket crafts a thir
     assert.equal(nextAdvancement({ ...state, obsidianCastPending: true }).action, 'gather_obsidian')
     assert.equal(nextAdvancement({ ...state, obsidian: 10 }).item, 'flint_and_steel')
 })
+
+test('a stone tool short of both wood and cobblestone gathers wood before digging for stone', () => {
+    const state = { ...established, logs: 0, planks: 1, sticks: 1, cobblestone: 0 }
+    assert.equal(resourceAction(state, { cobblestone: 3, sticks: 2 }), 'gather_wood')
+    assert.equal(resourceAction({ ...state, logs: 1 }, { cobblestone: 3, sticks: 2 }), 'gather_stone')
+    assert.equal(resourceAction({ ...state, cobblestone: 3 }, { cobblestone: 3, sticks: 2 }), 'gather_wood')
+})

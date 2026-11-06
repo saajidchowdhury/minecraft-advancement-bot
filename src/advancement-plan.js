@@ -65,8 +65,9 @@ function target(id, action, reason, extra = {}) {
 
 function resourceAction(state, costs) {
     const planks = (costs.planks || 0) + (state.sticks < (costs.sticks || 0) ? 2 : 0)
+    // Wood first: stone is dug anywhere, but a climb back to trees spends freshly mined cobblestone.
     if (state.cobblestone < (costs.cobblestone || 0)) {
-        return 'gather_stone'
+        return plankPotential(state) < planks ? 'gather_wood' : 'gather_stone'
     }
     for (const [field, action] of [
         ['diamonds', 'gather_diamonds'], ['obsidian', 'gather_obsidian'],
