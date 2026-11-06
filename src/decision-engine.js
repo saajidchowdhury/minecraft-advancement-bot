@@ -75,7 +75,9 @@ function chooseAction (state) {
         return Actions.EAT
     }
     // At critical health each regeneration update cancels work; with food >= 18 rest while it regenerates.
-    if (state.health <= 6 && state.food >= 18 && state.hostileDistance > 12 && !state.sleeping) {
+    // Rest continues to 14 HP: resuming at 7.7 HP in the same cave let a zombie kill the bot (00.54.52).
+    if ((state.health <= 6 || (state.recoveringHealth && state.health < 14)) && state.food >= 18 &&
+        state.hostileDistance > 12 && !state.sleeping) {
         return 'wait'
     }
     if (state.isNight && state.sheltered && !state.underground) {

@@ -339,3 +339,12 @@ test('night carving yields to a weapon craft and to a retreat earlier that night
     assert.equal(chooseAction({ ...dusk, canPrepareNightWeapon: true }), 'prepare_night_weapon')
     assert.equal(chooseAction({ ...dusk, retreatForNight: true }), Actions.SHELTER)
 })
+
+test('after critical health the bot keeps resting to 14 HP before resuming work', () => {
+    const miner = state({ food: 20, hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true,
+        hasWoodcuttingAxe: true, hasDiggingShovel: true, hasFurnace: true, logs: 8, planks: 4, sticks: 4, foodUnits: 20 })
+    assert.equal(chooseAction({ ...miner, health: 7.7, recoveringHealth: true }), 'wait')
+    assert.notEqual(chooseAction({ ...miner, health: 7.7, recoveringHealth: false }), 'wait')
+    assert.notEqual(chooseAction({ ...miner, health: 14, recoveringHealth: true }), 'wait')
+    assert.notEqual(chooseAction({ ...miner, health: 7.7, recoveringHealth: true, hostileDistance: 8 }), 'wait')
+})

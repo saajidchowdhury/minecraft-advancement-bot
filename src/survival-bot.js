@@ -639,6 +639,12 @@ class SurvivalController {
             redstoneInProgress: Boolean(this.memory.redstoneOrigin),
             redstoneRequested: Boolean(this.memory.redstoneRequested)
         }
+        if (state.health <= 6) {
+            this.recoveringHealth = true
+        } else if (state.health >= 14) {
+            this.recoveringHealth = false
+        }
+        state.recoveringHealth = Boolean(this.recoveringHealth)
         // Hostiles behind walls cannot reach a sealed pocket; only visible ones make a crowd.
         state.visibleHostiles = this.visibleThreatCount(12)
         state.closeHostiles = this.visibleThreatCount()
@@ -1694,12 +1700,38 @@ class SurvivalController {
                 return
             }
         }
+        // A creeper within four blocks outpaces a fleeing bot, which then takes the blast in the back.
+        const brace = () => threat.name === 'creeper' && this.bot.inventory?.slots[45]?.name === 'shield' &&
+            this.bot.entity.position.distanceTo(threat.position) <= 4
+        if (brace()) {
+            return this.braceAgainst(threat)
+        }
         this.log.info(`Fleeing ${threat.name} at ${threat.position.floored()}; ${openings.length} facing opening(s) could not be sealed.`)
         // Pausing between single legs let a following creeper close in and explode (F027).
         for (let leg = 0; leg < 4 && threat.isValid !== false && this.canSee(threat) &&
             this.bot.entity.position.distanceTo(threat.position) < clearDistance; leg++) {
             this.checkAction(signal)
             await this.escapeFrom(threat)
+            if (brace()) {
+                return this.braceAgainst(threat)
+            }
+        }
+    }
+
+    // A raised shield facing the explosion blocks its damage (00.54.52: 11 HP lost while fleeing).
+    async braceAgainst (threat) {
+        const signal = this.actionAbort?.signal
+        this.log.info(`Bracing behind the shield against a ${threat.name} at ${this.bot.entity.position.distanceTo(threat.position).toFixed(1)} blocks.`)
+        this.bot.activateItem(true)
+        try {
+            const deadline = Date.now() + 3000
+            while (Date.now() < deadline && threat.isValid !== false && this.bot.entity.position.distanceTo(threat.position) <= 7) {
+                this.checkAction(signal)
+                await this.bot.lookAt(threat.position.offset(0, 0.9, 0), true)
+                await this.bot.waitForTicks(2)
+            }
+        } finally {
+            this.bot.deactivateItem()
         }
     }
 

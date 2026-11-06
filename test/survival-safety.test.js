@@ -421,6 +421,27 @@ test('fleeing a creeper keeps running until it is ten blocks away', async () => 
     assert.ok(c.bot.entity.position.distanceTo(creeper.position) >= 10)
 })
 
+test('a creeper that closes within four blocks is met behind a raised shield, not with a turned back', async () => {
+    const c = creeperWorld(() => true)
+    const events = []
+    const creeper = { name: 'creeper', isValid: true, position: new Vec3(6.5, 64, 0.5) }
+    Object.assign(c.bot, {
+        inventory: { slots: { 45: { name: 'shield' } } },
+        activateItem(offHand) { events.push(`raise:${offHand}`) },
+        deactivateItem() { events.push('lower') },
+        async lookAt(p) { assert.ok(p.x > c.bot.entity.position.x) },
+        async waitForTicks() { creeper.isValid = false }
+    })
+    c.canSee = () => true
+    c.braceAgainst = SurvivalController.prototype.braceAgainst?.bind(c)
+    c.escapeFrom = async () => {
+        events.push('flee')
+        creeper.position = creeper.position.offset(-3, 0, 0)
+    }
+    await SurvivalController.prototype.takeCover.call(c, creeper, 8)
+    assert.deepEqual(events, ['flee', 'raise:true', 'lower'])
+})
+
 test('a visible archer is fled until out of sight, not just a fixed distance', async () => {
     const c = creeperWorld(p => p.y >= 64)
     let legs = 0
