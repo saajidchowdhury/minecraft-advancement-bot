@@ -513,7 +513,24 @@ async function fillLavaBucket(c) {
         throw new Error('lava needs an empty bucket; filled buckets would pour instead')
     }
     try {
-        await c.gotoWithTimeout(new goals.GoalNear(lava.position.x, lava.position.y, lava.position.z, 3), 12000, 'lava approach')
+        const center = lava.position.offset(0.5, 0.5, 0.5)
+        try {
+            await c.gotoWithTimeout(new goals.GoalNear(lava.position.x, lava.position.y, lava.position.z, 3), 12000, 'lava approach')
+        } catch (error) {
+            // Pools seen through rock had no walkable path (01.54.16); tunnel toward one, a few
+            // segments at most; the tunnel's liquid checks stop it beside the pool, within reach.
+            if (!/no path/i.test(error.message) || c.bot.entity.position.distanceTo(center) > 24) {
+                throw error
+            }
+            const tunnels = c.memory.lavaTunnels ??= {}
+            const key = `${lava.position}`
+            if ((tunnels[key] || 0) >= 4) {
+                throw error
+            }
+            tunnels[key] = (tunnels[key] || 0) + 1
+            c.log.info(`No walking path to lava at ${lava.position}; tunneling toward it (${tunnels[key]}/4).`)
+            return mineTunnel(c, lava.position.y + 1, lava.position)
+        }
         check(c)
         if (c.bot.entity.position.distanceTo(lava.position.offset(0.5, 0.5, 0.5)) > 4.5) {
             throw new Error('lava source is out of reach from dry ground')

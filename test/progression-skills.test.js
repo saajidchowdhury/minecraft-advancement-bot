@@ -513,3 +513,25 @@ test('a pickaxe-free bot below the surface walks up toward the home level instea
     assert.equal(goal.isEnd({ y: 66 }), false)
     assert.equal(goal.heuristic({ y: 60 }), 8)
 })
+
+test('lava with no walking path is tunneled toward before the source is quarantined', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const lava = { name: 'lava', position: new Vec3(20, -55, 0), getProperties: () => ({ level: 0 }) }
+    const blocked = []
+    const c = {
+        bot: {
+            health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, -54, 0.5) },
+            inventory: { items: () => [{ name: 'bucket', count: 1 }] }
+        },
+        running: true, paused: false, actionAbort: new AbortController(), memory: {}, log: { info() {}, warn() {} },
+        hasItem: name => name === 'bucket', bestItem: () => null,
+        findNearestBlock: matcher => matcher('lava') ? lava : null,
+        async gotoWithTimeout() { throw new Error('No path to the goal!') },
+        rememberBlockedTarget: block => blocked.push(block)
+    }
+    // With no pickaxe in the fixture, reaching mineTunnel shows the tunnel branch was taken.
+    await assert.rejects(performProgression(c, 'fill_lava_bucket', {}), /mining requires a pickaxe/)
+    assert.equal(c.memory.lavaTunnels[`${lava.position}`], 1)
+    c.memory.lavaTunnels[`${lava.position}`] = 4
+    await assert.rejects(performProgression(c, 'fill_lava_bucket', {}), /No path/)
+})
