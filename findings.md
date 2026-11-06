@@ -1183,3 +1183,10 @@ restock from a sealed vault only with a pickaxe in hand. A hand-dig attempt,
 corrects. Live on `9a2ef22`, the bot gathered wood, crafted a table and a
 wooden pick at 06:20:46, then a stone pick and furnace. It rebuilt locally
 because the vault held only a wooden pick, a table and feathers.
+
+At 06:33:18Z, on `9a2ef22` at Y≈1, the bot placed its smelting furnace in a
+staircase cell. The tunnel then read as a vertical shaft, and three
+`escape_shaft` retries picked the direction through the furnace and refused
+to dig it. In-place escalation's `unstick` freed it, and it had an iron pick
+again by 06:34:37. `2ddee6a` ranks stair directions that pass a station or
+container as unusable. It is regression-tested and loads at the next restart.
