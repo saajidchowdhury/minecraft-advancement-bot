@@ -567,90 +567,221 @@ async function smeltCharcoal(c) {
     }
 }
 
+function liquidSource(block, name) {
+    return block?.name === name && Number(block.getProperties().level) === 0
+}
+
+async function useBucket(c, name, aim, verify, label) {
+    const bot = c.bot
+    const item = bot.inventory.items().find(item => item.name === name)
+    if (!item) {
+        throw new Error(`missing ${name} for ${label}`)
+    }
+    const before = c.countItems([name])
+    await bot.equip(item, 'hand')
+    await bot.lookAt(aim, true)
+    await bot.waitForTicks(2)
+    check(c)
+    bot.activateItem()
+    try {
+        await until(c, () => c.countItems([name]) < before && verify(), 4000)
+    } catch (error) {
+        throw new Error(`${label}: ${error.message}`, { cause: error })
+    } finally {
+        bot.deactivateItem()
+    }
+}
+
 async function fillWaterBucket(c) {
+    const bot = c.bot
+    const before = c.countItems(['water_bucket'])
+    if (before >= 2) {
+        return
+    }
     const water = c.findNearestBlock(name => name === 'water', 48, {
-        filter: b => Number(b.getProperties().level) === 0
+        filter: b => liquidSource(b, 'water')
     })
     if (!water) {
+        if (c.observe().underground) {
+            return returnSurface(c)
+        }
         return c.scout(24)
     }
-    await c.gotoWithTimeout(new goals.GoalNear(water.position.x, water.position.y, water.position.z, 3), 12000, 'water approach')
-    check(c)
-    await c.bot.equip(c.bestItem(['bucket']), 'hand')
-    await c.bot.lookAt(water.position.offset(0.5, 0.5, 0.5), true)
-    c.bot.activateItem()
     try {
-        await until(c, () => c.hasItem('water_bucket'), 4000)
-    } finally {
-        c.bot.deactivateItem()
+        const banks = DIRECTIONS.flatMap(([dx, dz]) => [water.position.offset(dx, 1, dz), water.position.offset(dx, 0, dz)])
+            .filter(p => c.isEmptyPlacementBlock(bot.blockAt(p)) && c.isEmptyPlacementBlock(bot.blockAt(p.offset(0, 1, 0))) &&
+                bot.blockAt(p.offset(0, -1, 0))?.boundingBox === 'block')
+            .sort((a, b) => bot.entity.position.distanceTo(a) - bot.entity.position.distanceTo(b))
+        const bank = banks[0]
+        if (!bank) {
+            throw new Error('water source has no dry bank')
+        }
+        if (!bot.entity.position.floored().equals(bank)) {
+            await c.gotoWithTimeout(new goals.GoalBlock(bank.x, bank.y, bank.z), 12000, 'water approach')
+        }
+        await useBucket(c, 'bucket', water.position.offset(0.5, 0.5, 0.5),
+            () => c.countItems(['water_bucket']) > before, 'fill water bucket')
+        c.log.info(`Water buckets ready: ${c.countItems(['water_bucket'])}/2.`)
+    } catch (error) {
+        c.rememberBlockedTarget(water, 'water source', error)
+        throw error
     }
+}
+
+function containedBasin(bot, cells, checkFloor = true) {
+    const solid = p => {
+        const block = bot.blockAt(p)
+        return block?.boundingBox === 'block' && !HAZARDS.has(block.name) && !PROTECTED_CONTAINERS.has(block.name)
+    }
+    return cells.every(p => (!checkFloor || solid(p.offset(0, -1, 0))) && DIRECTIONS.every(([dx, dz]) => {
+        const bank = p.offset(dx, 0, dz)
+        return cells.some(cell => cell.equals(bank)) || solid(bank)
+    }))
 }
 
 function safeCastingBasin(bot, basin) {
-    for (const [dx, dy, dz] of [[0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]]) {
-        const block = bot.blockAt(basin.offset(dx, dy, dz))
-        if (!block || block.boundingBox !== 'block' || HAZARDS.has(block.name)) {
-            return false
-        }
+    return containedBasin(bot, [basin])
+}
+
+async function digBasinCell(c, p) {
+    const bot = c.bot
+    const block = bot.blockAt(p)
+    if (c.isEmptyPlacementBlock(block)) {
+        return
     }
-    for (let dx = -1; dx <= 1; dx++) {
-        for (let dz = -1; dz <= 1; dz++) {
-            const block = bot.blockAt(basin.offset(dx, 1, dz))
-            if (!block || !['air', 'cave_air', 'void_air'].includes(block.name)) {
-                return false
+    if (!block || !bot.canDigBlock(block) || !c.movements.safeToBreak(block) || HAZARDS.has(block.name) ||
+        PROTECTED_CONTAINERS.has(block.name)) {
+        throw new Error(`unsafe basin excavation at ${p}`)
+    }
+    await bot.tool.equipForBlock(block, { requireHarvest: true, getFromChest: false })
+    check(c)
+    await bot.dig(block, true)
+    await until(c, () => c.isEmptyPlacementBlock(bot.blockAt(p)), 2000)
+}
+
+async function approachBasin(c, findAt) {
+    const bot = c.bot
+    const feet = bot.entity.position.floored()
+    const here = findAt(feet)
+    if (here) {
+        return here
+    }
+    const site = c.findWorkstationPlacements(4).find(({ target }) => safeFooting(bot, target) && findAt(target))
+    if (!site) {
+        return null
+    }
+    const p = site.target
+    bot.pathfinder.setMovements(dryMovements(bot))
+    try {
+        await c.gotoWithTimeout(new goals.GoalBlock(p.x, p.y, p.z), 8000, 'basin bank')
+        check(c)
+        return bot.entity.position.floored().equals(p) ? findAt(p) : null
+    } finally {
+        bot.pathfinder.setGoal(null)
+        bot.pathfinder.setMovements(c.movements)
+    }
+}
+
+async function prepareWaterPool(c) {
+    const bot = c.bot
+    const dimension = bot.game.dimension
+    if (c.memory.waterPool?.dimension === dimension || c.countItems(['water_bucket']) < 2) {
+        return
+    }
+    const layout = await approachBasin(c, feet => {
+        for (const [dx, dz] of DIRECTIONS) {
+            const center = feet.offset(dx, -1, dz)
+            const ends = [center.offset(dz, 0, -dx), center.offset(-dz, 0, dx)]
+            const cells = [center, ...ends]
+            if (containedBasin(bot, cells) && cells.every(p => c.isEmptyPlacementBlock(bot.blockAt(p.offset(0, 1, 0))))) {
+                return { center, ends, cells, dx, dz }
             }
         }
+        return null
+    })
+    if (!layout) {
+        return
     }
-    return true
+    const { center, ends, cells, dx, dz } = layout
+    for (const p of cells) {
+        await digBasinCell(c, p)
+    }
+    for (const p of ends) {
+        await useBucket(c, 'water_bucket', p.offset(0.5 + 0.4 * dx, -0.01, 0.5 + 0.4 * dz),
+            () => liquidSource(bot.blockAt(p), 'water'), 'seed renewable water pool')
+    }
+    await until(c, () => cells.every(p => liquidSource(bot.blockAt(p), 'water')), 4000)
+    c.memory.waterPool = { dimension, x: center.x, y: center.y, z: center.z }
+    c.log.info(`Renewable water pool at ${center}.`)
+    for (let i = 0; i < 2; i++) {
+        const before = c.countItems(['water_bucket'])
+        await useBucket(c, 'bucket', center.offset(0.5, 0.5, 0.5),
+            () => c.countItems(['water_bucket']) > before, 'refill from renewable water pool')
+        await until(c, () => liquidSource(bot.blockAt(center), 'water'), 4000)
+    }
 }
 
 async function gatherObsidian(c) {
+    const bot = c.bot
+    let feet = bot.entity.position.floored()
+    const saved = c.memory.obsidianCast
+    const savedBasin = saved && new Vec3(saved.x, saved.y, saved.z)
+    let basin = saved?.dimension === bot.game.dimension && savedBasin.offset(0, 2, 0).distanceTo(feet) <= 1 &&
+        ['lava', 'obsidian'].includes(bot.blockAt(savedBasin)?.name) ? savedBasin : null
+    if (!basin) {
+        delete c.memory.obsidianCast
+    }
     const exposed = c.findNearestBlock(name => name === 'obsidian', 24, {
         visible: true,
         filter: block => c.movements.safeToBreak(block) &&
             !DIRECTIONS.some(([dx, dz]) => ['lava', 'water'].includes(c.bot.blockAt(block.position.offset(dx, 0, dz))?.name)) &&
             c.bot.blockAt(block.position.offset(0, -1, 0))?.boundingBox === 'block'
     })
-    if (exposed) {
+    if (!basin && exposed) {
         return c.collectTarget(exposed, exposed, 'obsidian')
     }
-    if (!c.hasItem('lava_bucket')) {
+    if (!basin && !c.hasItem('lava_bucket')) {
+        await prepareWaterPool(c)
         return fillLavaBucket(c)
     }
-    const bot = c.bot
-    const candidate = c.findWorkstationPlacements(4).find(({ target, distance }) =>
-        distance >= 2.5 && safeCastingBasin(bot, target.offset(0, -1, 0)) &&
-        bot.canDigBlock(bot.blockAt(target.offset(0, -1, 0))))
-    if (!candidate) {
-        return c.scout(8)
+    if (!basin) {
+        if (c.countItems(['water_bucket']) < 2) {
+            return fillWaterBucket(c)
+        }
+        basin = await approachBasin(c, bank => DIRECTIONS.map(([dx, dz]) => bank.offset(dx, -2, dz)).find(p =>
+            safeCastingBasin(bot, p) && safeCastingBasin(bot, p.offset(0, 1, 0)) &&
+            c.isEmptyPlacementBlock(bot.blockAt(p.offset(0, 2, 0))) &&
+            [p, p.offset(0, 1, 0)].every(cell => c.movements.safeToBreak(bot.blockAt(cell)))))
+        if (!basin) {
+            return c.scout(8)
+        }
+        feet = bot.entity.position.floored()
+        await digBasinCell(c, basin.offset(0, 1, 0))
+        await digBasinCell(c, basin)
+        c.memory.obsidianCast = { dimension: bot.game.dimension, x: basin.x, y: basin.y, z: basin.z }
+        await useBucket(c, 'lava_bucket', basin.offset(0.5 + 0.4 * (basin.x - feet.x), -0.01, 0.5 + 0.4 * (basin.z - feet.z)),
+            () => liquidSource(bot.blockAt(basin), 'lava'), 'pour casting lava')
     }
-    const basin = candidate.target.offset(0, -1, 0)
-    const bank = basin.offset(1, 0, 0)
-    const floor = bot.blockAt(basin.offset(0, -1, 0))
-    await bot.tool.equipForBlock(bot.blockAt(basin), { requireHarvest: false, getFromChest: false })
-    check(c)
-    await bot.dig(bot.blockAt(basin), true)
-    check(c)
-    await bot.equip(c.bestItem(['lava_bucket']), 'hand')
-    await bot.activateBlock(floor, new Vec3(0, 1, 0))
-    await until(c, () => bot.blockAt(basin)?.name === 'lava', 4000)
-    check(c)
-    await bot.equip(c.bestItem(['water_bucket']), 'hand')
-    await bot.activateBlock(bot.blockAt(bank), new Vec3(0, 1, 0))
-    await until(c, () => bot.blockAt(basin)?.name === 'obsidian', 8000)
-    check(c)
-    await bot.equip(c.bestItem(['bucket']), 'hand')
-    await bot.lookAt(bank.offset(0.5, 1.5, 0.5), true)
-    bot.activateItem()
-    try {
-        await until(c, () => c.hasItem('water_bucket'), 4000)
-    } finally {
-        bot.deactivateItem()
+    const upper = basin.offset(0, 1, 0)
+    if (bot.blockAt(basin)?.name === 'lava' && !liquidSource(bot.blockAt(upper), 'water')) {
+        const dx = basin.x - feet.x
+        const dz = basin.z - feet.z
+        if (Math.abs(dx) + Math.abs(dz) !== 1 || !safeCastingBasin(bot, basin) || !containedBasin(bot, [upper], false)) {
+            throw new Error('casting water needs a dry bank beside the basin')
+        }
+        await useBucket(c, 'water_bucket', upper.offset(0.5 + 0.51 * dx, 0.8, 0.5 + 0.51 * dz),
+            () => liquidSource(bot.blockAt(upper), 'water'), 'pour water above casting lava')
     }
-    await until(c, () => ['air', 'cave_air'].includes(bot.blockAt(basin.offset(0, 1, 0))?.name), 8000)
+    await until(c, () => bot.blockAt(basin)?.name === 'obsidian', 4000)
+    if (liquidSource(bot.blockAt(upper), 'water')) {
+        await useBucket(c, 'bucket', upper.offset(0.5, 0.85, 0.5),
+            () => c.isEmptyPlacementBlock(bot.blockAt(upper)), 'recover casting water')
+    }
     check(c)
-    const obsidian = bot.blockAt(basin)
-    await c.collectTarget(obsidian, obsidian, 'cast obsidian')
+    const block = bot.blockAt(basin)
+    c.log.info(`Cast obsidian at ${basin}.`)
+    await c.collectTarget(block, block, 'cast obsidian')
+    delete c.memory.obsidianCast
 }
 
 function portalFrame(origin) {

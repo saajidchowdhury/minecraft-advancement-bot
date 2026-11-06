@@ -370,3 +370,10 @@ early stopping at hazards or ore. All 256 tests and syntax checks pass.
 Comment-bearing lines are 19/1131 in `progression-skills.js` and 0/119 in
 `side-probes.test.js`. The staged LAN trial cleared all ten deepslate cells
 with the bot's carried pickaxe.
+
+F053 covers planning for two water buckets, allowing local casting before
+mining-trip provisioning, and pouring and recovering water above contained
+lava. All 258 tests and syntax checks pass. Changed JavaScript files stay
+below 8% comment-bearing lines. Staged LAN trials verified a second fill,
+one cast with server-confirmed Ice Bucket Challenge, and a renewable water
+trench that refilled both buckets.

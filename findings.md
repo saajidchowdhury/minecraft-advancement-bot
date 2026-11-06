@@ -985,3 +985,25 @@ The staged LAN trial teleported to a clear site in the existing tunnel at
 on each side. The server showed all ten cells as air, and the bot stayed in
 the original tunnel cell before returning to its prior position. See
 `outputs/five-probes-setup.json`.
+
+## F053 — Two water buckets and working obsidian casting
+
+The water planner previously stopped at one bucket. Obsidian gathering then
+rejected most nearby sites and used a block interaction that failed to pour
+lava on the accepted site. The water goal now counts two full buckets. Casting
+looks for a supported bank, uses the held bucket to pour lava into a pit and
+water above it, then scoops the water back up before mining.
+
+At the staged LAN bank the bot filled its second bucket, cast one block from
+its carried lava and recovered the water. The first mining attempt exposed an
+incorrect material tag in the pinned registry. A diamond pick was assigned
+75 seconds to break obsidian. Correcting the tool-speed tag reduced this to
+9.4 seconds. The retry picked up the obsidian and received Ice Bucket Challenge
+from the server while retaining two full water buckets.
+
+A separate temporary platform verified the renewable three-cell trench. The
+bot scooped from the middle twice and confirmed that the source regenerated
+and both buckets were full. The fixtures and repositioning are recorded in
+`outputs/obsidian-cast-setup.json`, `outputs/obsidian-mining-setup.json`, and
+`outputs/obsidian-setup.json`. A continuous run casting all ten portal blocks
+remains open.

@@ -185,11 +185,12 @@ function nextAdvancement(state) {
     if (affordable) {
         return craft(state, 'minecraft:story/shiny_gear', `diamond_${affordable}`)
     }
-    if (!state.hasWaterBucket && !state.portalInProgress && !state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
+    if ((state.waterBuckets ?? 0) < 2 && !state.obsidianCastPending &&
+        !state.portalInProgress && !state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
         if (!state.hasEmptyBucket) {
             return craft(state, 'prep:water bucket', 'bucket')
         }
-        return target('prep:water bucket', 'fill_water_bucket', 'collect water before working with obsidian')
+        return target('prep:water bucket', 'fill_water_bucket', 'fill two water buckets before working with obsidian')
     }
     if (state.obsidian < 10 && !state.portalInProgress && !state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
         return target('minecraft:story/form_obsidian', 'gather_obsidian', 'mine ten obsidian for a portal')

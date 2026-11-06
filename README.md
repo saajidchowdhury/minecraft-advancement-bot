@@ -61,7 +61,9 @@ The implemented route is:
 4. **Suit Up** — craft and wear an iron chestplate; prepare a shield.
 5. **Hot Stuff** — collect a lava source in a bucket.
 6. **Diamonds!** — staircase/branch mining, then a diamond pickaxe.
-7. Prepare water; **Ice Bucket Challenge** — mine exposed obsidian or cast individual blocks in a contained basin.
+7. Fill two water buckets. For **Ice Bucket Challenge**, mine exposed obsidian
+   or cast it by pouring water above lava in a contained basin. A three-cell
+   water trench can refill both buckets between casts.
 8. Gather ten obsidian, ignition supplies and food; **We Need to Go Deeper** — construct and enter a Nether portal.
 
 The bot waits near its destination after the supported route. Return it to the Overworld before a queued redstone demo. Autonomous fortress, stronghold and dragon progression are not implemented. The diamond, casting, portal and redstone skills still need end-to-end survival-world validation; their planner and geometry checks alone do not prove successful gameplay.

@@ -10,7 +10,7 @@ const established = {
     hasStonePickaxe: true, hasFurnace: true, hasIronPickaxe: true,
     hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true,
     gear: new Set(['iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']), 
-    hasBucket: true, hasWaterBucket: true, hasDiamondPickaxe: false, hasFlintAndSteel: false,
+    hasBucket: true, waterBuckets: 2, hasDiamondPickaxe: false, hasFlintAndSteel: false,
     diamonds: 0, obsidian: 0, flint: 0, redstone: 0, foodUnits: 24,
     hasSmeltingFuel: true, completedAdvancements: new Set(['minecraft:story/lava_bucket'])
 }
@@ -76,6 +76,16 @@ test('lava bucket follows iron protection and precedes diamond mining', () => {
 test('diamonds are reserved for the pickaxe before obsidian mining', () => {
     assert.equal(nextAdvancement({ ...established, diamonds: 3 }).item, 'diamond_pickaxe')
     assert.equal(nextAdvancement({ ...established, hasDiamondPickaxe: true, gear: diamondSword }).action, 'gather_obsidian')
+})
+
+test('obsidian preparation fills two water buckets and preserves a full lava bucket', () => {
+    const state = { ...established, hasDiamondPickaxe: true, gear: diamondSword, hasLavaBucket: true, ironIngots: 3 }
+    assert.equal(nextAdvancement({ ...state, waterBuckets: 0, hasEmptyBucket: true }).action, 'fill_water_bucket')
+    assert.equal(nextAdvancement({ ...state, waterBuckets: 1, hasEmptyBucket: false }).item, 'bucket')
+    assert.equal(nextAdvancement({ ...state, waterBuckets: 1, hasEmptyBucket: true }).action, 'fill_water_bucket')
+    assert.equal(nextAdvancement(state).action, 'gather_obsidian')
+    const { chooseAction } = require('../src/decision-engine')
+    assert.equal(chooseAction({ ...state, health: 20, food: 20, hostileDistance: Infinity, logs: 0, planks: 0 }), 'gather_obsidian')
 })
 
 test('portal needs ignition and provisions; partial frame is resumed instead of remined', () => {

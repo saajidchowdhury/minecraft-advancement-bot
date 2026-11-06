@@ -326,6 +326,11 @@ class SurvivalController {
     }
 
     async onSpawn () {
+        // The pinned registry uses a harvest restriction in place of the tool speed tag.
+        const obsidian = this.bot.registry.blocksByName.obsidian
+        if (obsidian?.material === 'incorrect_for_wooden_tool') {
+            obsidian.material = 'mineable/pickaxe'
+        }
         const dig = this.bot.dig.bind(this.bot)
         this.bot.dig = async (block, ...args) => {
             const tool = this.bot.heldItem
@@ -612,7 +617,8 @@ class SurvivalController {
             hasIronArmor: armorEquipped || this.hasAnyItem(armorNames), armorEquipped,
             hasShield: shieldEquipped || this.hasItem('shield'), shieldEquipped,
             hasBucket: this.hasAnyItem(['bucket', 'lava_bucket']),
-            hasEmptyBucket: this.hasItem('bucket'), hasWaterBucket: this.hasItem('water_bucket'), hasLavaBucket: this.hasItem('lava_bucket'),
+            hasEmptyBucket: this.hasItem('bucket'), waterBuckets: this.countItems(['water_bucket']), hasLavaBucket: this.hasItem('lava_bucket'),
+            obsidianCastPending: this.memory.obsidianCast?.dimension === this.bot.game.dimension,
             hasFlintAndSteel: this.hasItem('flint_and_steel'),
             diamonds: this.countItems(['diamond']), obsidian: this.countItems(['obsidian']),
             redstone: this.countItems(['redstone']), flint: this.countItems(['flint']),

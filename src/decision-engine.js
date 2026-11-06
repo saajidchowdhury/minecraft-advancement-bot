@@ -189,8 +189,10 @@ function chooseAction (state) {
     }
     // Torches and replacement picks need sticks; wood is only reachable on the surface.
     const mining = ['gather_iron', 'gather_coal', 'gather_diamonds', 'gather_redstone', 'gather_obsidian', 'fill_lava_bucket'].includes(action)
+    const casting = action === 'gather_obsidian' &&
+        (state.obsidianCastPending || (state.hasLavaBucket && state.waterBuckets >= 2))
     const stagingNearSurface = state.underground && !state.isNight && state.y >= state.surfaceY - 8
-    if (mining && (!state.underground || stagingNearSurface)) {
+    if (mining && !casting && (!state.underground || stagingNearSurface)) {
         if ((state.planks || 0) + (state.logs || 0) * 4 < MIN_MINING_WOOD_PLANKS) {
             return state.underground ? 'return_surface' : Actions.WOOD
         }

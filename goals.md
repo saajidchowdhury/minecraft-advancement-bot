@@ -76,7 +76,7 @@ Live evidence: revision `932b1ed` received the lava-bucket advancement at
 first live milestone. Five approach/activation failures preceded success; source
 quarantine and repeatable dry-bank activation still need hardening.
 
-## G005 — Medium / implemented, not yet live verified — Diamonds and obsidian
+## G005 — Medium / staged cast verified — Diamonds and obsidian
 
 Validate deep stair/branch mining, lighting and food/tool reserves, collection of
 three diamonds, and crafting a diamond pick. Check height choices against the
@@ -85,6 +85,9 @@ contained casting, including source recovery and drop pickup.
 Completion: server-confirmed Diamonds! and Ice Bucket Challenge, plus a retained
 diamond pick and sufficient obsidian for a portal. Geometry tests alone are not
 completion. Fix unsafe/unproductive skills before adding more branches.
+
+F053 confirmed Ice Bucket Challenge and two water buckets after a staged cast.
+Verify natural lava resupply and the ten-block reserve on a continuous run.
 
 ## G006 — Medium / implemented, not yet live verified — Nether entry and a route back
 

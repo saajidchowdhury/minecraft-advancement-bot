@@ -84,6 +84,67 @@ test('obsidian casting requires a contained basin with a solid floor and dry ban
     assert.equal(safeCastingBasin(bot, basin), false)
 })
 
+test('a carried lava bucket is poured and cooled from above, and both water buckets are retained', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const inventory = { water_bucket: 2, lava_bucket: 1 }
+    const blocks = new Map()
+    const basin = new Vec3(1, 62, 0)
+    const upper = basin.offset(0, 1, 0)
+    const used = []
+    let held
+    let aim
+    const bot = {
+        health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) },
+        inventory: { items: () => Object.entries(inventory).filter(([, count]) => count).map(([name, count]) => ({ name, count })) },
+        blockAt(position) {
+            const name = blocks.get(position.toString()) ?? (position.y < 64 ? 'stone' : 'air')
+            return { position, name, boundingBox: name === 'stone' || name === 'obsidian' ? 'block' : 'empty',
+                getProperties: () => ({ level: 0 }) }
+        },
+        canDigBlock: () => true,
+        tool: { equipForBlock: async () => {} },
+        async dig(block) { blocks.set(block.position.toString(), 'air') },
+        async equip(item) { held = item.name },
+        async lookAt(target) { aim = target },
+        async waitForTicks() {},
+        activateItem() {
+            used.push(held)
+            inventory[held]--
+            if (held === 'lava_bucket') {
+                assert.equal(bot.blockAt(basin).name, 'air')
+                assert.equal(aim.y < basin.y, true)
+                blocks.set(basin.toString(), 'lava')
+            } else if (held === 'water_bucket') {
+                assert.equal(bot.blockAt(basin).name, 'lava')
+                assert.equal(aim.y > basin.y + 1, true)
+                blocks.set(basin.toString(), 'obsidian')
+                blocks.set(upper.toString(), 'water')
+            } else {
+                assert.equal(bot.blockAt(upper).name, 'water')
+                inventory.water_bucket++
+                blocks.set(upper.toString(), 'air')
+                return
+            }
+            inventory.bucket = (inventory.bucket || 0) + 1
+        },
+        deactivateItem() {}
+    }
+    const c = {
+        bot, running: true, paused: false, memory: {}, log: { info() {} }, movements: { safeToBreak: () => true },
+        isEmptyPlacementBlock: block => block?.name === 'air',
+        countItems: names => names.reduce((sum, name) => sum + (inventory[name] || 0), 0),
+        hasItem: name => inventory[name] > 0,
+        findNearestBlock: () => null,
+        async collectTarget(block) { assert.equal(block.name, 'obsidian'); assert.deepEqual(block.position, basin) },
+        scout: async () => assert.fail('scouted with a contained adjacent casting site')
+    }
+    await performProgression(c, 'gather_obsidian', {})
+    assert.deepEqual(used, ['lava_bucket', 'water_bucket', 'bucket'])
+    assert.equal(inventory.water_bucket, 2)
+    assert.equal(inventory.lava_bucket, 0)
+    assert.equal(c.memory.obsidianCast, undefined)
+})
+
 test('a completed night shelter remains occupied even if its walls resemble a shaft', () => {
     assert.equal(chooseAction({ health: 20, food: 20, hostileDistance: Infinity,
         sheltered: true, isNight: true, shaftTrapped: true }), 'wait')
