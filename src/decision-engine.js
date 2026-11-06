@@ -157,7 +157,7 @@ function chooseAction (state) {
     }
     const preparingTool = recoveringPick || preparingIronPick || ['stone_axe', 'stone_shovel'].includes(progression.item)
     const action = preparingTool ? progression.action : state.sideGoal?.action || progression.action
-    const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'gather_sugar_cane', 'gather_leather', 'enter_nether', 'build_redstone'].includes(action)
+    const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'gather_leather', 'enter_nether', 'build_redstone'].includes(action)
     if (!recoveringPick && state.baseMigrate) {
         return 'migrate_base'
     }

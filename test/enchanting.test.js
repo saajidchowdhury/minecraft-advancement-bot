@@ -18,9 +18,10 @@ const ready = {
     sugarCane: 0, paper: 0, books: 0, leather: 0, lapis: 0, xpLevel: 0, hasEnchantingTable: false
 }
 
-test('after the Nether route the planner builds an enchanting table step by step', () => {
+test('after the Nether route Enchanter starts only from a book or paper already in hand', () => {
     const step = changes => nextAdvancement({ ...ready, ...changes })
-    assert.equal(step({}).action, 'gather_sugar_cane')
+    assert.match(step({}).item, /^diamond_/)
+    assert.match(step({ sugarCane: 2 }).item, /^diamond_/)
     assert.equal(step({ sugarCane: 3 }).item, 'paper')
     assert.equal(step({ paper: 3 }).action, 'gather_leather')
     assert.equal(step({ paper: 3, leather: 1 }).item, 'book')
@@ -31,8 +32,8 @@ test('after the Nether route the planner builds an enchanting table step by step
     assert.equal(step({ hasEnchantingTable: true }).action, 'gather_lapis')
     assert.equal(step({ hasEnchantingTable: true, lapis: 3 }).action, 'gather_coal')
     assert.equal(step({ hasEnchantingTable: true, lapis: 3, xpLevel: 2 }).action, 'enchant_item')
-    assert.match(step({ completedAdvancements: new Set([...routeDone, ENCHANTER]) }).item, /^diamond_/)
-    assert.equal(step({ dimension: 'the_nether' }).action, 'leave_nether')
+    assert.match(step({ books: 1, completedAdvancements: new Set([...routeDone, ENCHANTER]) }).item, /^diamond_/)
+    assert.equal(step({ books: 1, dimension: 'the_nether' }).action, 'leave_nether')
 })
 
 test('the best offer within the experience level and lapis on hand is chosen', () => {
@@ -88,19 +89,19 @@ test('an unaffordable table closes the window and reports the offers', async () 
     assert.equal(events.some(e => e.startsWith('enchant')), false)
 })
 
-test('fruitless scouting for cane defers Enchanter so the diamond armor route continues', async () => {
-    const { gatherSugarCane, enchantingState } = require('../src/enchanting')
+test('fruitless scouting for cows defers Enchanter so the diamond armor route continues', async () => {
+    const { gatherLeather, enchantingState } = require('../src/enchanting')
     let scouts = 0
     const c = {
         bot: { experience: { level: 0 } }, memory: {}, log: { warn() {} },
-        findNearestBlock: () => null, scout: async () => { scouts++ },
-        countItems: () => 0, hasItem: () => false, findStation: () => null
+        nearestEntity: () => null, scout: async () => { scouts++ },
+        countItems: () => 0, hasItem: name => name === 'book', findStation: () => null
     }
     for (let i = 0; i < 8; i++) {
-        await gatherSugarCane(c)
+        await gatherLeather(c)
     }
     assert.equal(scouts, 7)
     const state = enchantingState(c, { ...ready })
     assert.equal(state.enchanterDeferred, true)
-    assert.match(nextAdvancement(state).item, /^diamond_/)
+    assert.match(nextAdvancement({ ...state, books: 1 }).item, /^diamond_/)
 })

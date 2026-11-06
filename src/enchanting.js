@@ -22,45 +22,21 @@ function enchantingState(c, state) {
     return state
 }
 
-// Scouting for cane or cows is unbounded terrain search; after a budget the branch yields.
-async function scoutFor(c, material) {
-    const scouts = c.memory.enchanterScouts ??= {}
-    scouts[material] = (scouts[material] || 0) + 1
-    if (scouts[material] >= SCOUT_BUDGET) {
-        scouts[material] = 0
+// Scouting for cows is unbounded terrain search; after a budget the branch yields.
+async function gatherLeather(c) {
+    const animal = c.nearestEntity(LEATHER_ANIMALS, 48)
+    if (animal) {
+        c.memory.leatherScouts = 0
+        return c.fight(animal, true)
+    }
+    c.memory.leatherScouts = (c.memory.leatherScouts || 0) + 1
+    if (c.memory.leatherScouts >= SCOUT_BUDGET) {
+        c.memory.leatherScouts = 0
         c.memory.enchanterDeferredUntil = Date.now() + DEFER_MS
-        c.log.warn(`No ${material} after ${SCOUT_BUDGET} scouts; deferring Enchanter for ${DEFER_MS / 60000} min.`)
+        c.log.warn(`No cows after ${SCOUT_BUDGET} scouts; deferring Enchanter for ${DEFER_MS / 60000} min.`)
         return
     }
     return c.scout(32)
-}
-
-function found(c, material) {
-    if (c.memory.enchanterScouts) {
-        c.memory.enchanterScouts[material] = 0
-    }
-}
-
-// Cut the second segment up so the rooted bottom cane regrows; a lone stalk is taken whole.
-async function gatherSugarCane(c) {
-    const bot = c.bot
-    const cane = c.findNearestBlock(name => name === 'sugar_cane', 48, {
-        filter: b => bot.blockAt(b.position.offset(0, -1, 0))?.name === 'sugar_cane'
-    }) || c.findNearestBlock(name => name === 'sugar_cane', 48)
-    if (!cane) {
-        return scoutFor(c, 'sugar cane')
-    }
-    found(c, 'sugar cane')
-    await c.collectTarget(cane, cane, 'sugar cane')
-}
-
-async function gatherLeather(c) {
-    const animal = c.nearestEntity(LEATHER_ANIMALS, 48)
-    if (!animal) {
-        return scoutFor(c, 'cows')
-    }
-    found(c, 'cows')
-    return c.fight(animal, true)
 }
 
 // Without bookshelves the three offers need levels 1-2, 1-6 and 1-8 and cost 1-3 lapis
@@ -115,4 +91,4 @@ async function enchantItem(c) {
     await c.reclaimStation(block).catch(error => c.log.warn(`Could not reclaim the enchanting table: ${error.message}`))
 }
 
-module.exports = { enchantingState, gatherSugarCane, gatherLeather, enchantItem, chooseOffer, ENCHANTER }
+module.exports = { enchantingState, gatherLeather, enchantItem, chooseOffer, ENCHANTER }

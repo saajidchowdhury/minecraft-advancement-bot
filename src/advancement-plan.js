@@ -125,8 +125,7 @@ function enchanterStep(state) {
     if (!state.hasEnchantingTable) {
         if ((state.books ?? 0) < 1) {
             if ((state.paper ?? 0) < 3) {
-                return (state.sugarCane ?? 0) < 3 ? target(id, 'gather_sugar_cane', 'three sugar cane make the paper for a book') :
-                    craft(state, id, 'paper')
+                return craft(state, id, 'paper')
             }
             if ((state.leather ?? 0) < 1) {
                 return target(id, 'gather_leather', 'leather from a cow binds the book')
@@ -256,8 +255,11 @@ function planAdvancement(state) {
         }
         return target('minecraft:story/enter_the_nether', 'enter_nether', 'build, light and enter a portal')
     }
-    // Efficiency on the pick compounds every later dig, including the diamonds for the armor below.
-    if (!state.completedAdvancements?.has('minecraft:story/enchant_item') && state.dimension === 'overworld' && !state.enchanterDeferred) {
+    // User direction: no sugar-cane farming for enchanting; serious enchanting waits for a stronghold
+    // library. A book or its paper found along the way (chest loot) still earns Enchanter cheaply.
+    const bookInHand = (state.books ?? 0) >= 1 || (state.paper ?? 0) + (state.sugarCane ?? 0) >= 3
+    if (!state.completedAdvancements?.has('minecraft:story/enchant_item') && state.dimension === 'overworld' &&
+        !state.enchanterDeferred && (bookInHand || state.hasEnchantingTable)) {
         return enchanterStep(state)
     }
     // Past the supported route, a full diamond set raises survival for whatever comes next.
