@@ -1270,6 +1270,7 @@ async function performProgression(c, action, state) {
         }
         case 'gather_diamonds': return gatherDeep(c, ['diamond_ore', 'deepslate_diamond_ore'])
         case 'gather_redstone': return gatherDeep(c, ['redstone_ore', 'deepslate_redstone_ore'])
+        case 'gather_lapis': return gatherDeep(c, ['lapis_ore', 'deepslate_lapis_ore'])
         case 'gather_obsidian': return gatherObsidian(c)
         case 'gather_flint': return c.gatherOre(['gravel'], 24)
         case 'enter_nether': return enterNether(c)

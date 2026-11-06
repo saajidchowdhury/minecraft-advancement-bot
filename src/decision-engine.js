@@ -157,7 +157,7 @@ function chooseAction (state) {
     }
     const preparingTool = recoveringPick || preparingIronPick || ['stone_axe', 'stone_shovel'].includes(progression.item)
     const action = preparingTool ? progression.action : state.sideGoal?.action || progression.action
-    const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'enter_nether', 'build_redstone'].includes(action)
+    const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'gather_sugar_cane', 'gather_leather', 'enter_nether', 'build_redstone'].includes(action)
     if (!recoveringPick && state.baseMigrate) {
         return 'migrate_base'
     }
@@ -191,7 +191,7 @@ function chooseAction (state) {
         return 'prepare_bed'
     }
     // Torches and replacement picks need sticks; wood is only reachable on the surface.
-    const mining = ['gather_iron', 'gather_coal', 'gather_diamonds', 'gather_redstone', 'gather_obsidian', 'fill_lava_bucket'].includes(action)
+    const mining = ['gather_iron', 'gather_coal', 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'gather_obsidian', 'fill_lava_bucket'].includes(action)
     const casting = action === 'gather_obsidian' &&
         (state.obsidianCastPending || (state.hasLavaBucket && state.waterBuckets >= 2))
     const stagingNearSurface = state.underground && !state.isNight && state.y >= state.surfaceY - 8

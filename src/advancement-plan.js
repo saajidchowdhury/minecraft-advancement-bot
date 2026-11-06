@@ -28,7 +28,8 @@ const RECIPES = Object.freeze({
     diamond_leggings: { diamonds: 7 }, diamond_helmet: { diamonds: 5 }, diamond_boots: { diamonds: 4 },
     flint_and_steel: { ironIngots: 1, flint: 1 },
     piston: { planks: 3, cobblestone: 4, ironIngots: 1, redstone: 1 },
-    lever: { sticks: 1, cobblestone: 1 }
+    lever: { sticks: 1, cobblestone: 1 },
+    paper: {}, book: {}, enchanting_table: { diamonds: 2, obsidian: 4 }
 })
 
 // Armor tiers in protection order; pieces listed by protection per material spent.
@@ -105,6 +106,45 @@ function resourceAction(state, costs) {
 
 function craft(state, id, item, action = 'craft_progression') {
     return target(id, resourceAction(state, RECIPES[item]) || action, `obtain ${item}`, { item })
+}
+
+// Each cast needs lava, two water buckets for the pool, and an empty bucket to recover the water.
+function castingPrep(state) {
+    if (state.obsidianCastPending) {
+        return null
+    }
+    if ((state.waterBuckets ?? 0) < 2) {
+        return state.hasEmptyBucket ? target('prep:water bucket', 'fill_water_bucket', 'fill two water buckets before working with obsidian') :
+            craft(state, 'prep:water bucket', 'bucket')
+    }
+    return !state.hasLavaBucket && !state.hasEmptyBucket ? craft(state, 'prep:lava bucket', 'bucket') : null
+}
+
+function enchanterStep(state) {
+    const id = 'minecraft:story/enchant_item'
+    if (!state.hasEnchantingTable) {
+        if ((state.books ?? 0) < 1) {
+            if ((state.paper ?? 0) < 3) {
+                return (state.sugarCane ?? 0) < 3 ? target(id, 'gather_sugar_cane', 'three sugar cane make the paper for a book') :
+                    craft(state, id, 'paper')
+            }
+            if ((state.leather ?? 0) < 1) {
+                return target(id, 'gather_leather', 'leather from a cow binds the book')
+            }
+            return craft(state, id, 'book')
+        }
+        if (state.obsidian < RECIPES.enchanting_table.obsidian) {
+            return castingPrep(state) || target(id, 'gather_obsidian', 'four obsidian for the enchanting table')
+        }
+        return craft(state, id, 'enchanting_table')
+    }
+    if ((state.lapis ?? 0) < 1) {
+        return target(id, 'gather_lapis', 'lapis lazuli pays for the enchantment')
+    }
+    if ((state.xpLevel ?? 0) < 1) {
+        return target(id, 'gather_coal', 'ore mining earns the first experience level')
+    }
+    return target(id, 'enchant_item', 'enchant the best pickaxe')
 }
 
 function nextAdvancement(state) {
@@ -197,19 +237,12 @@ function planAdvancement(state) {
     if (affordable) {
         return craft(state, 'minecraft:story/shiny_gear', `diamond_${affordable}`)
     }
-    if ((state.waterBuckets ?? 0) < 2 && !state.obsidianCastPending &&
-        !state.portalInProgress && !state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
-        if (!state.hasEmptyBucket) {
-            return craft(state, 'prep:water bucket', 'bucket')
-        }
-        return target('prep:water bucket', 'fill_water_bucket', 'fill two water buckets before working with obsidian')
+    const entered = state.completedAdvancements?.has('minecraft:story/enter_the_nether')
+    if ((state.waterBuckets ?? 0) < 2 && !state.obsidianCastPending && !state.portalInProgress && !entered) {
+        return castingPrep(state)
     }
-    if (state.obsidian < 10 && !state.portalInProgress && !state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
-        // Each cast needs lava, two water buckets for the pool, and an empty bucket to recover the water.
-        if (!state.hasLavaBucket && !state.hasEmptyBucket && !state.obsidianCastPending) {
-            return craft(state, 'prep:lava bucket', 'bucket')
-        }
-        return target('minecraft:story/form_obsidian', 'gather_obsidian', 'mine ten obsidian for a portal')
+    if (state.obsidian < 10 && !state.portalInProgress && !entered) {
+        return castingPrep(state) || target('minecraft:story/form_obsidian', 'gather_obsidian', 'mine ten obsidian for a portal')
     }
     if (!state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
         if (!state.hasFlintAndSteel) {
@@ -222,6 +255,10 @@ function planAdvancement(state) {
             return target('prep:portal supports', 'gather_stone', 'three blocks support the portal frame')
         }
         return target('minecraft:story/enter_the_nether', 'enter_nether', 'build, light and enter a portal')
+    }
+    // Efficiency on the pick compounds every later dig, including the diamonds for the armor below.
+    if (!state.completedAdvancements?.has('minecraft:story/enchant_item') && state.dimension === 'overworld') {
+        return enchanterStep(state)
     }
     // Past the supported route, a full diamond set raises survival for whatever comes next.
     const missing = ARMOR_PIECES.find(piece => !ownsTier(state, piece, 'diamond'))
