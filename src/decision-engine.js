@@ -32,11 +32,18 @@ function canSustainFight (health, armorPoints) {
     return health > (armorPoints >= 12 ? 4 : 8)
 }
 
+function outnumbered (closeHostiles, armorPoints) {
+    return closeHostiles > (armorPoints >= 12 ? 2 : 1)
+}
+
 /**
   * Pure priority policy. Keeping this separate makes the bot's choices testable
   * without connecting to Minecraft.
   */
 function chooseAction (state) {
+    if (outnumbered(state.closeHostiles, state.armorPoints)) {
+        return Actions.ESCAPE
+    }
     // Running from an archer at arm's length only invites more arrows; melee it while able.
     // Standing still under arrows loses; a lone archer within twelve blocks is charged when healthy.
     if (!(state.creeperDistance <= 6) && state.hasWeapon && !((state.visibleHostiles ?? state.hostileCount ?? 0) > 1) &&
@@ -202,4 +209,4 @@ function chooseAction (state) {
     return surfaceBound ? 'return_surface' : action
 }
 
-module.exports = { Actions, chooseAction, canSustainFight }
+module.exports = { Actions, chooseAction, canSustainFight, outnumbered }

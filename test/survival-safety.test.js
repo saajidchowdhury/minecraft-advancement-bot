@@ -535,11 +535,39 @@ test('charging an archer keeps the shield raised and lowers it only to strike', 
         }
     }
     c.checkAction = SurvivalController.prototype.checkAction.bind(c)
+    c.visibleThreatCount = SurvivalController.prototype.visibleThreatCount.bind(c)
     await SurvivalController.prototype.fight.call(c, skeleton)
     assert.equal(events[0], 'raise at range')
     assert.ok(events.indexOf('lower') < events.indexOf('attack'))
     assert.ok(events.filter(e => e === 'lower').length >= events.filter(e => e.startsWith('raise')).length)
     assert.equal(events.at(-1), 'lower')
+})
+
+test('a second visible zombie ends an unarmored fight before the next attack', async () => {
+    const zombie = { name: 'zombie', isValid: true, position: new Vec3(1, 64, 0) }
+    const other = { name: 'zombie', isValid: true, position: new Vec3(4, 64, 0) }
+    let attacks = 0
+    const c = {
+        running: true, actionAbort: new AbortController(), canSee: () => true,
+        bestItem: () => ({ name: 'wooden_sword' }),
+        bot: {
+            health: 17, entity: { position: new Vec3(0, 64, 0) }, entities: { 1: zombie }, inventory: { slots: [] },
+            equip: async () => {}, lookAt: async () => {}, pathfinder: { setGoal() {} },
+            attack() {
+                attacks++
+                if (attacks === 1) {
+                    this.entities[2] = other
+                } else {
+                    zombie.isValid = false
+                }
+            }
+        }
+    }
+    c.checkAction = SurvivalController.prototype.checkAction.bind(c)
+    c.visibleThreatCount = SurvivalController.prototype.visibleThreatCount.bind(c)
+    await assert.rejects(SurvivalController.prototype.fight.call(c, zombie), /outnumbered/)
+    assert.equal(attacks, 1)
+    assert.equal(c.urgentReplan, true)
 })
 
 test('successful actions replan after 250 ms while failures keep the 1.5 s back-off', async () => {

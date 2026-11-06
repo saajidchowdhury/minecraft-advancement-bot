@@ -4,7 +4,7 @@ const { pathfinder, Movements, goals } = require('mineflayer-pathfinder')
 const { plugin: collectBlockPlugin } = require('mineflayer-collectblock')
 const { Vec3 } = require('vec3')
 const { createRng } = require('./random')
-const { Actions, chooseAction, canSustainFight } = require('./decision-engine')
+const { Actions, chooseAction, canSustainFight, outnumbered } = require('./decision-engine')
 const { RECIPES, nextAdvancement, ironPickPlankFuel } = require('./advancement-plan')
 const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
@@ -476,7 +476,7 @@ class SurvivalController {
             // starting a staircase, descent, or relocation that uses the same bot.
             this.clearCurrentTask()
             await sleep(100)
-            if (!this.running || this.paused || this.followPlayer || this.bot.health <= 0) {
+            if (this.urgentReplan || !this.running || this.paused || this.followPlayer || this.bot.health <= 0) {
                 return
             }
             this.actionAbort = new AbortController()
@@ -619,8 +619,8 @@ class SurvivalController {
             redstoneRequested: Boolean(this.memory.redstoneRequested)
         }
         // Hostiles behind walls cannot reach a sealed pocket; only visible ones make a crowd.
-        state.visibleHostiles = Object.values(this.bot.entities || {}).filter(entity => entity.isValid && HOSTILES.has(entity.name) &&
-            this.bot.entity.position.distanceTo(entity.position) <= 12 && this.canSee(entity)).length
+        state.visibleHostiles = this.visibleThreatCount(12)
+        state.closeHostiles = this.visibleThreatCount()
         state.gear = new Set([...this.bot.inventory.items(), ...[5, 6, 7, 8, 45].map(slot => this.bot.inventory.slots[slot])]
             .filter(Boolean).map(item => item.name))
         state.armorUpgrade = armorUpgrades(this.bot).length > 0
@@ -1446,7 +1446,12 @@ class SurvivalController {
                 }
                 // Twelve or more armor points make a lone melee duel safer than running (F030).
                 if (!hunt && !canSustainFight(this.bot.health, wornArmorPoints(this.bot))) {
+                    this.urgentReplan = true
                     throw new Error('combat health too low; replanning escape')
+                }
+                if (!hunt && outnumbered(this.visibleThreatCount(), wornArmorPoints(this.bot))) {
+                    this.urgentReplan = true
+                    throw new Error('outnumbered in combat; replanning escape')
                 }
                 const distance = this.bot.entity.position.distanceTo(entity.position)
                 if (distance > 3.1) {
@@ -1534,6 +1539,12 @@ class SurvivalController {
         const target = entity.position.offset(0, 1.2, 0)
         const range = eye.distanceTo(target)
         return range < 0.01 || !this.bot.world.raycast(eye, target.minus(eye).scaled(1 / range), range)
+    }
+
+    visibleThreatCount (range = 5) {
+        const position = this.bot.entity.position
+        return Object.values(this.bot.entities || {}).filter(entity => entity.isValid && HOSTILES.has(entity.name) &&
+            position.distanceTo(entity.position) <= range && this.canSee(entity)).length
     }
 
     // Creepers only swell and archers only shoot with line of sight, and outrunning either

@@ -871,3 +871,22 @@ The watcher reported the loop and death. After respawn the bot restocked a
 wooden pick and table from the vault and crafted a new stone pick at 19:36:23.
 The planner and executor now share the low-health limit. The supply check
 also covers shallow underground staging during daylight, including at the base.
+
+## F047 — A zombie group grew during a fight
+
+At 19:41:22 Eastern the 19:37:55 run took its first hit at (20,51,33).
+Mining cancelled immediately and a fight started 220 ms later. The bot wore
+zero armor after the previous death and fought with a wooden sword. By 19:41:25
+two zombies were within 1.4 blocks and the bot remained at the same position.
+The fight stopped below 8 HP, but the ordinary failure backoff left another
+1.6 s before escape. It started escaping at 1.7 HP and died about 0.6 s later.
+The nearby creeper was logged roughly nine blocks away. The log shows nearby
+mobs and damage, with no per-hit attacker attribution or evidence that a
+viable escape route existed earlier.
+
+The planner and active fight now use the same visible-threat check within
+five blocks. Two nearby threats trigger withdrawal with under 12 armor points,
+and three trigger it with heavier armor. The fight checks again each cycle,
+and a combat withdrawal replans on the threat schedule without routine
+mobility recovery. A replay regression verifies an arriving second zombie
+ends the attack sequence. Surviving the original cave encounter remains open.

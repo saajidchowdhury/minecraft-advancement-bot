@@ -377,3 +377,6 @@ advancementsPerHour across a full run.
   route through a previously failing stair, and provisioning the next surface
   departure with wood and food. The retry earned Not Today, Thank You and
   exposed a low-health fight loop. The policy regression covers that loop.
+- F047: two nearby visible threats now trigger withdrawal for a lightly armored
+  bot, including during an ongoing duel. Live-test a changing group and a known
+  exit on a future run. The original log cannot establish a survivable route.

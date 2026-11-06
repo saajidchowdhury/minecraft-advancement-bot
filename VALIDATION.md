@@ -318,6 +318,12 @@ watcher reported critical damage, repeated fight refusal, and death. The bot
 restocked and rebuilt a stone pick after respawn. The exact hungry-miner craft
 and former stair timeout have regression coverage and await another live trial.
 
+The F047 regressions cover the planner selecting withdrawal as a second zombie
+closes in and an active duel yielding before the next attack. Both fail on the
+earlier code. Changed source comment ratios are 15/212 for `decision-engine.js`
+and 63/2325 for `survival-bot.js`. Changed tests are at most 0.34%.
+All 239 tests and syntax checks pass.
+
 The read-only log watcher was attached to the live port 53606 run for 120 s.
 Routine mining stayed quiet. A replay appended the real iron-pick recovery
 line, critical damage, a third retry, and an advancement to a temporary log.
