@@ -97,7 +97,7 @@ async function probeTunnelSides(c, direction) {
     const [dx, dz] = DIRECTIONS[direction]
     let dug = 0
     let foundOre = false
-    for (const side of [-1, 1]) {
+    probe: for (const side of [-1, 1]) {
         for (let depth = 1; depth <= 6; depth++) {
             check(c)
             if (bot.entity.position.distanceTo(anchor) > 0.6) {
@@ -138,6 +138,9 @@ async function probeTunnelSides(c, direction) {
             for (const b of neighbors.filter(b => b.name.endsWith('_ore'))) {
                 rememberOre(c, b.position)
                 foundOre = true
+            }
+            if (miningPickaxe(c)?.name !== tool.name) {
+                break probe
             }
             if (foundOre) {
                 break
@@ -247,6 +250,9 @@ async function mineTunnel(c, targetY, heading = null) {
                     await bot.equip(currentTool, 'hand')
                 }
                 await bot.dig(block, true)
+                if (tool && miningPickaxe(c)?.name !== tool.name) {
+                    return
+                }
             }
         }
         check(c)

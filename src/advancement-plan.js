@@ -116,6 +116,9 @@ function nextAdvancement(state) {
     if (!state.hasIronPickaxe && state.ironIngots >= RECIPES.iron_pickaxe.ironIngots) {
         return craft(state, 'minecraft:story/iron_tools', 'iron_pickaxe', 'craft_iron_pickaxe')
     }
+    if (!state.hasStonePickaxe && state.cobblestone >= RECIPES.stone_pickaxe.cobblestone) {
+        return craft(state, 'minecraft:story/upgrade_tools', 'stone_pickaxe', 'craft_stone_pickaxe')
+    }
     if (!state.hasWoodenPickaxe) {
         return craft(state, 'minecraft:story/mine_stone', 'wooden_pickaxe', 'craft_wooden_pickaxe')
     }
@@ -126,7 +129,8 @@ function nextAdvancement(state) {
         return craft(state, state.cobblestone < 3 ? 'minecraft:story/mine_stone' : 'minecraft:story/upgrade_tools',
             'stone_pickaxe', 'craft_stone_pickaxe')
     }
-    if (state.hasWoodcuttingAxe === false) {
+    const replacingIronPick = !state.hasIronPickaxe && state.completedAdvancements?.has('minecraft:story/iron_tools')
+    if (state.hasWoodcuttingAxe === false && !replacingIronPick) {
         return craft(state, 'prep:woodcutting axe', 'stone_axe', 'craft_stone_axe')
     }
     if (!state.hasFurnace && !state.smeltReady && !state.smeltRunning && !state.smeltNeedsFuel) {

@@ -30,7 +30,7 @@ test('logs count as four potential planks and stick crafting reserves its planks
 
 test('lost tools are rebuilt even when the server remembers past advancements', () => {
     const goal = nextAdvancement({ ...established, hasIronPickaxe: false, hasStonePickaxe: false,
-        hasWoodenPickaxe: false, completedAdvancements: new Set(EARLY_ADVANCEMENTS.map(g => g.id)) })
+        hasWoodenPickaxe: false, cobblestone: 0, completedAdvancements: new Set(EARLY_ADVANCEMENTS.map(g => g.id)) })
     assert.equal(goal.action, 'craft_wooden_pickaxe')
 })
 

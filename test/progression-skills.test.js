@@ -262,6 +262,26 @@ test('tunnel digging prefers an iron pick even when the stone and wooden picks r
     assert.equal(miningPickaxe(c).name, 'iron_pickaxe')
 })
 
+test('losing the iron pick mid-tunnel stops digging so the planner can recover', async () => {
+    const { mineTunnel } = require('../src/progression-skills')
+    const start = new Vec3(0, 64, 0)
+    const pickaxes = ['iron_pickaxe', 'stone_pickaxe']
+    const bot = {
+        health: 20, entity: { position: start }, blockAt: world().blockAt,
+        equip: async () => {}, canDigBlock: () => true,
+        async dig() { digs++; if (digs === 1) { pickaxes.shift() } }
+    }
+    let digs = 0
+    const c = {
+        bot, running: true, memory: {}, log: { info() {} },
+        bestItem: names => names.find(name => pickaxes.includes(name)) ? { name: names[0], type: 1 } : null,
+        async gotoWithTimeout(goal) { bot.entity.position = new Vec3(goal.x, goal.y, goal.z) }
+    }
+    await mineTunnel(c, 60)
+    assert.equal(digs, 1)
+    assert.deepEqual(bot.entity.position, start)
+})
+
 test('after entering the Nether the bot steps out of the arrival portal and walks back in', async () => {
     const { performProgression } = require('../src/progression-skills')
     const portalAt = new Vec3(0, 64, 0)

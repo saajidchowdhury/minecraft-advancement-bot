@@ -85,6 +85,19 @@ test('iron pick preparation outranks side advancements when survival permits', (
     assert.equal(chooseAction({ ...ready, health: 6, hostileDistance: 2 }), Actions.ESCAPE)
 })
 
+test('a miner replaces broken picks locally and collects the finished iron before restocking', () => {
+    const stalled = state({ underground: true, baseRestock: true, hasCraftingTable: true, hasEarlySword: true,
+        cobblestone: 320, sticks: 3, planks: 3, logs: 2, rawIron: 2, smeltReady: true, hasWoodcuttingAxe: true })
+    assert.equal(chooseAction(stalled), Actions.CRAFT_STONE_PICKAXE)
+    const withStone = { ...stalled, hasStonePickaxe: true, hasWoodenPickaxe: true }
+    assert.equal(chooseAction(withStone), Actions.SMELT_IRON)
+    assert.equal(chooseAction({ ...withStone, hasWoodcuttingAxe: false,
+        completedAdvancements: new Set(['minecraft:story/iron_tools']) }), Actions.SMELT_IRON)
+    assert.equal(chooseAction({ ...withStone, smeltReady: false, ironIngots: 3 }), Actions.CRAFT_IRON_PICKAXE)
+    assert.equal(chooseAction({ ...withStone, smeltReady: false, hasFurnace: true }), Actions.IRON)
+    assert.equal(chooseAction({ ...stalled, creeperDistance: 4 }), Actions.ESCAPE)
+})
+
 test('the axe upgrade outranks optional activities while keeping threat interrupts', () => {
     const ready = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true,
         hasWoodcuttingAxe: false, cobblestone: 3, sticks: 2, canPlantSeed: true })

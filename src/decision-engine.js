@@ -84,10 +84,6 @@ function chooseAction (state) {
     if (state.recoveryAvailable) {
         return Actions.RECOVER
     }
-    // Re-arming from the base beats rebuilding from wood after a death (G013).
-    if (state.baseRestock && state.hostileDistance > 12) {
-        return 'restock_base'
-    }
     if (state.canSleep) {
         return 'sleep'
     }
@@ -118,14 +114,25 @@ function chooseAction (state) {
         return 'mine_diamond'
     }
     const progression = nextAdvancement(state)
-    if ([Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_AXE].includes(progression.action)) {
+    if ([Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_PICKAXE].includes(progression.action)) {
         return progression.action
     }
     const preparingIronPick = progression.item === 'iron_pickaxe'
-    const preparingTool = preparingIronPick || progression.item === 'stone_axe'
+    const recoveringPick = state.underground && state.hasIronPickaxe === false
+    if (preparingIronPick && state.smeltReady && progression.action === Actions.SMELT_IRON) {
+        return progression.action
+    }
+    // A miner without an iron pick rebuilds locally before making a restock trip.
+    if (!recoveringPick && state.baseRestock && state.hostileDistance > 12) {
+        return 'restock_base'
+    }
+    if (progression.action === Actions.CRAFT_STONE_AXE) {
+        return progression.action
+    }
+    const preparingTool = recoveringPick || preparingIronPick || progression.item === 'stone_axe'
     const action = preparingTool ? progression.action : state.sideGoal?.action || progression.action
     const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'enter_nether', 'build_redstone'].includes(action)
-    if (state.baseMigrate) {
+    if (!recoveringPick && state.baseMigrate) {
         return 'migrate_base'
     }
     if (state.baseEstablish) {
@@ -144,7 +151,7 @@ function chooseAction (state) {
     if (!preparingTool && state.canFish && !state.inventoryFull) {
         return 'go_fish'
     }
-    if (state.baseDeposit) {
+    if (!recoveringPick && state.baseDeposit) {
         return 'deposit_base'
     }
     // The return trip walks back through earlier disposal drops; cleanup waits for the surface.

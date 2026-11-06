@@ -128,6 +128,10 @@ async function waitUntil (predicate, timeoutMs, intervalMs = 250) {
 }
 
 function actionMadeProgress (action, before, after, moved) {
+    if ([Actions.STONE, Actions.COAL, Actions.IRON].includes(action) &&
+        ((before.hasIronPickaxe && !after.hasIronPickaxe) || (before.hasStonePickaxe && !after.hasStonePickaxe))) {
+        return true
+    }
     const progressed = {
         [Actions.WOOD]: after.logs > before.logs || after.planks > before.planks,
         [Actions.STONE]: after.cobblestone > before.cobblestone,
