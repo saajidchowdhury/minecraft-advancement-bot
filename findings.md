@@ -6,10 +6,10 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~03:37 Eastern. At handoff the bot was RUNNING on `0d7f28e` (PID 92939,
-`outputs/2026-11-06@03.36.15`), rebuilding iron gear after its second death; 15 advancements. A fresh LAN world on port 55502 uses world ID
+Updated 2026-11-06 ~03:46 Eastern. At handoff the bot was RUNNING on `77426ca` (PID 93673,
+`outputs/2026-11-06@03.45.28`), rebuilding after its third death (F068); 15 advancements. A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-at `0d7f28e` passes all 298 tests and syntax checks. Read the latest
+at `77426ca` passes all 299 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1271,3 +1271,21 @@ in `placeSurvivalBlock` and sneaks when an interactive block is the only
 support. Regression-tested; running from 08:36Z (`03.36.15`). Related
 station hazards: F042 (furnaces broken while mining) and the shaft-escape
 stair through a furnace (`2ddee6a`).
+
+## F068 — Death #3: an armored escape pinned in a tunnel [live + regression]
+
+At 08:41Z on `0d7f28e` (`03.36.15`), the bot wore iron armor (each zombie
+hit cost about 1.4 HP) and carried an iron sword. It was climbing a return
+staircase at Y≈-15 when two zombies and a skeleton engaged it. The fight
+ended with "outnumbered in combat; replanning escape". At 6.6 HP the escape
+could not seal two openings, and the bot stayed at (242,-19,-127) for
+2.6 s while two zombies hit it every 0.5 s. It died at 08:41:42.
+`state.json` lists carried items only, not worn armor; read worn slots or
+hit damage before concluding a bot was unarmored. The F032 armored-flee
+cancel required HP > 6 after the hit, which missed the 6.6→5.2 hit.
+`77426ca`: an escape that has not left its starting cell for 1 s with a
+melee mob within 2.5 blocks latches a 6 s cornered state. The damage
+handler cancels the escape, the planner chooses `fight`, and the fight
+skips its outnumbered and low-health refusals; never with a creeper within
+6 blocks. Regression-tested; live from 08:45Z (`03.45.28`). The drops were
+left because threats remained at the death site.
