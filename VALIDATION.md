@@ -364,3 +364,9 @@ checkpoints, interruption by visible diamonds, and discovery and looting of
 chests and chest minecarts. The LAN replay exercised a natural cave walk and
 two staged loot containers. All 256 tests and syntax checks pass. Changed
 JavaScript files stay below 8% comment-bearing lines.
+
+F052 verifies five head-height blocks on each side, same-cell movement and
+early stopping at hazards or ore. All 256 tests and syntax checks pass.
+Comment-bearing lines are 19/1131 in `progression-skills.js` and 0/119 in
+`side-probes.test.js`. The staged LAN trial cleared all ten deepslate cells
+with the bot's carried pickaxe.

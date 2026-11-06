@@ -972,3 +972,16 @@ chest minecart yielded five bread and both containers were recorded as emptied.
 The bot was returned to its original position. No native mineshaft was
 identified at the replay site. See `outputs/cave-loot-setup.json` and
 `outputs/cave-loot-containers.json` for setup and teardown.
+
+## F052 — Five blocks per side probe
+
+The reach check used block centers and stopped at four blocks from a centered
+stance. The bot now aims at the exposed face and crouches closer within the
+same tunnel cell if needed for block five. Ore, liquid, falling-block and tool
+checks still apply.
+
+The staged LAN trial teleported to a clear site in the existing tunnel at
+(7,-46,-79). The bot used its carried pickaxe and broke five deepslate blocks
+on each side. The server showed all ten cells as air, and the bot stayed in
+the original tunnel cell before returning to its prior position. See
+`outputs/five-probes-setup.json`.

@@ -102,16 +102,17 @@ async function probeTunnelSides(c, direction) {
     const [dx, dz] = DIRECTIONS[direction]
     let dug = 0
     let foundOre = false
+    const eye = () => bot.entity.position.offset(0, 1.62, 0)
     probe: for (const side of [-1, 1]) {
-        for (let depth = 1; depth <= 6; depth++) {
+        const faceNormal = new Vec3(-side * dz, 0, side * dx)
+        for (let depth = 1; depth <= 5; depth++) {
             check(c)
-            if (bot.entity.position.distanceTo(anchor) > 0.6) {
+            if (!bot.entity.position.floored().equals(feet) || bot.entity.position.distanceTo(anchor) > 0.6) {
                 throw new Error('moved away from the side-probe anchor')
             }
             const position = feet.offset(side * dz * depth, 1, -side * dx * depth)
             const block = bot.blockAt(position, false)
-            const eye = bot.entity.position.offset(0, bot.entity.eyeHeight || 1.62, 0)
-            if (!block || HAZARDS.has(block.name) || eye.distanceTo(position.offset(0.5, 0.5, 0.5)) > 4.5) {
+            if (!block || HAZARDS.has(block.name)) {
                 break
             }
             if (block.boundingBox === 'empty') {
@@ -123,7 +124,7 @@ async function probeTunnelSides(c, direction) {
                 break
             }
             if (!['stone', 'deepslate', 'granite', 'diorite', 'andesite', 'tuff', 'calcite', 'netherrack'].includes(block.name) ||
-                !block.diggable || !bot.canDigBlock(block) || !bot.canSeeBlock(block)) {
+                !block.diggable) {
                 break
             }
             const neighbors = [[1, 0, 0], [-1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]
@@ -131,14 +132,39 @@ async function probeTunnelSides(c, direction) {
             if (neighbors.some(b => !b || HAZARDS.has(b.name))) {
                 break
             }
+            const face = position.offset(0.5, 0.5, 0.5).plus(faceNormal.scaled(0.5))
+            if (depth === 5 && eye().distanceTo(face) > 4.5) {
+                const floor = bot.blockAt(feet.offset(0, -1, 0), false)
+                if (bot.entity.onGround === false || floor?.boundingBox !== 'block' || HAZARDS.has(floor.name)) {
+                    break
+                }
+                await bot.lookAt(new Vec3(face.x, eye().y, face.z), true)
+                check(c)
+                try {
+                    bot.setControlState('sneak', true)
+                    bot.setControlState('forward', true)
+                    for (let tick = 0; tick < 12 && eye().distanceTo(face) > 4.45; tick++) {
+                        await bot.waitForTicks(1)
+                        check(c)
+                        if (!bot.entity.position.floored().equals(feet) || bot.entity.position.distanceTo(anchor) > 0.6) {
+                            throw new Error('moved away from the side-probe anchor')
+                        }
+                    }
+                } finally {
+                    bot.setControlState('forward', false)
+                    bot.setControlState('sneak', false)
+                }
+            }
+            if (eye().distanceTo(face) > 4.5 || !bot.canDigBlock(block) || !bot.canSeeBlock(block)) {
+                break
+            }
             const tool = miningPickaxe(c, block)
             if (!tool) {
                 throw new Error('side-probe pickaxe broke')
             }
             await bot.equip(tool, 'hand')
-            await bot.lookAt(position.offset(0.5, 0.5, 0.5), true)
             check(c)
-            await bot.dig(block, true)
+            await bot.dig(block, true, faceNormal)
             dug++
             for (const b of neighbors.filter(b => b.name.endsWith('_ore'))) {
                 rememberOre(c, b.position)

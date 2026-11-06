@@ -391,3 +391,5 @@ advancementsPerHour across a full run.
   full pack to validate the ranked overflow and nearby storage paths in game.
 - F051: validate a naturally encountered mineshaft from entry to a confirmed
   return. Record how far the descent saves tunneling and when threats end it.
+- F052: five blocks per probe side verified on LAN. Include the extra blocks
+  and tool wear in the G008 spacing measurements.
