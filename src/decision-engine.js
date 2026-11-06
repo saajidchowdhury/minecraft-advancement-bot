@@ -242,7 +242,8 @@ function chooseAction (state) {
         (state.obsidianCastPending || (state.hasLavaBucket && state.waterBuckets >= 2))
     // Departure reserves apply near surface level only; a sky-lit ravine floor at Y=-19 reads as
     // not underground and scouted for trees there (17:09:30Z).
-    const nearSurface = state.underground ? state.y >= state.surfaceY - 8 : !(state.y < state.surfaceY - 8)
+    // Open ground 9 below home (Y=68 vs 77, 17:38Z) is still surface; ravine floors are far lower.
+    const nearSurface = state.underground ? state.y >= state.surfaceY - 8 : !(state.y < Math.min(state.surfaceY, 63) - 16)
     if (mining && !casting && nearSurface && !(state.underground && state.isNight)) {
         if ((state.planks || 0) + (state.logs || 0) * 4 < MIN_MINING_WOOD_PLANKS) {
             return state.underground ? 'return_surface' : Actions.WOOD
