@@ -88,7 +88,7 @@ test('base decisions: build the vault underground, migrate an exposed chest by d
     assert.equal(baseState({ bot: baseBot([], new Vec3(400.5, 70, 0.5)), memory }, { ...calm }).baseRestock, false)
 })
 
-test('every vault visit digs the cobblestone seal out and puts it back afterwards', async () => {
+test('every vault visit digs the cobblestone seal out, by hand if needed, and puts it back afterwards', async () => {
     const items = [{ name: 'raw_gold', count: 6 }, { name: 'cobblestone', count: 10 }]
     const { c } = chestWorld(items, {})
     const sealed = new Set([new Vec3(1, 70, 0).toString(), new Vec3(1, 71, 0).toString()])
@@ -98,6 +98,8 @@ test('every vault visit digs the cobblestone seal out and puts it back afterward
     c.bot.entity.position = new Vec3(0.5, 70, 0.5)
     c.bestItem = () => undefined
     c.bot.equip = async () => {}
+    // Mirrors mineflayer-tool: with no pickaxe carried, requiring a harvest tool throws.
+    c.bot.tool = { async equipForBlock(block, options) { if (options.requireHarvest) throw new Error('Bot does not have a harvestable tool!') } }
     const events = []
     c.bot.dig = async block => { sealed.delete(block.position.toString()); events.push('dig') }
     c.countItems = names => items.filter(i => names.includes(i.name)).reduce((n, i) => n + i.count, 0)
