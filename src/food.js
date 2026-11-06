@@ -213,7 +213,15 @@ async function collectCooking(c, job) {
             if (fuel) {
                 await furnace.putFuel(fuel.item.type, null, Math.min(fuel.count, c.countItems([fuel.item.name])))
             }
-            Object.assign(job, { count: left, readyAt: Date.now() + left * SECONDS_PER_ITEM * 1000 + 1000 })
+            if (!fuel && !furnace.fuelItem() && !(furnace.fuel > 0)) {
+                // Out of fuel with none carried: take the raw food back rather than revisit every
+                // ten seconds (three trips, the last into lava: death #8, 17:30:22Z).
+                await furnace.takeInput()
+                finished = true
+                c.memory.cookJob = null
+            } else {
+                Object.assign(job, { count: left, readyAt: Date.now() + left * SECONDS_PER_ITEM * 1000 + 1000 })
+            }
         }
     } finally {
         await c.bot.closeWindow(furnace).catch(() => {})

@@ -1894,6 +1894,20 @@ class SurvivalController {
         if (!best) {
             return
         }
+        // Drive straight out first: a pathfinder goto from inside lava left the bot in place (17:30:25Z).
+        await this.bot.lookAt(best.offset(0.5, 1.6, 0.5), true)
+        const controls = ['forward', 'sprint', 'jump']
+        controls.forEach(control => this.bot.setControlState(control, true))
+        try {
+            for (let t = 0; t < 12 && this.inLava(); t++) {
+                await sleep(100)
+            }
+        } finally {
+            controls.forEach(control => this.bot.setControlState(control, false))
+        }
+        if (!this.inLava()) {
+            return
+        }
         this.bot.setControlState('jump', true)
         try {
             await this.gotoWithTimeout(new goals.GoalBlock(best.x, best.y, best.z), 4000, 'lava escape')
@@ -2627,7 +2641,8 @@ class SurvivalController {
 
     cancelCurrentTask (reason) {
         this.log.warn(`Cancelling current task: ${reason}`)
-        this.urgentReplan = /creeper|attacked|critical health|night damage|sheltered/.test(reason)
+        // Lava costs ~2.5 HP per half second; the 1.5 s failure back-off cost death #8 (17:30:23Z).
+        this.urgentReplan = /creeper|attacked|critical health|night damage|sheltered|lava|suffocat|air/.test(reason)
         this.actionAbort?.abort(reason)
         if (this.activeCollection && /(is stuck|timed out|memory guard)/.test(reason)) {
             this.rememberBlockedTarget(

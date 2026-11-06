@@ -710,7 +710,8 @@ test('burning in lava pre-empts everything: water is poured at the feet and the 
     c.gotoWithTimeout = async g => { goal = g }
     assert.equal(c.inLava(), true)
     await c.escapeLava()
-    assert.deepEqual(events, ['equip:water_bucket', 'pour', 'jump:true', 'jump:false'])
+    assert.deepEqual(events, ['equip:water_bucket', 'pour', 'forward:true', 'sprint:true', 'jump:true',
+        'forward:false', 'sprint:false', 'jump:false', 'jump:true', 'jump:false'])
     assert.equal(c.bot.blockAt(new Vec3(goal.x, goal.y, goal.z)).name, 'air')
     assert.notDeepEqual([goal.x, goal.z], [246, -156])
 })
@@ -770,4 +771,23 @@ test('a resource walk yields once iron or food comes into view, and the yield co
     assert.equal(cancelled, 'pick_glow_berries came into view during gather_iron')
     assert.equal(actionMadeProgress(Actions.IRON, {}, { ironInView: true }, false), true)
     assert.equal(actionMadeProgress(Actions.IRON, { ironInView: true }, { ironInView: true }, false), false)
+})
+
+test('a lava escape that drives out directly skips the pathfinder, and lava cancels replan at once', async () => {
+    const c = Object.create(SurvivalController.prototype)
+    let gone = false
+    c.log = { warn() {} }
+    c.inLava = () => !gone
+    c.bot = {
+        entity: { position: new Vec3(0.5, 64, 0.5) }, inventory: { items: () => [] },
+        blockAt: p => ({ name: p.y === 63 ? 'stone' : p.x === 0 && p.z === 0 ? 'lava' : 'air', boundingBox: p.y === 63 ? 'block' : 'empty' }),
+        async lookAt() {}, setControlState(control, on) { if (control === 'forward' && on) { setTimeout(() => { gone = true }, 150) } }
+    }
+    c.gotoWithTimeout = async () => { throw new Error('pathfinder should not run') }
+    await c.escapeLava()
+    assert.equal(gone, true)
+    c.actionAbort = new AbortController()
+    c.clearCurrentTask = () => {}
+    c.cancelCurrentTask('burning in lava')
+    assert.equal(c.urgentReplan, true)
 })

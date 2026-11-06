@@ -10,7 +10,8 @@ function kitchen(items) {
     const window = {
         inputItem: () => furnace.input, outputItem: () => furnace.output, fuelItem: () => furnace.fuel,
         takeOutput: async () => { items.push(furnace.output); furnace.output = null },
-        takeFuel: async () => { items.push(furnace.fuel); furnace.fuel = null }
+        takeFuel: async () => { items.push(furnace.fuel); furnace.fuel = null },
+        takeInput: async () => { items.push(furnace.input); furnace.input = null }
     }
     const names = {}
     const take = (name, count) => {
@@ -149,4 +150,15 @@ test('a fish hunt records its shore and aborts the fight when short of air', asy
     assert.deepEqual([c.memory.fishWater.x, c.memory.fishWater.misses], [0, 0])
     c.memory.fishWater.at -= 600001
     assert.equal(await waitForFish(c), false)
+})
+
+test('a cooking job that runs out of fuel with none carried takes its food back and ends', async () => {
+    const items = [{ name: 'stick', count: 1 }]
+    const { c, furnace } = kitchen(items)
+    c.memory.cookJob = { dimension: 'overworld', x: 1, y: 64, z: 0, input: 'mutton', count: 1, readyAt: Date.now() - 1 }
+    furnace.input = { name: 'mutton', count: 1 }
+    await cookFood(c)
+    assert.equal(c.memory.cookJob, null)
+    assert.equal(c.countItems(['mutton']), 1)
+    assert.equal(furnace.input, null)
 })

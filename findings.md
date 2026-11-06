@@ -1408,3 +1408,18 @@ the action as progress when a new diamond, wanted iron, fish or ripe berry comes
 Remaining sight differences from a player, by design: rays sample nine points per exposed face
 (a grazing sliver can be missed), glass and other collision blocks stop rays, and ores beside
 liquid are excluded; the bot needs no light and no facing direction.
+
+## F074 — Death #8: a fuel-less cooking job walked the bot into lava [live + regressions]
+
+Run `outputs/2026-11-06@12.27.24` (`6794c26`), 17:29:37–17:30:26Z. The diamond sword was
+crafted live at 17:28:23 (F073). A cooking job's furnace ran dry with one mutton left and the
+bot carried no fuel, so `collectCooking` reset the job every ~10 s; the third return trip
+pathed from (10,-17,127) into lava at (11,-17,128). The lava cancel fired at 17:30:23.2, but
+`cancelCurrentTask` overwrote the handler's `urgentReplan` (its regex lacked "lava"), so the
+1.5 s failure back-off delayed `escape_lava` to 17:30:25.0; the pathfinder escape then did not
+move the bot and it died from 20 HP in 3.5 s. Fixes: a dry job with no carried fuel takes its
+input back and ends; lava, suffocation and air cancels replan in 100 ms; the lava escape drives
+forward+sprint+jump toward the nearest dry cell for up to 1.2 s before falling back to the
+pathfinder. Not yet seen live: why the walk entered lava although lava is in `blocksToAvoid`
+(possibly flowing lava next to the path). Death drops were judged unrecoverable (threats).
+The respawn replaced the provisional home with (25,77,87) on first open sky, as intended (F072).
