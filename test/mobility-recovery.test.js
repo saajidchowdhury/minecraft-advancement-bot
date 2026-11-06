@@ -201,3 +201,22 @@ test('repeated return failures in place do not trigger drop-down unstick scoutin
     }
     assert.equal(recoveries, 0)
 })
+
+test('a shaft escape never chooses a staircase through the bot\'s own furnace', async () => {
+    const furnace = new Vec3(0, 2, 1)
+    const c = Object.create(SurvivalController.prototype)
+    const messages = []
+    c.log = { info: m => messages.push(m), warn() {} }
+    c.bot = {
+        entity: { position: new Vec3(0.5, 1, 0.5) },
+        blockAt(p) {
+            const name = p.equals(furnace) ? 'furnace' : (p.x === 0 && p.z === 0 && p.y >= 1 && p.y <= 2) ? 'air' : 'stone'
+            return { name, position: p, boundingBox: name === 'air' ? 'empty' : 'block', diggable: true }
+        },
+        canDigBlock: () => true, dig: async () => { throw new Error('stop after choosing') }
+    }
+    c.equipStoneDigTool = async () => {}
+    await assert.rejects(c.escapeVerticalShaft(), /stop after choosing/)
+    assert.match(messages[0], /toward/)
+    assert.doesNotMatch(messages[0], /toward 0,1\./)
+})

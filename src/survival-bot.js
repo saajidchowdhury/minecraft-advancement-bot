@@ -902,8 +902,11 @@ class SurvivalController {
 
     async escapeVerticalShaft () {
         const start = this.bot.entity.position.floored()
+        // The bot's own furnace placed in a stair cell once made every retry carve into it (01.19.57).
+        const station = (dx, dz) => [1, 2, 3, 4, 5, 6, 7, 8].some(step => [0, 1].some(dy =>
+            PROTECTED_CONTAINERS.has(this.bot.blockAt(start.offset(dx * step, step + dy, dz * step), false)?.name)))
         const ranked = [[1, 0], [-1, 0], [0, 1], [0, -1]]
-            .map(([dx, dz]) => ({ dx, dz, score: this.stairDirectionScore(start, dx, dz, 8) }))
+            .map(([dx, dz]) => ({ dx, dz, score: station(dx, dz) ? Infinity : this.stairDirectionScore(start, dx, dz, 8) }))
             .filter(direction => Number.isFinite(direction.score))
             .sort((a, b) => a.score - b.score)
         if (ranked.length === 0) {
