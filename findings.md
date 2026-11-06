@@ -826,3 +826,23 @@ In the 18:51:28 Eastern run, the bot crafted the stone axe at 18:51:32 and
 immediately used it to reclaim its crafting table. Debug logs at 18:51:42–49
 show it breaking oak logs with the axe. The bot stayed connected. The earlier 18:45:08 run
 also built the sealed barrel vault at (9,76,23) and deposited items at 18:47:23.
+
+## F045 — Restore mining tools locally and collect the ready furnace
+
+The 18:51:28 run lost its iron pick during tunneling at 18:54:15 Eastern, then
+lost its stone pick on an ore collection at about 18:55:30. The timing and
+inventory changes are consistent with wear. The bot had hundreds of cobblestone,
+a table, and three sticks. It nevertheless planned a wooden pick and repeated
+unreachable base restock. Its remembered furnace at (26,59,49) had a ready
+three-ingot batch that the user observed in the world.
+
+The planner now crafts a stone pick directly from carried supplies and puts local
+pick recovery ahead of an underground restock. It then collects ready smelts or
+continues obtaining iron. Three carried ingots still permit an immediate iron
+pick. Tunnel and side-probe work stop when their pick tier is lost so the planner
+can act at the next cycle. Danger, hunger, and drop recovery retain priority.
+
+Live `ecf3f21` at 19:03 Eastern reproduced recovery from the same inventory and
+saved furnace, with no staged items. The bot crafted a stone pick at 19:03:04,
+collected the three ingots from (26,59,49) at 19:03:08, crafted and equipped
+the iron pick by 19:03:11, and resumed mining with the stone pick still carried.

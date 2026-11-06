@@ -295,3 +295,12 @@ Live on port 53606, the 18:51:28 run crafted a stone axe on its first action
 and immediately reclaimed the crafting table with it. Debug logs confirmed it
 used the axe on oak logs during the next wood-gathering action. No staged
 supplies were used.
+
+`ecf3f21` passes 234 tests and syntax checks. The new decision regression
+reproduces local stone crafting losing to an unreachable base restock. The
+tunnel regression reproduces continued digging after an iron pick wears out.
+Both fail on the earlier code. Changed code comment ratios are 5/213
+(`advancement-plan.js`), 15/192 (`decision-engine.js`), 20/1075
+(`progression-skills.js`) and 63/2286 (`survival-bot.js`). Changed tests have
+zero comments. Live, the 19:03:00 run rebuilt stone, collected three ingots
+from the saved furnace and equipped a new iron pick before resuming work.

@@ -370,3 +370,6 @@ advancementsPerHour across a full run.
 - F044: stone axe crafting, log cutting and crafting-table reclaim verified live. Check
   replacement when it wears out, and observe the axe on a base container when
   migration is needed. The barrel vault has now been built and used for deposit.
+- F045: local stone pick rebuild, pickup of the saved three-ingot batch and
+  replacement iron pick verified on port 53606. Recheck restock routing
+  separately for gear losses after death.
