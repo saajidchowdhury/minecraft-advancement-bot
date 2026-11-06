@@ -13,11 +13,14 @@ const ARMOR = ['helmet', 'chestplate', 'leggings', 'boots']
 // levels, so a restock never triggers a deposit (no chest ping-pong).
 const CARRY = {
     diamond: 8, iron_ingot: 16, raw_iron: 16, redstone: 8, coal: 16, charcoal: 16, torch: 32,
-    gold_ingot: 0, raw_gold: 0, lapis_lazuli: 0, emerald: 0, raw_copper: 0, copper_ingot: 0,
-    string: 0, bone: 0, gunpowder: 0, ender_pearl: 0, slime_ball: 0, spider_eye: 0, feather: 0,
-    leather: 0, arrow: 0, crafting_table: 1, furnace: 1
+    gold_ingot: 0, raw_gold: 0, lapis_lazuli: 8, emerald: 0, raw_copper: 0, copper_ingot: 0,
+    string: 5, bone: 0, gunpowder: 0, ender_pearl: 0, slime_ball: 0, spider_eye: 0, feather: 4,
+    leather: 1, arrow: 16, crafting_table: 1, furnace: 1
 }
-const RESTOCK = { diamond: 8, iron_ingot: 16, raw_iron: 16, coal: 16, torch: 32, crafting_table: 1, furnace: 1, bucket: 1, obsidian: 64, flint_and_steel: 1 }
+// Side goals check carried items: string for a rod (2) and bow (3), feathers for arrows,
+// and leather and lapis for the enchanting table and its first enchantment.
+const RESTOCK = { diamond: 8, iron_ingot: 16, raw_iron: 16, coal: 16, torch: 32, crafting_table: 1, furnace: 1, bucket: 1, obsidian: 64, flint_and_steel: 1,
+    string: 5, feather: 4, leather: 1, lapis_lazuli: 8, arrow: 16 }
 const FOODS = ['cooked_beef', 'cooked_porkchop', 'cooked_mutton', 'cooked_chicken', 'cooked_rabbit', 'bread', 'baked_potato', 'golden_carrot', 'apple', 'carrot']
 
 function totals(items) {

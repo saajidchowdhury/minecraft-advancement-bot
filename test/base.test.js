@@ -243,3 +243,10 @@ test('building a vault crafts slabs and a barrel, places it in rock and lights t
     assert.equal(c.memory.base.container, 'barrel')
     assert.ok(placed.some(([name, p]) => name === 'torch' && p.includes('65')))
 })
+
+test('materials for fishing, archery and enchanting stay carried and are restocked from the base', () => {
+    const items = [{ name: 'string', count: 9 }, { name: 'feather', count: 7 }, { name: 'leather', count: 3 }, { name: 'lapis_lazuli', count: 20 }]
+    assert.deepEqual(asMap(depositPlan(items, {})), { string: 4, feather: 3, leather: 2, lapis_lazuli: 12 })
+    const stored = { string: 9, feather: 7, leather: 3, lapis_lazuli: 20 }
+    assert.deepEqual(asMap(restockPlan(stored, [], {})), { string: 5, feather: 4, leather: 1, lapis_lazuli: 8 })
+})
