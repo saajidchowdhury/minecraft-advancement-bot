@@ -470,6 +470,10 @@ test('a death among archers or a crowd is marked dangerous and its drops are not
     c.memory = {}
     bot.emit('death')
     assert.equal(c.memory.lastDeath.dangerous, false)
+    c.memory = {}
+    c.inLava = () => true
+    bot.emit('death')
+    assert.equal(c.memory.lastDeath.dangerous, true)
 })
 
 test('plank preparation grows one wood type when mixed planks cannot fill a recipe', async () => {

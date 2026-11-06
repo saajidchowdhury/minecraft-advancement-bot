@@ -250,7 +250,9 @@ class SurvivalController {
                 const near = Object.values(this.bot.entities || {}).filter(e => e.isValid && HOSTILES.has(e.name))
                     .map(e => ({ name: e.name, distance: position.distanceTo(e.position) }))
                 // A fresh respawn cannot win where a crowd or an archer just killed a geared bot.
-                const dangerous = near.filter(e => e.distance <= 12).length >= 2 || near.some(e => ARCHERS.has(e.name) && e.distance <= 16)
+                // Lava also burns the drops, so a lava death site is never worth the trip back.
+                const dangerous = near.filter(e => e.distance <= 12).length >= 2 || near.some(e => ARCHERS.has(e.name) && e.distance <= 16) ||
+                    Boolean(this.inLava?.())
                 this.memory.lastDeath = {
                     x: Math.floor(position.x), y: Math.floor(position.y), z: Math.floor(position.z),
                     diedAt: sameRecovery ? previous.diedAt : Date.now(),
@@ -1773,7 +1775,7 @@ class SurvivalController {
     inLava () {
         const feet = this.bot.entity?.position.floored()
         return Boolean(this.bot.entity?.isInLava || (feet && [feet, feet.offset(0, 1, 0)]
-            .some(p => ['lava', 'fire', 'soul_fire'].includes(this.bot.blockAt(p, false)?.name))))
+            .some(p => ['lava', 'fire', 'soul_fire'].includes(this.bot.blockAt?.(p, false)?.name))))
     }
 
     // Water poured at the feet quenches the lava there; then step to the nearest dry, solid-floored cell.
