@@ -1489,7 +1489,27 @@ class SurvivalController {
     async collectSmelt (job) {
         const position = new Vec3(job.x, job.y, job.z)
         if (this.bot.entity.position.distanceTo(position.offset(0.5, 0.5, 0.5)) > 4) {
-            await this.gotoWithTimeout(new GoalNear(position.x, position.y, position.z, 2), 30000, 'furnace return')
+            try {
+                await this.gotoWithTimeout(new GoalNear(position.x, position.y, position.z, 2), 30000, 'furnace return')
+            } catch (error) {
+                // A respawned bot found its 32-iron furnace 20 blocks down with no walking path
+                // (02.59.01); tunnel toward it, and forget the job only after twelve segments.
+                if (!/no path|timed out/i.test(error.message) || this.actionAbort?.signal.aborted) {
+                    throw error
+                }
+                job.tunnels = (job.tunnels || 0) + 1
+                if (job.tunnels > 12) {
+                    this.log.warn(`Abandoning the unreachable smelt job at ${position} (${job.count} raw iron).`)
+                    this.memory.smeltJob = null
+                    throw error
+                }
+                this.log.info(`No walking route to the furnace at ${position}; tunneling toward it (${job.tunnels}/12).`)
+                // A failed goto defers its stop and would abort the first dig (F004).
+                this.bot.pathfinder.setGoal(null)
+                await this.bot.waitForTicks(2)
+                this.checkAction()
+                return mineTunnel(this, position.y, position)
+            }
         }
         const block = this.bot.blockAt(position)
         if (block?.name !== 'furnace') {

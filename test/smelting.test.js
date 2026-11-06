@@ -173,3 +173,23 @@ test('the first-iron goal gathers coal for a stalled job even if the furnace was
 test('the first-iron goal leaves a running furnace to work even after gathering more raw iron', () => {
     assert.equal(nextAdvancement({ ...ironPickGoal, hasFurnace: true, smeltRunning: true }).action, 'gather_iron')
 })
+
+test('an unreachable smelt furnace is tunneled toward, then forgotten after twelve segments', async () => {
+    const c = Object.create(SurvivalController.prototype)
+    const job = { dimension: 'overworld', x: 172, y: 43, z: -176, count: 32 }
+    let goal = 'none'
+    Object.assign(c, {
+        running: true, paused: false, actionAbort: new AbortController(), memory: { smeltJob: job }, log: { info() {}, warn() {} },
+        bot: { health: 20, entity: { position: new Vec3(158.5, 64, -166.5) },
+            pathfinder: { setGoal(g) { goal = g } }, async waitForTicks() {}, inventory: { items: () => [] } },
+        bestItem: () => null,
+        async gotoWithTimeout() { goal = 'stale'; throw new Error('No path to the goal!') }
+    })
+    // No pickaxe in the fixture: reaching mineTunnel shows the tunnel branch was taken.
+    await assert.rejects(c.collectSmelt(job), /mining requires a pickaxe/)
+    assert.equal(job.tunnels, 1)
+    assert.equal(goal, null)
+    job.tunnels = 12
+    await assert.rejects(c.collectSmelt(job), /No path/)
+    assert.equal(c.memory.smeltJob, null)
+})
