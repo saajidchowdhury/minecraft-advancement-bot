@@ -6,10 +6,10 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~03:51 Eastern. At handoff the bot was RUNNING on `8dc2db6` (PID 94507,
-`outputs/2026-11-06@03.50.23`), rebuilding from spawn after its fourth death (F069); 15 advancements. A fresh LAN world on port 55502 uses world ID
+Updated 2026-11-06 ~04:05 Eastern. At handoff the bot was RUNNING on `cecbf1d` (PID 96556,
+`outputs/2026-11-06@04.03.39`), rebuilding from scratch after seven deaths (F062–F070); 15 advancements. A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-at `7558bda` passes all 301 tests and syntax checks. Read the latest
+at `cecbf1d` passes all 303 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1316,3 +1316,25 @@ Audit progress: `7558bda` adds the suffocation reflex. A solid block at
 eye height pre-empts decisions with `clear_head`, which digs it out, and
 critical-health cancellation spares it. Regression only; not yet loaded.
 Fall damage, fire, cactus and powder snow are still unaudited.
+
+## F070 — Deaths #5–#7: bare respawns in mob caves at night [live + regressions]
+
+On `8dc2db6` (`03.50.23`), deaths #5–#7 came at 08:56:16, 08:56:55 and
+08:57:36Z, within 90 s of each other. #5: the rebuilt bot (stone tools, no
+armor) was walking about 250 blocks toward a 3-iron furnace job and met
+three skeletons and a spider in a cave at Y≈8–13. #6 and #7: at night,
+respawns landed in a cave under the world spawn, at (5,51,-4) and (2,52,-5).
+The bare bot then restocked or worked through caves full of zombies and
+skeletons. I stopped the bot at 08:58 to break the loop.
+Fixes, all with regressions that fail on the old code:
+- `1cd3519`: a smelt job is dropped when its furnace is farther than
+  48 + 4 blocks per raw iron.
+- `ff8771a`: long restock trips wait for daylight, or stay within 24 blocks
+  underground; an unarmored bot underground at night with a hostile within
+  16 blocks shelters. Quiet tunnels keep the productive-night policy.
+- `6c6e441`: wooden tools never justify a long restock trip.
+- `ff7d545`: `return_surface` failures never escalate into drop-down unstick.
+- `cecbf1d`: any restock from the rock-enclosed vault needs a carried pickaxe.
+Live on `cecbf1d` (`04.03.39`), the rebuild proceeded: stone pick, furnace,
+wood. Seven deaths in 3h40m on this world; every one since #2 was a reflex
+or routing gap, not a combat-strength gap.

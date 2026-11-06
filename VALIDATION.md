@@ -2,7 +2,7 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
-The latest code baseline (`7558bda`) passed all 301 tests and syntax checks.
+The latest code baseline (`cecbf1d`) passed all 303 tests and syntax checks.
 The staged LAN evidence for casting and diamond interrupts is near the end of
 this file. F056 resolves the F055 obsidian timeout. Continuous portal
 preparation is still not live-verified.
@@ -425,3 +425,5 @@ restart beside a spring, came at 07:56:19Z; the drowning response is regression-
 Live on `7b403bc`: two tunnel segments reached a remembered 32-iron furnace that had no walking path (F066).
 Death #3 came at 08:41:42Z in a tunnel melee: an armored escape pinned in place. The cornered-fight response is regression-only (F068).
 Death #4 came at 08:46:34Z in lava. The lava escape reflex is regression-only (F069).
+Deaths #5–#7 came at 08:56–08:57Z: bare respawns in mob caves at night (F070). The bot was stopped at 08:58,
+patched and restarted on `cecbf1d`; the night-restock and cave-shelter rules are regression-only.
