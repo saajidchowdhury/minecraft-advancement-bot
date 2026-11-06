@@ -173,8 +173,9 @@ function baseState(c, state) {
     }
     const restock = restockPlan(base.contents || {}, items, worn)
     // A long trip pays only for gear; small refills happen when the bot passes by anyway.
-    // The cobblestone seal needs a pickaxe (stone is never dug by hand), so a bare respawn makes one first.
-    const canOpen = !base.sealed || items.some(item => item.name.endsWith('_pickaxe'))
+    // The vault sits in rock and its seal is cobblestone; neither is dug by hand, so a bare respawn
+    // makes a pickaxe first (04.01.02 looped 'No path' and then dropped into a cave).
+    const canOpen = items.some(item => item.name.endsWith('_pickaxe'))
     // Deaths #5-#7 (03.50.23): bare respawns crossed dark caves at night to reach the vault.
     state.baseRestock = canOpen && state.baseDistance <= 256 && (!state.isNight || (state.underground && state.baseDistance <= 24)) &&
         // Wooden tools are a minute of surface crafting; a bare bot looped trying to dig to them (03.59.47).
