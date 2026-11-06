@@ -6,10 +6,10 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~01:07 Eastern. At handoff the bot was RUNNING on `ca042f8` (PID 82290,
-`outputs/2026-11-06@00.54.52`), seeking lava for Hot Stuff with six diamonds. A fresh LAN world on port 55502 uses world ID
+Updated 2026-11-06 ~01:27 Eastern. At handoff the bot was RUNNING on `9a2ef22` (PID 84883,
+`outputs/2026-11-06@01.19.57`), rebuilding after its first death (F062). A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-at `f12d1d9` passes all 284 tests and syntax checks. Read the latest
+at `9a2ef22` passes all 288 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1151,3 +1151,35 @@ HP >= 16, hunger >= 17, the mining wood and food reserves and no hostile
 within 16 blocks. Carving from the surface at night leaves an open staircase
 behind the bot; followers are left to the existing threat-facing seal and
 fight logic. Not yet live-tested.
+
+## F062 — First death on the 55502 world, and the bare-respawn loops [live + regressions]
+
+At 06:11:18Z on `ca042f8`, mining at Y≈-46 with six diamonds, the bot saw
+a creeper at 5.4 blocks. It could not seal five facing openings, fled, and
+took the blast at 06:11:30 while fleeing, dropping from 15.6 to 4.4 HP. The
+rest rule (HP <= 6, fed, no hostile within 12) ended at 7.7 HP, and the bot
+resumed `fill_lava_bucket` in the same cave. A zombie hit it at 8.7 HP. The
+low-health escape kept the zombie within 1.3–1.6 blocks for three more hits,
+and the bot died at 06:12:06Z, about 56 minutes into the world. The deep
+drops (six diamonds, iron kit, shield) were not recoverable.
+`5c973a8`: a creeper within four blocks after a failed seal, or during the
+flight, is now faced with the off-hand shield raised. The brace lasts until
+the creeper explodes or despawns, moves beyond 7 blocks, or 3 s pass. After
+HP <= 6 the bot now rests until 14 HP when fed and no hostile is within 12.
+Both are regression-tested and not yet live-tested. Still open: an escape
+that cannot gain distance on a zombie should turn and fight behind the shield.
+
+After the respawn, the empty-handed bot stood under its night shelter at
+Y=65 (home 69) and counted as underground. `return_surface` needed a
+pickaxe, and the F057 in-place escalation then used the six-block-drop
+`unstick`, which dropped it into a cave at Y=46. `458ac05` lets a bot without
+a pickaxe pathfind up to the surface level, and excludes `return_surface`
+from in-place escalation. Live on `458ac05`, the pickaxe-free climb went
+from Y=51 to Y=68 in 9 s. The bot then shuttled between the surface and its
+sealed underground vault: opening the cobblestone seal needs a pickaxe, and
+the F046 guard correctly refuses stone by hand. `3f6325c`/`9a2ef22` allow a
+restock from a sealed vault only with a pickaxe in hand. A hand-dig attempt,
+`cd366a3`, was undone; its `git revert` silently failed, which `9a2ef22`
+corrects. Live on `9a2ef22`, the bot gathered wood, crafted a table and a
+wooden pick at 06:20:46, then a stone pick and furnace. It rebuilt locally
+because the vault held only a wooden pick, a table and feathers.

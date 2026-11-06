@@ -2,7 +2,7 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
-The latest code baseline (`f12d1d9`) passed all 284 tests and syntax checks.
+The latest code baseline (`9a2ef22`) passed all 288 tests and syntax checks.
 The staged LAN evidence for casting and diamond interrupts is near the end of
 this file. F056 resolves the F055 obsidian timeout. Continuous portal
 preparation is still not live-verified.
@@ -412,3 +412,9 @@ whole-trunk blocking, carried side-goal materials (F058), Take Aim, the
 portal standing row and Enchanter (F059). Enchanter and Take Aim are new
 modules, so their tests are first-version specifications rather than
 pre-fix reproductions.
+
+Not Today, Thank You was server-confirmed at 06:11:06Z. The first death on this
+world came at 06:12:06Z, from a creeper blast followed by a zombie (F062).
+Live-verified on `458ac05` and `9a2ef22`: a pickaxe-free climb out of a cave,
+and a bare respawn crafting a pickaxe before attempting the sealed vault.
+The creeper shield brace and the rest-to-14-HP rule are covered by regressions only.
