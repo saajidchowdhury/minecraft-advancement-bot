@@ -188,8 +188,7 @@ async function digIfSolid(c, p) {
     const bot = c.bot
     const block = bot.blockAt(p, false)
     if (block && block.boundingBox !== 'empty' && !['chest', 'barrel'].includes(block.name)) {
-        // The seal is two cobblestone: a respawned, empty-handed bot breaks it by hand (~7.5 s each).
-        await bot.tool?.equipForBlock(block, { requireHarvest: false, getFromChest: false })
+        await bot.tool?.equipForBlock(block, { requireHarvest: true, getFromChest: false })
         c.checkAction()
         await bot.dig(block, true)
         c.checkAction()
