@@ -169,3 +169,12 @@ test('a stone tool short of both wood and cobblestone gathers wood before diggin
     assert.equal(resourceAction({ ...state, logs: 1 }, { cobblestone: 3, sticks: 2 }), 'gather_stone')
     assert.equal(resourceAction({ ...state, cobblestone: 3 }, { cobblestone: 3, sticks: 2 }), 'gather_wood')
 })
+
+test('three carried diamonds become a diamond pickaxe before the lava bucket or the iron kit', () => {
+    const early = { ...established, hasIronArmor: false, armorEquipped: false, hasShield: false, shieldEquipped: false,
+        gear: new Set(), completedAdvancements: new Set(['minecraft:story/iron_tools']), diamonds: 6 }
+    assert.equal(nextAdvancement(early).item, 'diamond_pickaxe')
+    assert.equal(nextAdvancement({ ...early, hasIronPickaxe: false, hasStonePickaxe: true }).item, 'diamond_pickaxe')
+    assert.notEqual(nextAdvancement({ ...early, diamonds: 2 }).item, 'diamond_pickaxe')
+    assert.notEqual(nextAdvancement({ ...early, hasDiamondPickaxe: true }).item, 'diamond_pickaxe')
+})

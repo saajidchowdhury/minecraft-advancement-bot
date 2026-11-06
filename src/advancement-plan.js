@@ -181,6 +181,11 @@ function planAdvancement(state) {
         return craft(state, state.cobblestone < 3 ? 'minecraft:story/mine_stone' : 'minecraft:story/upgrade_tools',
             'stone_pickaxe', 'craft_stone_pickaxe')
     }
+    // Three carried diamonds outlast six iron picks (1561 vs 250 uses); 01.19.57 spent four iron
+    // picks on a lava search while carrying six diamonds.
+    if (!state.hasDiamondPickaxe && state.diamonds >= RECIPES.diamond_pickaxe.diamonds) {
+        return craft(state, 'prep:diamond pickaxe', 'diamond_pickaxe')
+    }
     const replacingIronPick = !state.hasIronPickaxe && state.completedAdvancements?.has('minecraft:story/iron_tools')
     if (state.hasWoodcuttingAxe === false && !replacingIronPick) {
         return craft(state, 'prep:woodcutting axe', 'stone_axe', 'craft_stone_axe')
