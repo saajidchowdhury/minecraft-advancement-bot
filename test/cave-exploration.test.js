@@ -276,7 +276,7 @@ function diamondWorld(extra = {}) {
     const blockAt = p => {
         const open = (p.x === 0 && p.z >= 0 && p.z <= 5 && (p.y === 64 || p.y === 65)) || (p.y === 65 && p.z === 0 && p.x >= 1 && p.x <= 3)
         const name = names.get(p.toString()) || (open ? 'air' : 'deepslate')
-        return { name, position: p, boundingBox: ['air', 'water'].includes(name) ? 'empty' : 'block', canHarvest: () => true }
+        return { name, position: p, boundingBox: ['air', 'water', 'glow_lichen'].includes(name) ? 'empty' : 'block', canHarvest: () => true }
     }
     const bot = {
         entity: { position: new Vec3(0.5, 64, 0.5) }, game: { dimension: 'overworld' }, blockAt,
@@ -334,4 +334,9 @@ test('probe-exposed diamonds are remembered even without a line of sight; liquid
     assert.deepEqual(String(findPriorityDiamond(c).position), hidden)
     const wet = diamondWorld({ [new Vec3(2, 66, 1).toString()]: 'water' })
     assert.equal(findPriorityDiamond(wet.c), null)
+})
+
+test('an ore face covered by glow lichen is still in view', () => {
+    const { bot, oreSeen } = diamondWorld({ [new Vec3(2, 65, 0).toString()]: 'glow_lichen' })
+    assert.equal(oreSeen(bot, bot.blockAt(new Vec3(2, 65, 1))), true)
 })

@@ -143,12 +143,18 @@ const DIAMOND_ORES = ['diamond_ore', 'deepslate_diamond_ore']
 const IRON_ORES = ['iron_ore', 'deepslate_iron_ore']
 const FACES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]
 
+// Glow lichen, vines and moss carpet cover cave ore faces without hiding them; a user saw iron
+// behind lichen that the bot skipped (17:23Z). Liquids stay opaque here.
+function seeThrough(block) {
+    return Boolean(block) && (AIR.has(block.name) || (block.boundingBox === 'empty' && !['water', 'lava', 'bubble_column'].includes(block.name)))
+}
+
 // Mineflayer's canSeeBlock aims only at the block centre; ore exposed on one face beside a
 // probe hole fails it although a player sees that face. Ray-cast to each air-exposed face.
 function oreSight(bot, block, range = 16) {
     const eye = bot.entity.position.offset(0, 1.62, 0)
     for (const [x, y, z] of FACES) {
-        if (!AIR.has(bot.blockAt(block.position.offset(x, y, z), false)?.name)) {
+        if (!seeThrough(bot.blockAt(block.position.offset(x, y, z), false))) {
             continue
         }
         for (const u of [0.5, 0.2, 0.8]) {

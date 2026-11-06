@@ -201,3 +201,10 @@ test('the iron reserve cap is 16 plus the ingots for missing iron gear and bucke
     const diamond = new Set(['diamond_pickaxe', 'shield', 'diamond_sword', 'diamond_helmet', 'netherite_chestplate', 'diamond_leggings', 'diamond_boots'])
     assert.equal(ironReserveCap({ gear: diamond, buckets: 3 }), 16)
 })
+
+test('a diamond sword follows the diamond pickaxe at once instead of waiting for the iron set', () => {
+    const miner = { ...established, hasDiamondPickaxe: true, diamonds: 8, gear: new Set(['iron_sword', 'iron_chestplate', 'shield']) }
+    assert.equal(nextAdvancement(miner).item, 'diamond_sword')
+    assert.equal(nextAdvancement({ ...miner, diamonds: 1 }).item, 'iron_leggings')
+    assert.equal(nextAdvancement({ ...miner, hasDiamondPickaxe: false, diamonds: 2 }).item, 'iron_leggings')
+})

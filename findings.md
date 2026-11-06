@@ -1389,3 +1389,14 @@ first open-sky position above Y=50 replaces; stored homes below Y=50 are treated
 Four `mine_iron` "No path" failures on unreachable ores escalated to unstick scouting;
 opportunistic actions (`mine_iron`, berries, fish, stew) no longer trigger unstick or scouting.
 `pick_glow_berries` ran live once and blocked an unreachable vine correctly.
+
+## F073 — Diamond sword order and lichen-covered ore faces [user observation + regressions]
+
+User (17:30Z, `bbff3f7`): with a diamond pick and 8 diamonds the bot had not made a diamond
+sword, and it ignored deepslate iron near (-1,-13,137) that the user could see. The planner
+put the diamond sword after the full iron set and Hot Stuff; it now follows the diamond pick
+as soon as two diamonds are spare. Log: from 17:23:18 to 17:23:46 the bot was ~8 blocks from
+that ore choosing `gather_iron`, so the priority filter rejected it. The face test accepted
+only air neighbours; faces behind glow lichen, vines or moss carpet (no collision box) now
+count as visible. Unverified alternative: an adjacent water or lava block, which still excludes
+an ore by design. If such an ore is skipped again, inspect its neighbours before changing more.

@@ -195,6 +195,10 @@ function planAdvancement(state) {
     if (!state.hasDiamondPickaxe && state.diamonds >= RECIPES.diamond_pickaxe.diamonds) {
         return craft(state, 'prep:diamond pickaxe', 'diamond_pickaxe')
     }
+    // Two diamonds and a stick outclass the iron sword; once the pick exists, craft it at once (user, 17:30Z).
+    if (state.hasDiamondPickaxe && state.diamonds >= RECIPES.diamond_sword.diamonds && !owns(state, ['diamond_sword', 'netherite_sword'])) {
+        return craft(state, 'prep:diamond sword', 'diamond_sword')
+    }
     const replacingIronPick = !state.hasIronPickaxe && state.completedAdvancements?.has('minecraft:story/iron_tools')
     if (state.hasWoodcuttingAxe === false && !replacingIronPick) {
         return craft(state, 'prep:woodcutting axe', 'stone_axe', 'craft_stone_axe')
