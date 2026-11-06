@@ -10,7 +10,7 @@ const established = {
     hasStonePickaxe: true, hasFurnace: true, hasIronPickaxe: true,
     hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true,
     gear: new Set(['iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']), 
-    hasBucket: true, waterBuckets: 2, hasDiamondPickaxe: false, hasFlintAndSteel: false,
+    hasBucket: true, hasEmptyBucket: true, waterBuckets: 2, hasDiamondPickaxe: false, hasFlintAndSteel: false,
     diamonds: 0, obsidian: 0, flint: 0, redstone: 0, foodUnits: 24,
     hasSmeltingFuel: true, completedAdvancements: new Set(['minecraft:story/lava_bucket'])
 }
@@ -153,4 +153,12 @@ test('the first iron batch aims for three ingots instead of smelting a lone piec
     const base = { ...established, hasIronPickaxe: false, rawIron: 1 }
     assert.equal(nextAdvancement(base).action, 'gather_iron')
     assert.equal(nextAdvancement({ ...base, ironIngots: 2 }).action, 'smelt_iron')
+})
+
+test('a full pair of water buckets without lava or an empty bucket crafts a third bucket before casting', () => {
+    const state = { ...established, hasDiamondPickaxe: true, gear: diamondSword, hasLavaBucket: false, hasEmptyBucket: false, ironIngots: 3 }
+    assert.equal(nextAdvancement(state).item, 'bucket')
+    assert.equal(nextAdvancement({ ...state, hasEmptyBucket: true }).action, 'gather_obsidian')
+    assert.equal(nextAdvancement({ ...state, obsidianCastPending: true }).action, 'gather_obsidian')
+    assert.equal(nextAdvancement({ ...state, obsidian: 10 }).item, 'flint_and_steel')
 })

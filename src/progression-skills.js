@@ -513,7 +513,11 @@ async function fillLavaBucket(c) {
     if (c.bot.entity.position.distanceTo(lava.position.offset(0.5, 0.5, 0.5)) > 4.5) {
         throw new Error('lava source is out of reach from dry ground')
     }
-    await c.bot.equip(c.bestItem(['bucket']), 'hand')
+    const empty = c.bot.inventory.items().find(item => item.name === 'bucket')
+    if (!empty) {
+        throw new Error('lava needs an empty bucket; filled buckets would pour instead')
+    }
+    await c.bot.equip(empty, 'hand')
     await c.bot.lookAt(lava.position.offset(0.5, 0.5, 0.5), true)
     c.bot.activateItem()
     try {

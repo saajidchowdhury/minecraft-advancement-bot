@@ -354,3 +354,31 @@ test('after entering the Nether the bot steps out of the arrival portal and walk
     assert.deepEqual(visits, ['portal exit', 'portal return'])
     assert.equal(c.bot.game.dimension, 'overworld')
 })
+
+test('lava for a cast is scooped only with an empty bucket, never a suffix-matched water bucket', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const { SurvivalController } = require('../src/survival-bot')
+    const inventory = { water_bucket: 2 }
+    const lava = { name: 'lava', position: new Vec3(2, 63, 0), getProperties: () => ({ level: 0 }) }
+    const equipped = []
+    const bot = {
+        health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) },
+        inventory: { items: () => Object.entries(inventory).filter(([, count]) => count).map(([name, count]) => ({ name, count })) },
+        blockAt: () => null,
+        async equip(item) { equipped.push(item?.name) },
+        async lookAt() {},
+        activateItem: () => assert.fail('activated a bucket with no empty bucket carried'),
+        deactivateItem() {}
+    }
+    const c = {
+        bot, running: true, paused: false, memory: { waterPool: { dimension: 'overworld' } }, log: { info() {} },
+        movements: { safeToBreak: () => true },
+        countItems: names => names.reduce((sum, name) => sum + (inventory[name] || 0), 0),
+        hasItem: name => inventory[name] > 0,
+        bestItem: names => SurvivalController.prototype.bestItem.call({ bot }, names),
+        findNearestBlock: matcher => matcher('lava') ? lava : null,
+        gotoWithTimeout: async () => {}
+    }
+    await assert.rejects(performProgression(c, 'gather_obsidian', {}), /empty bucket/)
+    assert.deepEqual(equipped, [])
+})

@@ -204,6 +204,10 @@ function planAdvancement(state) {
         return target('prep:water bucket', 'fill_water_bucket', 'fill two water buckets before working with obsidian')
     }
     if (state.obsidian < 10 && !state.portalInProgress && !state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
+        // Each cast needs lava, two water buckets for the pool, and an empty bucket to recover the water.
+        if (!state.hasLavaBucket && !state.hasEmptyBucket && !state.obsidianCastPending) {
+            return craft(state, 'prep:lava bucket', 'bucket')
+        }
         return target('minecraft:story/form_obsidian', 'gather_obsidian', 'mine ten obsidian for a portal')
     }
     if (!state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
