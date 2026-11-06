@@ -526,12 +526,19 @@ test('lava with no walking path is tunneled toward before the source is quaranti
         running: true, paused: false, actionAbort: new AbortController(), memory: {}, log: { info() {}, warn() {} },
         hasItem: name => name === 'bucket', bestItem: () => null,
         findNearestBlock: matcher => matcher('lava') ? lava : null,
-        async gotoWithTimeout() { throw new Error('No path to the goal!') },
+        async gotoWithTimeout() {
+            c.bot.pathfinder.goal = 'stale'
+            throw new Error('No path to the goal!')
+        },
         rememberBlockedTarget: block => blocked.push(block)
     }
+    let goalAtTunnel
+    c.bot.pathfinder = { goal: null, setGoal(goal) { this.goal = goal } }
+    c.bot.waitForTicks = async () => { goalAtTunnel = c.bot.pathfinder.goal }
     // With no pickaxe in the fixture, reaching mineTunnel shows the tunnel branch was taken.
     await assert.rejects(performProgression(c, 'fill_lava_bucket', {}), /mining requires a pickaxe/)
     assert.equal(c.memory.lavaTunnels[`${lava.position}`], 1)
+    assert.equal(goalAtTunnel, null)
     c.memory.lavaTunnels[`${lava.position}`] = 4
     await assert.rejects(performProgression(c, 'fill_lava_bucket', {}), /No path/)
 })

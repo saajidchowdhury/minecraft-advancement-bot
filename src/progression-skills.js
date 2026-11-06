@@ -529,6 +529,10 @@ async function fillLavaBucket(c) {
             }
             tunnels[key] = (tunnels[key] || 0) + 1
             c.log.info(`No walking path to lava at ${lava.position}; tunneling toward it (${tunnels[key]}/4).`)
+            // A failed goto defers its stop and would abort the first dig (F004).
+            c.bot.pathfinder?.setGoal(null)
+            await c.bot.waitForTicks?.(2)
+            check(c)
             return mineTunnel(c, lava.position.y + 1, lava.position)
         }
         check(c)
