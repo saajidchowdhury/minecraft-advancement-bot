@@ -1,6 +1,6 @@
 # Minecraft bot development
 
-This is the Git working tree for the private repository
+This is the Git working tree for the public repository
 https://github.com/saajidchowdhury/minecraft-advancement-bot.
 
 ## Purpose
@@ -100,8 +100,8 @@ failures; a filtered test summary in a shell chain does not stop the commit.
 Keep tested and edited versions distinguishable through commits or isolated
 copies and startup hashes; a running process does not load later edits. Run
 appropriate checks; report live evidence separately from automated tests.
-The user allows pushing commits to the private repository without asking first.
-Keep this repo private. Never commit credentials, runtime profiles, world state,
+The user allows pushing commits to the public repository without asking first.
+Everything pushed is public. Never commit credentials, runtime profiles, world state,
 logs, dependencies, tools or the preserved `minecraft-iris` reference directory.
 
 ## Session handoff
