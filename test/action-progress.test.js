@@ -20,3 +20,10 @@ test('discovering diamond ore lets a mining action yield without triggering fail
     const before = { rawIron: 0, diamondInView: false }
     assert.equal(actionMadeProgress(Actions.IRON, before, { ...before, diamondInView: true }, false), true)
 })
+
+test('an iron or coal trip that collects a different ore still counts as progress', () => {
+    const before = { rawIron: 0, coal: 2, diamonds: 0, redstone: 0 }
+    assert.equal(actionMadeProgress(Actions.IRON, before, { ...before, coal: 3 }, false), true)
+    assert.equal(actionMadeProgress(Actions.COAL, before, { ...before, rawIron: 1 }, false), true)
+    assert.equal(actionMadeProgress(Actions.IRON, before, { ...before }, false), false)
+})

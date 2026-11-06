@@ -139,11 +139,13 @@ function actionMadeProgress (action, before, after, moved) {
         ((before.hasIronPickaxe && !after.hasIronPickaxe) || (before.hasStonePickaxe && !after.hasStonePickaxe))) {
         return true
     }
+    // Mining actions also collect opportunity ores; 03.01.22 flagged three coal pickups as stalls.
+    const ore = ['coal', 'rawIron', 'diamonds', 'redstone'].some(field => after[field] > before[field])
     const progressed = {
         [Actions.WOOD]: after.logs > before.logs || after.planks > before.planks,
         [Actions.STONE]: after.cobblestone > before.cobblestone,
-        [Actions.COAL]: after.coal > before.coal,
-        [Actions.IRON]: after.rawIron > before.rawIron,
+        [Actions.COAL]: ore,
+        [Actions.IRON]: ore,
         [Actions.FOOD]: after.foodUnits > before.foodUnits,
         [Actions.DESCEND]: moved,
         [Actions.ASCEND]: moved,
