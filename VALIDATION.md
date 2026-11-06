@@ -330,3 +330,17 @@ line, critical damage, a third retry, and an advancement to a temporary log.
 All were reported, while historical lines, ordinary actions, and a single
 failure were suppressed. The watcher exited on the run's finish marker.
 All 234 tests and syntax checks pass. Watcher comment ratio is 0/66.
+
+F048 covers the food watchdog's recovery dispatch, the earlier no-movement
+prey cutoff, cardinal recovery, the pinned pathfinder's empty-path resolution,
+and the 26.1 recipe dimensions used to make bowls and stew. Each new behavior
+failed its regression before the fix. The full suite passes 243 tests plus
+syntax checks. Comment-bearing lines are 63/2384 in `survival-bot.js`, 2/156 in
+`mobility-recovery.test.js`, and zero in the two other changed tests.
+
+On port 54390, a staged teleport to the recorded shoreline reproduced the
+starting position and the patched recovery reached dry ground at full health.
+Brown mushroom caps were placed for a separate foraging fixture. The bot broke
+the blocks and picked up their drops in survival. A command-free retry crafted
+four bowls at the table and one stew in the inventory grid from those drops.
+F048 records the setup and retry separately from unaided progression.

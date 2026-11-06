@@ -6,7 +6,10 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-05 ~18:20 Eastern. Bot is RUNNING on LAN port 51718, PID 56696, code
+Latest food and mobility handoff is F048 below. Port 54390 was verified for that
+run. Read the newest `outputs/*/session.json` and verify the PID before taking over.
+
+Historical 18:20 Eastern handoff. Bot ran on LAN port 51718, PID 56696, code
 `a18c0ff`, rebuilding basic tools after a pickaxe loss; no log watcher is running. Verify the
 PID and connection before stopping it; `pgrep -f src/index.js` must return one PID.
 Fourteen advancements are server-confirmed. A furnace at (-283,68,-150) holds about 29 raw
@@ -893,3 +896,30 @@ ends the attack sequence. Surviving the original cave encounter remains open.
 At handoff `9b7be67` was running on port 53606 in `outputs/2026-11-05@19.45.00`.
 It left the respawn shelter at 19:45:06 and began heading to the base. No
 replacement combat encounter was staged.
+
+## F048 — Food search stalled at a shoreline corner [live replay + regression]
+
+In `outputs/2026-11-05@22.00.12/` on port 54390, the bot had full health and
+hunger and three food points carried against the sixteen-point mining reserve.
+After several prey timeouts it repeatedly started at (32,63,-187). The
+12-second movement watchdog cancelled food gathering, and the generic retry
+scouted again without invoking mobility recovery.
+
+A targeted replay found dry footing beside water. Pathfinder repeatedly
+selected a diagonal corner step, held forward, and reset as stuck after
+3.5 seconds without leaving the cell. Cardinal steps cleared the corner, but
+the first distant replay route then went into the river. The patched recovery
+avoids water when starting dry and retains the existing checked staircase if
+scouting fails. Repeated food watchdog cancellations now reach that recovery.
+Prey pursuit also backs off after eight seconds without movement. Scouts verify
+arrival before recording a visit because the pinned pathfinder can resolve an
+empty unsuccessful path.
+
+With a staged teleport to the original position, recovery reached
+(19.5,56,-189.5) dry at 20 HP. A second fixture placed brown cap blocks in empty
+cells near spawn. The bot harvested brown mushrooms from those caps. The first
+trial exposed that the bowl recipe needs the crafting table. A command-free
+retry used the harvested mushrooms, crafted four bowls, reclaimed the table
+and made one stew in the inventory grid, worth six carried food points. See
+`outputs/food-replay-setup.json` and `outputs/food-replay-craft.json` for the
+separate staged setup and recipe retry.

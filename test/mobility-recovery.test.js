@@ -95,14 +95,18 @@ test('a two-deep pit inside roofless shelter walls has a one-step exit', () => {
     assert.equal(SurvivalController.prototype.stairDirectionScore.call({ bot: floating }, new Vec3(0, 0, 0), 1, 0, 8), Infinity)
 })
 
-test('repeated no-path failures scout with a longer survivable drop and restore normal movements', async () => {
+test('repeated navigation failures scout without diagonal steps and restore normal movements', async () => {
     for (const [health, expected] of [[20, 6], [12, 3]]) {
         const active = []
         const original = { name: 'normal' }
         const c = {
             bot: { health, registry: require('minecraft-data')('26.1'), version: '26.1', pathfinder: { setMovements(m) { active.push(m) } } },
             movements: original, log: { warn() {} },
-            async scout () { c.dropDuringScout = active.at(-1).maxDropDown }
+            async scout () {
+                const movement = active.at(-1)
+                c.dropDuringScout = movement.maxDropDown
+                assert.notEqual(movement.getMoveDiagonal, Object.getPrototypeOf(movement).getMoveDiagonal)
+            }
         }
         c.configureSafeMovements = SurvivalController.prototype.configureSafeMovements
         await SurvivalController.prototype.unstick.call(c)
@@ -117,7 +121,10 @@ test('land scouting targets a horizontal area so hills and valleys stay reachabl
     const c = {
         bot: { entity: { position: new Vec3(0.5, 78, 0.5) } }, memory: { scoutVisits: new Map() }, scoutAngle: 0, scoutSteps: 0,
         log: { info() {} }, classifyTerrainColumn: () => 'land',
-        async gotoWithTimeout(g) { goal = g }
+        async gotoWithTimeout(g) {
+            goal = g
+            this.bot.entity.position = new Vec3(g.x, 66, g.z)
+        }
     }
     await SurvivalController.prototype.scout.call(c, 20)
     assert.equal(goal.constructor.name, 'GoalNearXZ')

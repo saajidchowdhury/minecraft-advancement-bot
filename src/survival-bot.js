@@ -470,6 +470,7 @@ class SurvivalController {
             const count = (this.failures.get(action) || 0) + 1
             this.failures.set(action, count)
             const message = error && error.message ? error.message : String(error)
+            const foodStalled = action === Actions.FOOD && this.actionAbort?.signal.reason === `${action} is stuck`
             this.log.warn(`${action} failed (${count}): ${message}`)
             // A failed collect/path can leave a direct Mineflayer dig in flight even
             // though its promise already rejected. Stop all action ownership before
@@ -505,7 +506,7 @@ class SurvivalController {
                     this.log.warn(`Workspace relocation failed: ${relocationError.message}`)
                 }
             }
-            if (count >= 3 && /no path to the goal/i.test(message)) {
+            if (count >= 3 && (foodStalled || /no path to the goal/i.test(message))) {
                 await this.unstick().catch(unstickError => this.log.warn(`Unstick failed: ${unstickError.message}`))
             } else if (count >= 3 && action !== 'hunt_night' && !STATIONARY_ACTIONS.has(action)) {
                 await this.scout(12).catch(() => {})
@@ -679,7 +680,7 @@ class SurvivalController {
             case Actions.STONE: return this.gatherStone()
             case Actions.CRAFT_STONE_PICKAXE: return this.craftStonePickaxe()
             case Actions.CRAFT_FURNACE: return this.craftFurnace()
-            case Actions.FOOD: return this.gatherFood()
+            case Actions.FOOD: return this.gatherFood(state)
             case Actions.COAL: return this.gatherOre(['coal_ore', 'deepslate_coal_ore'], 32)
             case Actions.IRON: return this.gatherOre(['iron_ore', 'deepslate_iron_ore'], 32)
             case Actions.SMELT_IRON:
@@ -1165,7 +1166,10 @@ class SurvivalController {
         this.log.info('Equipped iron_pickaxe for mining.')
     }
 
-    async gatherFood () {
+    async gatherFood (state) {
+        if (await this.gatherMushroomStew(state)) {
+            return
+        }
         const berry = this.findNearestBlock(name => name === 'sweet_berry_bush', 32)
         if (berry) {
             await this.collectTarget(berry, berry, 'berries')
@@ -1176,6 +1180,39 @@ class SurvivalController {
             return this.fight(animal, true)
         }
         await this.scout(28)
+    }
+
+    async gatherMushroomStew (state) {
+        const signal = this.actionAbort?.signal
+        const mushrooms = ['red_mushroom', 'brown_mushroom']
+        if (!this.countItems(['bowl']) && !(state.hasCraftingTable && (state.planks >= 3 || state.logs > 0))) {
+            return false
+        }
+        for (let attempt = 0; attempt <= 4; attempt++) {
+            this.checkAction(signal)
+            const missing = mushrooms.filter(name => !this.countItems([name]))
+            if (missing.length === 0) {
+                if (!this.countItems(['bowl'])) {
+                    await this.ensurePlanks(3)
+                    this.checkAction(signal)
+                    await this.craftItem('bowl', 1, true)
+                    this.checkAction(signal)
+                }
+                await this.craftItem('mushroom_stew', 1, false)
+                return true
+            }
+            if (attempt === 4) {
+                return true
+            }
+            const targets = missing.map(name => this.findNearestBlock(
+                block => block === name || block === `${name}_block`, 16
+            ))
+            if (targets.some(block => !block)) {
+                return false
+            }
+            const target = targets[0]
+            await this.collectTarget(target, target, target.name)
+        }
     }
 
     async gatherOre (names, radius) {
@@ -1224,7 +1261,7 @@ class SurvivalController {
                     continue
                 }
                 const block = this.bot.blockAt(entry.position)
-                if (!block || block.type !== entry.type || block.boundingBox === 'empty') {
+                if (!block || block.type !== entry.type || (block.boundingBox === 'empty' && !block.diggable)) {
                     continue
                 }
                 if (!this.bot.canDigBlock(block) || !this.bot.canSeeBlock(block)) {
@@ -1435,6 +1472,8 @@ class SurvivalController {
             this.checkAction(signal)
         }
         const deadline = Date.now() + 20000
+        let chasePosition = this.bot.entity.position.clone()
+        let chaseProgressAt = Date.now()
         let following = false
         let shielding = false
         try {
@@ -1455,6 +1494,14 @@ class SurvivalController {
                 }
                 const distance = this.bot.entity.position.distanceTo(entity.position)
                 if (distance > 3.1) {
+                    if (!following || this.bot.targetDigBlock || chasePosition.distanceTo(this.bot.entity.position) >= 0.75) {
+                        chasePosition = this.bot.entity.position.clone()
+                        chaseProgressAt = Date.now()
+                    } else if (hunt && Date.now() - chaseProgressAt >= 8000) {
+                        const stalled = new Error('prey pursuit stalled for 8s')
+                        this.rememberBlockedTarget(entity, 'prey', stalled)
+                        throw stalled
+                    }
                     if (!following) {
                         this.bot.pathfinder.setGoal(new GoalFollow(entity, 2), true)
                         following = true
@@ -2010,10 +2057,17 @@ class SurvivalController {
     // Repeated 'No path' means walls and drops deeper than the safe limit enclose the bot.
     // At good health accept a longer fall (damage = drop - 3 hp); otherwise dig a short stair up.
     async unstick () {
+        const signal = this.actionAbort?.signal
         const loose = new Movements(this.bot)
         this.configureSafeMovements(loose)
         loose.maxDropDown = this.bot.health >= 16 ? 6 : SAFE_PATHFINDER_DROP
-        this.log.warn(`No route out; scouting with a ${loose.maxDropDown}-block drop limit, then digging upward if needed.`)
+        loose.getMoveDiagonal = () => {}
+        if (!this.bot.entity?.isInWater) {
+            const water = this.bot.registry.blocksByName.water.id
+            loose.blocksToAvoid.add(water)
+            loose.blocksCantBreak.add(water)
+        }
+        this.log.warn(`No route out; scouting with cardinal steps and a ${loose.maxDropDown}-block drop limit, then digging upward if needed.`)
         this.bot.pathfinder.setMovements(loose)
         try {
             await this.scout(16)
@@ -2026,6 +2080,7 @@ class SurvivalController {
         // A failed goto defers its stop and would abort the first dig (F004).
         this.bot.pathfinder.setGoal(null)
         await this.bot.waitForTicks(2)
+        this.checkAction(signal)
         await mineTunnel(this, Math.floor(this.bot.entity.position.y) + 4)
     }
 
@@ -2077,7 +2132,11 @@ class SurvivalController {
             `(land=${selected.landSamples}, water=${selected.waterSamples}, visited=${selected.visits}).`)
         try {
             // Terrain height at the target is unknown; a fixed-height 3-D goal can sit in air or rock.
-            await this.gotoWithTimeout(new goals.GoalNearXZ(selected.x, selected.z, 3), 25000, 'land scouting')
+            const goal = new goals.GoalNearXZ(selected.x, selected.z, 3)
+            await this.gotoWithTimeout(goal, 25000, 'land scouting')
+            if (!goal.isEnd(this.bot.entity.position.floored())) {
+                throw new Error('No path to the goal! Land scout ended outside its destination.')
+            }
             this.memory.scoutVisits.set(selected.visitKey, selected.visits + 1)
             this.scoutAngle = selected.angle + Math.PI / 8
             this.scoutSteps += 1
@@ -2228,7 +2287,7 @@ class SurvivalController {
     cancelCurrentTask (reason) {
         this.log.warn(`Cancelling current task: ${reason}`)
         this.urgentReplan = /creeper|attacked|critical health|night damage|sheltered/.test(reason)
-        this.actionAbort?.abort()
+        this.actionAbort?.abort(reason)
         if (this.activeCollection && /(is stuck|timed out|memory guard)/.test(reason)) {
             this.rememberBlockedTarget(
                 this.activeCollection.anchor,

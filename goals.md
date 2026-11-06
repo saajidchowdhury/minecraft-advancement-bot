@@ -380,3 +380,7 @@ advancementsPerHour across a full run.
 - F047: two nearby visible threats now trigger withdrawal for a lightly armored
   bot, including during an ongoing duel. Live-test a changing group and a known
   exit on a future run. The original log cannot establish a survivable route.
+- F048: a staged replay verified dry cardinal recovery from the shoreline,
+  harvesting brown caps and crafting stew. Recovery retains a checked
+  excavation fallback. Watch a natural foraging run reach the mining reserve,
+  and record the time and number of cap blocks needed compared with hunting.

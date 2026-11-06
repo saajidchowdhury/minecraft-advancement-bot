@@ -79,6 +79,11 @@ the surface to mine, the bot stocks at least eight logs' worth of wood and sixte
 hunger points of carried food. Live cave validation is pending. See
 [cave-opportunities.md](cave-opportunities.md) for researched branches and limits.
 
+Food gathering can turn nearby red and brown mushrooms, including drops from
+giant mushroom caps, into stew. It crafts bowls at a crafting table when needed.
+Repeated movement stalls switch to cardinal scouting and, if that fails, a
+short staircase with support and liquid checks.
+
 Nightfall alone does not stop underground work. On the surface, a prepared bot
 can hunt isolated useful mobs within a small budget; weak or overwhelmed bots
 try safe sleep or shelter. Bed preparation uses available same-color wool, and
