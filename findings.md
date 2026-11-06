@@ -1369,3 +1369,23 @@ regenerates in seconds; this is stricter than "low on both".
 The launch at 17:08:46Z on port 49259 logged "World seed changed" and cleared remembered
 coordinates (base vault, shafts) although the user described the same world; check
 whether the profile or the seed fingerprint is wrong before relying on base memory.
+
+## F072 — Underground food opportunities, fish shores and a provisional home [regressions; live pending]
+
+User direction (2026-11-06): while the meal reserve is short, food found on the way is taken
+underground and on the surface: cod and salmon within three blocks of open air (swum to at
+the surface, guard aborts below 15 air), ripe glow berries, mushroom stew (at most four
+stews; they do not stack), then tropical fish (1.2 meal points, the lush-cave fallback).
+A shore where fish were hunted is remembered for ten minutes; `gather_food` waits there
+for respawning fish before scouting, and two empty waits forget it. The user confirmed
+hunger + saturation as the measure and low health alone as the night-mining stop. If daytime
+departure hunting stalls, lower only the departure threshold in `decision-engine.js`; the
+opportunistic underground cap stays 16 average cooked meats (260.5 points).
+
+Live (17:11–17:15Z, `9350b49`): after the F071 memory reset, home was set at the login
+position Y=-19, so a sky-lit ravine floor read as surface and the bot scouted for trees there.
+`updateHome` now gives an underground login a provisional sea-level home (Y >= 63) that the
+first open-sky position above Y=50 replaces; stored homes below Y=50 are treated the same way.
+Four `mine_iron` "No path" failures on unreachable ores escalated to unstick scouting;
+opportunistic actions (`mine_iron`, berries, fish, stew) no longer trigger unstick or scouting.
+`pick_glow_berries` ran live once and blocked an unreachable vine correctly.

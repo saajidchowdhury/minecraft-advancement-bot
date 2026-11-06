@@ -10,7 +10,7 @@ const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
 const { prepareBed, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
-const { FOOD_VALUES, foodState, cookFood, pickGlowBerries } = require('./food')
+const { FOOD_VALUES, foodState, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
 const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, oreSight, rememberExposedDiamonds } = require('./cave-exploration')
 const { findNearbyLoot, lootChest } = require('./loot')
 const { discardableStack, inventoryReport } = require('./inventory')
@@ -74,7 +74,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
     clear_inventory: 30000, mine_diamond: 45000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
-    wake: 10000, sleep: 30000, prepare_bed: 45000, leave_shelter: 20000, mine_iron: 45000, cook_food: 120000, pick_glow_berries: 60000,
+    wake: 10000, sleep: 30000, prepare_bed: 45000, leave_shelter: 20000, mine_iron: 45000, cook_food: 120000, pick_glow_berries: 60000, hunt_fish: 30000, gather_mushroom_stew: 60000,
     [Actions.EXPLORE]: 60000
 })
 const MELEE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'spider', 'cave_spider', 'vindicator', 'piglin_brute', 'zombified_piglin'])
@@ -87,6 +87,21 @@ const STATIONARY_ACTIONS = new Set([
     Actions.CRAFT_FURNACE, Actions.SMELT_IRON, Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_AXE, Actions.CRAFT_STONE_SHOVEL,
     'clear_inventory', 'loot_chest', 'smelt_charcoal', 'craft_progression', 'enchant_item', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', Actions.SHELTER
 ])
+
+const OPPORTUNISTIC = new Set(['mine_iron', 'pick_glow_berries', 'hunt_fish', 'gather_mushroom_stew'])
+
+// Home anchors surfaceY. A login underground (after a memory reset, 17:11Z at Y=-19) gives a
+// provisional sea-level home that the first open-sky position above Y=50 replaces.
+function updateHome (memory, position, skyLight) {
+    const p = position.floored()
+    const open = skyLight >= 12 && p.y >= 50
+    const home = memory.home
+    if (home && ((!home.provisional && home.y >= 50) || (home.provisional && !open))) {
+        return false
+    }
+    memory.home = open ? { x: p.x, y: p.y, z: p.z } : { ...(home || { x: p.x, z: p.z }), y: Math.max(home?.y ?? p.y, 63), provisional: true }
+    return true
+}
 
 function shouldRelocateAfterStationFailure (action, failureCount, message) {
     return STATIONARY_ACTIONS.has(action) && failureCount % 3 === 0 &&
@@ -379,10 +394,7 @@ class SurvivalController {
         }
         this.bot.pathfinder.setMovements(movements)
         this.bot.collectBlock.movements = null
-        if (!this.memory.home) {
-            const spawn = this.bot.entity.position.floored()
-            this.memory.home = { x: spawn.x, y: spawn.y, z: spawn.z }
-        }
+        updateHome(this.memory, this.bot.entity.position, this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0))?.skyLight)
         this.home = new Vec3(this.memory.home.x, this.memory.home.y, this.memory.home.z)
         const savedShelter = this.memory.shelter
         if (savedShelter?.dimension === this.bot.game.dimension) {
@@ -541,9 +553,11 @@ class SurvivalController {
                 }
             }
             // Unstick scouting accepts six-block drops, which only take a surfacing bot deeper (04.01.02).
-            if (count >= 3 && action !== 'return_surface' && (foodStalled || stalledInPlace || /no path to the goal/i.test(message))) {
+            // Opportunistic targets are blocked one by one; a run of unreachable ores is not a stuck bot (17:14:26Z).
+            const opportunistic = OPPORTUNISTIC.has(action)
+            if (count >= 3 && action !== 'return_surface' && !opportunistic && (foodStalled || stalledInPlace || /no path to the goal/i.test(message))) {
                 await this.unstick().catch(unstickError => this.log.warn(`Unstick failed: ${unstickError.message}`))
-            } else if (count >= 3 && !STATIONARY_ACTIONS.has(action)) {
+            } else if (count >= 3 && !STATIONARY_ACTIONS.has(action) && !opportunistic) {
                 await this.scout(12).catch(() => {})
             }
         } finally {
@@ -558,6 +572,11 @@ class SurvivalController {
     }
 
     observe () {
+        if ((this.memory.home?.provisional || this.memory.home?.y < 50) &&
+            updateHome(this.memory, this.bot.entity.position, this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0))?.skyLight)) {
+            this.home = new Vec3(this.memory.home.x, this.memory.home.y, this.memory.home.z)
+            this.log.info(`Home surface set at ${this.home} on reaching open sky.`)
+        }
         if (!this.isNight() && !this.shelterCenter) {
             this.sheltered = false
         }
@@ -714,6 +733,8 @@ class SurvivalController {
             case 'loot_chest': return lootChest(this, state.lootTarget)
             case 'cook_food': return cookFood(this)
             case 'pick_glow_berries': return pickGlowBerries(this)
+            case 'hunt_fish': return huntFish(this, state.foodOpportunity?.target)
+            case 'gather_mushroom_stew': return this.gatherMushroomStew(state)
             case 'plant_seed': return plantSeed(this)
             case 'go_fish': return goFish(this)
             case 'shoot_arrow': return shootArrow(this)
@@ -1267,6 +1288,12 @@ class SurvivalController {
         const animal = this.nearestEntity(PREY, 48)
         if (animal) {
             return this.fight(animal, true)
+        }
+        if (state.foodOpportunity) {
+            return this.perform(state.foodOpportunity.action, state)
+        }
+        if (await waitForFish(this)) {
+            return
         }
         await this.scout(28)
     }
@@ -2645,7 +2672,7 @@ class SurvivalController {
 }
 
 module.exports = {
-    SurvivalController, HOSTILES, PREY, FOOD_VALUES, actionMadeProgress, smeltJobState,
+    SurvivalController, HOSTILES, PREY, FOOD_VALUES, actionMadeProgress, smeltJobState, updateHome,
     shouldRelocateAfterStationFailure, mobilityRecoveryKind,
     pathfinderDropLimitForLanding, SAFE_PATHFINDER_DROP,
     heapPressureExceeded, PATH_SEARCH_RADIUS, HEAP_GUARD_BYTES, coveredAbove

@@ -733,3 +733,17 @@ test('a block filling the eye cell is dug out before any other work', async () =
     c.bot.blockAt = () => ({ name: 'air', boundingBox: 'empty' })
     assert.equal(c.suffocatingBlock(), null)
 })
+
+test('an underground login gets a provisional sea-level home that open sky above Y=50 replaces', () => {
+    const { updateHome } = require('../src/survival-bot')
+    const memory = {}
+    assert.equal(updateHome(memory, new Vec3(3.5, -19, 140.5), 0), true)
+    assert.deepEqual(memory.home, { x: 3, y: 63, z: 140, provisional: true })
+    assert.equal(updateHome(memory, new Vec3(4, -19, 140), 15), false)
+    assert.equal(updateHome(memory, new Vec3(10, 71, 2), 15), true)
+    assert.deepEqual(memory.home, { x: 10, y: 71, z: 2 })
+    assert.equal(updateHome(memory, new Vec3(0, 90, 0), 15), false)
+    const stale = { home: { x: 3, y: -19, z: 140 } }
+    assert.equal(updateHome(stale, new Vec3(3, -19, 140), 0), true)
+    assert.deepEqual(stale.home, { x: 3, y: 63, z: 140, provisional: true })
+})

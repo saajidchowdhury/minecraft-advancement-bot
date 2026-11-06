@@ -179,8 +179,8 @@ function chooseAction (state) {
     if (state.lootTarget && state.health >= 16 && state.hostileDistance > 12 && !(state.freeInventorySlots <= 1)) {
         return 'loot_chest'
     }
-    if (state.glowBerryTarget) {
-        return 'pick_glow_berries'
+    if (state.foodOpportunity) {
+        return state.foodOpportunity.action
     }
     if (craftPick) {
         return progression.action

@@ -18,6 +18,8 @@ the same world at 17:08:46Z (`outputs/2026-11-06@12.08.45`). Live-check, in orde
    does not stall for long where animals are scarce (lower the target if it does).
 4. `mine_iron`: watch for unreachable-ore loops and pickaxe wear on early iron.
 5. Find why the launch reported "World seed changed" and cleared base memory.
+6. F072: watch fish hunts (air guard, drops in water), the shore wait, stew crafting and the
+   provisional home being replaced on first open sky.
 
 ## Session 2026-11-06 (port 55502)
 

@@ -126,7 +126,9 @@ minecarts and remember whether each was emptied. Before leaving the surface to
 mine, it stocks 32 logs (a plank counts as a quarter log) and a meal reserve of
 16 average cooked land meats, measured as hunger plus saturation with raw food at
 its cooked value. Raw meat, fish and potatoes are cooked in fire-and-forget
-furnace jobs; ripe glow berries are picked while the meal reserve is short. At
+furnace jobs. While the meal reserve is short it takes food on the way, underground
+or not: cod and salmon near the water surface, ripe glow berries, mushroom stew (up to
+four) and tropical fish, and it waits at a remembered fish shore before scouting. At
 night it never works or hunts on the surface: it takes a known shaft down, carves
 down when protected, or shelters; underground it keeps mining regardless of
 carried food and waits enclosed once health falls to 12 or less. A full natural cave survey and return still needs live

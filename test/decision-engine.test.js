@@ -378,7 +378,8 @@ test('glow berries are picked and raw food cooked; a cooking job is collected be
     const miner = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasStonePickaxe: true, hasWoodcuttingAxe: true,
         hasDiggingShovel: true, hasFurnace: true, sticks: 2, logs: 32, mealReserve: 300, hasFood: true })
     assert.equal(chooseAction(miner), Actions.IRON)
-    assert.equal(chooseAction({ ...miner, glowBerryTarget: {} }), 'pick_glow_berries')
+    assert.equal(chooseAction({ ...miner, foodOpportunity: { action: 'pick_glow_berries' } }), 'pick_glow_berries')
+    assert.equal(chooseAction({ ...miner, underground: true, foodOpportunity: { action: 'hunt_fish' } }), 'hunt_fish')
     assert.equal(chooseAction({ ...miner, canCook: true }), 'cook_food')
     assert.equal(chooseAction({ ...miner, cookJob: { ready: false } }), 'cook_food')
     assert.equal(chooseAction({ ...miner, cookJob: { ready: false }, underground: true, y: 20 }), Actions.IRON)

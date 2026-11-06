@@ -9,7 +9,7 @@ const FOODS = {
     cooked_beef: [8, 12.8], cooked_porkchop: [8, 12.8], cooked_mutton: [6, 9.6], cooked_chicken: [6, 7.2],
     cooked_rabbit: [5, 6], cooked_cod: [5, 6], cooked_salmon: [6, 9.6], bread: [5, 6], baked_potato: [5, 6],
     golden_carrot: [6, 14.4], beef: [3, 1.8], porkchop: [3, 1.8], mutton: [2, 1.2], chicken: [2, 1.2],
-    rabbit: [3, 1.8], cod: [2, 0.4], salmon: [2, 0.4], apple: [4, 2.4], carrot: [3, 3.6], potato: [1, 0.6],
+    rabbit: [3, 1.8], cod: [2, 0.4], salmon: [2, 0.4], tropical_fish: [1, 0.2], apple: [4, 2.4], carrot: [3, 3.6], potato: [1, 0.6],
     sweet_berries: [2, 0.4], glow_berries: [2, 0.4], melon_slice: [2, 1.2], dried_kelp: [1, 0.6],
     mushroom_stew: [6, 7.2], beetroot_soup: [6, 7.2]
 }
@@ -23,6 +23,12 @@ const meal = name => FOODS[name][0] + FOODS[name][1]
 // glow berry at 1/32 of a steak and demand ~390 of them.
 const MIN_MINING_MEALS = 16 * LAND_MEATS.reduce((sum, name) => sum + meal(name), 0) / LAND_MEATS.length
 const VINES = ['cave_vines', 'cave_vines_plant']
+// Fish by cooked meal value; pufferfish poisons and axolotls are not food.
+const FISH = ['salmon', 'cod', 'tropical_fish']
+const MUSHROOMS = ['red_mushroom', 'brown_mushroom']
+const AIR = new Set(['air', 'cave_air'])
+// Stew does not stack; four stews keep pack space for ore.
+const MAX_STEWS = 4
 const SECONDS_PER_ITEM = 10
 
 // Raw food counts at its cooked value: cooking jobs convert it before the bot leaves.
@@ -61,13 +67,75 @@ function foodState(c, state) {
     state.canCook = state.rawFood > 0 && !job && !smelting && state.hostileDistance > 12 &&
         !(c.memory.cookBlockedUntil > Date.now()) && state.freeInventorySlots >= 1 &&
         (state.hasFurnace || state.cobblestone >= 8) && Boolean(cookFuel(c, 1))
-    state.glowBerryTarget = null
-    if (state.mealReserve < MIN_MINING_MEALS && state.health >= 12 && state.hostileDistance > 12 && state.freeInventorySlots >= 1) {
-        state.glowBerryTarget = c.findNearestBlock(name => VINES.includes(name), 16, {
-            visible: true, filter: block => block.getProperties?.().berries === true
-        })
-    }
+    state.foodOpportunity = state.mealReserve < MIN_MINING_MEALS && state.health >= 12 && state.hostileDistance > 12 &&
+        state.freeInventorySlots >= 1 ? foodOpportunity(c, state) : null
     return state
+}
+
+// User direction (2026-11-06): while the meal reserve is short, take food found on the way:
+// fish (oceans, rivers and lush caves keep respawning them), glow berries, mushroom stew.
+function foodOpportunity(c, state) {
+    const bot = c.bot
+    const here = bot.entity.position
+    // Fish within three blocks of open air are reached by swimming at the surface, not diving.
+    const fish = Object.values(bot.entities || {}).filter(e => e.isValid && FISH.includes(e.name) && here.distanceTo(e.position) <= 16 &&
+        !c.isBlockedTarget(e) && (c.canSee?.(e) ?? true) &&
+        [1, 2, 3].some(k => AIR.has(bot.blockAt(e.position.floored().offset(0, k, 0), false)?.name)))
+        .sort((a, b) => FISH.indexOf(a.name) - FISH.indexOf(b.name) || here.distanceTo(a.position) - here.distanceTo(b.position))
+    if (fish[0] && fish[0].name !== 'tropical_fish') {
+        return { action: 'hunt_fish', target: fish[0] }
+    }
+    const vine = c.findNearestBlock(name => VINES.includes(name), 16, {
+        visible: true, filter: block => block.getProperties?.().berries === true
+    })
+    if (vine) {
+        return { action: 'pick_glow_berries', target: vine }
+    }
+    const canBowl = c.countItems(['bowl']) > 0 || (state.hasCraftingTable && (state.planks >= 3 || state.logs > 0))
+    if (canBowl && c.countItems(['mushroom_stew']) < MAX_STEWS &&
+        MUSHROOMS.every(name => c.countItems([name]) > 0 || c.findNearestBlock(block => block === name || block === `${name}_block`, 16))) {
+        return { action: 'gather_mushroom_stew', target: null }
+    }
+    return fish[0] ? { action: 'hunt_fish', target: fish[0] } : null
+}
+
+// Shallow-water melee: the fight follows the fish and collects its drop; the guard surfaces early.
+async function huntFish(c, target) {
+    if (!target?.isValid) {
+        return
+    }
+    c.log.info(`Food opportunity: ${target.name} at ${target.position.floored()}.`)
+    const p = c.bot.entity.position.floored()
+    c.memory.fishWater = { x: p.x, y: p.y, z: p.z, dimension: c.bot.game.dimension, at: Date.now(), misses: 0 }
+    await c.fight(target, true, () => (c.bot.oxygenLevel ?? 20) < 15 ? 'fish hunt is short of air' :
+        c.bot.health < 12 ? 'fish hunt health limit' : null)
+}
+
+// Fish respawn across a large body of water; a shore where fish were hunted in the last ten
+// minutes is worth a short wait before scouting elsewhere. Two empty waits forget it.
+async function waitForFish(c) {
+    const spot = c.memory.fishWater
+    const here = c.bot.entity.position
+    if (!spot || spot.dimension !== c.bot.game.dimension || Date.now() - spot.at > 600000 ||
+        here.distanceTo(new Vec3(spot.x, spot.y, spot.z)) > 64) {
+        return false
+    }
+    if (here.distanceTo(new Vec3(spot.x, spot.y, spot.z)) > 4) {
+        await c.gotoWithTimeout(new goals.GoalNear(spot.x, spot.y, spot.z, 3), 20000, 'fishing shore')
+    }
+    const deadline = Date.now() + 10000
+    while (Date.now() < deadline) {
+        c.checkAction()
+        const target = foodOpportunity(c, c.observe())
+        if (target?.action === 'hunt_fish') {
+            return huntFish(c, target.target).then(() => true)
+        }
+        await c.bot.waitForTicks(20)
+    }
+    if (++spot.misses >= 2) {
+        c.memory.fishWater = null
+    }
+    return true
 }
 
 // Fire-and-forget like iron smelting: load one raw type with fuel, record the job, keep working.
@@ -203,4 +271,4 @@ async function pickGlowBerries(c) {
     }
 }
 
-module.exports = { FOODS, FOOD_VALUES, COOKED, MIN_MINING_MEALS, mealReserve, foodState, cookFood, pickGlowBerries }
+module.exports = { FOODS, FOOD_VALUES, COOKED, MIN_MINING_MEALS, mealReserve, foodState, cookFood, pickGlowBerries, huntFish, waitForFish }

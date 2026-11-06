@@ -3,7 +3,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { Vec3 } = require('vec3')
-const { MIN_MINING_MEALS, mealReserve, foodState, cookFood, pickGlowBerries } = require('../src/food')
+const { MIN_MINING_MEALS, mealReserve, foodState, cookFood, pickGlowBerries, huntFish, waitForFish } = require('../src/food')
 
 function kitchen(items) {
     const furnace = { input: null, output: null, fuel: null }
@@ -106,4 +106,47 @@ test('glow berries are picked from ripe vines and a vine that keeps its berries 
     c.bot.activateBlock = async () => { uses++ }
     await pickGlowBerries(c)
     assert.deepEqual([uses, blocked], [2, 1])
+})
+
+function pond(entities, blocks = {}) {
+    const c = {
+        memory: {}, log: { info() {} }, isBlockedTarget: () => false, canSee: () => true,
+        countItems: () => 0, findNearestBlock: (predicate, range, options = {}) =>
+            Object.values(blocks).find(b => predicate(b.name) && (!options.filter || options.filter(b))) || null,
+        bot: { game: { dimension: 'overworld' }, entity: { position: new Vec3(0, 63, 0) }, entities, inventory: { items: () => [] },
+            blockAt: p => ({ name: p.y >= 63 ? 'air' : 'water' }) }
+    }
+    const state = { dimension: 'overworld', health: 20, hostileDistance: Infinity, freeInventorySlots: 5, hasCraftingTable: true, planks: 4, logs: 0 }
+    return { c, state }
+}
+const fish = (name, x, y = 62) => ({ name, isValid: true, position: new Vec3(x, y, 0) })
+
+test('food opportunities rank cod and salmon over berries, skip pufferfish and deep fish, then try stew', () => {
+    const vine = { name: 'cave_vines', position: new Vec3(3, 66, 0), getProperties: () => ({ berries: true }) }
+    const { c, state } = pond({ 1: fish('pufferfish', 2), 2: fish('cod', 9, 50), 3: fish('tropical_fish', 4) }, { vine })
+    assert.equal(foodState(c, state).foodOpportunity.action, 'pick_glow_berries')
+    c.bot.entities[4] = fish('salmon', 12)
+    assert.equal(foodState(c, state).foodOpportunity.target.name, 'salmon')
+    delete c.bot.entities[4]
+    vine.getProperties = () => ({ berries: false })
+    assert.equal(foodState(c, state).foodOpportunity.target.name, 'tropical_fish')
+})
+
+test('a red and a brown mushroom source become stew while fewer than four stews are carried', () => {
+    const { c, state } = pond({}, { red: { name: 'red_mushroom' }, brown: { name: 'brown_mushroom_block' } })
+    assert.equal(foodState(c, state).foodOpportunity.action, 'gather_mushroom_stew')
+    assert.equal(foodState(c, { ...state, health: 10 }).foodOpportunity, null)
+    c.countItems = names => names.includes('mushroom_stew') ? 4 : 0
+    assert.equal(foodState(c, state).foodOpportunity, null)
+})
+
+test('a fish hunt records its shore and aborts the fight when short of air', async () => {
+    const { c } = pond({})
+    let reason
+    c.fight = async (target, hunt, guard) => { assert.equal(hunt, true); c.bot.oxygenLevel = 12; reason = guard() }
+    await huntFish(c, fish('cod', 2))
+    assert.equal(reason, 'fish hunt is short of air')
+    assert.deepEqual([c.memory.fishWater.x, c.memory.fishWater.misses], [0, 0])
+    c.memory.fishWater.at -= 600001
+    assert.equal(await waitForFish(c), false)
 })
