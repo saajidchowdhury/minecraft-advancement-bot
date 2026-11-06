@@ -5,7 +5,7 @@ const assert = require('node:assert/strict')
 const { Vec3 } = require('vec3')
 const { EventEmitter } = require('node:events')
 const { SurvivalController } = require('../src/survival-bot')
-const { prepareBed, sleepSafely, huntAtNight, leaveShelter } = require('../src/night-skills')
+const { prepareBed, sleepSafely, leaveShelter } = require('../src/night-skills')
 
 function restWorld() {
     const blocks = new Map()
@@ -107,26 +107,6 @@ test('sudden night damage cancels hunting and persists a rest decision for that 
     assert.equal(c.cancelled, true)
     assert.equal(c.memory.nightRetreat.day, 7)
     assert.equal(c.memory.nightRetreat.dimension, 'overworld')
-})
-
-test('night hunt abandons a changed threat state and restores normal movement', async () => {
-    const { c, state } = restWorld()
-    c.bot.registry = require('minecraft-data')('26.1')
-    Object.assign(state, { health: 20, food: 20, foodUnits: 12, armorEquipped: true,
-        shieldEquipped: true, hasNightWeapon: true, hostileCount: 1, nightHuntCount: 0,
-        nightTarget: { name: 'spider' }, isNight: true })
-    let movement = null
-    c.bot.deactivateItem = () => {}
-    c.bot.pathfinder = { setGoal() {}, setMovements(m) { movement = m } }
-    c.fight = async (target, hunt, guard) => {
-        assert.equal(target.name, 'spider')
-        assert.equal(hunt, true)
-        state.hostileCount = 3
-        throw new Error(guard())
-    }
-    await assert.rejects(huntAtNight(c, state), /safety limit/)
-    assert.ok(c.memory.nightRetreat)
-    assert.equal(movement, c.movements)
 })
 
 test('combat cancellation releases an active shield and prevents the next attack', async t => {

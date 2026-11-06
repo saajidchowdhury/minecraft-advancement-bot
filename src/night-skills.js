@@ -2,9 +2,8 @@
 
 const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
-const { dryMovements, safeFooting } = require('./cave-exploration')
+const { safeFooting } = require('./cave-exploration')
 const { until } = require('./progression-skills')
-const { nightReady, retreatForNight } = require('./night-policy')
 
 const PLANTS = new Set(['short_grass', 'tall_grass', 'fern', 'large_fern', 'dead_bush', 'leaf_litter'])
 const BED_SPACE = new Set(['air', 'cave_air', 'void_air', ...PLANTS])
@@ -23,36 +22,6 @@ async function prepareBed(c, wool) {
     c.checkAction(signal)
     await c.ensureItem(wool.replace('_wool', '_bed'), 1, true)
     c.checkAction(signal)
-}
-
-async function huntAtNight(c, state) {
-    const target = state.nightTarget
-    if (!target || !nightReady(state)) {
-        return
-    }
-    const signal = c.actionAbort?.signal
-    const origin = c.bot.entity.position.clone()
-    c.memory.nightHunt = { day: c.bot.time.day, dimension: state.dimension, count: state.nightHuntCount + 1 }
-    c.log.info(`Night hunt: ${target.name}; attempt ${state.nightHuntCount + 1}/4; hp=${state.health}, food=${state.food}.`)
-    c.bot.pathfinder.setMovements(dryMovements(c.bot))
-    try {
-        await c.fight(target, true, () => {
-            c.checkAction(signal)
-            const current = c.observe()
-            if (!current.isNight) {
-                return 'daylight ended the night hunt'
-            }
-            if (!nightReady(current)) {
-                retreatForNight(c, 'health, supplies or nearby threats changed')
-                return 'night hunt safety limit'
-            }
-            return c.bot.entity.position.distanceTo(origin) > 16 ? 'night hunt left its local area' : null
-        })
-    } finally {
-        c.bot.pathfinder.setGoal(null)
-        c.bot.deactivateItem()
-        c.bot.pathfinder.setMovements(c.movements)
-    }
 }
 
 async function clearPlants(c, positions) {
@@ -208,4 +177,4 @@ async function leaveShelter(c) {
     throw new Error('no safe supported shelter exit')
 }
 
-module.exports = { prepareBed, huntAtNight, sleepSafely, leaveShelter, bedPlacement, clearPlants, wakeWithOwner }
+module.exports = { prepareBed, sleepSafely, leaveShelter, bedPlacement, clearPlants, wakeWithOwner }

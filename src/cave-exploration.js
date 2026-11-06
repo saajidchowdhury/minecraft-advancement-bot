@@ -14,8 +14,8 @@ const ROCK = new Set(['stone', 'deepslate', 'granite', 'diorite', 'andesite', 't
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 const ORES = [
     { ore: 'diamond', items: ['diamond'], cap: 5, use: 'diamond tools and enchanting table' },
-    { ore: 'iron', items: ['raw_iron', 'iron_ingot'], cap: 24, use: 'equipment and spare buckets' },
-    { ore: 'coal', items: ['coal', 'charcoal'], cap: 16, use: 'fuel and cave lighting' },
+    { ore: 'iron', items: ['raw_iron', 'iron_ingot'], cap: null, use: 'missing iron gear plus 16 spare' },
+    { ore: 'coal', items: ['coal', 'charcoal'], cap: 32, use: 'fuel and cave lighting' },
     { ore: 'gold', items: ['raw_gold', 'gold_ingot'], cap: 8, use: 'Nether protection and bartering' },
     { ore: 'copper', items: ['raw_copper', 'copper_ingot'], cap: 4, use: 'spyglass preparation' },
     { ore: 'lapis', items: ['lapis_lazuli'], cap: 12, use: 'enchanting' },
@@ -121,7 +121,8 @@ async function collectOpportunity(c, excluded = []) {
     const feet = c.bot.entity.position.floored()
     for (const resource of ORES) {
         const names = [`${resource.ore}_ore`, `deepslate_${resource.ore}_ore`]
-        if (names.some(name => excluded.includes(name)) || c.countItems(resource.items) >= resource.cap) {
+        const cap = resource.cap ?? state.ironCap ?? 24
+        if (names.some(name => excluded.includes(name)) || c.countItems(resource.items) >= cap) {
             continue
         }
         const block = c.findNearestBlock(name => names.includes(name), 6, {
@@ -130,7 +131,7 @@ async function collectOpportunity(c, excluded = []) {
                 c.movements.safeToBreak(b) && c.bot.inventory.items().some(item => item.name.endsWith('_pickaxe') && b.canHarvest(item.type))
         })
         if (block) {
-            c.log.info(`Opportunity: ${block.name} at ${block.position}; reserve for ${resource.use} (cap=${resource.cap}).`)
+            c.log.info(`Opportunity: ${block.name} at ${block.position}; reserve for ${resource.use} (cap=${cap}).`)
             await c.collectTarget(block, block, 'opportunistic ore')
             return true
         }
@@ -139,6 +140,7 @@ async function collectOpportunity(c, excluded = []) {
 }
 
 const DIAMOND_ORES = ['diamond_ore', 'deepslate_diamond_ore']
+const IRON_ORES = ['iron_ore', 'deepslate_iron_ore']
 const FACES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]
 
 // Mineflayer's canSeeBlock aims only at the block centre; ore exposed on one face beside a
@@ -200,17 +202,21 @@ function knownOre(c, block) {
         block.position.equals(new Vec3(o.x, o.y, o.z)))
 }
 
-// Diamonds outrank routine work once seen or exposed by a probe, unless mining them could
-// release liquid or remove the bot's own support.
-function findPriorityDiamond(c, range = 16) {
+// Diamonds (and iron below its reserve cap) outrank routine work once seen or exposed by a probe,
+// unless mining them could release liquid or remove the bot's own support.
+function findPriorityOre(c, ores, range = 16) {
     const bot = c.bot
     const feet = bot.entity.position.floored()
-    return c.findNearestBlock(name => DIAMOND_ORES.includes(name), range, {
+    return c.findNearestBlock(name => ores.includes(name), range, {
         filter: b => !(b.position.x === feet.x && b.position.z === feet.z && b.position.y < feet.y) &&
             FACES.every(([x, y, z]) => !['water', 'lava', 'bubble_column'].includes(bot.blockAt(b.position.offset(x, y, z), false)?.name ?? 'water')) &&
             bot.inventory.items().some(item => item.name.endsWith('_pickaxe') && b.canHarvest(item.type)) &&
             (knownOre(c, b) || oreSeen(bot, b, range))
     })
+}
+
+function findPriorityDiamond(c, range = 16) {
+    return findPriorityOre(c, DIAMOND_ORES, range)
 }
 
 function dryMovements(bot) {
@@ -273,7 +279,7 @@ async function exploreCave(c, targetY) {
         for (const p of route) {
             check(c, signal)
             const current = c.observe()
-            if (current.lootTarget || current.diamondInView) {
+            if (current.lootTarget || current.diamondInView || current.ironInView) {
                 return true
             }
             if (c.memory.caveSurvey.steps >= SURVEY_STEPS || Date.now() - c.memory.caveSurvey.startedAt >= SURVEY_MS ||
@@ -335,4 +341,4 @@ async function exploreCave(c, targetY) {
     return moved
 }
 
-module.exports = { safeFooting, findCaveRoute, exploreCave, collectOpportunity, dryMovements, oreSight, oreSeen, rememberOre, rememberExposedDiamonds, findPriorityDiamond }
+module.exports = { safeFooting, findCaveRoute, exploreCave, collectOpportunity, dryMovements, oreSight, oreSeen, rememberOre, rememberExposedDiamonds, findPriorityDiamond, findPriorityOre, IRON_ORES }

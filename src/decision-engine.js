@@ -1,8 +1,9 @@
 'use strict'
 
 const { nextAdvancement } = require('./advancement-plan')
-const MIN_MINING_WOOD_PLANKS = 32
-const MIN_MINING_FOOD_UNITS = 16
+const { MIN_MINING_MEALS } = require('./food')
+// User direction (2026-11-06): 32 logs, counting a plank as a quarter log, before a mining trip.
+const MIN_MINING_WOOD_PLANKS = 128
 const NIGHT_CARVE_ACTIONS = new Set(['gather_iron', 'gather_coal', 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'fill_lava_bucket'])
 
 const Actions = Object.freeze({
@@ -16,7 +17,6 @@ const Actions = Object.freeze({
     WOOD: 'gather_wood',
     CRAFT_TABLE: 'craft_table',
     CRAFT_WOODEN_PICKAXE: 'craft_wooden_pickaxe',
-    CRAFT_WOODEN_SWORD: 'craft_wooden_sword',
     STONE: 'gather_stone',
     CRAFT_STONE_PICKAXE: 'craft_stone_pickaxe',
     CRAFT_STONE_AXE: 'craft_stone_axe',
@@ -29,6 +29,15 @@ const Actions = Object.freeze({
     CRAFT_IRON_PICKAXE: 'craft_iron_pickaxe',
     EXPLORE: 'explore'
 })
+
+// Nightfall should not stop safe underground work: bank iron up to its reserve cap, then
+// diamonds (pickaxe, sword, armor, enchanting table) are the next best use.
+function nightMining (state, progression) {
+    if (NIGHT_CARVE_ACTIONS.has(progression.action)) {
+        return progression.action
+    }
+    return (state.rawIron || 0) + (state.ironIngots || 0) < (state.ironCap ?? 40) || !state.hasIronPickaxe ? Actions.IRON : 'gather_diamonds'
+}
 
 function canSustainFight (health, armorPoints) {
     return health > (armorPoints >= 12 ? 4 : 8)
@@ -102,11 +111,16 @@ function chooseAction (state) {
         state.hostileDistance > 3.5 && state.hostileDistance <= 16) {
         return Actions.SHELTER
     }
+    // Night underground work continues regardless of carried food; only low health stops it,
+    // and a bot that cannot regenerate waits in its enclosure until daylight.
+    if (state.isNight && state.underground && state.health <= 12) {
+        return state.sheltered ? 'wait' : Actions.SHELTER
+    }
     if (state.isNight && state.sheltered && !state.underground) {
         if (state.canSleep) {
             return 'leave_shelter'
         }
-        return state.canMineFromShelter && state.hasStonePickaxe && state.health >= 16 && state.food >= 17 ? 'mine_from_shelter' : 'wait'
+        return state.canMineFromShelter && state.hasStonePickaxe && state.health > 12 ? 'mine_from_shelter' : 'wait'
     }
     if (state.needsShelterExit) {
         return 'leave_shelter'
@@ -133,33 +147,24 @@ function chooseAction (state) {
     if (state.canSleep) {
         return 'sleep'
     }
+    // User direction (2026-11-06): surface nights killed the bot; no surface work or hunting at
+    // night. Go underground by a known shaft, carve down when protected, else shelter or burrow.
     if (state.isNight && !state.underground) {
-        if (state.nightShaftReady && state.hasStonePickaxe && state.health >= 16 && state.food >= 17 && !state.visibleHostiles) {
+        if (state.nightShaftReady && state.hasStonePickaxe && state.health > 12 && !state.visibleHostiles) {
             return 'descend_shaft_at_night'
         }
-        if (!state.nightCombatReady) {
-            if (state.canPrepareNightWeapon) {
-                return 'prepare_night_weapon'
-            }
-            // Without a remembered shaft, a protected and supplied miner carves down instead of idling
-            // the night in a surface shelter (00.41.40: the shelter's burrow was refused on a hillside).
-            const carveDown = NIGHT_CARVE_ACTIONS.has(progression.action) && state.hasIronPickaxe && state.shieldEquipped &&
-                (state.armorPoints || 0) >= 6 && state.health >= 16 && state.food >= 17 && !state.visibleHostiles &&
-                state.hostileDistance > 16 && !state.retreatForNight &&
-                (state.planks || 0) + (state.logs || 0) * 4 >= MIN_MINING_WOOD_PLANKS && state.foodUnits >= MIN_MINING_FOOD_UNITS
-            return carveDown ? progression.action : Actions.SHELTER
-        }
-        if (state.nightTarget && !state.inventoryFull) {
-            return 'hunt_night'
-        }
+        const carveDown = state.hasIronPickaxe && state.shieldEquipped && (state.armorPoints || 0) >= 6 && state.health > 12 &&
+            !state.visibleHostiles && state.hostileDistance > 16 && !state.retreatForNight
+        return carveDown ? nightMining(state, progression) : Actions.SHELTER
     }
-    if (state.health <= 10 && !state.hasFood) {
+    const nightUnderground = state.isNight && state.underground
+    if (state.health <= 10 && !state.hasFood && !nightUnderground) {
         return state.underground ? 'return_surface' : Actions.FOOD
     }
     if (state.hostileDistance <= 3.5 && state.hasWeapon && state.health > 10) {
         return Actions.FIGHT
     }
-    if (state.food <= 16 && !state.hasFood) {
+    if (state.food <= 16 && !state.hasFood && !nightUnderground) {
         return state.underground ? 'return_surface' : Actions.FOOD
     }
     if (mustFreeSlot) {
@@ -168,8 +173,14 @@ function chooseAction (state) {
     if (state.diamondInView && state.health > 10 && state.hostileDistance > 6) {
         return 'mine_diamond'
     }
+    if (state.ironInView && state.health > 10 && state.hostileDistance > 6) {
+        return 'mine_iron'
+    }
     if (state.lootTarget && state.health >= 16 && state.hostileDistance > 12 && !(state.freeInventorySlots <= 1)) {
         return 'loot_chest'
+    }
+    if (state.glowBerryTarget) {
+        return 'pick_glow_berries'
     }
     if (craftPick) {
         return progression.action
@@ -189,6 +200,10 @@ function chooseAction (state) {
     const preparingTool = recoveringPick || preparingIronPick || ['stone_axe', 'stone_shovel'].includes(progression.item)
     const action = preparingTool ? progression.action : state.sideGoal?.action || progression.action
     const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'gather_leather', 'enter_nether', 'build_redstone'].includes(action)
+    // One furnace serves both jobs: collect cooked food before iron smelting needs it.
+    if (state.cookJob?.ready || (state.cookJob && action === Actions.SMELT_IRON) || state.canCook) {
+        return 'cook_food'
+    }
     if (!recoveringPick && state.baseMigrate) {
         return 'migrate_base'
     }
@@ -230,8 +245,11 @@ function chooseAction (state) {
         if ((state.planks || 0) + (state.logs || 0) * 4 < MIN_MINING_WOOD_PLANKS) {
             return state.underground ? 'return_surface' : Actions.WOOD
         }
-        if (state.foodUnits < MIN_MINING_FOOD_UNITS) {
+        if ((state.mealReserve ?? 0) < MIN_MINING_MEALS) {
             return state.underground ? 'return_surface' : Actions.FOOD
+        }
+        if (state.cookJob) {
+            return 'cook_food'
         }
     }
     // Surfacing at night walked a weak bot into archers twice (F035); hunger returns stay above.
@@ -240,15 +258,7 @@ function chooseAction (state) {
             state.rawIron + state.ironIngots >= 3 && state.health > 12) {
             return Actions.COAL
         }
-        // Nightfall should not stop safe underground work: bank iron for later gear instead of idling.
-        if (state.hasStonePickaxe && state.health > 12 && (state.rawIron || 0) + (state.ironIngots || 0) < 40) {
-            return Actions.IRON
-        }
-        // With iron banked, diamonds (pickaxe, sword, armor, enchanting table) are the next best use.
-        if (state.hasIronPickaxe && state.health > 12) {
-            return 'gather_diamonds'
-        }
-        return state.sheltered ? 'wait' : Actions.SHELTER
+        return state.hasStonePickaxe ? nightMining(state, progression) : state.sheltered ? 'wait' : Actions.SHELTER
     }
     return surfaceBound ? 'return_surface' : action
 }

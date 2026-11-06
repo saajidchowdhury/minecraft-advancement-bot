@@ -16,7 +16,7 @@ const EARLY_ADVANCEMENTS = Object.freeze([
 
 const RECIPES = Object.freeze({
     crafting_table: { planks: 4 }, wooden_pickaxe: { planks: 3, sticks: 2 },
-    wooden_sword: { planks: 2, sticks: 1 }, stone_pickaxe: { cobblestone: 3, sticks: 2 },
+    stone_pickaxe: { cobblestone: 3, sticks: 2 },
     stone_sword: { cobblestone: 2, sticks: 1 }, stone_axe: { cobblestone: 3, sticks: 2 },
     stone_shovel: { cobblestone: 1, sticks: 2 },
     furnace: { cobblestone: 8 }, iron_pickaxe: { ironIngots: 3, sticks: 2 },
@@ -57,6 +57,18 @@ function ironPickPlankFuel(state) {
     const available = Object.entries(state.items || {}).find(([name, n]) =>
         name.endsWith('_planks') && !['crimson_planks', 'warped_planks'].includes(name) && n >= count + reserve)
     return count > 0 && available ? { name: available[0], count } : null
+}
+
+// Iron worth banking: 16 spare ingots plus the cost of every listed iron item not yet owned,
+// with three buckets of any content (user direction 2026-11-06). Higher tiers count as owned.
+function ironReserveCap(state) {
+    const missing = [
+        ['iron_pickaxe', ['iron_pickaxe', 'diamond_pickaxe', 'netherite_pickaxe']],
+        ['shield', ['shield']],
+        ['iron_sword', ['iron_sword', 'diamond_sword', 'netherite_sword']],
+        ...ARMOR_PIECES.map(piece => [`iron_${piece}`, ARMOR_TIERS.slice(3).map(t => `${t}_${piece}`)])
+    ].filter(([, names]) => !owns(state, names)).reduce((sum, [item]) => sum + RECIPES[item].ironIngots, 0)
+    return 16 + missing + RECIPES.bucket.ironIngots * Math.max(0, 3 - (state.buckets ?? 0))
 }
 
 function target(id, action, reason, extra = {}) {
@@ -174,9 +186,6 @@ function planAdvancement(state) {
     if (!state.hasWoodenPickaxe) {
         return craft(state, 'minecraft:story/mine_stone', 'wooden_pickaxe', 'craft_wooden_pickaxe')
     }
-    if (!state.hasEarlySword) {
-        return craft(state, 'prep:weapon', 'wooden_sword', 'craft_wooden_sword')
-    }
     if (!state.hasStonePickaxe) {
         return craft(state, state.cobblestone < 3 ? 'minecraft:story/mine_stone' : 'minecraft:story/upgrade_tools',
             'stone_pickaxe', 'craft_stone_pickaxe')
@@ -213,23 +222,24 @@ function planAdvancement(state) {
     if (!state.shieldEquipped) {
         return target('prep:shield', 'equip_shield', 'carry the shield in the off hand')
     }
-    if (!state.completedAdvancements?.has('minecraft:story/lava_bucket')) {
-        if (!state.hasBucket) {
-            return craft(state, 'minecraft:story/lava_bucket', 'bucket')
-        }
-        return target('minecraft:story/lava_bucket', 'fill_lava_bucket', 'collect a reachable lava source')
-    }
-    // Cheap survival upgrades compound: fewer deaths means fewer lost trips and inventories.
-    if (state.armorUpgrade) {
-        return target('minecraft:story/obtain_armor', 'equip_armor', 'wear the best armor carried')
-    }
+    // User direction (2026-11-06): no wooden sword; two more ingots after the shield buy an iron
+    // sword, and the full iron set comes before any bucket work.
     if (!owns(state, ['iron_sword', 'diamond_sword', 'netherite_sword'])) {
         return craft(state, 'prep:iron sword', 'iron_sword')
+    }
+    if (state.armorUpgrade) {
+        return target('minecraft:story/obtain_armor', 'equip_armor', 'wear the best armor carried')
     }
     for (const piece of ARMOR_PIECES.filter(piece => piece !== 'chestplate')) {
         if (!ownsTier(state, piece, 'iron')) {
             return craft(state, `prep:iron ${piece}`, `iron_${piece}`)
         }
+    }
+    if (!state.completedAdvancements?.has('minecraft:story/lava_bucket')) {
+        if (!state.hasBucket) {
+            return craft(state, 'minecraft:story/lava_bucket', 'bucket')
+        }
+        return target('minecraft:story/lava_bucket', 'fill_lava_bucket', 'collect a reachable lava source')
     }
     if (!state.hasDiamondPickaxe) {
         return craft(state, state.diamonds < 1 ? 'minecraft:story/mine_diamond' : 'prep:diamond pickaxe', 'diamond_pickaxe')
@@ -275,4 +285,4 @@ function planAdvancement(state) {
     return target('survival:established', 'wait', 'supported advancement route complete; use !come or !redstone')
 }
 
-module.exports = { EARLY_ADVANCEMENTS, RECIPES, ARMOR_TIERS, nextAdvancement, plankPotential, resourceAction, ironPickPlankFuel }
+module.exports = { EARLY_ADVANCEMENTS, RECIPES, ARMOR_TIERS, nextAdvancement, ironReserveCap, plankPotential, resourceAction, ironPickPlankFuel }

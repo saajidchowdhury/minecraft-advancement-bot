@@ -4,7 +4,7 @@ const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { discardableStacks, overflowStack } = require('./inventory')
 const { storeOverflowAtBase } = require('./base')
-const { exploreCave, collectOpportunity, safeFooting, dryMovements, rememberOre, rememberExposedDiamonds, findPriorityDiamond } = require('./cave-exploration')
+const { exploreCave, collectOpportunity, safeFooting, dryMovements, rememberOre, rememberExposedDiamonds, findPriorityDiamond, findPriorityOre, IRON_ORES } = require('./cave-exploration')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
 
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
@@ -312,8 +312,9 @@ async function mineTunnel(c, targetY, heading = null) {
         if (c.memory.minedCells.size > 4096) {
             c.memory.minedCells.delete(c.memory.minedCells.values().next().value)
         }
-        if (c.findNearestBlock && c.canPursueDiamond?.() !== false && findPriorityDiamond(c)) {
-            c.log.info('Diamond ore came into view; leaving the tunnel segment to mine it.')
+        if (c.findNearestBlock && c.canPursueDiamond?.() !== false &&
+            (findPriorityDiamond(c) || (c.ironWanted && findPriorityOre(c, IRON_ORES)))) {
+            c.log.info('Priority ore came into view; leaving the tunnel segment to mine it.')
             return
         }
         if (target.y === feet.y && c.probeSpacing > 0) {
@@ -1329,13 +1330,15 @@ async function performProgression(c, action, state) {
             return c.bot.equip(c.bestItem(['shield']), 'off-hand')
         case 'fill_lava_bucket': return fillLavaBucket(c)
         case 'fill_water_bucket': return fillWaterBucket(c)
-        case 'mine_diamond': {
-            const block = findPriorityDiamond(c)
+        case 'mine_diamond':
+        case 'mine_iron': {
+            const ore = action.slice(5)
+            const block = ore === 'iron' ? findPriorityOre(c, IRON_ORES) : findPriorityDiamond(c)
             if (!block) {
                 return
             }
-            c.log.info(`Priority diamond: ${block.name} at ${block.position}.`)
-            return c.collectTarget(block, block, 'priority diamond')
+            c.log.info(`Priority ${ore}: ${block.name} at ${block.position}.`)
+            return c.collectTarget(block, block, `priority ${ore}`)
         }
         case 'gather_diamonds': return gatherDeep(c, ['diamond_ore', 'deepslate_diamond_ore'])
         case 'gather_redstone': return gatherDeep(c, ['redstone_ore', 'deepslate_redstone_ore'])

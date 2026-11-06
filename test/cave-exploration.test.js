@@ -211,6 +211,23 @@ test('opportunistic ores respect reserves, tool tier and inventory headroom', as
     assert.equal(collected, 1)
 })
 
+test('opportunistic coal stops at 32 and iron follows the observed reserve cap', async () => {
+    const { c, inventory, state } = caveWorld()
+    let target = { name: 'coal_ore', position: new Vec3(2, 64, 0), canHarvest: () => true }
+    c.findNearestBlock = (predicate, radius, options) => predicate(target.name) && options.filter(target) ? target : null
+    c.collectTarget = async () => {}
+    inventory.push({ name: 'coal', count: 31 })
+    assert.equal(await collectOpportunity(c), true)
+    inventory.at(-1).count = 32
+    assert.equal(await collectOpportunity(c), false)
+    target = { name: 'iron_ore', position: new Vec3(2, 64, 0), canHarvest: () => true }
+    inventory.push({ name: 'raw_iron', count: 30 }, { name: 'iron_ingot', count: 10 })
+    state.ironCap = 41
+    assert.equal(await collectOpportunity(c), true)
+    state.ironCap = 40
+    assert.equal(await collectOpportunity(c), false)
+})
+
 test('the real diamond action surveys a cave instead of digging when no requested ore is exposed', async () => {
     const { c, moves } = caveWorld()
     c.bot.dig = async () => assert.fail('resumed tunneling before surveying cave')

@@ -2,7 +2,7 @@
 
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { EARLY_ADVANCEMENTS, nextAdvancement, plankPotential, resourceAction } = require('../src/advancement-plan')
+const { EARLY_ADVANCEMENTS, nextAdvancement, plankPotential, resourceAction, ironReserveCap } = require('../src/advancement-plan')
 
 const established = {
     logs: 4, planks: 16, sticks: 8, cobblestone: 16, ironIngots: 0, rawIron: 0,
@@ -177,4 +177,27 @@ test('three carried diamonds become a diamond pickaxe before the lava bucket or 
     assert.equal(nextAdvancement({ ...early, hasIronPickaxe: false, hasStonePickaxe: true }).item, 'diamond_pickaxe')
     assert.notEqual(nextAdvancement({ ...early, diamonds: 2 }).item, 'diamond_pickaxe')
     assert.notEqual(nextAdvancement({ ...early, hasDiamondPickaxe: true }).item, 'diamond_pickaxe')
+})
+
+test('no wooden sword: an iron sword follows the shield and the full iron set precedes buckets', () => {
+    const early = { ...established, hasStonePickaxe: false, hasIronPickaxe: false, hasIronArmor: false, armorEquipped: false,
+        hasShield: false, shieldEquipped: false, gear: new Set(), cobblestone: 0, completedAdvancements: new Set() }
+    assert.equal(nextAdvancement(early).item, 'stone_pickaxe')
+    const shielded = { ...established, gear: new Set(['iron_chestplate', 'shield']), hasBucket: false, completedAdvancements: new Set() }
+    assert.equal(nextAdvancement(shielded).item, 'iron_sword')
+    const order = []
+    for (const name of ['iron_sword', 'iron_leggings', 'iron_helmet', 'iron_boots']) {
+        shielded.gear.add(name)
+        order.push(nextAdvancement(shielded).item)
+    }
+    assert.deepEqual(order, ['iron_leggings', 'iron_helmet', 'iron_boots', 'bucket'])
+    assert.equal(nextAdvancement({ ...shielded, armorUpgrade: true }).action, 'equip_armor')
+})
+
+test('the iron reserve cap is 16 plus the ingots for missing iron gear and buckets', () => {
+    assert.equal(ironReserveCap({ gear: new Set(), buckets: 0 }), 16 + 3 + 1 + 2 + 5 + 8 + 7 + 4 + 9)
+    const iron = new Set(['iron_pickaxe', 'shield', 'iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots'])
+    assert.equal(ironReserveCap({ gear: iron, buckets: 1 }), 22)
+    const diamond = new Set(['diamond_pickaxe', 'shield', 'diamond_sword', 'diamond_helmet', 'netherite_chestplate', 'diamond_leggings', 'diamond_boots'])
+    assert.equal(ironReserveCap({ gear: diamond, buckets: 3 }), 16)
 })

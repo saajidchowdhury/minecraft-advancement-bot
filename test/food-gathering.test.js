@@ -77,7 +77,7 @@ test('repeated food watchdog cancellations enter mobility recovery instead of sc
         health: 20, food: 20, foodUnits: 3, hostileDistance: Infinity,
         hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true,
         hasStonePickaxe: true, hasWoodcuttingAxe: true, hasFurnace: true,
-        rawIron: 0, ironIngots: 0, logs: 10, planks: 3
+        rawIron: 0, ironIngots: 0, logs: 32, planks: 3, mealReserve: 30
     })
     c.log = { info() {}, warn() {} }
     c.onState = c.scheduleLoop = () => {}

@@ -5,12 +5,13 @@ const { plugin: collectBlockPlugin } = require('mineflayer-collectblock')
 const { Vec3 } = require('vec3')
 const { createRng } = require('./random')
 const { Actions, chooseAction, canSustainFight, outnumbered } = require('./decision-engine')
-const { RECIPES, nextAdvancement, ironPickPlankFuel } = require('./advancement-plan')
+const { RECIPES, nextAdvancement, ironPickPlankFuel, ironReserveCap } = require('./advancement-plan')
 const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
-const { prepareBed, huntAtNight, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
+const { prepareBed, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
-const { exploreCave, collectOpportunity, findPriorityDiamond, oreSight, rememberExposedDiamonds } = require('./cave-exploration')
+const { FOOD_VALUES, foodState, cookFood, pickGlowBerries } = require('./food')
+const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, oreSight, rememberExposedDiamonds } = require('./cave-exploration')
 const { findNearbyLoot, lootChest } = require('./loot')
 const { discardableStack, inventoryReport } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
@@ -30,14 +31,6 @@ const HOSTILES = new Set([
 ])
 
 const PREY = new Set(['cow', 'pig', 'sheep', 'chicken', 'rabbit'])
-
-const FOOD_VALUES = {
-    cooked_beef: 8, cooked_porkchop: 8, cooked_mutton: 6, cooked_chicken: 6,
-    cooked_rabbit: 5, bread: 5, baked_potato: 5, golden_carrot: 6,
-    beef: 3, porkchop: 3, mutton: 2, chicken: 2, rabbit: 3,
-    apple: 4, carrot: 3, potato: 1, sweet_berries: 2, glow_berries: 2,
-    melon_slice: 2, dried_kelp: 1, mushroom_stew: 6, beetroot_soup: 6
-}
 
 const LOG_SUFFIXES = ['_log', '_stem', '_wood', '_hyphae']
 const CREEPERS = new Set(['creeper'])
@@ -66,7 +59,6 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     [Actions.WOOD]: 90000,
     [Actions.CRAFT_TABLE]: 30000,
     [Actions.CRAFT_WOODEN_PICKAXE]: 30000,
-    [Actions.CRAFT_WOODEN_SWORD]: 30000,
     [Actions.STONE]: 90000,
     [Actions.CRAFT_STONE_PICKAXE]: 30000,
     [Actions.CRAFT_STONE_AXE]: 30000,
@@ -82,7 +74,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
     clear_inventory: 30000, mine_diamond: 45000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
-    wake: 10000, hunt_night: 45000, sleep: 30000, prepare_bed: 45000, prepare_night_weapon: 30000, leave_shelter: 20000,
+    wake: 10000, sleep: 30000, prepare_bed: 45000, leave_shelter: 20000, mine_iron: 45000, cook_food: 120000, pick_glow_berries: 60000,
     [Actions.EXPLORE]: 60000
 })
 const MELEE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'spider', 'cave_spider', 'vindicator', 'piglin_brute', 'zombified_piglin'])
@@ -90,8 +82,8 @@ const INTERACTIVE = /(^|_)(furnace|smoker|chest|barrel|crafting_table|enchanting
 const STATIONARY_ACTIONS = new Set([
     Actions.DESCEND,
     Actions.ASCEND,
-    'wake', 'sleep', 'prepare_bed', 'prepare_night_weapon', 'leave_shelter', 'shoot_arrow',
-    Actions.CRAFT_TABLE, Actions.CRAFT_WOODEN_PICKAXE, Actions.CRAFT_WOODEN_SWORD, Actions.CRAFT_STONE_PICKAXE,
+    'wake', 'sleep', 'prepare_bed', 'leave_shelter', 'shoot_arrow', 'cook_food',
+    Actions.CRAFT_TABLE, Actions.CRAFT_WOODEN_PICKAXE, Actions.CRAFT_STONE_PICKAXE,
     Actions.CRAFT_FURNACE, Actions.SMELT_IRON, Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_AXE, Actions.CRAFT_STONE_SHOVEL,
     'clear_inventory', 'loot_chest', 'smelt_charcoal', 'craft_progression', 'enchant_item', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', Actions.SHELTER
 ])
@@ -551,7 +543,7 @@ class SurvivalController {
             // Unstick scouting accepts six-block drops, which only take a surfacing bot deeper (04.01.02).
             if (count >= 3 && action !== 'return_surface' && (foodStalled || stalledInPlace || /no path to the goal/i.test(message))) {
                 await this.unstick().catch(unstickError => this.log.warn(`Unstick failed: ${unstickError.message}`))
-            } else if (count >= 3 && action !== 'hunt_night' && !STATIONARY_ACTIONS.has(action)) {
+            } else if (count >= 3 && !STATIONARY_ACTIONS.has(action)) {
                 await this.scout(12).catch(() => {})
             }
         } finally {
@@ -584,14 +576,16 @@ class SurvivalController {
         const lastDeath = this.memory.lastDeath
         const recoveryAge = lastDeath ? Date.now() - lastDeath.diedAt : Infinity
         const hasTableNow = this.hasItem('crafting_table') || Boolean(this.findStation('crafting_table', 4))
-        const hasSwordNow = this.hasAnyItem(['wooden_sword', 'stone_sword', 'iron_sword', 'diamond_sword', 'netherite_sword'])
         const hasStonePickNow = this.hasAnyItem(['stone_pickaxe', 'iron_pickaxe', 'diamond_pickaxe', 'netherite_pickaxe'])
         const hasIronPickNow = this.hasAnyItem(['iron_pickaxe', 'diamond_pickaxe', 'netherite_pickaxe'])
         const hasWoodPickNow = this.hasItem('wooden_pickaxe') || hasStonePickNow
         const hasFurnaceNow = this.hasItem('furnace') || Boolean(this.findStation('furnace', 4))
         const ironIngots = this.countItems(['iron_ingot'])
         const inventory = this.bot.inventory.items()
-        const items = Object.fromEntries(inventory.map(item => [item.name, item.count]))
+        const items = {}
+        for (const item of inventory) {
+            items[item.name] = (items[item.name] || 0) + item.count
+        }
         const freeInventorySlots = this.bot.inventory.emptySlotCount()
         const torso = this.bot.inventory.slots[6]
         const offhand = this.bot.inventory.slots[45]
@@ -632,7 +626,6 @@ class SurvivalController {
             sticks: this.countItems(['stick']),
             hasCraftingTable: hasTableNow,
             hasWoodenPickaxe: hasWoodPickNow,
-            hasEarlySword: hasSwordNow,
             cobblestone: this.countItems(['cobblestone', 'cobbled_deepslate']),
             hasStonePickaxe: hasStonePickNow,
             hasWoodcuttingAxe: this.hasAnyItem(WOODCUTTING_AXES),
@@ -650,6 +643,7 @@ class SurvivalController {
             hasIronArmor: armorEquipped || this.hasAnyItem(armorNames), armorEquipped,
             hasShield: shieldEquipped || this.hasItem('shield'), shieldEquipped,
             hasBucket: this.hasAnyItem(['bucket', 'lava_bucket']),
+            buckets: this.countItems(['bucket', 'water_bucket', 'lava_bucket']),
             hasEmptyBucket: this.hasItem('bucket'), waterBuckets: this.countItems(['water_bucket']), hasLavaBucket: this.hasItem('lava_bucket'),
             obsidianCastPending: this.memory.obsidianCast?.dimension === this.bot.game.dimension,
             hasFlintAndSteel: this.hasItem('flint_and_steel'),
@@ -689,11 +683,14 @@ class SurvivalController {
         state.gear = new Set([...this.bot.inventory.items(), ...[5, 6, 7, 8, 45].map(slot => this.bot.inventory.slots[slot])]
             .filter(Boolean).map(item => item.name))
         state.armorUpgrade = armorUpgrades(this.bot).length > 0
+        state.ironCap = ironReserveCap(state)
+        this.ironWanted = state.rawIron + state.ironIngots < state.ironCap
         try {
             state.diamondInView = Boolean(this.mcData && findPriorityDiamond(this))
+            state.ironInView = Boolean(this.mcData && this.ironWanted && findPriorityOre(this, IRON_ORES))
         } catch (error) {
-            state.diamondInView = false
-            this.log.warn(`Diamond search failed; ignoring it this cycle: ${error.message}`)
+            state.diamondInView = state.ironInView = false
+            this.log.warn(`Priority ore search failed; ignoring it this cycle: ${error.message}`)
         }
         if (this.mcData && state.health >= 16 && state.hostileDistance > 12 && freeInventorySlots > 1) {
             state.lootTarget = findNearbyLoot(this)
@@ -702,7 +699,7 @@ class SurvivalController {
         if (state.redstoneRequested && nextAdvancement(state).action === 'wait' && state.dimension === 'overworld') {
             state.sideGoal = redstonePlan(state)
         }
-        return archeryState(this, golemState(this, breedingState(this, fishingState(this, farmingState(this, baseState(this, updateNightState(this, state)))))))
+        return archeryState(this, golemState(this, breedingState(this, fishingState(this, farmingState(this, baseState(this, foodState(this, updateNightState(this, state))))))))
     }
 
     async perform (action, state) {
@@ -715,6 +712,8 @@ class SurvivalController {
                 return performProgression(this, action, state)
             }
             case 'loot_chest': return lootChest(this, state.lootTarget)
+            case 'cook_food': return cookFood(this)
+            case 'pick_glow_berries': return pickGlowBerries(this)
             case 'plant_seed': return plantSeed(this)
             case 'go_fish': return goFish(this)
             case 'shoot_arrow': return shootArrow(this)
@@ -729,11 +728,9 @@ class SurvivalController {
             case 'migrate_base': return migrateBase(this)
             case 'deposit_base': return depositAtBase(this)
             case 'restock_base': return restockAtBase(this)
-            case 'hunt_night': return huntAtNight(this, state)
             case 'wake': return wakeWithOwner(this)
             case 'sleep': return sleepSafely(this, state)
             case 'prepare_bed': return prepareBed(this, state.bedWool)
-            case 'prepare_night_weapon': return performProgression(this, 'craft_progression', { sideGoal: { item: 'stone_sword' } })
             case 'leave_shelter': return leaveShelter(this)
             case 'mine_from_shelter': return this.mineFromShelter()
             case 'descend_shaft_at_night': {
@@ -758,7 +755,6 @@ class SurvivalController {
             case Actions.WOOD: return this.gatherWood()
             case Actions.CRAFT_TABLE: return this.craftTable()
             case Actions.CRAFT_WOODEN_PICKAXE: return this.craftWoodenPickaxe()
-            case Actions.CRAFT_WOODEN_SWORD: return this.craftWoodenSword()
             case Actions.STONE: return this.gatherStone()
             case Actions.CRAFT_STONE_PICKAXE: return this.craftStonePickaxe()
             case Actions.CRAFT_FURNACE: return this.craftFurnace()
@@ -1224,15 +1220,6 @@ class SurvivalController {
         await this.ensureItem('wooden_pickaxe', 1, true)
     }
 
-    async craftWoodenSword () {
-        if (this.countItems(['stick']) < 1) {
-            await this.ensurePlanks(4)
-            await this.ensureItem('stick', 4, false)
-        }
-        await this.ensurePlanks(2)
-        await this.ensureItem('wooden_sword', 1, true)
-    }
-
     async gatherStone () {
         const feet = this.bot.entity.position.floored()
         const block = this.findNearestBlock(name =>
@@ -1346,7 +1333,7 @@ class SurvivalController {
         const collection = { anchor, label }
         this.activeCollection = collection
         const signal = this.actionAbort?.signal
-        const priorityDiamond = label === 'priority diamond'
+        const priorityOre = label.startsWith('priority ')
         try {
             const targets = Array.isArray(target) ? target : [target]
             for (const entry of targets) {
@@ -1372,10 +1359,10 @@ class SurvivalController {
                 if (!block || block.type !== entry.type || (block.boundingBox === 'empty' && !block.diggable)) {
                     continue
                 }
-                let sight = priorityDiamond && oreSight(this.bot, block, 4.5)
+                let sight = priorityOre && oreSight(this.bot, block, 4.5)
                 if (!this.bot.canDigBlock(block) || (!sight && !this.bot.canSeeBlock(block))) {
                     await this.gotoWithTimeout(new goals.GoalLookAtBlock(block.position, this.bot.world), 10000, 'resource approach')
-                    sight = priorityDiamond && oreSight(this.bot, block, 4.5)
+                    sight = priorityOre && oreSight(this.bot, block, 4.5)
                 }
                 if (signal?.aborted) {
                     throw new Error('collection cancelled')
@@ -1416,7 +1403,7 @@ class SurvivalController {
                     }
                     if (drop.isValid) {
                         const p = drop.position.floored()
-                        const goal = priorityDiamond ? new GoalNear(p.x, p.y, p.z, 1) : new goals.GoalBlock(p.x, p.y, p.z)
+                        const goal = priorityOre ? new GoalNear(p.x, p.y, p.z, 1) : new goals.GoalBlock(p.x, p.y, p.z)
                         await this.gotoWithTimeout(goal, 8000, 'mined item pickup')
                     }
                 }

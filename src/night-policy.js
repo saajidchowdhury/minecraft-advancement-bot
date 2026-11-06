@@ -1,18 +1,11 @@
 'use strict'
 
-const WEAPONS = ['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword']
 const ARMOR = { leather: [1, 3, 2, 1], golden: [2, 5, 3, 1], chainmail: [2, 5, 4, 1],
     iron: [2, 6, 5, 2], diamond: [3, 8, 6, 3], netherite: [3, 8, 6, 3] }
 
 // Worn armor points from player slots 5-8 (head, torso, legs, feet); full iron = 15.
 function wornArmorPoints(bot) {
     return [5, 6, 7, 8].reduce((sum, slot, i) => sum + (ARMOR[bot.inventory.slots[slot]?.name.split('_')[0]]?.[i] || 0), 0)
-}
-
-function nightReady(state) {
-    return state.health >= 18 && state.food >= 18 && state.foodUnits >= 8 &&
-        state.armorEquipped && state.shieldEquipped && state.hasNightWeapon &&
-        !state.retreatForNight && !state.dangerousNightThreat && state.hostileCount <= 2
 }
 
 function sleepPartnerReady(c) {
@@ -35,7 +28,6 @@ function updateNightState(c, state) {
     const bot = c.bot
     state.sleeping = Boolean(bot.isSleeping)
     state.sleepPartnerReady = sleepPartnerReady(c)
-    state.hasNightWeapon = Boolean(c.bestItem(WEAPONS))
     state.armorPoints = wornArmorPoints(bot)
     const threats = Object.values(bot.entities).filter(e => e.isValid && c.hostileNames.has(e.name))
         .map(entity => ({ entity, distance: bot.entity.position.distanceTo(entity.position) }))
@@ -58,31 +50,6 @@ function updateNightState(c, state) {
     state.canSleep = state.sleepPartnerReady && state.isNight && state.dimension === 'overworld' && !retryBlocked &&
         bot.time.timeOfDay >= 12541 && bot.time.timeOfDay <= 23458 && state.hostileDistance > 12 &&
         (state.hasBed || state.canCraftBed || Boolean(c.findNearestBlock(name => name.endsWith('_bed'), 4)))
-    state.nightCombatReady = nightReady(state)
-    state.canPrepareNightWeapon = !state.hasNightWeapon && nightReady({ ...state, hasNightWeapon: true }) &&
-        state.hostileDistance > 6 && state.cobblestone >= 2 &&
-        (state.sticks >= 1 || state.planks + state.logs * 4 >= 2)
-    const budget = c.memory.nightHunt
-    state.nightHuntCount = budget?.day === bot.time.day && budget.dimension === state.dimension ? budget.count : 0
-    const useful = entity => {
-        if (entity.name === 'spider') {
-            return c.countItems(['string']) < 8
-        }
-        if (entity.name === 'skeleton') {
-            return state.armorPoints >= 15 && (c.countItems(['bone']) < 8 || c.countItems(['arrow']) < 16)
-        }
-        if (entity.name === 'zombie') {
-            const babyIndex = bot.registry.entitiesByName.zombie.metadataKeys.indexOf('baby')
-            return !entity.metadata?.[babyIndex] && (!state.completedAdvancements.has('minecraft:adventure/kill_a_mob') ||
-                (state.nightHuntCount < 2 && c.countItems(['carrot', 'potato']) === 0))
-        }
-        return false
-    }
-    state.nightTarget = state.nightCombatReady && state.nightHuntCount < 4 ? threats
-        .filter(({ entity, distance }) => distance <= 12 && Math.abs(entity.position.y - bot.entity.position.y) <= 2 &&
-            !c.isBlockedTarget(entity) && useful(entity) &&
-            !threats.some(other => other.entity !== entity && other.distance <= 8))
-        .sort((a, b) => a.distance - b.distance)[0]?.entity || null : null
     return state
 }
 
@@ -94,4 +61,4 @@ function retreatForNight(c, reason) {
     }
 }
 
-module.exports = { WEAPONS, wornArmorPoints, nightReady, updateNightState, retreatForNight, sleepPartnerReady }
+module.exports = { wornArmorPoints, updateNightState, retreatForNight, sleepPartnerReady }

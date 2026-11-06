@@ -18,9 +18,10 @@ const asMap = plan => Object.fromEntries(plan.map(entry => [entry.name, entry.co
 test('deposit keeps the best tools, a work pick and carry levels and stores the surplus', () => {
     const plan = asMap(depositPlan(kit, { helmet: 'diamond_helmet', chestplate: 'iron_chestplate' }))
     assert.deepEqual(plan, {
-        iron_pickaxe: 1, iron_sword: 1, iron_helmet: 1, diamond: 3, iron_ingot: 4, raw_gold: 6,
-        coal: 14, oak_log: 4, bread: 10, white_bed: 2
+        iron_pickaxe: 1, iron_sword: 1, iron_helmet: 1, diamond: 3, raw_gold: 6, bread: 2, white_bed: 2
     })
+    assert.equal(asMap(depositPlan(kit, {}, 12)).iron_ingot, undefined)
+    assert.equal(asMap(depositPlan([{ name: 'raw_iron', count: 30 }, { name: 'iron_ingot', count: 20 }], {}, 45)).iron_ingot, 5)
 })
 
 test('an unworn better armor piece is not stored before it can be equipped', () => {
@@ -33,7 +34,7 @@ test('after a death the restock takes the best gear and refills carry levels', (
     const plan = asMap(restockPlan(stored, [], {}))
     assert.deepEqual(plan, {
         diamond_pickaxe: 1, diamond_sword: 1, stone_axe: 1, stone_shovel: 1, stone_pickaxe: 1, iron_helmet: 1, iron_chestplate: 1, shield: 1,
-        diamond: 8, iron_ingot: 16, coal: 16, crafting_table: 1, oak_log: 16, bread: 16
+        diamond: 8, iron_ingot: 16, coal: 30, crafting_table: 1, oak_log: 30, bread: 24
     })
 })
 
@@ -192,8 +193,8 @@ test('depositing and restocking move the planned stacks through the chest and re
     const empty = []
     const after = chestWorld(empty, { diamond_pickaxe: 1, bread: 30 })
     await restockAtBase(after.c)
-    assert.deepEqual(empty.map(i => [i.name, i.count]), [['diamond_pickaxe', 1], ['bread', 16]])
-    assert.equal(after.c.memory.base.contents.bread, 14)
+    assert.deepEqual(empty.map(i => [i.name, i.count]), [['diamond_pickaxe', 1], ['bread', 24]])
+    assert.equal(after.c.memory.base.contents.bread, 6)
 })
 
 test('a chest vault with rock on top is migrated by digging the block above the chest first', async () => {

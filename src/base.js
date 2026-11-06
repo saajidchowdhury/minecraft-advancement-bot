@@ -12,14 +12,14 @@ const ARMOR = ['helmet', 'chestplate', 'leggings', 'boots']
 // Carry limits: surplus beyond these is stored, and restocking refills up to the same
 // levels, so a restock never triggers a deposit (no chest ping-pong).
 const CARRY = {
-    diamond: 8, iron_ingot: 16, raw_iron: 16, redstone: 8, coal: 16, charcoal: 16, torch: 32,
+    diamond: 8, redstone: 8, coal: 32, charcoal: 32, torch: 32,
     gold_ingot: 0, raw_gold: 0, lapis_lazuli: 8, emerald: 0, raw_copper: 0, copper_ingot: 0,
     string: 5, bone: 0, gunpowder: 0, ender_pearl: 0, slime_ball: 0, spider_eye: 0, feather: 4,
     leather: 1, arrow: 16, crafting_table: 1, furnace: 1
 }
 // Side goals check carried items: string for a rod (2) and bow (3), feathers for arrows,
 // and leather and lapis for the enchanting table and its first enchantment.
-const RESTOCK = { diamond: 8, iron_ingot: 16, raw_iron: 16, coal: 16, torch: 32, crafting_table: 1, furnace: 1, bucket: 1, obsidian: 64, flint_and_steel: 1,
+const RESTOCK = { diamond: 8, iron_ingot: 16, raw_iron: 16, coal: 32, torch: 32, crafting_table: 1, furnace: 1, bucket: 1, obsidian: 64, flint_and_steel: 1,
     string: 5, feather: 4, leather: 1, lapis_lazuli: 8, arrow: 16 }
 const FOODS = ['cooked_beef', 'cooked_porkchop', 'cooked_mutton', 'cooked_chicken', 'cooked_rabbit', 'bread', 'baked_potato', 'golden_carrot', 'apple', 'carrot']
 
@@ -43,7 +43,9 @@ function groupLimit(counts, plan, match, limit) {
 }
 
 // Items to store: duplicate tools, armor no better than what is worn, and surplus materials.
-function depositPlan(items, worn = {}) {
+// Carried iron up to the reserve cap (missing gear plus 16) stays on the bot; the 32 floor covers
+// a full iron restock (16 + 16), so restocking never triggers a deposit.
+function depositPlan(items, worn = {}, ironCap = 32) {
     const counts = totals(items)
     const plan = []
     for (const kind of ['pickaxe', 'sword', 'axe', 'shovel', 'hoe']) {
@@ -66,9 +68,10 @@ function depositPlan(items, worn = {}) {
             plan.push({ name, count: counts[name] - limit })
         }
     }
-    groupLimit(counts, plan, name => name.endsWith('_log'), 16)
+    groupLimit(counts, plan, name => name === 'raw_iron' || name === 'iron_ingot', Math.max(32, ironCap))
+    groupLimit(counts, plan, name => name.endsWith('_log'), 40)
     groupLimit(counts, plan, name => name.endsWith('_planks'), 16)
-    groupLimit(counts, plan, name => FOODS.includes(name), 16)
+    groupLimit(counts, plan, name => FOODS.includes(name), 24)
     groupLimit(counts, plan, name => name.endsWith('_bed'), 1)
     return plan
 }
@@ -108,7 +111,7 @@ function restockPlan(stored, items, worn = {}) {
         take(name, limit - (counts[name] || 0))
     }
     const room = (match, limit) => Math.max(0, limit - Object.entries(counts).filter(([name]) => match(name)).reduce((n, [, c]) => n + c, 0))
-    for (const [match, limit] of [[name => name.endsWith('_log'), 16], [name => name.endsWith('_planks'), 16], [name => FOODS.includes(name), 16]]) {
+    for (const [match, limit] of [[name => name.endsWith('_log'), 40], [name => name.endsWith('_planks'), 16], [name => FOODS.includes(name), 24]]) {
         let left = room(match, limit)
         for (const name of Object.keys(stored).filter(match)) {
             const n = Math.min(left, stored[name])
@@ -180,7 +183,7 @@ function baseState(c, state) {
     state.baseRestock = canOpen && state.baseDistance <= 256 && (!state.isNight || (state.underground && state.baseDistance <= 24)) &&
         // Wooden tools are a minute of surface crafting; a bare bot looped trying to dig to them (03.59.47).
         (restock.some(entry => GEAR.test(entry.name) && !entry.name.startsWith('wooden_')) || (state.baseDistance <= 32 && restock.length > 0))
-    const deposit = depositPlan(items, worn)
+    const deposit = depositPlan(items, worn, state.ironCap)
     state.baseDeposit = calm && state.baseDistance <= 32 &&
         (deposit.some(entry => /diamond|iron|gold|lapis|emerald|redstone|_pickaxe|_sword|_helmet|_chestplate|_leggings|_boots|ender_pearl/.test(entry.name)) ||
             deposit.reduce((n, entry) => n + entry.count, 0) >= 32)
@@ -322,7 +325,7 @@ async function migrateBase(c) {
 }
 
 async function depositAtBase(c) {
-    const plan = depositPlan(c.bot.inventory.items(), wornNames(c.bot))
+    const plan = depositPlan(c.bot.inventory.items(), wornNames(c.bot), c.observe?.().ironCap)
     await withChest(c, async window => {
         for (const { name, count } of plan) {
             c.checkAction()

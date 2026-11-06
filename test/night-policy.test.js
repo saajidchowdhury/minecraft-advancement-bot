@@ -33,15 +33,7 @@ function mob(name, x) {
     return { name, isValid: true, position: new Vec3(x, 64, 0), metadata: [] }
 }
 
-test('geared surface bot hunts an isolated useful spider instead of waiting for daylight', () => {
-    const { c, state } = nightWorld()
-    c.bot.entities[1] = mob('spider', 7)
-    updateNightState(c, state)
-    assert.equal(state.nightCombatReady, true)
-    assert.equal(chooseAction(state), 'hunt_night')
-})
-
-test('night work continues underground and without a worthwhile surface hunt target', () => {
+test('a protected surface bot carves down at night and keeps mining underground', () => {
     const { c, state, inventory } = nightWorld()
     updateNightState(c, state)
     assert.equal(chooseAction(state), 'gather_diamonds')
@@ -52,8 +44,9 @@ test('night work continues underground and without a worthwhile surface hunt tar
 })
 
 test('weak first-night player shelters; an available bed takes priority over building a shell', () => {
-    const { c, state, inventory } = nightWorld()
+    const { c, state, inventory, slots } = nightWorld()
     state.armorEquipped = false
+    slots[6] = undefined
     updateNightState(c, state)
     assert.equal(chooseAction(state), 'shelter')
     inventory.push({ name: 'white_bed', count: 1 })
@@ -78,13 +71,12 @@ test('crowding ends surface work for the rest of that night even after threats d
     assert.equal(state.retreatForNight, false)
 })
 
-test('critically low health or hunger ends hunting; eating remains available', () => {
+test('critically low health or hunger ends surface night work; eating remains available', () => {
     for (const change of [{ health: 10 }, { food: 8 }]) {
         const { c, state } = nightWorld()
         Object.assign(state, change)
         updateNightState(c, state)
         assert.equal(state.retreatForNight, true)
-        assert.equal(state.nightCombatReady, false)
     }
     const { c, state } = nightWorld()
     state.food = 8
@@ -92,50 +84,13 @@ test('critically low health or hunger ends hunting; eating remains available', (
     assert.equal(chooseAction(state), 'eat')
 })
 
-test('creepers, witches and wardens trigger withdrawal instead of selected hunts', () => {
+test('creepers, witches and wardens trigger withdrawal', () => {
     for (const name of ['creeper', 'witch', 'warden']) {
         const { c, state } = nightWorld()
         c.bot.entities[1] = mob(name, 4)
         updateNightState(c, state)
         assert.equal(chooseAction(state), 'escape')
-        assert.equal(state.nightTarget, null)
     }
-})
-
-test('hunt supplies are capped and skeletons require full iron-equivalent armor', () => {
-    const { c, state, inventory, slots } = nightWorld()
-    c.bot.entities[1] = mob('skeleton', 7)
-    updateNightState(c, state)
-    assert.equal(state.nightTarget, null)
-    for (const [slot, name] of [[5, 'iron_helmet'], [7, 'iron_leggings'], [8, 'iron_boots']]) {
-        slots[slot] = { name }
-    }
-    updateNightState(c, state)
-    assert.equal(state.nightTarget.name, 'skeleton')
-    inventory.push({ name: 'bone', count: 8 }, { name: 'arrow', count: 16 })
-    updateNightState(c, state)
-    assert.equal(state.nightTarget, null)
-    c.memory.nightHunt = { day: 2, dimension: 'overworld', count: 4 }
-    c.bot.entities[1] = mob('spider', 7)
-    updateNightState(c, state)
-    assert.equal(state.nightTarget, null)
-})
-
-test('night state rejects baby zombies, blocked targets and nearby additional threats', () => {
-    const { c, state } = nightWorld()
-    const zombie = mob('zombie', 7)
-    zombie.metadata[16] = true
-    c.bot.entities[1] = zombie
-    updateNightState(c, state)
-    assert.equal(state.nightTarget, null)
-    c.bot.entities[1] = mob('spider', 7)
-    c.isBlockedTarget = () => true
-    updateNightState(c, state)
-    assert.equal(state.nightTarget, null)
-    c.isBlockedTarget = () => false
-    c.bot.entities[2] = mob('zombie', 5)
-    updateNightState(c, state)
-    assert.equal(state.nightTarget, null)
 })
 
 test('bed preparation uses three wool of one color; failed sleep has a cooldown', () => {
@@ -162,7 +117,7 @@ test('rest decisions and hunt budgets are scoped to the world dimension and game
     assert.equal(state.canSleep, false)
 })
 
-test('a daytime shelter exit outranks shaft recovery and a simple weapon can be prepared for night', () => {
+test('a daytime shelter exit outranks shaft recovery and a night surface bot never stays to fight', () => {
     const { c, state, inventory } = nightWorld()
     state.needsShelterExit = true
     state.isNight = false
@@ -173,8 +128,10 @@ test('a daytime shelter exit outranks shaft recovery and a simple weapon can be 
     state.isNight = true
     state.shaftTrapped = false
     inventory[0] = { name: 'wooden_sword', count: 1 }
+    c.bot.entities[1] = { name: 'spider', isValid: true, position: new Vec3(7, 64, 0), metadata: [] }
     updateNightState(c, state)
-    assert.equal(chooseAction(state), 'prepare_night_weapon')
+    assert.equal(chooseAction(state), 'gather_diamonds')
+    assert.equal(chooseAction({ ...state, visibleHostiles: 1 }), 'shelter')
 })
 
 test('LAN bot only chooses sleep when its owner is visibly sleeping and wakes when the owner wakes', () => {
