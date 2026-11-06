@@ -329,3 +329,13 @@ test('a protected, supplied miner on the surface at night carves down instead of
     assert.equal(chooseAction({ ...dusk, logs: 0 }), Actions.SHELTER)
     assert.equal(chooseAction({ ...dusk, isNight: false }), Actions.IRON)
 })
+
+test('night carving yields to a weapon craft and to a retreat earlier that night', () => {
+    const dusk = state({ isNight: true, food: 17, hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true,
+        hasStonePickaxe: true, hasWoodcuttingAxe: true, hasDiggingShovel: true, hasFurnace: true, hasIronPickaxe: true,
+        hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true, armorPoints: 6, hasWeapon: true,
+        logs: 9, planks: 3, sticks: 3, cobblestone: 49, foodUnits: 16, ironIngots: 0, rawIron: 0,
+        nightCombatReady: false, visibleHostiles: 0, completedAdvancements: new Set() })
+    assert.equal(chooseAction({ ...dusk, canPrepareNightWeapon: true }), 'prepare_night_weapon')
+    assert.equal(chooseAction({ ...dusk, retreatForNight: true }), Actions.SHELTER)
+})
