@@ -6,10 +6,10 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~01:56 Eastern. At handoff the bot was RUNNING on `dac689a` (PID 86567,
-`outputs/2026-11-06@01.54.16`), with a fresh diamond pick and still seeking Hot Stuff lava (F063). A fresh LAN world on port 55502 uses world ID
+Updated 2026-11-06 ~02:04 Eastern. At handoff the bot was RUNNING on `b228b62` (PID 87324,
+`outputs/2026-11-06@02.02.15`) with a diamond pick, after Hot Stuff (F063). A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-at `dac689a` passes all 290 tests and syntax checks. Read the latest
+at `b228b62` passes all 291 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1200,7 +1200,13 @@ a reachable Hot Stuff lava source. Several sources were quarantined after
 put the diamond pick after the lava bucket and the full iron kit, so about
 half of each cycle went to iron for replacement picks. `dac689a` crafts the
 diamond pick (1561 uses vs 250) as soon as three diamonds are carried; live,
-the restarted bot crafted it at 06:54:18. Open: the lava search itself. Hot
-Stuff took about 25 minutes of tunneling without success on this world.
-Measure source-reachability failures and consider casting-site lava from cave
-pools seen during mining.
+the restarted bot crafted it at 06:54:18. The lava search failed because pools visible through rock had no walking
+path; each source cell failed "No path" in turn. `188b1fe` tunnels up to
+four segments toward a pool within 24 blocks before quarantining it. The
+first live attempt failed every segment with "Digging aborted" (the F004
+deferred-stop trap). `b228b62` clears the failed goal and waits two ticks
+before tunneling. Live on `b228b62`, the bot tunneled once toward
+(140,-55,-213), and the server confirmed Hot Stuff at 07:02:53Z: 14
+advancements on this world. The scoop's 4 s inventory check had timed out
+just before the packet, so it is too tight under load; it caused only a
+spurious 120 s quarantine.

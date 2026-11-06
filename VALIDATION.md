@@ -2,7 +2,7 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
-The latest code baseline (`dac689a`) passed all 290 tests and syntax checks.
+The latest code baseline (`b228b62`) passed all 291 tests and syntax checks.
 The staged LAN evidence for casting and diamond interrupts is near the end of
 this file. F056 resolves the F055 obsidian timeout. Continuous portal
 preparation is still not live-verified.
@@ -418,3 +418,5 @@ world came at 06:12:06Z, from a creeper blast followed by a zombie (F062).
 Live-verified on `458ac05` and `9a2ef22`: a pickaxe-free climb out of a cave,
 and a bare respawn crafting a pickaxe before attempting the sealed vault.
 The creeper shield brace and the rest-to-14-HP rule are covered by regressions only.
+Hot Stuff was server-confirmed at 07:02:53Z on `b228b62`, after a live tunnel toward a lava pool
+with no walking path (F063). An early diamond pickaxe was crafted live at 06:54:18 on `dac689a`.
