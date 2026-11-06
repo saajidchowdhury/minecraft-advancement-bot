@@ -9,7 +9,7 @@ stable; correct or qualify an old finding when new evidence changes it.
 Updated 2026-11-06 ~03:51 Eastern. At handoff the bot was RUNNING on `8dc2db6` (PID 94507,
 `outputs/2026-11-06@03.50.23`), rebuilding from spawn after its fourth death (F069); 15 advancements. A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-at `8dc2db6` passes all 300 tests and syntax checks. Read the latest
+at `7558bda` passes all 301 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1312,3 +1312,7 @@ drowning (F065), a pinned tunnel escape (F068) and lava (F069). Three were
 environmental reflexes or escape mechanics with no response at all. Audit the
 remaining hazards the same way (fall damage, suffocation in gravel or sand,
 fire, cactus or berry bushes, powder snow) before adding new branches.
+Audit progress: `7558bda` adds the suffocation reflex. A solid block at
+eye height pre-empts decisions with `clear_head`, which digs it out, and
+critical-health cancellation spares it. Regression only; not yet loaded.
+Fall damage, fire, cactus and powder snow are still unaudited.
