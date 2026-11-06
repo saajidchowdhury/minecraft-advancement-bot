@@ -6,7 +6,20 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
-## Session 2026-11-06 (port 55502) — start here
+## Session 2026-11-06 afternoon (port 49259) — start here
+
+The user's live-test notes are implemented in `ce24690` (F071). The bot was relaunched on
+the same world at 17:08:46Z (`outputs/2026-11-06@12.08.45`). Live-check, in order:
+1. Night: no surface work; shaft descent, carve-down or shelter; underground mining with
+   no food until health <= 12, then an enclosed wait until daylight.
+2. Cooking: a job starts with raw meat, the bot keeps working, collects it before mining
+   or smelting, and reclaims the furnace. Watch for furnace contention with smelt jobs.
+3. Departure reserves: 32 logs and 260.5 meal points; check that daytime food gathering
+   does not stall for long where animals are scarce (lower the target if it does).
+4. `mine_iron`: watch for unreachable-ore loops and pickaxe wear on early iron.
+5. Find why the launch reported "World seed changed" and cleared base memory.
+
+## Session 2026-11-06 (port 55502)
 
 Fresh world `lan-55502-20261106`: ten server-confirmed advancements in 28 min
 with no deaths through Suit Up (F057). It ended at 15 advancements (through Cover Me

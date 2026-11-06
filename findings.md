@@ -1339,3 +1339,33 @@ Fixes, all with regressions that fail on the old code:
 Live on `cecbf1d` (`04.03.39`), the rebuild proceeded: stone pick, furnace,
 wood. Seven deaths in 3h40m on this world; every one since #2 was a reflex
 or routing gap, not a combat-strength gap.
+
+## F071 — User live-test notes applied (2026-11-06) [user observation + regressions; live pending]
+
+User observations from the port 55502 run: the bot died exploring the surface at night,
+left for its first mining trip with too little food, and wasted planks on a wooden sword.
+Code inspection confirmed it never cooked meat (raw beef restores 3 hunger, 1.8 saturation;
+steak 8, 12.8). Changes in `ce24690`, each with a regression that fails on the old source:
+
+- Gear order: no wooden sword; after the shield, an iron sword (2 ingots), then leggings,
+  helmet and boots before any bucket. Hot Stuff now waits for the full iron set.
+- Iron cap: visible iron is mined like a seen diamond while raw + ingots < 16 + ingots for
+  missing iron gear and buckets (55 with nothing, 16 with full gear and three buckets).
+  Base deposits keep at least max(32, cap) iron so restocks never trigger a deposit.
+- Coal opportunity cap 32; base carry levels: coal 32, logs 40, food 24.
+- Night: surface work and night hunting are removed (`huntAtNight`, `prepare_night_weapon`;
+  recover them from `db44453` if a better-armed bot needs them). Underground mining at
+  night ignores carried food and stops at health <= 12 (shelter, then wait).
+- Mining departure: 32 logs and 260.5 meal points (16 x 16.28, the mean hunger+saturation
+  of the five cooked land meats).
+
+Departure from the user's note, flagged to them: the reserve uses hunger + saturation, not
+saturation alone, which would value a glow berry (0.4) at 1/32 of a steak and require
+~390 berries. Under either metric 16 average meats is ~8–16 animals per trip, so watch
+whether gather_food stalls by day when animals are scarce. The underground night
+threshold also waits at health <= 12 even with high hunger, because resting there
+regenerates in seconds; this is stricter than "low on both".
+
+The launch at 17:08:46Z on port 49259 logged "World seed changed" and cleared remembered
+coordinates (base vault, shafts) although the user described the same world; check
+whether the profile or the seed fingerprint is wrong before relying on base memory.

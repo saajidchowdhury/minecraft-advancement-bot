@@ -2,7 +2,11 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
-The latest code baseline (`cecbf1d`) passed all 303 tests and syntax checks.
+The latest code baseline (`ce24690`) passed all 309 tests and syntax checks. It adds
+regressions for the F071 user notes: gear order (no wooden sword, iron set before buckets),
+the iron reserve cap and visible-iron interrupt, coal cap 32, night underground policy,
+the 32-log and 16-meat departure reserves, cooking jobs and glow-berry picking
+(`test/food.test.js`). The night-hunt tests were removed with the feature.
 The staged LAN evidence for casting and diamond interrupts is near the end of
 this file. F056 resolves the F055 obsidian timeout. Continuous portal
 preparation is still not live-verified.

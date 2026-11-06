@@ -80,7 +80,8 @@ async function startCooking(c) {
     const block = await c.getFurnace()
     const furnace = await c.bot.openFurnace(block)
     try {
-        const busy = [furnace.inputItem(), furnace.outputItem()].find(item => item && !FOODS[item.name])
+        // Leftover output (charcoal, ingots) is the bot's own and is collected; foreign input blocks.
+        const busy = furnace.inputItem() && !FOODS[furnace.inputItem().name] ? furnace.inputItem() : null
         if (busy) {
             c.memory.cookBlockedUntil = Date.now() + 60000
             throw new Error(`furnace is busy with ${busy.name}`)

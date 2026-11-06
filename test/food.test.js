@@ -66,6 +66,15 @@ test('raw food starts a fire-and-forget cooking job that is collected and the fu
     assert.equal(c.reclaimed, true)
 })
 
+test('cooking collects leftover charcoal output instead of treating the furnace as busy', async () => {
+    const items = [{ name: 'mutton', count: 2 }, { name: 'coal', count: 1 }]
+    const { c, furnace } = kitchen(items)
+    furnace.output = { name: 'charcoal', count: 1 }
+    await cookFood(c)
+    assert.equal(c.countItems(['charcoal']), 1)
+    assert.deepEqual(furnace.input, { name: 'mutton', count: 2 })
+})
+
 test('cooking refuses a furnace holding iron and backs off instead of mixing jobs', async () => {
     const items = [{ name: 'porkchop', count: 3 }, { name: 'oak_planks', count: 4 }]
     const { c, furnace } = kitchen(items)

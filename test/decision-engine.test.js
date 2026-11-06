@@ -216,6 +216,8 @@ test('iron and coal trips also carry a wood reserve for replacement picks', () =
     assert.equal(chooseAction(state({ ...early, logs: 32 })), 'gather_iron')
     assert.equal(chooseAction(state({ ...early, logs: 32, mealReserve: 100 })), Actions.FOOD)
     assert.equal(chooseAction(state({ ...early, underground: true })), 'gather_iron')
+    assert.equal(chooseAction(state({ ...early, underground: false, y: -19, surfaceY: 64 })), 'gather_iron')
+    assert.equal(chooseAction(state({ ...early, underground: false, y: 60, surfaceY: 64 })), Actions.WOOD)
 })
 
 test('a lava search stocks food before descent and continues if already underground', () => {

@@ -115,14 +115,21 @@ probe, and exposed ore returns control to resource harvesting. Eight is a
 starting value, not a measured optimum.
 
 Newly exposed diamonds can interrupt another mining objective when safe. After
-collecting the drop, the bot returns to the interrupted objective. It also
-gathers other nearby ores up to small reserve caps. A supplied and protected
+collecting the drop, the bot returns to the interrupted objective. Visible iron
+interrupts the same way while raw iron plus ingots are below 16 plus the ingots
+for missing iron gear (pickaxe, shield, sword, four armor pieces, three buckets).
+It also gathers other nearby ores up to reserve caps (coal and charcoal: 32). A supplied and protected
 bot explores caves depth first, remembering checkpoints and return waypoints by
 dimension. It checks lighting and support, stops for threats, and avoids
 digging or bridging during the survey. It can loot visible chests and chest
 minecarts and remember whether each was emptied. Before leaving the surface to
-mine, it stocks at least eight logs' worth of wood and sixteen hunger points of
-carried food. A full natural cave survey and return still needs live
+mine, it stocks 32 logs (a plank counts as a quarter log) and a meal reserve of
+16 average cooked land meats, measured as hunger plus saturation with raw food at
+its cooked value. Raw meat, fish and potatoes are cooked in fire-and-forget
+furnace jobs; ripe glow berries are picked while the meal reserve is short. At
+night it never works or hunts on the surface: it takes a known shaft down, carves
+down when protected, or shelters; underground it keeps mining regardless of
+carried food and waits enclosed once health falls to 12 or less. A full natural cave survey and return still needs live
 validation. See [cave-opportunities.md](cave-opportunities.md).
 
 Food gathering can turn nearby red and brown mushrooms, including drops from

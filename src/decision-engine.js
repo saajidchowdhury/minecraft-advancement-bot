@@ -240,8 +240,10 @@ function chooseAction (state) {
     const mining = ['gather_iron', 'gather_coal', 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'gather_obsidian', 'fill_lava_bucket'].includes(action)
     const casting = action === 'gather_obsidian' &&
         (state.obsidianCastPending || (state.hasLavaBucket && state.waterBuckets >= 2))
-    const stagingNearSurface = state.underground && !state.isNight && state.y >= state.surfaceY - 8
-    if (mining && !casting && (!state.underground || stagingNearSurface)) {
+    // Departure reserves apply near surface level only; a sky-lit ravine floor at Y=-19 reads as
+    // not underground and scouted for trees there (17:09:30Z).
+    const nearSurface = state.underground ? state.y >= state.surfaceY - 8 : !(state.y < state.surfaceY - 8)
+    if (mining && !casting && nearSurface && !(state.underground && state.isNight)) {
         if ((state.planks || 0) + (state.logs || 0) * 4 < MIN_MINING_WOOD_PLANKS) {
             return state.underground ? 'return_surface' : Actions.WOOD
         }
