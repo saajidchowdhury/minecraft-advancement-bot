@@ -9,7 +9,7 @@ stable; correct or qualify an old finding when new evidence changes it.
 Updated 2026-11-06 ~03:03 Eastern. At handoff the bot was RUNNING on `7b403bc` (PID 91216,
 `outputs/2026-11-06@03.01.22`), rebuilding after its second death (F065, F066); 15 advancements. A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-at `7b403bc` passes all 296 tests and syntax checks. Read the latest
+at `3fb7ee8` passes all 297 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1256,3 +1256,7 @@ or "No path". The remembered job held 32 raw iron at (172,43,-176), about
 and drops the job after twelve segments. Live on `7b403bc`, two segments
 (Y 60 → 53) reached it, and at 08:02:11 the bot reported "input waiting for
 fuel". The F041 fuel path is next.
+At 08:05Z three coal-ore pickups during `gather_iron` were judged "no
+verified progress" and escalated into unstick scouting. Only `rawIron`
+counted for that action. `3fb7ee8` credits coal, raw iron, diamonds or
+redstone for both iron and coal trips (regression; not yet loaded).

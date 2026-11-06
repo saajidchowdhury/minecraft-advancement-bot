@@ -2,7 +2,7 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
-The latest code baseline (`7b403bc`) passed all 296 tests and syntax checks.
+The latest code baseline (`3fb7ee8`) passed all 297 tests and syntax checks.
 The staged LAN evidence for casting and diamond interrupts is near the end of
 this file. F056 resolves the F055 obsidian timeout. Continuous portal
 preparation is still not live-verified.
