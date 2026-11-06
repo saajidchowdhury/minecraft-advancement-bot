@@ -627,7 +627,11 @@ async function useBucket(c, name, aim, verify, label) {
     try {
         await until(c, () => c.countItems([name]) < before && verify(), 4000)
     } catch (error) {
-        throw new Error(`${label}: ${error.message}`, { cause: error })
+        // Record what the use actually aimed at; scoop misses had no other evidence (02.45.11).
+        const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
+        const hit = bot.world?.raycast?.(eye, aim.minus(eye).normalize(), 6, () => true)
+        throw new Error(`${label}: ${error.message}; held=${bot.heldItem?.name}, ray hit ${hit?.name ?? 'nothing'} ` +
+            `at ${hit?.position ?? '-'} aiming ${aim}`, { cause: error })
     } finally {
         bot.deactivateItem()
     }
