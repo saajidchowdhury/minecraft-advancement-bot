@@ -490,6 +490,11 @@ class SurvivalController {
             this.failures.set(action, count)
             const message = error && error.message ? error.message : String(error)
             const foodStalled = action === Actions.FOOD && this.actionAbort?.signal.reason === `${action} is stuck`
+            // Approach timeouts and failed scouts at one spot (live 00.35.19 stair top) never say "no path".
+            if (count === 1 || !this.failureOrigin) {
+                this.failureOrigin = this.bot.entity.position.clone()
+            }
+            const stalledInPlace = count >= 3 && this.bot.entity.position.distanceTo(this.failureOrigin) < 1.5
             this.log.warn(`${action} failed (${count}): ${message}`)
             // A failed collect/path can leave a direct Mineflayer dig in flight even
             // though its promise already rejected. Stop all action ownership before
@@ -525,7 +530,7 @@ class SurvivalController {
                     this.log.warn(`Workspace relocation failed: ${relocationError.message}`)
                 }
             }
-            if (count >= 3 && (foodStalled || /no path to the goal/i.test(message))) {
+            if (count >= 3 && (foodStalled || stalledInPlace || /no path to the goal/i.test(message))) {
                 await this.unstick().catch(unstickError => this.log.warn(`Unstick failed: ${unstickError.message}`))
             } else if (count >= 3 && action !== 'hunt_night' && !STATIONARY_ACTIONS.has(action)) {
                 await this.scout(12).catch(() => {})

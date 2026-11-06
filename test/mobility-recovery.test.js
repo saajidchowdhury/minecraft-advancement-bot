@@ -154,3 +154,29 @@ test('a canopy of leaves does not count as being underground, but rock overhead 
     const cave = { blockAt: p => ({ name: p.y === 75 ? 'stone' : 'air', boundingBox: p.y === 75 ? 'block' : 'empty' }) }
     assert.equal(coveredAbove(cave, new Vec3(0, 67, 0)), true)
 })
+
+test('three approach timeouts without leaving the spot enter mobility recovery', async () => {
+    const c = Object.create(SurvivalController.prototype)
+    c.running = true
+    c.bot = { health: 20, entity: { position: new Vec3(-33.3, 70, -32.3) } }
+    c.observe = () => ({
+        health: 20, food: 20, foodUnits: 20, hostileDistance: Infinity, hasCraftingTable: true, hasWoodenPickaxe: true,
+        hasEarlySword: true, hasStonePickaxe: true, hasWoodcuttingAxe: true, hasDiggingShovel: true, hasFurnace: true,
+        rawIron: 12, ironIngots: 6, logs: 0, planks: 0, sticks: 1, completedAdvancements: new Set()
+    })
+    c.log = { info() {}, warn() {} }
+    c.onState = c.scheduleLoop = () => {}
+    c.inventorySummary = () => ''
+    c.detectVerticalShaft = c.detectElevationTrap = () => false
+    c.failures = new Map()
+    c.performWithTimeout = async () => { throw new Error('resource approach timed out after 10s') }
+    let recoveries = 0
+    let scouts = 0
+    c.unstick = async () => { recoveries++ }
+    c.scout = async () => { scouts++ }
+    for (let i = 0; i < 3; i++) {
+        await c.tick()
+    }
+    assert.equal(recoveries, 1)
+    assert.equal(scouts, 0)
+})
