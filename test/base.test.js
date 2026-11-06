@@ -89,6 +89,8 @@ test('base decisions: build the vault underground, migrate an exposed chest by d
     const night = baseState({ bot: baseBot([], new Vec3(40.5, 70, 0.5)), memory }, { ...calm, isNight: true })
     assert.equal(night.baseRestock, false)
     assert.equal(baseState({ bot: baseBot([], new Vec3(10.5, 70, 0.5)), memory }, { ...calm, isNight: true }).baseRestock, true)
+    const wooden = { base: { ...memory.base, contents: { wooden_pickaxe: 1, crafting_table: 1 } } }
+    assert.equal(baseState({ bot: baseBot([], new Vec3(150.5, 70, 0.5)), memory: wooden }, { ...calm, underground: false }).baseRestock, false)
     const sealed = { base: { ...memory.base, sealed: true } }
     assert.equal(baseState({ bot: baseBot([], new Vec3(150.5, 70, 0.5)), memory: sealed }, { ...calm, underground: false }).baseRestock, false)
     const pick = [{ name: 'wooden_pickaxe', count: 1 }]

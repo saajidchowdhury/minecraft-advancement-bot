@@ -177,7 +177,8 @@ function baseState(c, state) {
     const canOpen = !base.sealed || items.some(item => item.name.endsWith('_pickaxe'))
     // Deaths #5-#7 (03.50.23): bare respawns crossed dark caves at night to reach the vault.
     state.baseRestock = canOpen && state.baseDistance <= 256 && (!state.isNight || (state.underground && state.baseDistance <= 24)) &&
-        (restock.some(entry => GEAR.test(entry.name)) || (state.baseDistance <= 32 && restock.length > 0))
+        // Wooden tools are a minute of surface crafting; a bare bot looped trying to dig to them (03.59.47).
+        (restock.some(entry => GEAR.test(entry.name) && !entry.name.startsWith('wooden_')) || (state.baseDistance <= 32 && restock.length > 0))
     const deposit = depositPlan(items, worn)
     state.baseDeposit = calm && state.baseDistance <= 32 &&
         (deposit.some(entry => /diamond|iron|gold|lapis|emerald|redstone|_pickaxe|_sword|_helmet|_chestplate|_leggings|_boots|ender_pearl/.test(entry.name)) ||
