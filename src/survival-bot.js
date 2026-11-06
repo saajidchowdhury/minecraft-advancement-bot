@@ -80,7 +80,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     smelt_charcoal: 45000, craft_progression: 45000, equip_armor: 10000, equip_shield: 10000,
     fill_water_bucket: 90000, fill_lava_bucket: 90000, gather_diamonds: 90000, gather_obsidian: 90000,
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
-    clear_inventory: 30000, mine_diamond: 45000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
+    clear_inventory: 30000, mine_diamond: 45000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
     wake: 10000, hunt_night: 45000, sleep: 30000, prepare_bed: 45000, prepare_night_weapon: 30000, leave_shelter: 20000,
     [Actions.EXPLORE]: 60000
@@ -647,6 +647,8 @@ class SurvivalController {
             this.recoveringHealth = false
         }
         state.recoveringHealth = Boolean(this.recoveringHealth)
+        state.oxygen = this.bot.oxygenLevel ?? 20
+        state.headInWater = this.bot.blockAt(this.bot.entity.position.offset(0, this.bot.entity.eyeHeight ?? 1.62, 0), false)?.name === 'water'
         // Hostiles behind walls cannot reach a sealed pocket; only visible ones make a crowd.
         state.visibleHostiles = this.visibleThreatCount(12)
         state.closeHostiles = this.visibleThreatCount()
@@ -682,6 +684,7 @@ class SurvivalController {
             case 'plant_seed': return plantSeed(this)
             case 'go_fish': return goFish(this)
             case 'shoot_arrow': return shootArrow(this)
+            case 'surface_for_air': return this.surfaceForAir()
             case 'gather_leather': return gatherLeather(this)
             case 'enchant_item': return enchantItem(this)
             case 'breed_animals': return breedAnimals(this)
@@ -1720,6 +1723,35 @@ class SurvivalController {
             if (brace()) {
                 return this.braceAgainst(threat)
             }
+        }
+    }
+
+    // Nearest cell within six blocks whose head space is air; with none, swim straight up with jump held.
+    async surfaceForAir () {
+        const feet = this.bot.entity.position.floored()
+        const open = p => this.bot.blockAt(p, false)?.boundingBox === 'empty'
+        let best = null
+        for (let dy = 6; dy >= -1; dy--) {
+            for (let dx = -6; dx <= 6; dx++) {
+                for (let dz = -6; dz <= 6; dz++) {
+                    const p = feet.offset(dx, dy, dz)
+                    if (open(p) && this.bot.blockAt(p.offset(0, 1, 0), false)?.name === 'air' &&
+                        (!best || feet.distanceTo(p) < feet.distanceTo(best))) {
+                        best = p
+                    }
+                }
+            }
+        }
+        this.log.warn(`Out of air (${this.bot.oxygenLevel}/20); ${best ? `swimming to ${best}` : 'swimming straight up'}.`)
+        this.bot.setControlState('jump', true)
+        try {
+            if (best) {
+                await this.gotoWithTimeout(new goals.GoalBlock(best.x, best.y, best.z), 6000, 'air pocket')
+            } else {
+                await sleep(1500)
+            }
+        } finally {
+            this.bot.setControlState('jump', false)
         }
     }
 

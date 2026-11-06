@@ -43,6 +43,10 @@ function outnumbered (closeHostiles, armorPoints) {
   * without connecting to Minecraft.
   */
 function chooseAction (state) {
+    // Drowning costs 2 HP/s once air runs out and nothing else can fix it (02.56.08 died underwater).
+    if (state.headInWater && (state.oxygen ?? 20) <= 12) {
+        return 'surface_for_air'
+    }
     if (outnumbered(state.closeHostiles, state.armorPoints)) {
         return Actions.ESCAPE
     }

@@ -615,3 +615,27 @@ test('successful actions replan after 250 ms while failures keep the 1.5 s back-
     await SurvivalController.prototype.tick.call(c)
     assert.deepEqual(delays, [250, 1500])
 })
+
+test('a bot out of air underwater swims to the nearest breathable cell before any other work', async () => {
+    const { chooseAction } = require('../src/decision-engine')
+    assert.equal(chooseAction({ health: 14, food: 17, hostileDistance: 3, hasWeapon: true, headInWater: true, oxygen: 4 }), 'surface_for_air')
+    assert.notEqual(chooseAction({ health: 20, food: 20, hostileDistance: Infinity, headInWater: true, oxygen: 18 }), 'surface_for_air')
+    const pocket = new Vec3(2, 53, 0)
+    const c = Object.create(SurvivalController.prototype)
+    const controls = []
+    let goal
+    c.log = { warn() {} }
+    c.bot = {
+        oxygenLevel: 3, entity: { position: new Vec3(0.5, 50, 0.5) },
+        blockAt(p) {
+            const name = p.equals(pocket.offset(0, 1, 0)) ? 'air' :
+                p.y >= 50 && p.y <= 53 && Math.abs(p.x) <= 2 && p.z === 0 ? 'water' : 'stone'
+            return { name, boundingBox: name === 'stone' ? 'block' : 'empty' }
+        },
+        setControlState(control, on) { controls.push(`${control}:${on}`) }
+    }
+    c.gotoWithTimeout = async g => { goal = g }
+    await c.surfaceForAir()
+    assert.deepEqual([goal.x, goal.y, goal.z], [2, 53, 0])
+    assert.deepEqual(controls, ['jump:true', 'jump:false'])
+})
