@@ -10,7 +10,8 @@ one playthrough is a test, not the definition of success.
 
 Fresh world `lan-55502-20261106`: ten server-confirmed advancements in 28 min
 with no deaths through Suit Up (F057). Next actions, in order:
-0. F062: live-check the creeper shield brace and the rest-to-14-HP rule; make a
+0. F065: live-check `surface_for_air`; read the next bucket-miss diagnostic before
+   changing the scoop. F062: live-check the creeper shield brace and the rest-to-14-HP rule; make a
    low-health escape that cannot gain distance on a zombie fight behind the shield.
 1. F063: Hot Stuff confirmed after tunneling toward a no-path pool. Lengthen the
    4 s scoop check if spurious lava quarantines recur, and watch the next casting trips.

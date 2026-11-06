@@ -6,10 +6,10 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~02:30 Eastern. At handoff the bot was RUNNING on `2420de5` (PID 88506,
-`outputs/2026-11-06@02.29.19`) after Hot Stuff, with 14 advancements (F063, F064). A fresh LAN world on port 55502 uses world ID
+Updated 2026-11-06 ~03:00 Eastern. At handoff the bot was RUNNING on `dc4b3cd` (PID 90817,
+`outputs/2026-11-06@02.59.01`) after its second death, by drowning (F065); 15 advancements. A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-at `6bd5f03` passes all 293 tests and syntax checks. Read the latest
+at `dc4b3cd` passes all 295 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1224,3 +1224,25 @@ tunnel at Y=31 still stalled, because the fallback covered only sloped
 tunnels; in-place escalation recovered it in about 8 s. `6bd5f03` lets a level
 tunnel take one step up, then one down, around the hazard. It is
 regression-tested and not yet loaded into the running bot.
+
+## F065 — Cave springs, a drowning, and the water-bucket step [live + regressions]
+
+After Cover Me with Diamonds (07:42:46Z, 15 advancements: a diamond sword
+and boots), `fill_water_bucket` rejected ten cave springs in a row with
+"water source has no dry bank". `fbc8df9` approaches a bankless source
+within 3 blocks and scoops if it is within 4.5 blocks. `5be400a` first
+rejects springs hidden behind rock. Scoops from banks also timed out at
+4 s, so `8eacbf9` records the held item and the block the eye ray reaches.
+
+Death #2 at 07:56:19Z: the bot was restarted at 07:56:08 while working at
+water level beside a spring at (124,47,-152). It reconnected out of air,
+filled its second bucket, and then lost 2 HP every 1.0 s with no threat
+nearby, at a fixed position, while choosing `gather_obsidian` and
+`return_surface`. That rate is drowning; suffocation would be 1 HP per
+0.5 s. Nothing in the planner read `bot.oxygenLevel`. `dc4b3cd` puts
+`surface_for_air` ahead of every other decision when the head is in water
+and oxygen is at or below 12/20. It paths to the nearest breathable cell
+within 6 blocks, holding jump, or swims straight up for 1.5 s.
+Regression-tested; live from 07:59Z (`outputs/2026-11-06@02.59.01`). The
+drops lie underwater at (123,50,-151).
+Restarting a bot that stands in water is itself a risk; check the position first.
