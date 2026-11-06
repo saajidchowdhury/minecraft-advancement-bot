@@ -175,7 +175,8 @@ function baseState(c, state) {
     // A long trip pays only for gear; small refills happen when the bot passes by anyway.
     // The cobblestone seal needs a pickaxe (stone is never dug by hand), so a bare respawn makes one first.
     const canOpen = !base.sealed || items.some(item => item.name.endsWith('_pickaxe'))
-    state.baseRestock = canOpen && state.baseDistance <= 256 && (state.underground || !state.isNight) &&
+    // Deaths #5-#7 (03.50.23): bare respawns crossed dark caves at night to reach the vault.
+    state.baseRestock = canOpen && state.baseDistance <= 256 && (!state.isNight || (state.underground && state.baseDistance <= 24)) &&
         (restock.some(entry => GEAR.test(entry.name)) || (state.baseDistance <= 32 && restock.length > 0))
     const deposit = depositPlan(items, worn)
     state.baseDeposit = calm && state.baseDistance <= 32 &&

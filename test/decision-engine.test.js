@@ -348,3 +348,13 @@ test('after critical health the bot keeps resting to 14 HP before resuming work'
     assert.notEqual(chooseAction({ ...miner, health: 14, recoveringHealth: true }), 'wait')
     assert.notEqual(chooseAction({ ...miner, health: 7.7, recoveringHealth: true, hostileDistance: 8 }), 'wait')
 })
+
+test('an unarmored bot in a cave with mobs at night shelters, while quiet tunnels keep working', () => {
+    const cave = state({ underground: true, isNight: true, hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true,
+        hasStonePickaxe: true, hasFurnace: true, hasIronPickaxe: true, rawIron: 3, cobblestone: 10, food: 20, hasFood: true,
+        logs: 0, planks: 0, sticks: 0, hostileDistance: 9 })
+    assert.equal(chooseAction(cave), Actions.SHELTER)
+    assert.equal(chooseAction({ ...cave, hostileDistance: Infinity }), Actions.IRON)
+    assert.equal(chooseAction({ ...cave, armorPoints: 15 }), Actions.IRON)
+    assert.equal(chooseAction({ ...cave, isNight: false }), 'return_surface')
+})

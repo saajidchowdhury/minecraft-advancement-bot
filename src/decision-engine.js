@@ -96,6 +96,12 @@ function chooseAction (state) {
         state.hostileDistance > 12 && !state.sleeping) {
         return 'wait'
     }
+    // An unarmored bot that respawned into a mob-lit cave at night (03.50.23) shelters instead of
+    // working; quiet tunnels keep the productive-night policy.
+    if (state.isNight && state.underground && !state.sheltered && !(state.armorPoints > 0) && !state.shieldEquipped &&
+        state.hostileDistance > 3.5 && state.hostileDistance <= 16) {
+        return Actions.SHELTER
+    }
     if (state.isNight && state.sheltered && !state.underground) {
         if (state.canSleep) {
             return 'leave_shelter'
