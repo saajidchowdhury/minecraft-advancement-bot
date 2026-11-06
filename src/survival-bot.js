@@ -483,7 +483,9 @@ class SurvivalController {
             if (count === 1 || !this.failureOrigin) {
                 this.failureOrigin = this.bot.entity.position.clone()
             }
-            const stalledInPlace = count >= 3 && this.bot.entity.position.distanceTo(this.failureOrigin) < 1.5
+            // A surfacing bot must not take the six-block drops of unstick scouting (00.54.52 fell to Y=46).
+            const stalledInPlace = count >= 3 && action !== 'return_surface' &&
+                this.bot.entity.position.distanceTo(this.failureOrigin) < 1.5
             this.log.warn(`${action} failed (${count}): ${message}`)
             // A failed collect/path can leave a direct Mineflayer dig in flight even
             // though its promise already rejected. Stop all action ownership before

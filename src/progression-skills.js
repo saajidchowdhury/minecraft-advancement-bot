@@ -1004,7 +1004,17 @@ async function returnSurface(c) {
         return
     }
     if (!miningPickaxe(c)) {
-        throw new Error('return stairs blocked and carving requires a pickaxe')
+        // Without a pick only walking (and hand-digging soft blocks) can climb; any node at the
+        // surface level ends the search, and height is the A* heuristic.
+        const up = Object.assign(new goals.Goal(), {
+            heuristic: node => Math.max(0, surfaceY - 1 - node.y),
+            isEnd: node => node.y >= surfaceY - 1
+        })
+        await c.gotoWithTimeout(up, 20000, 'pickaxe-free climb')
+        if (c.bot.entity.position.y < surfaceY - 1) {
+            throw new Error('return stairs blocked and carving requires a pickaxe')
+        }
+        return
     }
     if (!c.memory.surfaceByStaircase) {
         c.log.warn('Known return stairs unavailable. Carving a supported staircase.')

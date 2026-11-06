@@ -490,12 +490,26 @@ test('reaching the home level inside a hill keeps climbing until the sky is open
             health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(-33.5, 70, -32.5) },
             blockAt: p => ({ name: p.y === roof ? 'stone' : 'air', boundingBox: p.y === roof ? 'block' : 'empty' })
         }
-        const c = { bot, running: true, paused: false, home: { y: 69 }, memory: {}, log: { info() {}, warn() {} }, bestItem: () => null }
+        const c = { bot, running: true, paused: false, home: { y: 69 }, memory: {}, log: { info() {}, warn() {} }, bestItem: () => null,
+            gotoWithTimeout: async () => { throw new Error('No path to the goal!') } }
         const run = performProgression(c, 'return_surface', {})
         if (expectClimb) {
-            await assert.rejects(run, /carving requires a pickaxe/)
+            await assert.rejects(run, /No path to the goal/)
         } else {
             await run
         }
     }
+})
+
+test('a pickaxe-free bot below the surface walks up toward the home level instead of failing at once', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const bot = { health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(6.5, 65, 3.5) },
+        blockAt: p => ({ name: p.y === 67 ? 'oak_planks' : 'air', boundingBox: p.y === 67 ? 'block' : 'empty' }) }
+    let goal
+    const c = { bot, running: true, paused: false, home: { y: 69 }, memory: {}, log: { info() {}, warn() {} }, bestItem: () => null,
+        async gotoWithTimeout(g) { goal = g; bot.entity.position = new Vec3(9.5, 68, 3.5) } }
+    await performProgression(c, 'return_surface', {})
+    assert.equal(goal.isEnd({ y: 68 }), true)
+    assert.equal(goal.isEnd({ y: 66 }), false)
+    assert.equal(goal.heuristic({ y: 60 }), 8)
 })
