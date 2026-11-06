@@ -384,3 +384,5 @@ advancementsPerHour across a full run.
   harvesting brown caps and crafting stew. Recovery retains a checked
   excavation fallback. Watch a natural foraging run reach the mining reserve,
   and record the time and number of cap blocks needed compared with hunting.
+- F049: stone shovel crafting verified on the running LAN bot. Verify automatic
+  replacement after wear during a future run.

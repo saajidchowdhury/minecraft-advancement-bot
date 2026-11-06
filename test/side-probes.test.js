@@ -3,6 +3,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { Vec3 } = require('vec3')
+const mcData = require('minecraft-data')('26.1')
 const { probeTunnelSides, mineTunnel } = require('../src/progression-skills')
 
 function miningWorld(overrides = new Map()) {
@@ -67,6 +68,27 @@ test('two four-block tunnel actions trigger one pair of probes at spacing eight'
     assert.equal(c.memory.probeMinedBlocks, 8)
     assert.equal(c.memory.probeSteps, 0)
     assert.equal(c.bot.entity.position.x, 8.5)
+})
+
+test('a mixed tunnel uses the stone shovel on dirt and grass blocks and the pick on stone', async () => {
+    const c = miningWorld(new Map([['(1, 65, 0)', 'dirt'], ['(1, 64, 0)', 'grass_block']]))
+    const tools = ['stone_shovel', 'iron_pickaxe'].map(name => mcData.itemsByName[name])
+    c.bestItem = names => names.map(name => tools.find(item => item.name === name)).find(Boolean)
+    const blockAt = c.bot.blockAt
+    c.bot.blockAt = p => {
+        const block = blockAt(p)
+        block.material = mcData.blocksByName[block.name].material
+        return block
+    }
+    c.bot.equip = async item => { c.bot.heldItem = item }
+    const digs = []
+    const dig = c.bot.dig
+    c.bot.dig = async block => {
+        digs.push([block.name, c.bot.heldItem.name])
+        await dig(block)
+    }
+    await mineTunnel(c, 64)
+    assert.deepEqual(digs.slice(0, 3), [['dirt', 'stone_shovel'], ['grass_block', 'stone_shovel'], ['stone', 'iron_pickaxe']])
 })
 
 test('pausing during a probe prevents subsequent digs', async () => {

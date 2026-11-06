@@ -19,6 +19,7 @@ const Actions = Object.freeze({
     STONE: 'gather_stone',
     CRAFT_STONE_PICKAXE: 'craft_stone_pickaxe',
     CRAFT_STONE_AXE: 'craft_stone_axe',
+    CRAFT_STONE_SHOVEL: 'craft_stone_shovel',
     CRAFT_FURNACE: 'craft_furnace',
     FOOD: 'gather_food',
     COAL: 'gather_coal',
@@ -147,7 +148,7 @@ function chooseAction (state) {
     if (progression.action === Actions.CRAFT_STONE_AXE) {
         return progression.action
     }
-    const preparingTool = recoveringPick || preparingIronPick || progression.item === 'stone_axe'
+    const preparingTool = recoveringPick || preparingIronPick || ['stone_axe', 'stone_shovel'].includes(progression.item)
     const action = preparingTool ? progression.action : state.sideGoal?.action || progression.action
     const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'enter_nether', 'build_redstone'].includes(action)
     if (!recoveringPick && state.baseMigrate) {

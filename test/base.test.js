@@ -28,11 +28,11 @@ test('an unworn better armor piece is not stored before it can be equipped', () 
 })
 
 test('after a death the restock takes the best gear and refills carry levels', () => {
-    const stored = { diamond_pickaxe: 1, iron_pickaxe: 1, stone_pickaxe: 2, diamond_sword: 1, stone_axe: 1, iron_chestplate: 1, iron_helmet: 1,
+    const stored = { diamond_pickaxe: 1, iron_pickaxe: 1, stone_pickaxe: 2, diamond_sword: 1, stone_axe: 1, stone_shovel: 1, iron_chestplate: 1, iron_helmet: 1,
         shield: 1, diamond: 20, iron_ingot: 40, coal: 30, oak_log: 30, bread: 40, crafting_table: 2, raw_gold: 6 }
     const plan = asMap(restockPlan(stored, [], {}))
     assert.deepEqual(plan, {
-        diamond_pickaxe: 1, diamond_sword: 1, stone_axe: 1, stone_pickaxe: 1, iron_helmet: 1, iron_chestplate: 1, shield: 1,
+        diamond_pickaxe: 1, diamond_sword: 1, stone_axe: 1, stone_shovel: 1, stone_pickaxe: 1, iron_helmet: 1, iron_chestplate: 1, shield: 1,
         diamond: 8, iron_ingot: 16, coal: 16, crafting_table: 1, oak_log: 16, bread: 16
     })
 })

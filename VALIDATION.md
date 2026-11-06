@@ -344,3 +344,11 @@ Brown mushroom caps were placed for a separate foraging fixture. The bot broke
 the blocks and picked up their drops in survival. A command-free retry crafted
 four bowls at the table and one stew in the inventory grid from those drops.
 F048 records the setup and retry separately from unaided progression.
+
+F049 adds regressions for shovel crafting order, replacement, survival and
+cleanup priorities, mixed-material tunnel tool selection, and base restocking.
+All 246 tests and syntax checks pass. Comment-bearing lines are 5/217 in
+`advancement-plan.js`, 20/357 in `base.js`, 17/213 in `decision-engine.js`,
+19/1083 in `progression-skills.js`, and 63/2394 in `survival-bot.js`. Changed
+tests have at most 2/245 comment-bearing lines. The LAN run crafted a shovel
+from carried materials. Replacement after wear is covered by the planner test.

@@ -114,6 +114,17 @@ test('the axe upgrade outranks optional activities while keeping threat interrup
     assert.equal(chooseAction({ ...ready, health: 6, hostileDistance: 2 }), Actions.ESCAPE)
 })
 
+test('shovel crafting outranks optional work while danger, hunger and inventory cleanup still interrupt', () => {
+    const ready = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true,
+        hasWoodcuttingAxe: true, hasDiggingShovel: false, cobblestone: 1, sticks: 2,
+        sideGoal: { action: 'build_redstone' }, canPlantSeed: true })
+    assert.equal(chooseAction(ready), 'craft_stone_shovel')
+    assert.equal(chooseAction({ ...ready, cobblestone: 0 }), Actions.STONE)
+    assert.equal(chooseAction({ ...ready, creeperDistance: 4 }), Actions.ESCAPE)
+    assert.equal(chooseAction({ ...ready, food: 14, hasFood: true }), Actions.EAT)
+    assert.equal(chooseAction({ ...ready, inventoryFull: true }), 'clear_inventory')
+})
+
 test('critically injured bot seeks food instead of continuing progression', () => {
     assert.equal(chooseAction(state({ health: 4, food: 17 })), Actions.FOOD)
 })

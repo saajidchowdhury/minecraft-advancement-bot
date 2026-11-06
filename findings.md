@@ -923,3 +923,18 @@ retry used the harvested mushrooms, crafted four bowls, reclaimed the table
 and made one stew in the inventory grid, worth six carried food points. See
 `outputs/food-replay-setup.json` and `outputs/food-replay-craft.json` for the
 separate staged setup and recipe retry.
+
+## F049 — Maintain a digging shovel after the stone axe
+
+After the pickaxe and axe, the planner crafts a stone shovel from one
+cobblestone and two sticks. It schedules a replacement if the bot loses the
+shovel or wears it out. Iron, diamond and netherite shovels satisfy the reserve.
+Tunnels, shaft repairs, disposal pits and manual escape or shelter digs now
+select the shovel for shovel-mined terrain. Existing falling-block and liquid
+checks still govern where the bot can dig. Nearby base restocks can recover a
+spare shovel.
+
+On port 54390, the `22.26.16` run made the shovel on its first action at
+22:26:20 Eastern, using its carried materials, and resumed iron gathering.
+The mixed-tunnel regression verifies shovel selection for dirt and grass
+blocks and pickaxe selection for stone.

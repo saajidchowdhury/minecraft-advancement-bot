@@ -82,7 +82,7 @@ function restockPlan(stored, items, worn = {}) {
     }
     const best = kind => Object.keys(stored).filter(name => name.endsWith(`_${kind}`) && stored[name] > 0 && tier(name) >= 0)
         .sort((a, b) => tier(b) - tier(a))[0]
-    for (const kind of ['pickaxe', 'sword', 'axe']) {
+    for (const kind of ['pickaxe', 'sword', 'axe', 'shovel']) {
         const carried = Math.max(-1, ...Object.keys(counts).filter(name => name.endsWith(`_${kind}`)).map(tier))
         const stash = best(kind)
         if (stash && tier(stash) > carried) {

@@ -15,7 +15,7 @@ const { inventoryReport } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
 const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnimals } = require('./farming')
 const { golemState, summonGolem } = require('./golem')
-const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, PROTECTED_CONTAINERS, WOODCUTTING_AXES } = require('./progression-skills')
+const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
 
 const { GoalNear, GoalFollow } = goals
 
@@ -67,6 +67,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     [Actions.STONE]: 90000,
     [Actions.CRAFT_STONE_PICKAXE]: 30000,
     [Actions.CRAFT_STONE_AXE]: 30000,
+    [Actions.CRAFT_STONE_SHOVEL]: 30000,
     [Actions.CRAFT_FURNACE]: 30000,
     [Actions.FOOD]: 60000,
     [Actions.COAL]: 90000,
@@ -86,7 +87,7 @@ const STATIONARY_ACTIONS = new Set([
     Actions.ASCEND,
     'wake', 'sleep', 'prepare_bed', 'prepare_night_weapon', 'leave_shelter',
     Actions.CRAFT_TABLE, Actions.CRAFT_WOODEN_PICKAXE, Actions.CRAFT_WOODEN_SWORD, Actions.CRAFT_STONE_PICKAXE,
-    Actions.CRAFT_FURNACE, Actions.SMELT_IRON, Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_AXE,
+    Actions.CRAFT_FURNACE, Actions.SMELT_IRON, Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_AXE, Actions.CRAFT_STONE_SHOVEL,
     'clear_inventory', 'smelt_charcoal', 'craft_progression', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', Actions.SHELTER
 ])
 
@@ -329,6 +330,9 @@ class SurvivalController {
             const tool = this.bot.heldItem
             if (block?.material === 'mineable/pickaxe' && (!tool?.name.endsWith('_pickaxe') || !block.canHarvest(tool.type))) {
                 throw new Error(`digging ${block.name} requires a pickaxe`)
+            }
+            if (block?.material === 'mineable/shovel') {
+                this.log.debug?.(`Breaking ${block.name} with ${tool?.name || 'bare hands'}.`)
             }
             return dig(block, ...args)
         }
@@ -591,6 +595,7 @@ class SurvivalController {
             cobblestone: this.countItems(['cobblestone', 'cobbled_deepslate']),
             hasStonePickaxe: hasStonePickNow,
             hasWoodcuttingAxe: this.hasAnyItem(WOODCUTTING_AXES),
+            hasDiggingShovel: this.hasAnyItem(DIGGING_SHOVELS),
             hasFurnace: hasFurnaceNow,
             foodUnits: this.foodUnits(),
             coal: this.countItems(['coal', 'charcoal']),
@@ -1023,6 +1028,11 @@ class SurvivalController {
                 throw new Error(`digging ${block.name} requires a pickaxe`)
             }
             await this.bot.equip(pick, 'hand')
+        } else if (block.material === 'mineable/shovel') {
+            const shovel = this.bestItem(DIGGING_SHOVELS)
+            if (shovel) {
+                await this.bot.equip(shovel, 'hand')
+            }
         }
     }
 
@@ -1778,7 +1788,7 @@ class SurvivalController {
         for (const p of column) {
             this.checkAction(signal)
             const block = at(p)
-            if (block.material === 'mineable/pickaxe') {
+            if (['mineable/pickaxe', 'mineable/shovel'].includes(block.material)) {
                 await this.equipStoneDigTool(block)
                 this.checkAction(signal)
             }
@@ -2252,7 +2262,7 @@ class SurvivalController {
     }
 
     inventorySummary () {
-        const names = ['crafting_table', 'stick', 'wooden_pickaxe', 'wooden_sword', 'cobblestone', 'stone_pickaxe', 'furnace', 'coal', 'raw_iron', 'iron_ingot', 'iron_pickaxe']
+        const names = ['crafting_table', 'stick', 'wooden_pickaxe', 'wooden_sword', 'cobblestone', 'stone_pickaxe', 'stone_shovel', 'furnace', 'coal', 'raw_iron', 'iron_ingot', 'iron_pickaxe']
         const parts = []
         const logs = this.countMatching(name => LOG_SUFFIXES.some(suffix => name.endsWith(suffix)))
         const planks = this.countMatching(name => name.endsWith('_planks'))

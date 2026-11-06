@@ -48,6 +48,19 @@ test('a stone pick unlocks the axe goal and a missing axe is replaced before rou
     assert.equal(nextAdvancement({ ...established, hasWoodcuttingAxe: true }).action, 'gather_diamonds')
 })
 
+test('the shovel follows the stone pick and axe and is replaced before routine progression', () => {
+    const state = { ...established, hasIronPickaxe: false, hasFurnace: false,
+        hasWoodcuttingAxe: true, hasDiggingShovel: false }
+    assert.equal(nextAdvancement({ ...state, hasStonePickaxe: false }).action, 'craft_stone_pickaxe')
+    assert.equal(nextAdvancement({ ...state, hasWoodcuttingAxe: false }).action, 'craft_stone_axe')
+    assert.equal(nextAdvancement(state).action, 'craft_stone_shovel')
+    assert.equal(nextAdvancement({ ...state, cobblestone: 0 }).action, 'gather_stone')
+    assert.equal(nextAdvancement({ ...state, sticks: 0, logs: 0, planks: 0 }).action, 'gather_wood')
+    assert.equal(nextAdvancement({ ...state, hasDiggingShovel: true }).action, 'craft_furnace')
+    assert.equal(nextAdvancement({ ...established, hasDiggingShovel: false }).action, 'craft_stone_shovel')
+    assert.equal(nextAdvancement({ ...state, ironIngots: 3 }).action, 'craft_iron_pickaxe')
+})
+
 test('armor needs eight ingots and smelts available raw iron in bounded batches', () => {
     assert.equal(nextAdvancement({ ...established, hasIronArmor: false }).action, 'gather_iron')
     assert.equal(nextAdvancement({ ...established, hasIronArmor: false, rawIron: 3 }).action, 'smelt_iron')

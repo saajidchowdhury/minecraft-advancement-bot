@@ -9,6 +9,7 @@ const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./adv
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
 const PROTECTED_CONTAINERS = new Set(['furnace', 'barrel', 'chest'])
 const WOODCUTTING_AXES = ['netherite_axe', 'diamond_axe', 'iron_axe', 'stone_axe']
+const DIGGING_SHOVELS = ['netherite_shovel', 'diamond_shovel', 'iron_shovel', 'stone_shovel']
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -86,6 +87,9 @@ function tunnelTool(c, block) {
         if (axe) {
             return axe
         }
+    }
+    if (block.material === 'mineable/shovel') {
+        return c.bestItem(DIGGING_SHOVELS) || miningPickaxe(c, block)
     }
     return miningPickaxe(c, block)
 }
@@ -867,7 +871,7 @@ async function digDisposalPit(c, pit, signal) {
         if (block?.boundingBox === 'empty') {
             continue
         }
-        const tool = miningPickaxe(c, block)
+        const tool = tunnelTool(c, block)
         if (tool) {
             await bot.equip(tool, 'hand')
         }
@@ -1040,6 +1044,7 @@ async function performProgression(c, action, state) {
         case 'clear_inventory': return clearInventory(c)
         case 'smelt_charcoal': return smeltCharcoal(c)
         case 'craft_stone_axe': return craftProgression(c, 'stone_axe')
+        case 'craft_stone_shovel': return craftProgression(c, 'stone_shovel')
         case 'craft_progression': {
             const goal = state.sideGoal || nextAdvancement(state)
             return craftProgression(c, goal.item)
@@ -1075,4 +1080,4 @@ async function performProgression(c, action, state) {
     }
 }
 
-module.exports = { armorUpgrades, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS, WOODCUTTING_AXES }
+module.exports = { armorUpgrades, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS }
