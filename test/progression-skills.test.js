@@ -623,4 +623,12 @@ test('a cave spring with no dry bank is filled from within bucket reach', async 
     }
     await performProgression(c, 'fill_water_bucket', {})
     assert.equal(inventory.water_bucket, 2)
+    inventory.bucket = 1
+    inventory.water_bucket = 1
+    bot.entity.position = new Vec3(0.5, 64, 0.5)
+    bot.canSeeBlock = () => false
+    const quarantined = []
+    c.rememberBlockedTarget = block => quarantined.push(block.position)
+    await assert.rejects(performProgression(c, 'fill_water_bucket', {}), /not in line of sight/)
+    assert.deepEqual(quarantined, [spring])
 })

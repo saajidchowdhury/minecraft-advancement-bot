@@ -661,6 +661,10 @@ async function fillWaterBucket(c) {
             if (bot.entity.position.distanceTo(water.position.offset(0.5, 0.5, 0.5)) > 4.5) {
                 throw new Error('water source has no dry bank and is out of reach')
             }
+            // The bucket's ray stops at rock; a hidden spring would only time out the 4 s scoop check.
+            if (bot.canSeeBlock && !bot.canSeeBlock(water)) {
+                throw new Error('water source has no dry bank and is not in line of sight')
+            }
         } else if (!bot.entity.position.floored().equals(bank)) {
             await c.gotoWithTimeout(new goals.GoalBlock(bank.x, bank.y, bank.z), 12000, 'water approach')
         }
