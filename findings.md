@@ -9,7 +9,7 @@ stable; correct or qualify an old finding when new evidence changes it.
 Updated 2026-11-06 ~02:30 Eastern. At handoff the bot was RUNNING on `2420de5` (PID 88506,
 `outputs/2026-11-06@02.29.19`) after Hot Stuff, with 14 advancements (F063, F064). A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-at `2420de5` passes all 292 tests and syntax checks. Read the latest
+at `6bd5f03` passes all 293 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1219,4 +1219,8 @@ stall cleared only after the generic relocation scout, costing 5–20 s.
 `mineTunnel` tried four sloped steps and nothing else. `2420de5` tries
 level side steps when every sloped step touches liquid or falling blocks;
 already-mined cells stay excluded, so it cannot oscillate back. Restarted
-onto `2420de5` at 07:29Z (`outputs/2026-11-06@02.29.19`); not yet observed live.
+onto `2420de5` at 07:29Z (`outputs/2026-11-06@02.29.19`). At 07:39 a level
+tunnel at Y=31 still stalled, because the fallback covered only sloped
+tunnels; in-place escalation recovered it in about 8 s. `6bd5f03` lets a level
+tunnel take one step up, then one down, around the hazard. It is
+regression-tested and not yet loaded into the running bot.
