@@ -12,7 +12,8 @@ Fresh world `lan-55502-20261106`: ten server-confirmed advancements in 28 min
 with no deaths through Suit Up (F057). Next actions, in order:
 0. F062: live-check the creeper shield brace and the rest-to-14-HP rule; make a
    low-health escape that cannot gain distance on a zombie fight behind the shield.
-1. Watch this run through shield, bucket, Hot Stuff, iron kit and Diamonds!.
+1. F063: Hot Stuff lava search took ~25 min unsuccessfully after the rebuild; log
+   why each source fails (path, reach, aim) before changing the search.
    Confirm `ae4fb62` climbs out of hill-enclosed returns without the stall in F057.
 2. G005: watch the first continuous casting run with the F056 fix: ten
    obsidian, the third bucket, lava quarantine and the portal standing row

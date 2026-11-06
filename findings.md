@@ -6,10 +6,10 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~01:27 Eastern. At handoff the bot was RUNNING on `9a2ef22` (PID 84883,
-`outputs/2026-11-06@01.19.57`), rebuilding after its first death (F062). A fresh LAN world on port 55502 uses world ID
+Updated 2026-11-06 ~01:56 Eastern. At handoff the bot was RUNNING on `dac689a` (PID 86567,
+`outputs/2026-11-06@01.54.16`), with a fresh diamond pick and still seeking Hot Stuff lava (F063). A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-at `9a2ef22` passes all 288 tests and syntax checks. Read the latest
+at `dac689a` passes all 290 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1190,3 +1190,17 @@ staircase cell. The tunnel then read as a vertical shaft, and three
 to dig it. In-place escalation's `unstick` freed it, and it had an iron pick
 again by 06:34:37. `2ddee6a` ranks stair directions that pass a station or
 container as unusable. It is regression-tested and loads at the next restart.
+
+## F063 — Iron picks spent on a lava search while carrying diamonds [live]
+
+From 06:26 to 06:53Z on `9a2ef22`, the rebuilt bot crafted four iron picks
+(06:26, 06:34, 06:41, 06:53). Wear came from tunneling while it searched for
+a reachable Hot Stuff lava source. Several sources were quarantined after
+"No path" or 12 s approach timeouts. It carried six diamonds, but the route
+put the diamond pick after the lava bucket and the full iron kit, so about
+half of each cycle went to iron for replacement picks. `dac689a` crafts the
+diamond pick (1561 uses vs 250) as soon as three diamonds are carried; live,
+the restarted bot crafted it at 06:54:18. Open: the lava search itself. Hot
+Stuff took about 25 minutes of tunneling without success on this world.
+Measure source-reachability failures and consider casting-site lava from cave
+pools seen during mining.
