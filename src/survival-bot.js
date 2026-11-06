@@ -18,7 +18,7 @@ const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnima
 const { archeryState, shootArrow } = require('./archery')
 const { enchantingState, gatherLeather, enchantItem } = require('./enchanting')
 const { golemState, summonGolem } = require('./golem')
-const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
+const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
 
 const { GoalNear, GoalFollow } = goals
 
@@ -153,17 +153,6 @@ function actionMadeProgress (action, before, after, moved) {
     return !Object.hasOwn(progressed, action) || progressed[action] || moved
 }
 
-// Tree canopies dim sky light without making the bot underground: only a solid non-leaf block
-// within 24 blocks overhead counts as cover (a valley floor under leaves stayed "underground").
-function coveredAbove (bot, head) {
-    for (let dy = 1; dy <= 24; dy++) {
-        const block = bot.blockAt(head.offset(0, dy, 0), false)
-        if (block?.boundingBox === 'block' && !block.name.endsWith('_leaves')) {
-            return true
-        }
-    }
-    return false
-}
 
 // A running job is ready once its time has passed, or at once if the bot has strayed far
 // enough that the furnace might be left behind.

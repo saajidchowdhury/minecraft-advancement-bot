@@ -465,7 +465,7 @@ test('portal construction stands beside the frame plane, never inside a frame ce
 test('a return trip resumes the remembered stairs at the nearest cell, not a stale deeper waypoint', async () => {
     const { performProgression } = require('../src/progression-skills')
     const route = [{ x: 0, y: 63, z: 0 }, { x: 1, y: 62, z: 1 }, { x: 2, y: 61, z: 2 }, { x: 20, y: 50, z: 20 }]
-    const bot = { health: 20, entity: { position: new Vec3(2.5, 61, 2.5) } }
+    const bot = { health: 20, entity: { position: new Vec3(2.5, 61, 2.5) }, blockAt: () => ({ name: 'air', boundingBox: 'empty' }) }
     const visited = []
     const c = {
         bot, running: true, paused: false, home: { y: 64 }, memory: { mineRoute: route }, log: { info() {}, warn() {} },
@@ -481,4 +481,21 @@ test('a return trip resumes the remembered stairs at the nearest cell, not a sta
     await performProgression(c, 'return_surface', {})
     assert.deepEqual(visited, ['2,61,2', '1,62,1', '0,63,0'])
     assert.equal(c.memory.surfaceByStaircase, false)
+})
+
+test('reaching the home level inside a hill keeps climbing until the sky is open', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    for (const [roof, expectClimb] of [[74, true], [null, false]]) {
+        const bot = {
+            health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(-33.5, 70, -32.5) },
+            blockAt: p => ({ name: p.y === roof ? 'stone' : 'air', boundingBox: p.y === roof ? 'block' : 'empty' })
+        }
+        const c = { bot, running: true, paused: false, home: { y: 69 }, memory: {}, log: { info() {}, warn() {} }, bestItem: () => null }
+        const run = performProgression(c, 'return_surface', {})
+        if (expectClimb) {
+            await assert.rejects(run, /carving requires a pickaxe/)
+        } else {
+            await run
+        }
+    }
 })

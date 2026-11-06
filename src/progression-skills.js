@@ -950,6 +950,18 @@ async function buildRedstone(c) {
     c.bot.chat(`Piston demo built at ${origin.x}, ${origin.y}, ${origin.z}.`)
 }
 
+// Tree canopies dim sky light without making the bot underground: only a solid non-leaf block
+// within 24 blocks overhead counts as cover (a valley floor under leaves stayed "underground").
+function coveredAbove(bot, head) {
+    for (let dy = 1; dy <= 24; dy++) {
+        const block = bot.blockAt(head.offset(0, dy, 0), false)
+        if (block?.boundingBox === 'block' && !block.name.endsWith('_leaves')) {
+            return true
+        }
+    }
+    return false
+}
+
 async function returnSurface(c) {
     const surfaceY = c.home?.y || 64
     const route = c.memory.mineRoute || []
@@ -984,7 +996,10 @@ async function returnSurface(c) {
         }
         route.pop()
     }
-    if (c.bot.entity.position.y >= surfaceY - 1 || await followShaft(c, 'up')) {
+    const head = c.bot.entity.position.floored().offset(0, 1, 0)
+    // Hills rise above the home level; reaching home Y inside one left the bot walled in (00.35.19).
+    const enclosed = c.bot.entity.position.y >= surfaceY - 1 && coveredAbove(c.bot, head)
+    if ((c.bot.entity.position.y >= surfaceY - 1 && !enclosed) || (!enclosed && await followShaft(c, 'up'))) {
         c.memory.surfaceByStaircase = false
         return
     }
@@ -996,7 +1011,7 @@ async function returnSurface(c) {
         c.memory.surfaceByStaircase = true
         c.memory.mineRoute = []
     }
-    return mineTunnel(c, surfaceY)
+    return mineTunnel(c, enclosed ? head.y + 3 : surfaceY)
 }
 
 // Four open feet/head cells carry a level throw about three blocks, beyond the
@@ -1289,4 +1304,4 @@ async function performProgression(c, action, state) {
     }
 }
 
-module.exports = { armorUpgrades, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS }
+module.exports = { armorUpgrades, coveredAbove, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS }
