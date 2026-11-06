@@ -2311,7 +2311,9 @@ class SurvivalController {
     }
 
     inventorySummary () {
-        const names = ['crafting_table', 'stick', 'wooden_pickaxe', 'wooden_sword', 'cobblestone', 'stone_pickaxe', 'stone_shovel', 'furnace', 'coal', 'raw_iron', 'iron_ingot', 'iron_pickaxe']
+        const names = ['crafting_table', 'stick', 'wooden_pickaxe', 'wooden_sword', 'cobblestone', 'stone_pickaxe', 'stone_shovel', 'furnace', 'coal', 'raw_iron', 'iron_ingot', 'iron_pickaxe',
+            'stone_axe', 'iron_sword', 'diamond', 'diamond_pickaxe', 'diamond_sword', 'bucket', 'water_bucket', 'lava_bucket',
+            'obsidian', 'flint_and_steel']
         const parts = []
         const logs = this.countMatching(name => LOG_SUFFIXES.some(suffix => name.endsWith(suffix)))
         const planks = this.countMatching(name => name.endsWith('_planks'))
