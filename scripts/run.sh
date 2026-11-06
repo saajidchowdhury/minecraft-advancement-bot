@@ -25,4 +25,5 @@ if [ "$#" -gt 0 ]; then
     export MC_PORT
 fi
 cd "$PROJECT_DIR"
+[ -f .env ] || cp .env.example .env
 exec node --env-file-if-exists=.env src/index.js

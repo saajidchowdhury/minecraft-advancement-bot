@@ -39,5 +39,4 @@ export PATH
 echo "Using $(node --version) and npm $(npm --version)"
 cd "$PROJECT_DIR"
 npm ci --no-audit --no-fund
-echo "Ready. Copy .env.example to .env, edit it, then run:"
-echo "  ./scripts/run.sh"
+echo "Ready. Double-click Start Bot.command, or run ./scripts/run.sh PORT."
