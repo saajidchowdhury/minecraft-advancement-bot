@@ -1,5 +1,11 @@
 # Productive nights and mob-drop opportunities
 
+> **Superseded 2026-11-06 (F071, `ce24690`):** by user direction the bot no longer hunts or
+> works on the surface at night; `huntAtNight` and `prepare_night_weapon` were removed
+> (recover from `db44453`). The hunting design below is kept as reference for a better
+> armed bot; drops such as string and bones now come from fights the bot cannot avoid.
+
+
 Checked 2026-11-05 against Java 26.1.2. The installed game JAR was read directly:
 `/Users/rf/Library/Application Support/minecraft/versions/26.1.2/26.1.2.jar`.
 The relevant owning data are `data/minecraft/loot_table/entities/*.json` and

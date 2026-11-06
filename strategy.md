@@ -17,7 +17,8 @@ when new evidence changes a ranking; goals.md carries the actionable queue.
 
 ## Throughput levers, ranked by expected gain per effort
 
-1. **Death cost.** The base (G013) turns a 30–45 min rebuild into a short walk once
+1. **Death cascades.** (2026-11-06 afternoon, F076: one spawner encounter cost the kit and a
+   hostile sand spawn turned it into five deaths in 20 min; G015 targets the cascade.) The base (G013) turns a 30–45 min rebuild into a short walk once
    it holds spares; next add a bed at the base so respawn is beside it, and keep a
    spare iron kit stored. Survival fixes (F025–F035) cut the death rate itself.
 2. **Fire-and-forget smelting.** Load all raw iron with enough fuel, leave the

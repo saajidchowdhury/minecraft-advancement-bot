@@ -6,7 +6,15 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~04:08 Eastern. Session ended: the bot was STOPPED at 09:07:55Z (SIGINT,
+Updated 2026-11-06 ~13:45 Eastern. Session ended: the bot was STOPPED at 18:40:11Z (SIGINT,
+PID 7261, run `outputs/2026-11-06@12.39.17` on `c085d82`) after five deaths in 20 minutes
+(F076); it is bare at spawn. No bot, watcher or monitor is running. The LAN world is the same
+`lan-55502-20261106` profile, last opened on port 49259 (the port changes per LAN open). Code
+at the pushed head passes all 319 tests and syntax checks. Start with goals.md G015.
+Monitoring lesson: a `Monitor` pipeline ending in `cut` buffers output and delivered no events
+for an hour; filter with `grep --line-buffered` only.
+
+Previous handoff, ~04:08 Eastern. Session ended: the bot was STOPPED at 09:07:55Z (SIGINT,
 run `outputs/2026-11-06@04.03.39` on `cecbf1d`), rebuilding stone tools after seven deaths.
 No bot or watcher process is running. A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
@@ -1434,3 +1442,19 @@ seven times ("iron came into view during gather_iron"). It entered a cave at dus
 through the whole night underground (timeOfDay 12558 -> 23938) without surfacing, as intended.
 Still unobserved: fish hunts, stew, shore waits, the lava drive-out and a full cooking cycle
 with fuel.
+
+## F076 — Deaths #9–#13: cave-spider spawner, then bare respawns on sand [live]
+
+Run `outputs/2026-11-06@12.39.17` (`c085d82`), 18:18–18:38Z; game day began ~18:09Z.
+- #9 18:19:09 at (69,-22,135): with full iron, a shield, iron sword and diamond pick, mining
+  iron at Y=-23 met ~5 cave spiders and 3 creepers (likely a mineshaft spawner). Fight for
+  ~10 s under poison ticks (1 HP each), then `creeper approaching` switched to escape; the
+  spiders kept pace. Kit judged unrecoverable (threats at the drop).
+- #10 18:23:18, surface spawn at night, bare: shelter failed 9+ times ("burrow unavailable:
+  column cell is sand", no building blocks, no path to dirt); cornered by zombies + creeper.
+- #11 18:30:59 dawn: creeper explosion 16.7 -> 0 while escaping (two creepers at 4.6–4.8).
+- #12 18:36:47 day: one zombie, bot at 7.8 HP with a stone pick and no sword/axe; escape lost.
+- #13 18:38:35: resting at 3.2 HP (`wait`), shot by a pillager at 11.7 blocks.
+The earlier success (F075) shows the rebuild works; the losses are the spawner encounter and
+a hostile spawn area. User direction for the fix (2026-11-06): a bare respawn at night has
+nothing to lose, so it need not bunker immediately; see G015.

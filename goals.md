@@ -1,12 +1,30 @@
 # Prioritized development goals
 
-Updated 2026-11-06 (America/New_York). This is a working queue, not a rigid script.
+Updated 2026-11-06 ~13:45 (America/New_York); G015 is the next action. This is a working queue, not a rigid script.
 Reorder it when new evidence or user instructions warrant. Keep IDs stable and
 record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
-## Session 2026-11-06 afternoon (port 49259) — start here
+## G015 — Highest / next session — Stop death cascades (F076)
+
+Five deaths in 20 minutes followed one kit loss. In priority order:
+1. Cave-spider spawner: two or more visible cave spiders (or cobwebs plus one) means a
+   spawner. Retreat along the remembered mine route, wall the tunnel behind with carried
+   cobblestone, and mark the area off-limits for mining; do not fight in the open or flee
+   unwalled. Regression with a staged spawner (commands are fine in test setup).
+2. Bare respawn at night (user direction): with nothing to lose, do not bunker immediately.
+   Rebuild (wood, table, wooden then stone tools) while keeping distance from mobs; take
+   shelter only when cornered or hurt, and accept sand walls on a non-sand floor with a
+   non-gravity roof, or a three-block plank pillar, when shelter is needed.
+3. Weapon fallback: with no sword or axe, fight with the best pickaxe (stone pick 3 damage
+   versus fist 1) and craft the stone axe first after a bare respawn.
+4. Resting: no `wait` rest within 16 blocks of a visible pillager or skeleton; retreat behind
+   cover first (#13).
+Completion: regressions for each; a live bare respawn at night and a spawner encounter
+without a cascade. Live-check F071–F074 behavior again afterwards.
+
+## Session 2026-11-06 afternoon (port 49259)
 
 The user's live-test notes are implemented in `ce24690` (F071). The bot was relaunched on
 the same world at 17:08:46Z (`outputs/2026-11-06@12.08.45`). Live-check, in order:

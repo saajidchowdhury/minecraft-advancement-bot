@@ -144,12 +144,12 @@ food. If the pack fills without ordinary surplus, the bot frees a slot using a
 lower-priority stack. A nearby owned chest or barrel can take overflow when
 there is no safe place to throw it clear.
 
-Nightfall alone does not stop underground work. On the surface, a prepared bot
-can hunt isolated useful mobs within a small budget; weak or overwhelmed bots
-try safe sleep or shelter. Bed preparation uses available same-color wool, and
+Nightfall alone does not stop underground work. On the surface it does no night
+work or hunting (removed in `ce24690`, F071); it sleeps when the owner sleeps,
+takes a known shaft down, carves down when protected, or shelters. Bed preparation uses available same-color wool, and
 beds are only used in the Overworld. In this LAN setup, the bot joins sleep
 only when it can observe the owner sleeping, and wakes when the owner wakes.
-Staged trials confirmed Sweet Dreams and a spider hunt. The bot also earned
+Staged trials confirmed Sweet Dreams and a since-removed spider hunt. The bot also earned
 Not Today, Thank You in a later LAN run. Reliable natural combat, cooperative
 sleep and shelter exits still need live validation. See
 [night-opportunities.md](night-opportunities.md).
