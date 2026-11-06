@@ -181,7 +181,7 @@ test('three approach timeouts without leaving the spot enter mobility recovery',
     assert.equal(scouts, 0)
 })
 
-test('repeated return failures in place do not trigger drop-down unstick scouting', async () => {
+test('repeated return failures in place or without a path do not trigger drop-down unstick scouting', async () => {
     const c = Object.create(SurvivalController.prototype)
     c.running = true
     c.bot = { health: 20, entity: { position: new Vec3(6.5, 65, 3.5) } }
@@ -196,6 +196,12 @@ test('repeated return failures in place do not trigger drop-down unstick scoutin
     let recoveries = 0
     c.unstick = async () => { recoveries++ }
     c.scout = async () => {}
+    for (let i = 0; i < 3; i++) {
+        await c.tick()
+    }
+    assert.equal(recoveries, 0)
+    c.failures = new Map()
+    c.performWithTimeout = async () => { throw new Error('No path to the goal!') }
     for (let i = 0; i < 3; i++) {
         await c.tick()
     }

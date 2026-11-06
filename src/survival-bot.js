@@ -548,7 +548,8 @@ class SurvivalController {
                     this.log.warn(`Workspace relocation failed: ${relocationError.message}`)
                 }
             }
-            if (count >= 3 && (foodStalled || stalledInPlace || /no path to the goal/i.test(message))) {
+            // Unstick scouting accepts six-block drops, which only take a surfacing bot deeper (04.01.02).
+            if (count >= 3 && action !== 'return_surface' && (foodStalled || stalledInPlace || /no path to the goal/i.test(message))) {
                 await this.unstick().catch(unstickError => this.log.warn(`Unstick failed: ${unstickError.message}`))
             } else if (count >= 3 && action !== 'hunt_night' && !STATIONARY_ACTIONS.has(action)) {
                 await this.scout(12).catch(() => {})
