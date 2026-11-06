@@ -97,3 +97,20 @@ test('a one-block descent behind the bot is a usable staircase exit', () => {
     }
     assert.equal(SurvivalController.prototype.detectVerticalShaft.call({ bot }), false)
 })
+
+test('a tree whose log cannot be reached is skipped as a whole trunk', async () => {
+    const logs = [73, 74, 75].map(y => ({ name: 'acacia_log', position: new Vec3(-35, y, -27) }))
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, {
+        memory: { blockedTargets: new Map() }, actionAbort: new AbortController(),
+        bot: { collectBlock: { findFromVein: () => logs } },
+        findNearestBlock: () => logs[0],
+        async collectTarget(target, anchor) {
+            c.rememberBlockedTarget(anchor, 'tree', new Error('resource approach timed out after 10s'))
+            throw new Error('resource approach timed out after 10s')
+        },
+        log: { warn() {} }
+    })
+    await assert.rejects(c.gatherWood(), /approach timed out/)
+    assert.equal(logs.every(log => c.isBlockedTarget(log)), true)
+})

@@ -1151,7 +1151,18 @@ class SurvivalController {
             return this.scout(36)
         }
         const trunk = this.bot.collectBlock.findFromVein(block, 3, 6, 1)
-        await this.collectTarget(trunk.length > 0 ? trunk : block, block, 'tree')
+        const signal = this.actionAbort?.signal
+        try {
+            await this.collectTarget(trunk.length > 0 ? trunk : block, block, 'tree')
+        } catch (error) {
+            // An unreachable log means an unreachable tree; skip its other logs too.
+            if (!signal?.aborted) {
+                for (const log of trunk) {
+                    this.memory.blockedTargets.set(this.targetKey(log), Date.now() + 120000)
+                }
+            }
+            throw error
+        }
     }
 
     async craftTable () {
