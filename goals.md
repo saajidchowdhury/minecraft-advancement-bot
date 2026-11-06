@@ -10,7 +10,9 @@ one playthrough is a test, not the definition of success.
 
 Fresh world `lan-55502-20261106`: ten server-confirmed advancements in 28 min
 with no deaths through Suit Up (F057). Next actions, in order:
-0. F068: live-check the cornered fight. Three deaths in about 3.5 h on this world
+0. F069: audit environmental hazards with no reflex (fall, suffocation, fire, cactus,
+   powder snow); live-check `escape_lava`, `surface_for_air` and the cornered fight.
+   F068: live-check the cornered fight. Three deaths in about 3.5 h on this world
    (creeper+zombie, drowning, tunnel mob); survival again outranks new branches (G001).
    F065: live-check `surface_for_air`; read the next bucket-miss diagnostic before
    changing the scoop. F062: live-check the creeper shield brace and the rest-to-14-HP rule; make a

@@ -6,10 +6,10 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~03:46 Eastern. At handoff the bot was RUNNING on `77426ca` (PID 93673,
-`outputs/2026-11-06@03.45.28`), rebuilding after its third death (F068); 15 advancements. A fresh LAN world on port 55502 uses world ID
+Updated 2026-11-06 ~03:51 Eastern. At handoff the bot was RUNNING on `8dc2db6` (PID 94507,
+`outputs/2026-11-06@03.50.23`), rebuilding from spawn after its fourth death (F069); 15 advancements. A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-at `77426ca` passes all 299 tests and syntax checks. Read the latest
+at `8dc2db6` passes all 300 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1289,3 +1289,26 @@ handler cancels the escape, the planner chooses `fight`, and the fight
 skips its outnumbered and low-health refusals; never with a creeper within
 6 blocks. Regression-tested; live from 08:45Z (`03.45.28`). The drops were
 left because threats remained at the death site.
+
+## F069 — Death #4: burning in lava with no reflex [live + regression]
+
+Five minutes after death #3, on `77426ca` (`03.45.28`), the bot tunneled
+toward its furnace at (233,-54,-155) (segment 5/12). At 08:46:31Z it took
+4 HP every 0.5 s at a fixed position, (245,-52,-156), with no threat
+nearby, and died at 08:46:34. That is the lava damage rate; the pinned
+pathfinder avoids lava, so the lava most likely flowed in after a dig
+(unconfirmed). Nothing reacted: the current action continued until the
+critical-health cancel, and the next action was `wait`. `738c3be` adds an
+`inLava` check (entity flag, or lava/fire at the feet or head). It cancels
+the current task and pre-empts every decision with `escape_lava`: pour a
+carried water bucket at the feet, then step to the nearest dry,
+solid-floored cell within 4 blocks. Critical-health cancellation now spares
+`escape_lava` and `surface_for_air`. `8dc2db6` marks a lava death site as
+dangerous, so the drops, which lava burns, are not sought. Regression-tested;
+live from 08:50Z (`03.50.23`).
+
+Four deaths on this world in 3.5 h: creeper blast then zombie (F062),
+drowning (F065), a pinned tunnel escape (F068) and lava (F069). Three were
+environmental reflexes or escape mechanics with no response at all. Audit the
+remaining hazards the same way (fall damage, suffocation in gravel or sand,
+fire, cactus or berry bushes, powder snow) before adding new branches.
