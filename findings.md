@@ -6,10 +6,10 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~03:33 Eastern. At handoff the bot was RUNNING on `65fdc2e` (PID 92501,
-`outputs/2026-11-06@03.32.42`), mining iron at Y≈-40 after its second death; 15 advancements. A fresh LAN world on port 55502 uses world ID
+Updated 2026-11-06 ~03:37 Eastern. At handoff the bot was RUNNING on `0d7f28e` (PID 92939,
+`outputs/2026-11-06@03.36.15`), rebuilding iron gear after its second death; 15 advancements. A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-at `3fb7ee8` passes all 297 tests and syntax checks. Read the latest
+at `0d7f28e` passes all 298 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1260,3 +1260,14 @@ At 08:05Z three coal-ore pickups during `gather_iron` were judged "no
 verified progress" and escalated into unstick scouting. Only `rawIron`
 counted for that action. `3fb7ee8` credits coal, raw iron, diamonds or
 redstone for both iron and coal trips (regression; not yet loaded).
+
+## F067 — Survival blocks refused against the bot's own furnace [live + regression]
+
+At 08:34:26Z (`65fdc2e`), the bot placed a smelting furnace at (233,-54,-155).
+The next tunnel step needed a floor block above it, and the server refused
+it three times ("the block is still air"). The only listed support was the
+furnace, and clicking a furnace opens it. `0d7f28e` prefers plain supports
+in `placeSurvivalBlock` and sneaks when an interactive block is the only
+support. Regression-tested; running from 08:36Z (`03.36.15`). Related
+station hazards: F042 (furnaces broken while mining) and the shaft-escape
+stair through a furnace (`2ddee6a`).
