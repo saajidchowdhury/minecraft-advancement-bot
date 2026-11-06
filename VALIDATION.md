@@ -2,7 +2,7 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
-The latest code baseline (`dc4b3cd`) passed all 295 tests and syntax checks.
+The latest code baseline (`7b403bc`) passed all 296 tests and syntax checks.
 The staged LAN evidence for casting and diamond interrupts is near the end of
 this file. F056 resolves the F055 obsidian timeout. Continuous portal
 preparation is still not live-verified.
@@ -422,3 +422,4 @@ Hot Stuff was server-confirmed at 07:02:53Z on `b228b62`, after a live tunnel to
 with no walking path (F063). An early diamond pickaxe was crafted live at 06:54:18 on `dac689a`.
 Cover Me with Diamonds was server-confirmed at 07:42:46Z on `2420de5`. Death #2, by drowning after a
 restart beside a spring, came at 07:56:19Z; the drowning response is regression-only (F065).
+Live on `7b403bc`: two tunnel segments reached a remembered 32-iron furnace that had no walking path (F066).

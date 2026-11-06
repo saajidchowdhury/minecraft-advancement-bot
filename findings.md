@@ -6,10 +6,10 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~03:00 Eastern. At handoff the bot was RUNNING on `dc4b3cd` (PID 90817,
-`outputs/2026-11-06@02.59.01`) after its second death, by drowning (F065); 15 advancements. A fresh LAN world on port 55502 uses world ID
+Updated 2026-11-06 ~03:03 Eastern. At handoff the bot was RUNNING on `7b403bc` (PID 91216,
+`outputs/2026-11-06@03.01.22`), rebuilding after its second death (F065, F066); 15 advancements. A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-at `dc4b3cd` passes all 295 tests and syntax checks. Read the latest
+at `7b403bc` passes all 296 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1246,3 +1246,13 @@ within 6 blocks, holding jump, or swims straight up for 1.5 s.
 Regression-tested; live from 07:59Z (`outputs/2026-11-06@02.59.01`). The
 drops lie underwater at (123,50,-151).
 Restarting a bot that stands in water is itself a risk; check the position first.
+
+## F066 — Tunnel back to an unreachable smelt furnace [live + regression]
+
+After death #2, the respawned bot (`dc4b3cd`, `02.59.01`) failed nine
+`smelt_iron` furnace returns between 07:59 and 08:01Z with a 30 s timeout
+or "No path". The remembered job held 32 raw iron at (172,43,-176), about
+20 blocks below it. `7b403bc` tunnels toward the furnace on such failures
+and drops the job after twelve segments. Live on `7b403bc`, two segments
+(Y 60 → 53) reached it, and at 08:02:11 the bot reported "input waiting for
+fuel". The F041 fuel path is next.
