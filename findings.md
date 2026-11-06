@@ -6,8 +6,8 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~03:03 Eastern. At handoff the bot was RUNNING on `7b403bc` (PID 91216,
-`outputs/2026-11-06@03.01.22`), rebuilding after its second death (F065, F066); 15 advancements. A fresh LAN world on port 55502 uses world ID
+Updated 2026-11-06 ~03:33 Eastern. At handoff the bot was RUNNING on `65fdc2e` (PID 92501,
+`outputs/2026-11-06@03.32.42`), mining iron at Y≈-40 after its second death; 15 advancements. A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
 at `3fb7ee8` passes all 297 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
