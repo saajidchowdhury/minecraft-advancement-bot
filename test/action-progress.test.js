@@ -15,3 +15,8 @@ test('wood gathering accepts either collected wood or real scouting movement', (
     assert.equal(actionMadeProgress(Actions.WOOD, before, { logs: 1, planks: 0 }, false), true)
     assert.equal(actionMadeProgress(Actions.WOOD, before, before, true), true)
 })
+
+test('discovering diamond ore lets a mining action yield without triggering failure recovery', () => {
+    const before = { rawIron: 0, diamondInView: false }
+    assert.equal(actionMadeProgress(Actions.IRON, before, { ...before, diamondInView: true }, false), true)
+})

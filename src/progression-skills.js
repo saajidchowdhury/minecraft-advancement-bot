@@ -4,7 +4,7 @@ const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { discardableStacks, overflowStack } = require('./inventory')
 const { storeOverflowAtBase } = require('./base')
-const { exploreCave, collectOpportunity, safeFooting, dryMovements, rememberOre, findPriorityDiamond } = require('./cave-exploration')
+const { exploreCave, collectOpportunity, safeFooting, dryMovements, rememberOre, rememberExposedDiamonds, findPriorityDiamond } = require('./cave-exploration')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
 
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
@@ -276,6 +276,10 @@ async function mineTunnel(c, targetY, heading = null) {
                 }
                 await bot.equip(currentTool, 'hand')
                 await bot.dig(block, true)
+                if (rememberExposedDiamonds(c, p) && c.findNearestBlock && c.canPursueDiamond?.() !== false && findPriorityDiamond(c)) {
+                    c.log.info('Tunnel dig exposed diamond ore; yielding to collect it.')
+                    return
+                }
                 if (miningPickaxe(c)?.name !== tool.name) {
                     return
                 }
@@ -304,7 +308,7 @@ async function mineTunnel(c, targetY, heading = null) {
         if (c.memory.minedCells.size > 4096) {
             c.memory.minedCells.delete(c.memory.minedCells.values().next().value)
         }
-        if (c.findNearestBlock && findPriorityDiamond(c, 8)) {
+        if (c.findNearestBlock && c.canPursueDiamond?.() !== false && findPriorityDiamond(c)) {
             c.log.info('Diamond ore came into view; leaving the tunnel segment to mine it.')
             return
         }

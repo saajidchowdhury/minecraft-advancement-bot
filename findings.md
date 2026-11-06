@@ -1007,3 +1007,18 @@ and both buckets were full. The fixtures and repositioning are recorded in
 `outputs/obsidian-cast-setup.json`, `outputs/obsidian-mining-setup.json`, and
 `outputs/obsidian-setup.json`. A continuous run casting all ten portal blocks
 remains open.
+
+## F054 — Mine safe diamond discoveries before continuing the tunnel
+
+The prior run recorded diamond approaches interrupted by mobs and a pickup
+that failed on an exact-cell goal. The tunnel also scanned only after walking
+to the next cell. It now records adjacent diamond ore immediately when a dig
+exposes it and yields before advancing if pursuit is safe. The collector can
+aim at a visible part of a face and reach the drop from an adjacent cell.
+Threat cancellations leave the ore eligible when the threat clears.
+
+The staged LAN replay placed one ore block behind solid deepslate at
+(12,-53,-64). Mining at Y=-54 opened its face and yielded while the bot was
+still in its original cell. The bot collected the fourth diamond, retained
+obsidian as its goal despite the newly affordable diamond boots, and queued
+inventory cleanup first. See `outputs/diamond-interrupt-setup.json`.

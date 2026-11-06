@@ -86,6 +86,22 @@ test('two four-block tunnel actions trigger one pair of probes at spacing eight'
     assert.equal(c.bot.entity.position.x, 8.5)
 })
 
+test('tunneling yields for newly exposed diamond ore before advancing past it', async () => {
+    const ore = new Vec3(1, 65, 1)
+    const c = miningWorld(new Map([[ore.toString(), 'deepslate_diamond_ore']]))
+    c.bot.game = { dimension: 'overworld' }
+    c.bot.inventory = { items: () => [{ name: 'iron_pickaxe', type: 1 }] }
+    c.bot.world = { raycast: () => null }
+    c.findNearestBlock = (matches, range, { filter }) => {
+        const block = c.bot.blockAt(ore)
+        return matches(block.name) && filter(block) ? block : null
+    }
+    await mineTunnel(c, 64)
+    assert.deepEqual(c.dug, [new Vec3(1, 65, 0)])
+    assert.equal(c.bot.entity.position.x, 0.5)
+    assert.deepEqual(c.memory.knownOres.map(({ x, y, z }) => new Vec3(x, y, z)), [ore])
+})
+
 test('a mixed tunnel uses the stone shovel on dirt and grass blocks and the pick on stone', async () => {
     const c = miningWorld(new Map([['(1, 65, 0)', 'dirt'], ['(1, 64, 0)', 'grass_block']]))
     const tools = ['stone_shovel', 'iron_pickaxe'].map(name => mcData.itemsByName[name])

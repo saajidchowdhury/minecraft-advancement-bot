@@ -377,3 +377,9 @@ lava. All 258 tests and syntax checks pass. Changed JavaScript files stay
 below 8% comment-bearing lines. Staged LAN trials verified a second fill,
 one cast with server-confirmed Ice Bucket Challenge, and a renewable water
 trench that refilled both buckets.
+
+F054 verifies tunnel discovery before moving, accepting the discovery as
+progress, and retaining the interrupted objective after the pickup. The
+staged LAN trial collected one diamond from the hidden fixture at Y=-54.
+All 261 tests and syntax checks pass. Changed JavaScript files stay below 3%
+comment-bearing lines.

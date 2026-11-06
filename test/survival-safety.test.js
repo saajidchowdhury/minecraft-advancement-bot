@@ -575,7 +575,7 @@ test('successful actions replan after 250 ms while failures keep the 1.5 s back-
     let fail = false
     const state = { health: 20, food: 20, hostileDistance: Infinity, completedAdvancements: new Set() }
     const c = {
-        running: true, paused: false, busy: false, followPlayer: null, failures: new Map(),
+        running: true, paused: false, busy: false, followPlayer: null, failures: new Map(), memory: {},
         bot: { entity: { position: new Vec3(0, 64, 0) }, health: 20, food: 20 }, log: { info() {}, warn() {} },
         observe: () => state, onState() {}, inventorySummary: () => '', positionText: () => '0,64,0',
         verifyActionProgress() {}, clearCurrentTask() {}, scout: async () => {}, detectVerticalShaft: () => false, detectElevationTrap: () => null,

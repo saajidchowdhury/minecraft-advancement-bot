@@ -88,6 +88,20 @@ test('obsidian preparation fills two water buckets and preserves a full lava buc
     assert.equal(chooseAction({ ...state, health: 20, food: 20, hostileDistance: Infinity, logs: 0, planks: 0 }), 'gather_obsidian')
 })
 
+test('a diamond detour resumes obsidian work before a newly affordable armor upgrade', () => {
+    const state = { ...established, hasDiamondPickaxe: true, gear: diamondSword, diamonds: 3 }
+    const goal = nextAdvancement(state)
+    assert.equal(goal.action, 'gather_obsidian')
+    const after = { ...state, diamonds: 4 }
+    assert.equal(nextAdvancement(after).item, 'diamond_boots')
+    const resumed = { ...after, diamondDetour: { id: goal.id, item: goal.item, diamonds: 3 } }
+    assert.equal(nextAdvancement(resumed).action, 'gather_obsidian')
+    assert.equal(nextAdvancement({ ...resumed, obsidian: 10 }).item, 'diamond_boots')
+    const pick = { ...state, hasDiamondPickaxe: false, diamonds: 2 }
+    const pickGoal = nextAdvancement(pick)
+    assert.equal(nextAdvancement({ ...pick, diamonds: 3, diamondDetour: { ...pickGoal, diamonds: 2 } }).action, 'craft_progression')
+})
+
 test('portal needs ignition and provisions; partial frame is resumed instead of remined', () => {
     const state = { ...established, hasDiamondPickaxe: true, gear: diamondSword, obsidian: 10, ironIngots: 1, flint: 1 }
     assert.equal(nextAdvancement(state).item, 'flint_and_steel')

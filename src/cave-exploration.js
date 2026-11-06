@@ -143,19 +143,30 @@ const FACES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -
 
 // Mineflayer's canSeeBlock aims only at the block centre; ore exposed on one face beside a
 // probe hole fails it although a player sees that face. Ray-cast to each air-exposed face.
-function oreSeen(bot, block, range = 16) {
+function oreSight(bot, block, range = 16) {
     const eye = bot.entity.position.offset(0, 1.62, 0)
-    return FACES.some(([x, y, z]) => {
+    for (const [x, y, z] of FACES) {
         if (!AIR.has(bot.blockAt(block.position.offset(x, y, z), false)?.name)) {
-            return false
+            continue
         }
-        const face = block.position.offset(0.5 + 0.49 * x, 0.5 + 0.49 * y, 0.5 + 0.49 * z)
-        const distance = eye.distanceTo(face)
-        const dir = face.minus(eye).scaled(1 / distance)
-        // prismarine-world's raycast returns blocks without positions; locate the hit cell from its intersection.
-        const hit = distance <= range && bot.world.raycast(eye, dir, distance + 0.1)
-        return Boolean(hit?.intersect && hit.intersect.plus(dir.scaled(1e-3)).floored().equals(block.position))
-    })
+        for (const u of [0.5, 0.2, 0.8]) {
+            for (const v of [0.5, 0.2, 0.8]) {
+                const point = block.position.offset(x ? 0.5 + 0.49 * x : u,
+                    y ? 0.5 + 0.49 * y : x ? u : v, z ? 0.5 + 0.49 * z : v)
+                const distance = eye.distanceTo(point)
+                const dir = point.minus(eye).scaled(1 / distance)
+                const hit = distance <= range && bot.world.raycast(eye, dir, distance + 0.1)
+                if (hit?.intersect && hit.intersect.plus(dir.scaled(1e-3)).floored().equals(block.position)) {
+                    return point
+                }
+            }
+        }
+    }
+    return null
+}
+
+function oreSeen(bot, block, range) {
+    return Boolean(oreSight(bot, block, range))
 }
 
 function rememberOre(c, position) {
@@ -164,8 +175,24 @@ function rememberOre(c, position) {
     if (!block?.name.endsWith('_ore')) {
         return
     }
-    c.memory.knownOres = (c.memory.knownOres || []).filter(o => Date.now() - o.at < 600000 && !position.equals(new Vec3(o.x, o.y, o.z))).slice(-63)
+    c.memory.knownOres = (c.memory.knownOres || []).filter(o => Date.now() - o.at < 600000 &&
+        !(o.dimension === bot.game?.dimension && position.equals(new Vec3(o.x, o.y, o.z)))).slice(-63)
     c.memory.knownOres.push({ x: position.x, y: position.y, z: position.z, dimension: bot.game?.dimension, at: Date.now() })
+}
+
+function rememberExposedDiamonds(c, opened) {
+    if (!AIR.has(c.bot.blockAt(opened, false)?.name)) {
+        return false
+    }
+    let found = false
+    for (const [dx, dy, dz] of FACES) {
+        const p = opened.offset(dx, dy, dz)
+        if (DIAMOND_ORES.includes(c.bot.blockAt(p, false)?.name)) {
+            rememberOre(c, p)
+            found = true
+        }
+    }
+    return found
 }
 
 function knownOre(c, block) {
@@ -308,4 +335,4 @@ async function exploreCave(c, targetY) {
     return moved
 }
 
-module.exports = { safeFooting, findCaveRoute, exploreCave, collectOpportunity, dryMovements, oreSeen, rememberOre, findPriorityDiamond }
+module.exports = { safeFooting, findCaveRoute, exploreCave, collectOpportunity, dryMovements, oreSight, oreSeen, rememberOre, rememberExposedDiamonds, findPriorityDiamond }

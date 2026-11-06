@@ -107,6 +107,17 @@ function craft(state, id, item, action = 'craft_progression') {
 }
 
 function nextAdvancement(state) {
+    const detour = state.diamondDetour
+    if (detour && state.diamonds > detour.diamonds && !detour.item?.startsWith('diamond_')) {
+        const original = planAdvancement({ ...state, diamonds: detour.diamonds })
+        if (original.id === detour.id && original.item === detour.item) {
+            return original
+        }
+    }
+    return planAdvancement(state)
+}
+
+function planAdvancement(state) {
     // No Nether skills or gold armor yet: return through the portal once entry is confirmed.
     if (state.dimension === 'the_nether' && state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
         return target('prep:return from the Nether', 'leave_nether', 'step back through the portal to the Overworld')

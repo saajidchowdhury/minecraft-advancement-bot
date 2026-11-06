@@ -396,3 +396,5 @@ advancementsPerHour across a full run.
   return. Record how far the descent saves tunneling and when threats end it.
 - F052: five blocks per probe side verified on LAN. Include the extra blocks
   and tool wear in the G008 spacing measurements.
+- F054: staged LAN replay verified an immediate diamond interrupt and return
+  to the obsidian objective. Check natural interruptions during longer mining.

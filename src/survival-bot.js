@@ -10,7 +10,7 @@ const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
 const { prepareBed, huntAtNight, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
-const { exploreCave, collectOpportunity, findPriorityDiamond } = require('./cave-exploration')
+const { exploreCave, collectOpportunity, findPriorityDiamond, oreSight, rememberExposedDiamonds } = require('./cave-exploration')
 const { findNearbyLoot, lootChest } = require('./loot')
 const { discardableStack, inventoryReport } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
@@ -130,6 +130,9 @@ async function waitUntil (predicate, timeoutMs, intervalMs = 250) {
 }
 
 function actionMadeProgress (action, before, after, moved) {
+    if ([Actions.STONE, Actions.COAL, Actions.IRON].includes(action) && after.diamondInView && !before.diamondInView) {
+        return true
+    }
     if ([Actions.STONE, Actions.COAL, Actions.IRON].includes(action) &&
         ((before.hasIronPickaxe && !after.hasIronPickaxe) || (before.hasStonePickaxe && !after.hasStonePickaxe))) {
         return true
@@ -470,6 +473,10 @@ class SurvivalController {
             this.onState(after, action)
             this.verifyActionProgress(action, state, after, actionStart)
             const next = nextAdvancement(after)
+            const detour = this.memory.diamondDetour
+            if (detour && !after.diamondInView && (next.id !== detour.id || next.item !== detour.item)) {
+                this.memory.diamondDetour = null
+            }
             if (next.id !== advancement.id) {
                 this.log.info(`Next objective: ${next.title}. Completion is confirmed separately by the server.`)
             }
@@ -621,6 +628,7 @@ class SurvivalController {
             obsidianCastPending: this.memory.obsidianCast?.dimension === this.bot.game.dimension,
             hasFlintAndSteel: this.hasItem('flint_and_steel'),
             diamonds: this.countItems(['diamond']), obsidian: this.countItems(['obsidian']),
+            diamondDetour: this.memory.diamondDetour,
             redstone: this.countItems(['redstone']), flint: this.countItems(['flint']),
             completedAdvancements: this.advancements.completed,
             dimension: this.bot.game.dimension, items,
@@ -658,6 +666,13 @@ class SurvivalController {
 
     async perform (action, state) {
         switch (action) {
+            case 'mine_diamond': {
+                if (!this.memory.diamondDetour) {
+                    const goal = nextAdvancement(state)
+                    this.memory.diamondDetour = { id: goal.id, item: goal.item, diamonds: state.diamonds }
+                }
+                return performProgression(this, action, state)
+            }
             case 'loot_chest': return lootChest(this, state.lootTarget)
             case 'plant_seed': return plantSeed(this)
             case 'go_fish': return goFish(this)
@@ -1260,10 +1275,16 @@ class SurvivalController {
         await this.collectTarget(block, block, block.name)
     }
 
+    canPursueDiamond () {
+        return this.bot.health > 10 && (this.bot.food > 16 || this.bestFood()) &&
+            this.bot.inventory.emptySlotCount() > 0 && !this.detectVerticalShaft() && this.visibleThreatCount(6) === 0
+    }
+
     async collectTarget (target, anchor = target, label = 'resource') {
         const collection = { anchor, label }
         this.activeCollection = collection
         const signal = this.actionAbort?.signal
+        const priorityDiamond = label === 'priority diamond'
         try {
             const targets = Array.isArray(target) ? target : [target]
             for (const entry of targets) {
@@ -1289,8 +1310,10 @@ class SurvivalController {
                 if (!block || block.type !== entry.type || (block.boundingBox === 'empty' && !block.diggable)) {
                     continue
                 }
-                if (!this.bot.canDigBlock(block) || !this.bot.canSeeBlock(block)) {
+                let sight = priorityDiamond && oreSight(this.bot, block, 4.5)
+                if (!this.bot.canDigBlock(block) || (!sight && !this.bot.canSeeBlock(block))) {
                     await this.gotoWithTimeout(new goals.GoalLookAtBlock(block.position, this.bot.world), 10000, 'resource approach')
+                    sight = priorityDiamond && oreSight(this.bot, block, 4.5)
                 }
                 if (signal?.aborted) {
                     throw new Error('collection cancelled')
@@ -1312,7 +1335,13 @@ class SurvivalController {
                 if (block.material === 'mineable/axe') {
                     this.log.debug?.(`Breaking ${block.name} with ${this.bot.heldItem?.name || 'bare hands'}.`)
                 }
-                await this.bot.dig(block, true)
+                if (sight) {
+                    await this.bot.lookAt(sight, true)
+                    await this.bot.waitForTicks(1)
+                    this.checkAction(signal)
+                }
+                await this.bot.dig(block, sight ? 'ignore' : true)
+                rememberExposedDiamonds(this, block.position)
                 await sleep(600)
                 if (signal?.aborted) {
                     throw new Error('collection cancelled')
@@ -1323,13 +1352,18 @@ class SurvivalController {
                     if (signal?.aborted) {
                         throw new Error('collection cancelled')
                     }
-                    const p = drop.position.floored()
-                    await this.gotoWithTimeout(new goals.GoalBlock(p.x, p.y, p.z), 8000, 'mined item pickup')
+                    if (drop.isValid) {
+                        const p = drop.position.floored()
+                        const goal = priorityDiamond ? new GoalNear(p.x, p.y, p.z, 1) : new goals.GoalBlock(p.x, p.y, p.z)
+                        await this.gotoWithTimeout(goal, 8000, 'mined item pickup')
+                    }
                 }
                 await sleep(300)
             }
         } catch (error) {
-            this.rememberBlockedTarget(anchor, label, error)
+            if (!signal?.aborted) {
+                this.rememberBlockedTarget(anchor, label, error)
+            }
             throw error
         } finally {
             if (this.activeCollection === collection) {
