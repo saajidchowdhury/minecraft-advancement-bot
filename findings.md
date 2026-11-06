@@ -6,10 +6,10 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~02:04 Eastern. At handoff the bot was RUNNING on `b228b62` (PID 87324,
-`outputs/2026-11-06@02.02.15`) with a diamond pick, after Hot Stuff (F063). A fresh LAN world on port 55502 uses world ID
+Updated 2026-11-06 ~02:30 Eastern. At handoff the bot was RUNNING on `2420de5` (PID 88506,
+`outputs/2026-11-06@02.29.19`) after Hot Stuff, with 14 advancements (F063, F064). A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
-at `b228b62` passes all 291 tests and syntax checks. Read the latest
+at `2420de5` passes all 292 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
 with `pgrep -f src/index.js` before taking over.
 
@@ -1210,3 +1210,13 @@ before tunneling. Live on `b228b62`, the bot tunneled once toward
 advancements on this world. The scoop's 4 s inventory check had timed out
 just before the packet, so it is too tight under load; it caused only a
 spurious 120 s quarantine.
+
+## F064 — Tunnels stalled where liquid touched every sloped step [live + regression]
+
+On `b228b62` (`02.02.15`), `gather_iron` and `return_surface` failed
+"no supported dry tunnel step" three times between 07:12 and 07:28Z. Each
+stall cleared only after the generic relocation scout, costing 5–20 s.
+`mineTunnel` tried four sloped steps and nothing else. `2420de5` tries
+level side steps when every sloped step touches liquid or falling blocks;
+already-mined cells stay excluded, so it cannot oscillate back. Restarted
+onto `2420de5` at 07:29Z (`outputs/2026-11-06@02.29.19`); not yet observed live.
