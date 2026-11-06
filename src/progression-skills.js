@@ -185,13 +185,10 @@ async function mineTunnel(c, targetY, heading = null) {
     const bot = c.bot
     const tool = miningPickaxe(c)
     const start = bot.entity.position.floored()
-    // Climbing out needs no drops, so a bare hand is slow but sufficient; descending is not.
-    if (!tool && targetY <= start.y) {
+    if (!tool) {
         throw new Error('mining requires a pickaxe')
     }
-    if (tool) {
-        await bot.equip(tool, 'hand')
-    }
+    await bot.equip(tool, 'hand')
     if (targetY < start.y && c.memory.surfaceByStaircase) {
         c.memory.surfaceByStaircase = false
         c.memory.mineRoute = []
@@ -243,14 +240,12 @@ async function mineTunnel(c, targetY, heading = null) {
                     throw new Error('tunnel block out of reach')
                 }
                 const currentTool = tunnelTool(c, block)
-                if (!currentTool && tool) {
+                if (!currentTool) {
                     throw new Error('mining tool broke; rebuild it before continuing')
                 }
-                if (currentTool) {
-                    await bot.equip(currentTool, 'hand')
-                }
+                await bot.equip(currentTool, 'hand')
                 await bot.dig(block, true)
-                if (tool && miningPickaxe(c)?.name !== tool.name) {
+                if (miningPickaxe(c)?.name !== tool.name) {
                     return
                 }
             }
@@ -294,7 +289,7 @@ async function mineTunnel(c, targetY, heading = null) {
         }
     }
     c.log.info(`Tunnel: Y ${start.y} -> ${bot.entity.position.y.toFixed(1)}; target Y=${targetY}.`)
-    if (targetY < start.y && bot.entity.position.y <= targetY + 0.5) {
+    if (bot.entity.position.y < start.y) {
         rememberShaft(c)
     }
 }
@@ -402,6 +397,9 @@ async function followShaft(c, direction) {
                     const block = bot.blockAt(p, false)
                     if (block && block.boundingBox !== 'empty' && !PROTECTED_CONTAINERS.has(block.name) && bot.canDigBlock(block)) {
                         const tool = tunnelTool(c, block)
+                        if (!tool && block.material === 'mineable/pickaxe') {
+                            throw new Error(`shaft repair requires a pickaxe for ${block.name}`)
+                        }
                         if (tool) {
                             await bot.equip(tool, 'hand')
                         }
@@ -766,39 +764,44 @@ async function buildRedstone(c) {
 
 async function returnSurface(c) {
     const surfaceY = c.home?.y || 64
-    if (await followShaft(c, 'up')) {
-        c.memory.surfaceByStaircase = false
-        return
-    }
-    if (c.memory.surfaceByStaircase) {
-        return mineTunnel(c, surfaceY)
-    }
     const route = c.memory.mineRoute || []
-    for (let i = 0; i < 6 && route.length; i++) {
+    for (let i = 0; !c.memory.surfaceByStaircase && route.length; i++) {
+        if (i === 6) {
+            return
+        }
         check(c)
-        const p = route.at(-1)
+        const { x, y, z } = route.at(-1)
+        const target = new Vec3(x, y, z)
+        const feet = c.bot.entity.position.floored()
         try {
-            await c.gotoWithTimeout(new goals.GoalBlock(p.x, p.y, p.z), 8000, 'return staircase')
-            if (c.bot.entity.position.distanceTo(new Vec3(p.x + 0.5, p.y, p.z + 0.5)) > 1.2) {
+            if (target.y === feet.y + 1 && Math.abs(target.x - feet.x) + Math.abs(target.z - feet.z) === 1) {
+                await climbStep(c, target)
+            } else {
+                await c.gotoWithTimeout(new goals.GoalBlock(x, y, z), 8000, 'return staircase')
+            }
+            if (c.bot.entity.position.distanceTo(target.offset(0.5, 0, 0.5)) > 1.2) {
                 throw new Error('return waypoint was not reached')
             }
         } catch (error) {
             check(c)
-            c.log.warn(`Return route blocked: ${error.message}; carving a new supported staircase.`)
-            c.memory.surfaceByStaircase = true
-            c.memory.mineRoute = []
-            await sleep(100)
-            return mineTunnel(c, surfaceY)
+            c.log.warn(`Current return stairs blocked at ${target}: ${error.message}.`)
+            break
         }
         route.pop()
     }
-    if (!route.length && c.bot.entity.position.y < surfaceY - 1) {
-        c.memory.surfaceByStaircase = true
-        return mineTunnel(c, surfaceY)
-    }
-    if (c.bot.entity.position.y >= surfaceY - 1) {
+    if (c.bot.entity.position.y >= surfaceY - 1 || await followShaft(c, 'up')) {
         c.memory.surfaceByStaircase = false
+        return
     }
+    if (!miningPickaxe(c)) {
+        throw new Error('return stairs blocked and carving requires a pickaxe')
+    }
+    if (!c.memory.surfaceByStaircase) {
+        c.log.warn('Known return stairs unavailable. Carving a supported staircase.')
+        c.memory.surfaceByStaircase = true
+        c.memory.mineRoute = []
+    }
+    return mineTunnel(c, surfaceY)
 }
 
 // Four open feet/head cells carry a level throw about three blocks, beyond the

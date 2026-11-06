@@ -1,6 +1,8 @@
 'use strict'
 
 const { nextAdvancement } = require('./advancement-plan')
+const MIN_MINING_WOOD_PLANKS = 32
+const MIN_MINING_FOOD_UNITS = 16
 
 const Actions = Object.freeze({
     ESCAPE: 'escape',
@@ -71,6 +73,11 @@ function chooseAction (state) {
     if (state.needsShelterExit) {
         return 'leave_shelter'
     }
+    const progression = nextAdvancement(state)
+    const craftPick = [Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_PICKAXE].includes(progression.action)
+    if (state.underground && craftPick && !state.hasStonePickaxe) {
+        return progression.action
+    }
     // A verified night shelter is a sealed 1x1 column too; it must not trigger a shaft escape.
     if (state.shaftTrapped && !state.sheltered) {
         return Actions.ASCEND
@@ -113,8 +120,7 @@ function chooseAction (state) {
     if (state.diamondInView && state.health > 10 && state.hostileDistance > 6) {
         return 'mine_diamond'
     }
-    const progression = nextAdvancement(state)
-    if ([Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_PICKAXE].includes(progression.action)) {
+    if (craftPick) {
         return progression.action
     }
     const preparingIronPick = progression.item === 'iron_pickaxe'
@@ -161,14 +167,15 @@ function chooseAction (state) {
     if (!state.underground && state.canCraftBed && !state.hasBed && state.hostileDistance > 12) {
         return 'prepare_bed'
     }
-    const deep = ['gather_diamonds', 'gather_redstone', 'gather_obsidian'].includes(action)
-    if (!state.underground && deep && state.foodUnits < 12) {
-        return Actions.FOOD
-    }
     // Torches and replacement picks need sticks; wood is only reachable on the surface.
-    const mining = deep || ['gather_iron', 'gather_coal'].includes(action)
-    if (!state.underground && mining && (state.planks || 0) + (state.logs || 0) * 4 + (state.sticks || 0) / 2 < 12) {
-        return Actions.WOOD
+    const mining = ['gather_iron', 'gather_coal', 'gather_diamonds', 'gather_redstone', 'gather_obsidian', 'fill_lava_bucket'].includes(action)
+    if (!state.underground && mining) {
+        if ((state.planks || 0) + (state.logs || 0) * 4 < MIN_MINING_WOOD_PLANKS) {
+            return Actions.WOOD
+        }
+        if (state.foodUnits < MIN_MINING_FOOD_UNITS) {
+            return Actions.FOOD
+        }
     }
     // Surfacing at night walked a weak bot into archers twice (F035); hunger returns stay above.
     if (surfaceBound && state.isNight) {

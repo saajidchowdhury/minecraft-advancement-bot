@@ -324,6 +324,14 @@ class SurvivalController {
     }
 
     async onSpawn () {
+        const dig = this.bot.dig.bind(this.bot)
+        this.bot.dig = async (block, ...args) => {
+            const tool = this.bot.heldItem
+            if (block?.material === 'mineable/pickaxe' && (!tool?.name.endsWith('_pickaxe') || !block.canHarvest(tool.type))) {
+                throw new Error(`digging ${block.name} requires a pickaxe`)
+            }
+            return dig(block, ...args)
+        }
         this.log.info(`Spawned as ${this.bot.username} on Minecraft ${this.bot.version} at ${this.positionText()}; waiting for terrain...`)
         try {
             await this.bot.waitForChunksToLoad()
@@ -871,9 +879,10 @@ class SurvivalController {
                 if (!block || block.boundingBox === 'empty') {
                     continue
                 }
-                if (['water', 'lava', 'bedrock'].includes(block.name) || !this.bot.canDigBlock(block)) {
+                if (['water', 'lava', 'bedrock'].includes(block.name) || PROTECTED_CONTAINERS.has(block.name) || !this.bot.canDigBlock(block)) {
                     throw new Error(`unsafe staircase block ${block.name} at ${block.position}`)
                 }
+                await this.equipStoneDigTool(block)
                 await this.bot.dig(block, true)
             }
             await climbStep(this, targetFeet)
@@ -995,6 +1004,7 @@ class SurvivalController {
             }
 
             const previousY = this.bot.entity.position.y
+            await this.equipStoneDigTool(trap.support)
             this.bot.clearControlStates()
             this.log.info(`Safely descending from isolated ${trap.support.name} pillar at ${trap.support.position}.`)
             await this.bot.dig(trap.support, true)
@@ -1003,6 +1013,16 @@ class SurvivalController {
             levels += 1
         }
         throw new Error('safe pillar descent exceeded eight blocks')
+    }
+
+    async equipStoneDigTool (block) {
+        if (block.material === 'mineable/pickaxe') {
+            const pick = miningPickaxe(this, block)
+            if (!pick) {
+                throw new Error(`digging ${block.name} requires a pickaxe`)
+            }
+            await this.bot.equip(pick, 'hand')
+        }
     }
 
     findSafeLowerLanding (maxRadius = 8) {
@@ -1687,6 +1707,7 @@ class SurvivalController {
         const diggable = column.every(p => {
             const block = at(p)
             return block?.boundingBox === 'block' && block.diggable && !PROTECTED_CONTAINERS.has(block.name) &&
+                (block.material !== 'mineable/pickaxe' || miningPickaxe(this, block)) &&
                 !['sand', 'red_sand', 'gravel', 'suspicious_sand', 'suspicious_gravel'].includes(block.name) &&
                 (this.bot.digTime?.(block) ?? 0) <= 8000 &&
                 [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]].every(([x, y, z]) => !['water', 'lava'].includes(at(p.offset(x, y, z))?.name))
@@ -1698,7 +1719,12 @@ class SurvivalController {
         }
         for (const p of column) {
             this.checkAction(signal)
-            await this.bot.dig(at(p), true)
+            const block = at(p)
+            if (block.material === 'mineable/pickaxe') {
+                await this.equipStoneDigTool(block)
+                this.checkAction(signal)
+            }
+            await this.bot.dig(block, true)
             await this.bot.waitForTicks(8)
             // An off-centre bot keeps standing on the neighbouring block's edge; step into the hole.
             if (this.bot.entity.position.y > p.y + 0.5) {
@@ -2138,6 +2164,8 @@ class SurvivalController {
         for (const name of PROTECTED_CONTAINERS) {
             movements.blocksCantBreak.add(movements.bot.registry.blocksByName[name].id)
         }
+        movements.exclusionAreasBreak.push(block => block.material === 'mineable/pickaxe' &&
+            !movements.bot.inventory?.items().some(item => item.name.endsWith('_pickaxe') && block.canHarvest(item.type)) ? 100 : 0)
         movements.allow1by1towers = false
         movements.allowParkour = false
         movements.maxDropDown = SAFE_PATHFINDER_DROP

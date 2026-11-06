@@ -224,32 +224,18 @@ test('a stalled prepared stair can use a short checked jump and releases control
     await assert.rejects(climbStep(c, target), /simulated pathfinder stall/)
 })
 
-test('without any pickaxe the bot can still hand-dig a staircase upward but not downward', async () => {
+test('a missing pickaxe prevents carving stairs in either direction', async () => {
     const { mineTunnel } = require('../src/progression-skills')
-    for (const [targetY, ok] of [[68, true], [60, false]]) {
-        const air = new Set()
-        let equips = 0
-        const bot = {
+    const c = {
+        running: true, memory: {}, bestItem: () => undefined, log: { info() {} },
+        bot: {
             health: 20, entity: { position: new Vec3(0, 64, 0) },
-            blockAt(p) {
-                const empty = air.has(p.toString())
-                return { name: empty ? 'air' : 'stone', position: p, boundingBox: empty ? 'empty' : 'block', diggable: true, canHarvest: () => false }
-            },
-            equip: async () => { equips++ }, canDigBlock: () => true,
-            async dig(block) { air.add(block.position.toString()) }
+            blockAt: world().blockAt, canDigBlock: () => true,
+            async dig() { assert.fail('dug stone with bare hands') }
         }
-        const controller = {
-            bot, running: true, paused: false, actionAbort: new AbortController(), memory: {},
-            bestItem: () => undefined, log: { info() {} },
-            async gotoWithTimeout(goal) { bot.entity.position = new Vec3(goal.x, goal.y, goal.z) }
-        }
-        if (ok) {
-            await mineTunnel(controller, targetY, new Vec3(10, targetY, 0))
-            assert.equal(bot.entity.position.y, 68)
-            assert.equal(equips, 0)
-        } else {
-            await assert.rejects(mineTunnel(controller, targetY), /requires a pickaxe/)
-        }
+    }
+    for (const targetY of [68, 60]) {
+        await assert.rejects(mineTunnel(c, targetY), /requires a pickaxe/)
     }
 })
 

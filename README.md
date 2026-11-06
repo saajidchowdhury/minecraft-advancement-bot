@@ -74,9 +74,9 @@ When no requested ore is exposed, mining also gathers nearby useful ores up to
 small reserve caps for later goals. A supplied and protected bot surveys connected
 large-cave floor before resuming a tunnel, with checked lighting, short supported
 steps, a visit cooldown and a shared exploration budget. Cave surveys disable
-digging and bridging, stop for threats, and append return waypoints. Deep mining
-from the surface first reserves twelve hunger points of carried food. These new
-policies have automated coverage; live cave validation is pending. See
+digging and bridging, stop for threats, and append return waypoints. Before leaving
+the surface to mine, the bot stocks at least eight logs' worth of wood and sixteen
+hunger points of carried food. Live cave validation is pending. See
 [cave-opportunities.md](cave-opportunities.md) for researched branches and limits.
 
 Nightfall alone does not stop underground work. On the surface, a prepared bot

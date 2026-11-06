@@ -3,7 +3,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { Vec3 } = require('vec3')
-const { followShaft, rememberShaft } = require('../src/progression-skills')
+const { followShaft, rememberShaft, performProgression } = require('../src/progression-skills')
 
 // Staircase from the surface entrance (0,70,0) down one block per step along +x to Y=-54.
 const stairs = Array.from({ length: 125 }, (_, i) => ({ x: i, y: 70 - i, z: 0 }))
@@ -59,6 +59,27 @@ test('returning to the surface climbs the shaft one stair at a time with the jum
     assert.deepEqual(c.bot.entity.position.floored(), new Vec3(0, 70, 0))
     assert.equal(c.visits.length, 124)
     assert.equal(c.visits.every(v => v.label === 'prepared stair step'), true)
+})
+
+test('a return follows the current stairs with the checked jump fallback before trying a stale shaft', async () => {
+    const c = shaftWorld(new Vec3(42.5, 69, 12.5), {
+        fail: () => true
+    })
+    const target = new Vec3(41, 70, 12)
+    c.memory.mineRoute = [target]
+    c.bestItem = () => null
+    c.bot.blockAt = p => p.equals(target.offset(0, -1, 0)) ? { name: 'stone', boundingBox: 'block' } : { name: 'air', boundingBox: 'empty' }
+    c.bot.pathfinder = { setGoal() {} }
+    c.bot.lookAt = async () => {}
+    c.bot.setControlState = (key, value) => {
+        if (key === 'forward' && value) {
+            c.bot.entity.position = target.offset(0.5, 0, 0.5)
+        }
+    }
+    c.bot.clearControlStates = () => {}
+    await performProgression(c, 'return_surface', {})
+    assert.deepEqual(c.bot.entity.position.floored(), target)
+    assert.deepEqual(c.visits.map(v => v.label), ['prepared stair step'])
 })
 
 test('a blocked shaft is forgotten and an unreachable or distant one falls back to digging', async () => {

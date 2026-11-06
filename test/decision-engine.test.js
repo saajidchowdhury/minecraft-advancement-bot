@@ -98,6 +98,14 @@ test('a miner replaces broken picks locally and collects the finished iron befor
     assert.equal(chooseAction({ ...stalled, creeperDistance: 4 }), Actions.ESCAPE)
 })
 
+test('a hungry miner crafts a pick before attempting a routine surface return', () => {
+    const miner = state({ underground: true, health: 15, food: 15, hasCraftingTable: true,
+        hasEarlySword: true, cobblestone: 319, sticks: 1, planks: 2, logs: 2 })
+    assert.equal(chooseAction(miner), Actions.CRAFT_STONE_PICKAXE)
+    assert.equal(chooseAction({ ...miner, hasWoodenPickaxe: true, hasStonePickaxe: true }), 'return_surface')
+    assert.equal(chooseAction({ ...miner, creeperDistance: 4 }), Actions.ESCAPE)
+})
+
 test('the axe upgrade outranks optional activities while keeping threat interrupts', () => {
     const ready = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true,
         hasWoodcuttingAxe: false, cobblestone: 3, sticks: 2, canPlantSeed: true })
@@ -119,11 +127,11 @@ test('progresses through the popular early advancement path', () => {
     assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, cobblestone: 3, sticks: 2 })), Actions.CRAFT_STONE_PICKAXE)
     assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true })), Actions.STONE)
     assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, cobblestone: 8 })), Actions.CRAFT_FURNACE)
-    assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, sticks: 2, logs: 3 })), Actions.IRON)
+    assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, sticks: 2, logs: 8, foodUnits: 16 })), Actions.IRON)
     assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, sticks: 2, rawIron: 3 })), Actions.WOOD)
     assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, sticks: 2, rawIron: 3, hasSmeltingFuel: true })), Actions.SMELT_IRON)
     assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, ironIngots: 3, sticks: 2 })), Actions.CRAFT_IRON_PICKAXE)
-    assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, ironIngots: 3, sticks: 2, hasIronPickaxe: true, foodUnits: 12, logs: 3 })), Actions.IRON)
+    assert.equal(chooseAction(state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, ironIngots: 3, sticks: 2, hasIronPickaxe: true, foodUnits: 16, logs: 8 })), Actions.IRON)
 })
 
 test('an unarmed recovery does not run through a nearby hostile even at full health', () => {
@@ -134,10 +142,10 @@ test('deep mining prepares food reserves at the surface without interrupting an 
     const ready = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true,
         hasStonePickaxe: true, hasStoneUtilityPickaxe: true, hasFurnace: true, hasIronPickaxe: true,
         hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true, gear: new Set(['iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']), 
-        logs: 3, planks: 4, sticks: 4, diamonds: 0, hasFood: false,
+        logs: 8, planks: 4, sticks: 4, diamonds: 0, hasFood: false,
         completedAdvancements: new Set(['minecraft:story/lava_bucket']) })
     assert.equal(chooseAction({ ...ready, foodUnits: 0 }), Actions.FOOD)
-    assert.equal(chooseAction({ ...ready, foodUnits: 12 }), 'gather_diamonds')
+    assert.equal(chooseAction({ ...ready, foodUnits: 16 }), 'gather_diamonds')
     assert.equal(chooseAction({ ...ready, underground: true, foodUnits: 0 }), 'gather_diamonds')
     assert.equal(chooseAction({ ...ready, underground: true, food: 16, foodUnits: 0 }), 'return_surface')
     assert.equal(chooseAction({ ...ready, inventoryFull: true }), 'clear_inventory')
@@ -160,7 +168,7 @@ test('deep mining does not abandon the trip for sticks and departs with a wood r
     assert.equal(nextAdvancement(state(geared)).action, 'gather_diamonds')
     assert.equal(chooseAction(state({ ...geared, underground: true })), 'gather_diamonds')
     assert.equal(chooseAction(state({ ...geared, underground: false })), Actions.WOOD)
-    assert.equal(chooseAction(state({ ...geared, underground: false, logs: 3 })), 'gather_diamonds')
+    assert.equal(chooseAction(state({ ...geared, underground: false, logs: 8 })), 'gather_diamonds')
     const needSticks = { ...geared, diamonds: 3, underground: true }
     assert.equal(chooseAction(state({ ...needSticks, inventoryFull: true })), 'return_surface')
     assert.equal(chooseAction(state({ ...geared, underground: true, inventoryFull: true })), 'clear_inventory')
@@ -181,8 +189,19 @@ test('iron and coal trips also carry a wood reserve for replacement picks', () =
         logs: 0, planks: 1, sticks: 2
     }
     assert.equal(chooseAction(state(early)), Actions.WOOD)
-    assert.equal(chooseAction(state({ ...early, logs: 3 })), 'gather_iron')
+    assert.equal(chooseAction(state({ ...early, logs: 3 })), Actions.WOOD)
+    assert.equal(chooseAction(state({ ...early, logs: 8 })), 'gather_iron')
+    assert.equal(chooseAction(state({ ...early, logs: 8, foodUnits: 15 })), Actions.FOOD)
     assert.equal(chooseAction(state({ ...early, underground: true })), 'gather_iron')
+})
+
+test('a lava search stocks food before descent and continues if already underground', () => {
+    const ready = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true,
+        hasFurnace: true, hasIronPickaxe: true, hasIronArmor: true, armorEquipped: true, hasShield: true,
+        shieldEquipped: true, hasBucket: true, logs: 8, foodUnits: 15 })
+    assert.equal(chooseAction(ready), Actions.FOOD)
+    assert.equal(chooseAction({ ...ready, foodUnits: 16 }), 'fill_lava_bucket')
+    assert.equal(chooseAction({ ...ready, underground: true }), 'fill_lava_bucket')
 })
 
 test('an adjacent hostile is fought when armed and healthy, otherwise escaped', () => {
