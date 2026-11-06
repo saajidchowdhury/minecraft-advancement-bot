@@ -1,18 +1,16 @@
 # Findings
 
-Updated 2026-11-05 (America/New_York). Evidence labels distinguish live observations,
+Updated 2026-11-06 (America/New_York). Evidence labels distinguish live observations,
 automated regressions, code inspection and hypotheses. Keep useful finding IDs
 stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Latest code run: `e01b598` on port 54390, `outputs/2026-11-05@23.51.05/`.
-All 261 tests and syntax checks passed. F048–F054 cover food recovery, tool
-maintenance, inventory disposal, cave exploration and loot memory, five-block
-probes, casting, and diamond interrupts. The staged casting and diamond replays
-succeeded. After restart, `gather_obsidian` repeatedly timed out verifying a
-world change at (-18,27,-8); see F055. Read the latest `session.json` and verify
-the PID and connection before taking over.
+Updated 2026-11-06 ~00:50 Eastern. A fresh LAN world on port 55502 uses world ID
+`lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
+after `ae4fb62` passes all 281 tests and syntax checks. Read the latest
+`outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
+with `pgrep -f src/index.js` before taking over.
 
 Historical 18:20 Eastern handoff. Bot ran on LAN port 51718, PID 56696, code
 `a18c0ff`, rebuilding basic tools after a pickaxe loss; no log watcher is running. Verify the
@@ -1028,7 +1026,7 @@ still in its original cell. The bot collected the fourth diamond, retained
 obsidian as its goal despite the newly affordable diamond boots, and queued
 inventory cleanup first. See `outputs/diamond-interrupt-setup.json`.
 
-## F055 — Obsidian verification repeats at a natural site [live failure]
+## F055 — Obsidian verification repeats at a natural site [live failure; resolved by F056]
 
 After the F054 restart, the bot repeatedly attempted `gather_obsidian` near
 (-18,27,-8), timed out after four seconds verifying a world change, and
@@ -1036,3 +1034,92 @@ scouted without escaping the retry cycle. The log does not identify the
 failed interaction. This is separate from the successful staged cast in
 F053. Reproduce at the recorded site and identify the failed interaction
 before changing the casting geometry or recovery policy.
+
+## F056 — F055 root cause: a water bucket was used to scoop lava [log + regression]
+
+Resolves F055. The `23.51.05` state snapshot showed two water buckets, no empty
+bucket and no lava bucket. The action summary hid all bucket items. With no
+lava carried, `gather_obsidian` called `fillLavaBucket`, which equipped
+`bestItem(['bucket'])`. That helper also accepts a `_bucket` suffix, so it
+returned `water_bucket`. The bare `until(hasItem('lava_bucket'))` then timed
+out at four seconds on every retry. `de0892c` requires an exact empty bucket.
+When the bot carries neither lava nor an empty bucket, the planner crafts a
+third bucket before casting. A steady cast cycle then has 2 water + 1 lava,
+or 2 water + 1 empty. `6d13ef7` quarantines a lava source for 120 s after a
+non-cancelled failure. `4cbca1b` adds buckets, axes, diamonds and obsidian to
+the action summary. Both regressions failed on the pre-fix source. A
+continuous ten-block cast is still not live-verified.
+
+## F057 — Fresh world on port 55502: early route and three planner stalls [live]
+
+World ID `lan-55502-20261106`, started empty-handed at 05:16:10Z on `317fc9b`.
+No commands or staged items were used. Server-confirmed timeline (UTC): root
+05:16:27, A Seedy Place 05:16:48, Stone Age 05:17:19, Getting an Upgrade
+05:17:23, Adventure 05:22:18, Acquire Hardware 05:26:52, Isn't It Iron Pick
+05:26:55, Monster Hunter 05:29:13, Husbandry 05:29:20, Suit Up 05:44:22.
+That is ten advancements in 28 minutes with no deaths through 05:44. The run
+restarted onto newer code at 05:22, 05:35 and 05:41.
+
+1. Stone before wood (`731bac3`). The bot dug down for three cobblestone, then
+   spent them climbing back to trees, three times in about two minutes. When
+   a recipe lacks both, the planner now gathers wood first.
+2. Stale return waypoint (`22c3050`). After walking off its route (restock,
+   pickup), `return_surface` targeted the deepest remembered cell first. That
+   cell was 17 blocks away, so each attempt burned an 8 s timeout. The route
+   now resumes at the nearest cell within 6 blocks, or is dropped.
+3. Hill-enclosed "surface" (`dda1c30`, `ae4fb62`). The return staircase ended
+   at home Y=69 under stone, while the local hill surface was at Y=74. The bot
+   then failed every tree approach and land scout without moving for over
+   three minutes. Failure escalation called `unstick` only for "No path"
+   errors or food watchdog stalls. Three failures within 1.5 blocks now also
+   trigger it. Live on `dda1c30` at 05:42:17, the third failure triggered
+   unstick. Scouting timed out, the upward dig reached Y=74, and the bot cut
+   wood. It crafted and equipped an iron pick by 05:42:59 and earned Suit Up
+   at 05:44:22. `ae4fb62` keeps `return_surface` climbing while a solid
+   non-leaf block covers the bot. It is not yet live-tested.
+
+Also seen: savanna acacia trees cost one 10 s approach timeout per log.
+`c65d476` now blocks the whole trunk vein after one failure, but acacia's
+diagonal trunks can still fall outside the three-block vein. The iron pick
+wore out at 05:36 while carving a staircase. The bot rebuilt it from six
+carried ingots once it had wood.
+
+## F058 — Side-goal materials were deposited at the base [code + regression]
+
+The base `CARRY` table stored all string, feathers and leather (limit 0).
+Fishing and Take Aim check carried items only, so a deposit permanently
+starved them. `18ae882` carries 5 string (rod 2 + bow 3), 4 feathers,
+1 leather, 16 arrows and 8 lapis, and restocks them from the base. Live: the
+restarted bot restocked 4 feathers at 05:35:56.
+
+## F059 — Take Aim, portal standing row and Enchanter [regressions only]
+
+`5ce4c25` adds Take Aim (`adventure/shoot_arrow`). In calm daylight with 3
+string, flint and a feather (or a bow and arrows), it crafts a bow and
+arrows. It shoots a passive animal 5–14 blocks away, aiming at the centre
+plus 0.025·t² blocks of drop (t = distance/3 ticks) and leading by velocity.
+It draws for 22 ticks and refuses a shot if a player is within 2 blocks of the
+line of fire. It stops after three arrows or the server packet. Not live-tested.
+
+`c86bda1`: portal placement used `GoalNear(target, 2)`. That goal can be
+satisfied with the bot standing in a frame cell, and every retry then fails
+in place. Placements now stand on the cleared row at z+1 beside the frame.
+
+`45c6ce0` and `75fe33f` add Enchanter (`story/enchant_item`) after the Nether
+return. User direction (2026-11-06): serious enchanting waits for a
+stronghold library's bookshelves, and the bot must not farm sugar cane. The
+branch starts only when a book, paper or three cane are already carried
+(e.g. chest loot). It then gets leather from cows (deferred 15 min after
+eight fruitless scouts), four cast obsidian, two diamonds, lapis and level 1.
+It takes the best offer affordable with the levels and lapis on hand, then
+reclaims the table. The pinned Mineflayer emits `ready` on all-zero offer
+levels, so the skill polls for a positive level. The 26.1 protocol data still
+names `enchant_item` and `craft_progress_bar` as the library expects. Not
+live-tested.
+
+## F060 — Session efficiency notes
+
+- Every F055/F057 diagnosis came from `bot.log` plus `state.json`. Logging
+  buckets and tools in the action line removes the need for the snapshot.
+- Restarting a fresh-world bot costs seconds: advancements come back from
+  server packets, and world memory persists under the world ID.

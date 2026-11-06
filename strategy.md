@@ -29,8 +29,10 @@ when new evidence changes a ranking; goals.md carries the actionable queue.
    before measuring a continuous portal run. Nether entry unlocks several cheap
    advancements: Oh Shiny (gold to a piglin), Hidden in the Depths (ancient
    debris at Y 8–22 with the diamond pick), and later Into Fire / A Terrible Fortress.
-5. **Enchanter.** Book (sugar cane + leather), 2 diamonds and 4 obsidian; enchanting
-   the pickaxe compounds mining speed. Depends on obsidian from step 4.
+5. **Enchanter.** User direction (2026-11-06): no sugar-cane farming; serious
+   enchanting waits for a stronghold library's bookshelves. The bot earns Enchanter
+   only from a book or paper already in hand (F059). The stronghold branch (eyes
+   of ender, library) therefore carries the enchanting payoff.
 6. **Cheap side advancements** (G014): breeding, fishing, Take Aim, wolf taming,
    Tactical Fishing. Each costs about a minute when conditions are met.
 7. **Mining yield** (G008): measure ore per block for probe spacing; later G012
@@ -59,8 +61,8 @@ balanced_diet, bred_all_animals, complete_catalogue and similar exhaustive goals
 
 - Async smelting starts a job at three raw iron, so jobs of 3–5 repeat furnace placement
   and pickup; batching to about eight when the need allows would cut overhead.
-- Enchanter needs a book (three sugar cane for paper, one leather), an enchanting table
-  (book, two diamonds, four obsidian) and lapis; without bookshelves levels cap at 8, which
-  still often offers Efficiency on a pickaxe. Obsidian comes from the Nether route casting.
+- Enchanter needs a book, an enchanting table (book, two diamonds, four obsidian) and
+  lapis; without bookshelves offers cap at level 8. Per user direction, books and
+  bookshelves come from loot and the stronghold library, not sugar-cane farming.
 - A longer Nether stay needs one gold armor piece (gold boots: four ingots) against
   piglins; the base currently stores all gold, so the planner must keep four ingots then.

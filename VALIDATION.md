@@ -1,11 +1,11 @@
 # Validation
 
-Live tests: 2026-11-04–05, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
+Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
-The latest code baseline (`e01b598`) passed all 261 tests and syntax checks.
+The latest code baseline (`ae4fb62`) passed all 281 tests and syntax checks.
 The staged LAN evidence for casting and diamond interrupts is near the end of
-this file. Continuous portal preparation remains open: F055 records repeated
-obsidian verification timeouts after the restart.
+this file. F056 resolves the F055 obsidian timeout. Continuous portal
+preparation is still not live-verified.
 
 ## Initial survival baseline
 
@@ -392,3 +392,21 @@ comment-bearing lines.
 F055 is an unresolved live failure. The natural run on `e01b598` repeatedly
 timed out in `gather_obsidian` near (-18,27,-8). The staged cast does not
 cover this site or prove a repeatable supply for a portal.
+
+## Fresh LAN world (port 55502, 2026-11-06)
+
+Unaided survival, with no commands or staged items. The server confirmed ten
+advancements from an empty inventory in 28 minutes, with no deaths through
+Suit Up at 05:44:22Z (F057). The runs were on `317fc9b`, `731bac3`,
+`45c6ce0` and `dda1c30`, in `outputs/2026-11-06@00.16.10` through
+`@00.41.40`. Live-verified on `dda1c30`: in-place failure escalation into
+`unstick`, which dug out of a hill pocket, followed by an iron pick rebuilt
+from carried ingots. Restocking feathers from the base was also seen live.
+
+Automated only (regressions that failed on the pre-fix source): exact empty
+bucket for lava and the third-bucket plan (F056), lava-source quarantine,
+wood before stone, nearest-cell return routes, enclosed-return climbing,
+whole-trunk blocking, carried side-goal materials (F058), Take Aim, the
+portal standing row and Enchanter (F059). Enchanter and Take Aim are new
+modules, so their tests are first-version specifications rather than
+pre-fix reproductions.

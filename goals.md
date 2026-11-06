@@ -1,10 +1,27 @@
 # Prioritized development goals
 
-Updated 2026-11-05 (America/New_York). This is a working queue, not a rigid script.
+Updated 2026-11-06 (America/New_York). This is a working queue, not a rigid script.
 Reorder it when new evidence or user instructions warrant. Keep IDs stable and
 record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
+
+## Session 2026-11-06 (port 55502) — start here
+
+Fresh world `lan-55502-20261106`: ten server-confirmed advancements in 28 min
+with no deaths through Suit Up (F057). Next actions, in order:
+1. Watch this run through shield, bucket, Hot Stuff, iron kit and Diamonds!.
+   Confirm `ae4fb62` climbs out of hill-enclosed returns without the stall in F057.
+2. G005: watch the first continuous casting run with the F056 fix: ten
+   obsidian, the third bucket, lava quarantine and the portal standing row
+   (F059). Require server packets for Ice Bucket Challenge and Nether entry.
+3. Live-confirm Take Aim once string, flint and feathers coincide (F059).
+   Natural string comes from night spider hunts.
+4. Enchanter stays opportunistic (user direction: no sugar-cane farming).
+   Plan the stronghold branch next: eyes of ender (blaze powder + ender pearls)
+   and the library's bookshelves for serious enchanting.
+5. Acacia diagonal trunks can still fall outside the three-block vein that
+   `c65d476` blocks; widen the vein if repeated per-log timeouts recur.
 
 ## G001 — Highest / active — Make survival and death recovery trustworthy
 
@@ -87,9 +104,8 @@ diamond pick and sufficient obsidian for a portal. Geometry tests alone are not
 completion. Fix unsafe/unproductive skills before adding more branches.
 
 F053 confirmed Ice Bucket Challenge and two water buckets after a staged cast.
-F054 verified the diamond interrupt on LAN with staged ore. First reproduce
-the live verification timeout at the site in F055 and identify which world
-change failed. Verify recovery at that site, natural lava resupply and the
+F054 verified the diamond interrupt on LAN with staged ore. F056 found the F055
+cause: a suffix-matched water bucket was used to scoop lava; fixed in `de0892c`. Verify recovery at that site, natural lava resupply and the
 ten-block reserve on a continuous run.
 
 ## G006 — Medium / implemented, not yet live verified — Nether entry and a route back
@@ -324,6 +340,9 @@ Candidates ranked by cost against current skills (verify ids/criteria against 26
 6. Best Friends Forever (husbandry/tame_an_animal): bones on a wolf when one is near.
 Then the planned Ice Bucket Challenge and Nether entry; Oh Shiny (barter stored gold) and
 Into Fire/A Terrible Fortress once the Nether route is reliable.
+
+G014 2026-11-06: Take Aim implemented (`5ce4c25`), live pending; side-goal string,
+feathers and leather are now carried past the base (F058).
 
 G014 progress ~16:45 Eastern: shield raised while charging archers (`abe265d`), A Seedy
 Place (`8f5282d`) and Fishy Business (`cdf6e01`) implemented with tests; live pending.
