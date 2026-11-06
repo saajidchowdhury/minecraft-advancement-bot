@@ -1423,3 +1423,14 @@ forward+sprint+jump toward the nearest dry cell for up to 1.2 s before falling b
 pathfinder. Not yet seen live: why the walk entered lava although lava is in `blocksToAvoid`
 (possibly flowing lava next to the path). Death drops were judged unrecoverable (threats).
 The respawn replaced the provisional home with (25,77,87) on first open sky, as intended (F072).
+
+## F075 — Live: rebuild after death #8 with the F071–F074 policy [live]
+
+Run `outputs/2026-11-06@12.39.17` (`c085d82`), 17:39–18:09Z, no deaths or damage. From a bare
+respawn (logs only) the bot crafted stone tools, an iron pick (17:43:50), chestplate, iron
+sword, leggings, helmet and boots (17:54:04), equipped a shield, and a diamond pickaxe
+(18:06:27); the diamond sword became the next target at once (F073). The walk interrupt fired
+seven times ("iron came into view during gather_iron"). It entered a cave at dusk and mined
+through the whole night underground (timeOfDay 12558 -> 23938) without surfacing, as intended.
+Still unobserved: fish hunts, stew, shore waits, the lava drive-out and a full cooking cycle
+with fuel.
