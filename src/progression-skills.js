@@ -655,9 +655,13 @@ async function fillWaterBucket(c) {
             .sort((a, b) => bot.entity.position.distanceTo(a) - bot.entity.position.distanceTo(b))
         const bank = banks[0]
         if (!bank) {
-            throw new Error('water source has no dry bank')
-        }
-        if (!bot.entity.position.floored().equals(bank)) {
+            // Cave springs sit in rock with no open bank (02.29.19: eight misses in a row); a bucket
+            // reaches about 4.5 blocks, so stand anywhere near enough instead.
+            await c.gotoWithTimeout(new goals.GoalNear(water.position.x, water.position.y, water.position.z, 3), 12000, 'water approach')
+            if (bot.entity.position.distanceTo(water.position.offset(0.5, 0.5, 0.5)) > 4.5) {
+                throw new Error('water source has no dry bank and is out of reach')
+            }
+        } else if (!bot.entity.position.floored().equals(bank)) {
             await c.gotoWithTimeout(new goals.GoalBlock(bank.x, bank.y, bank.z), 12000, 'water approach')
         }
         await useBucket(c, 'bucket', water.position.offset(0.5, 0.5, 0.5),

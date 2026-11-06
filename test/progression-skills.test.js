@@ -591,3 +591,36 @@ test('a level tunnel blocked by liquid on every side climbs one step around it',
     // the stall means a step was chosen.
     await assert.rejects(mineTunnel(c, 64), error => !/no supported dry tunnel step/.test(error.message))
 })
+
+test('a cave spring with no dry bank is filled from within bucket reach', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const spring = new Vec3(3, 66, 0)
+    const inventory = { bucket: 1, water_bucket: 1 }
+    let held
+    const bot = {
+        health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) },
+        inventory: { items: () => Object.entries(inventory).filter(([, n]) => n).map(([name, count]) => ({ name, count })) },
+        blockAt: p => p.equals(spring) ? { name: 'water', position: p, boundingBox: 'empty', getProperties: () => ({ level: 0 }) } :
+            { name: 'stone', position: p, boundingBox: 'block', getProperties: () => ({}) },
+        async equip(item) { held = item.name },
+        async lookAt() {}, async waitForTicks() {},
+        activateItem() {
+            if (held === 'bucket') {
+                inventory.bucket--
+                inventory.water_bucket++
+            }
+        },
+        deactivateItem() {}
+    }
+    const c = {
+        bot, running: true, paused: false, memory: {}, log: { info() {}, warn() {} },
+        countItems: names => names.reduce((n, name) => n + (inventory[name] || 0), 0),
+        hasItem: name => inventory[name] > 0,
+        isEmptyPlacementBlock: block => block?.name === 'air',
+        findNearestBlock: matcher => matcher('water') ? bot.blockAt(spring) : null,
+        async gotoWithTimeout() { bot.entity.position = new Vec3(1.5, 65, 0.5) },
+        rememberBlockedTarget: () => assert.fail('quarantined a reachable spring')
+    }
+    await performProgression(c, 'fill_water_bucket', {})
+    assert.equal(inventory.water_bucket, 2)
+})
