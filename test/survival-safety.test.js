@@ -353,6 +353,13 @@ test('burrowing is refused over water, falling blocks or an open cave below', as
     }
 })
 
+test('a refused burrow names the open wall, floor or column cell that blocked it', async () => {
+    for (const [hazard, reason] of [[{ [new Vec3(1, 61, 1)]: 'air' }, /wall cell \(1, 61, 1\) is air/],
+        [{ [new Vec3(0, 60, 0)]: 'air' }, /floor \(0, 60, 0\) is air/], [{ [new Vec3(0, 62, 0)]: 'gravel' }, /column cell \(0, 62, 0\) is gravel/]]) {
+        await assert.rejects(SurvivalController.prototype.burrow.call(burrowWorld(hazard)), reason)
+    }
+})
+
 test('a refused mining descent leaves an intact shelter closed and disables retries there', async () => {
     const c = shelterWorld()
     const center = new Vec3(0, 64, 0)

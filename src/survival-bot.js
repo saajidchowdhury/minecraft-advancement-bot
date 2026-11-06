@@ -1832,18 +1832,22 @@ class SurvivalController {
         const at = p => this.bot.blockAt(p, false)
         const solid = p => at(p)?.boundingBox === 'block' && !['lava', 'magma_block'].includes(at(p).name)
         const column = [1, 2, 3].map(dy => top.offset(0, -dy, 0))
-        const diggable = column.every(p => {
+        const undiggable = column.find(p => {
             const block = at(p)
-            return block?.boundingBox === 'block' && block.diggable && !PROTECTED_CONTAINERS.has(block.name) &&
+            return !(block?.boundingBox === 'block' && block.diggable && !PROTECTED_CONTAINERS.has(block.name) &&
                 (block.material !== 'mineable/pickaxe' || miningPickaxe(this, block)) &&
                 !['sand', 'red_sand', 'gravel', 'suspicious_sand', 'suspicious_gravel'].includes(block.name) &&
                 (this.bot.digTime?.(block) ?? 0) <= 8000 &&
-                [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]].every(([x, y, z]) => !['water', 'lava'].includes(at(p.offset(x, y, z))?.name))
+                [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]].every(([x, y, z]) => !['water', 'lava'].includes(at(p.offset(x, y, z))?.name)))
         })
-        const walls = [0, 1].every(level => [-1, 0, 1].every(dx => [-1, 0, 1].every(dz =>
-            (dx === 0 && dz === 0) || solid(center.offset(dx, level, dz)))))
-        if (!diggable || !walls || !solid(center.offset(0, -1, 0)) || !this.bot.registry || !column.every(p => at(p))) {
-            throw new Error('no hand-diggable enclosed column below')
+        const openWall = [0, 1].flatMap(level => [-1, 0, 1].flatMap(dx => [-1, 0, 1].map(dz => center.offset(dx, level, dz))))
+            .find(p => !p.equals(center) && !p.equals(center.offset(0, 1, 0)) && !solid(p))
+        const floor = center.offset(0, -1, 0)
+        const problem = undiggable ? `column cell ${undiggable} is ${at(undiggable)?.name ?? 'unloaded'}` :
+            openWall ? `wall cell ${openWall} is ${at(openWall)?.name ?? 'unloaded'}` :
+                !solid(floor) ? `floor ${floor} is ${at(floor)?.name ?? 'unloaded'}` : !this.bot.registry ? 'no registry' : null
+        if (problem) {
+            throw new Error(`no hand-diggable enclosed column below: ${problem}`)
         }
         for (const p of column) {
             this.checkAction(signal)
