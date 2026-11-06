@@ -87,3 +87,20 @@ test('an unaffordable table closes the window and reports the offers', async () 
     assert.equal(events.includes('close'), true)
     assert.equal(events.some(e => e.startsWith('enchant')), false)
 })
+
+test('fruitless scouting for cane defers Enchanter so the diamond armor route continues', async () => {
+    const { gatherSugarCane, enchantingState } = require('../src/enchanting')
+    let scouts = 0
+    const c = {
+        bot: { experience: { level: 0 } }, memory: {}, log: { warn() {} },
+        findNearestBlock: () => null, scout: async () => { scouts++ },
+        countItems: () => 0, hasItem: () => false, findStation: () => null
+    }
+    for (let i = 0; i < 8; i++) {
+        await gatherSugarCane(c)
+    }
+    assert.equal(scouts, 7)
+    const state = enchantingState(c, { ...ready })
+    assert.equal(state.enchanterDeferred, true)
+    assert.match(nextAdvancement(state).item, /^diamond_/)
+})

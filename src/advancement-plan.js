@@ -257,7 +257,7 @@ function planAdvancement(state) {
         return target('minecraft:story/enter_the_nether', 'enter_nether', 'build, light and enter a portal')
     }
     // Efficiency on the pick compounds every later dig, including the diamonds for the armor below.
-    if (!state.completedAdvancements?.has('minecraft:story/enchant_item') && state.dimension === 'overworld') {
+    if (!state.completedAdvancements?.has('minecraft:story/enchant_item') && state.dimension === 'overworld' && !state.enchanterDeferred) {
         return enchanterStep(state)
     }
     // Past the supported route, a full diamond set raises survival for whatever comes next.

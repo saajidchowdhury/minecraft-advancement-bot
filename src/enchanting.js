@@ -7,6 +7,8 @@ const ENCHANTER = 'minecraft:story/enchant_item'
 const LEATHER_ANIMALS = new Set(['cow', 'mooshroom'])
 // Enchanting targets in order of the compounding payoff: Efficiency on a pick speeds all mining.
 const TARGETS = ['netherite_pickaxe', 'diamond_pickaxe', 'iron_pickaxe', 'diamond_sword', 'iron_sword']
+const SCOUT_BUDGET = 8
+const DEFER_MS = 15 * 60000
 
 function enchantingState(c, state) {
     state.sugarCane = c.countItems(['sugar_cane'])
@@ -16,7 +18,27 @@ function enchantingState(c, state) {
     state.lapis = c.countItems(['lapis_lazuli'])
     state.xpLevel = c.bot.experience?.level ?? 0
     state.hasEnchantingTable = c.hasItem('enchanting_table') || Boolean(c.findStation?.('enchanting_table', 4))
+    state.enchanterDeferred = c.memory.enchanterDeferredUntil > Date.now()
     return state
+}
+
+// Scouting for cane or cows is unbounded terrain search; after a budget the branch yields.
+async function scoutFor(c, material) {
+    const scouts = c.memory.enchanterScouts ??= {}
+    scouts[material] = (scouts[material] || 0) + 1
+    if (scouts[material] >= SCOUT_BUDGET) {
+        scouts[material] = 0
+        c.memory.enchanterDeferredUntil = Date.now() + DEFER_MS
+        c.log.warn(`No ${material} after ${SCOUT_BUDGET} scouts; deferring Enchanter for ${DEFER_MS / 60000} min.`)
+        return
+    }
+    return c.scout(32)
+}
+
+function found(c, material) {
+    if (c.memory.enchanterScouts) {
+        c.memory.enchanterScouts[material] = 0
+    }
 }
 
 // Cut the second segment up so the rooted bottom cane regrows; a lone stalk is taken whole.
@@ -26,16 +48,18 @@ async function gatherSugarCane(c) {
         filter: b => bot.blockAt(b.position.offset(0, -1, 0))?.name === 'sugar_cane'
     }) || c.findNearestBlock(name => name === 'sugar_cane', 48)
     if (!cane) {
-        return c.scout(32)
+        return scoutFor(c, 'sugar cane')
     }
+    found(c, 'sugar cane')
     await c.collectTarget(cane, cane, 'sugar cane')
 }
 
 async function gatherLeather(c) {
     const animal = c.nearestEntity(LEATHER_ANIMALS, 48)
     if (!animal) {
-        return c.scout(32)
+        return scoutFor(c, 'cows')
     }
+    found(c, 'cows')
     return c.fight(animal, true)
 }
 
