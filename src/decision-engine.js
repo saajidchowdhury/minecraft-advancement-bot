@@ -177,6 +177,9 @@ function chooseAction (state) {
     if (!preparingTool && state.canFish && !state.inventoryFull) {
         return 'go_fish'
     }
+    if (!preparingTool && state.canShootArrow && !state.inventoryFull) {
+        return 'shoot_arrow'
+    }
     if (!recoveringPick && state.baseDeposit) {
         return 'deposit_base'
     }
