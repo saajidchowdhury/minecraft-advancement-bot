@@ -85,6 +85,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     wake: 10000, hunt_night: 45000, sleep: 30000, prepare_bed: 45000, prepare_night_weapon: 30000, leave_shelter: 20000,
     [Actions.EXPLORE]: 60000
 })
+const MELEE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'spider', 'cave_spider', 'vindicator', 'piglin_brute', 'zombified_piglin'])
 const INTERACTIVE = /(^|_)(furnace|smoker|chest|barrel|crafting_table|enchanting_table|anvil|bed|door|trapdoor|fence_gate|button|lever|shulker_box)$/
 const STATIONARY_ACTIONS = new Set([
     Actions.DESCEND,
@@ -289,6 +290,10 @@ class SurvivalController {
                     // Zombies keep pace with a fleeing bot; an armored one turns and fights instead (F032).
                     this.cancelCurrentTask(`attacked while fleeing by ${fleeingArmored.name}`)
                 }
+                if (this.escapePinned?.() && this.busy && !this.actionAbort?.signal.aborted) {
+                    this.corneredUntil = Date.now() + 6000
+                    this.cancelCurrentTask('cornered while fleeing')
+                }
                 const attacker = this.nearestEntity?.(HOSTILES, 4) ||
                     Object.values(this.bot.entities || {}).find(e => e.isValid && ARCHERS.has(e.name) &&
                         this.bot.entity.position.distanceTo(e.position) <= 16 && this.canSee?.(e))
@@ -462,6 +467,12 @@ class SurvivalController {
             this.log.info(`Action: ${action} | hp=${state.health.toFixed(1)} food=${state.food} | ${this.inventorySummary()} | at ${this.positionText()}`)
             this.onState(state, action)
             const actionStart = this.bot.entity.position.clone()
+            // Remember where an escape began; one that cannot leave that spot is cornered (03.36.15).
+            if (action !== Actions.ESCAPE) {
+                this.escapeOrigin = null
+            } else if (!this.escapeOrigin || actionStart.distanceTo(this.escapeOrigin.position) >= 1.2) {
+                this.escapeOrigin = { position: actionStart, at: Date.now() }
+            }
             await this.performWithTimeout(action, state)
             const after = this.observe()
             this.onState(after, action)
@@ -650,6 +661,10 @@ class SurvivalController {
             this.recoveringHealth = false
         }
         state.recoveringHealth = Boolean(this.recoveringHealth)
+        if (this.escapePinned?.()) {
+            this.corneredUntil = Date.now() + 6000
+        }
+        state.cornered = this.corneredUntil > Date.now() && state.hostileDistance <= 3
         state.oxygen = this.bot.oxygenLevel ?? 20
         state.headInWater = this.bot.blockAt(this.bot.entity.position.offset(0, this.bot.entity.eyeHeight ?? 1.62, 0), false)?.name === 'water'
         // Hostiles behind walls cannot reach a sealed pocket; only visible ones make a crowd.
@@ -719,7 +734,7 @@ class SurvivalController {
             case Actions.DESCEND: return this.descendSafely()
             case Actions.ASCEND: return this.escapeVerticalShaft()
             case Actions.RECOVER: return this.recoverItems()
-            case Actions.FIGHT: return this.fight(state.rangedDistance <= 12 ? state.ranged : state.hostile)
+            case Actions.FIGHT: return this.fight(state.rangedDistance <= 12 ? state.ranged : state.hostile, false, null, state.cornered)
             case Actions.EAT: return this.eat()
             case Actions.SHELTER: return this.makeNightSafe()
             case Actions.WOOD: return this.gatherWood()
@@ -1568,7 +1583,7 @@ class SurvivalController {
         await this.bot.consume()
     }
 
-    async fight (entity, hunt = false, guard = null) {
+    async fight (entity, hunt = false, guard = null, cornered = false) {
         const signal = this.actionAbort?.signal
         this.checkAction(signal)
         if (!entity || !entity.isValid) {
@@ -1592,11 +1607,11 @@ class SurvivalController {
                     throw new Error(reason)
                 }
                 // Twelve or more armor points make a lone melee duel safer than running (F030).
-                if (!hunt && !canSustainFight(this.bot.health, wornArmorPoints(this.bot))) {
+                if (!hunt && !cornered && !canSustainFight(this.bot.health, wornArmorPoints(this.bot))) {
                     this.urgentReplan = true
                     throw new Error('combat health too low; replanning escape')
                 }
-                if (!hunt && outnumbered(this.visibleThreatCount(), wornArmorPoints(this.bot))) {
+                if (!hunt && !cornered && outnumbered(this.visibleThreatCount(), wornArmorPoints(this.bot))) {
                     this.urgentReplan = true
                     throw new Error('outnumbered in combat; replanning escape')
                 }
@@ -1747,6 +1762,13 @@ class SurvivalController {
                 return this.braceAgainst(threat)
             }
         }
+    }
+
+    // An escape that has not left its starting cell for a second while a melee mob is adjacent.
+    escapePinned () {
+        const origin = this.escapeOrigin
+        return Boolean(origin && (this.activeAction || this.lastAction) === Actions.ESCAPE && Date.now() - origin.at >= 1000 &&
+            this.bot.entity.position.distanceTo(origin.position) < 1.2 && this.nearestEntity?.(MELEE, 2.5))
     }
 
     // Nearest cell within six blocks whose head space is air; with none, swim straight up with jump held.

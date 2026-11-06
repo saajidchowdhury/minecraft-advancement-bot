@@ -665,3 +665,22 @@ test('a survival block is placed against plain stone before a furnace, and sneak
         assert.equal(sneaking, false)
     }
 })
+
+test('an escape pinned in its starting cell by an adjacent zombie turns into a fight, even outnumbered', () => {
+    const { chooseAction, Actions } = require('../src/decision-engine')
+    const c = Object.create(SurvivalController.prototype)
+    const zombie = { name: 'zombie' }
+    c.bot = { entity: { position: new Vec3(242.5, -19, -126.5) } }
+    c.lastAction = Actions.ESCAPE
+    c.nearestEntity = (names, range) => names.has('zombie') && range >= 0.4 ? zombie : null
+    c.escapeOrigin = { position: new Vec3(242.4, -19, -126.6), at: Date.now() - 1500 }
+    assert.equal(c.escapePinned(), true)
+    c.escapeOrigin = { position: new Vec3(242.4, -19, -126.6), at: Date.now() - 300 }
+    assert.equal(c.escapePinned(), false)
+    c.escapeOrigin = { position: new Vec3(238.5, -19, -126.5), at: Date.now() - 1500 }
+    assert.equal(c.escapePinned(), false)
+    const trapped = { health: 6.6, food: 17, hasWeapon: true, armorPoints: 15, closeHostiles: 3, visibleHostiles: 3, hostileDistance: 0.4 }
+    assert.equal(chooseAction(trapped), Actions.ESCAPE)
+    assert.equal(chooseAction({ ...trapped, cornered: true }), Actions.FIGHT)
+    assert.equal(chooseAction({ ...trapped, cornered: true, creeperDistance: 4 }), Actions.ESCAPE)
+})

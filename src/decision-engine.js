@@ -47,6 +47,10 @@ function chooseAction (state) {
     if (state.headInWater && (state.oxygen ?? 20) <= 12) {
         return 'surface_for_air'
     }
+    // An escape pinned in place by adjacent melee mobs only absorbs hits; fight back (03.36.15).
+    if (state.cornered && state.hasWeapon && !(state.creeperDistance <= 6)) {
+        return Actions.FIGHT
+    }
     if (outnumbered(state.closeHostiles, state.armorPoints)) {
         return Actions.ESCAPE
     }
