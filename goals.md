@@ -20,7 +20,9 @@ with no deaths through Suit Up (F057). Next actions, in order:
 4. Enchanter stays opportunistic (user direction: no sugar-cane farming).
    Plan the stronghold branch next: eyes of ender (blaze powder + ender pearls)
    and the library's bookshelves for serious enchanting.
-5. Acacia diagonal trunks can still fall outside the three-block vein that
+5. F061: observe the first night carve-down on `6775643`+ (dusk, protected, no
+   shaft) and any burrow refusal reason; seal the staircase entrance if mobs follow.
+6. Acacia diagonal trunks can still fall outside the three-block vein that
    `c65d476` blocks; widen the vein if repeated per-log timeouts recur.
 
 ## G001 — Highest / active — Make survival and death recovery trustworthy

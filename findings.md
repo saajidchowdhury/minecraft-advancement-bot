@@ -1123,3 +1123,22 @@ live-tested.
   buckets and tools in the action line removes the need for the snapshot.
 - Restarting a fresh-world bot costs seconds: advancements come back from
   server packets, and world memory persists under the world ID.
+- Process slip: `ae8f4d2` was pushed with three failing night-policy tests.
+  The shell chain gated the commit on `npm run check`, not on the `npm test`
+  exit code. `6775643` fixed it within minutes, and the live bot never ran the
+  broken revision. Gate commits on the captured test exit status.
+
+## F061 — A geared bot idled a night in a surface shelter [live + regression]
+
+At 05:45:04Z the `00.41.40` bot (`dda1c30`) had an iron pick, chestplate,
+shield, 20 HP, 9 logs and no remembered shaft. Night arrived on a hillside.
+The shelter needed four placements, and its mining burrow was refused with
+"no hand-diggable enclosed column below". That left about seven minutes of
+`wait`. `8968369` names the failing column, wall or floor cell in that error.
+`6775643` lets a bot that would otherwise shelter (not combat-ready, no weapon
+to craft, no retreat earlier that night) start its mining action instead. It
+must have an iron pick, an equipped shield, at least 6 armor points,
+HP >= 16, hunger >= 17, the mining wood and food reserves and no hostile
+within 16 blocks. Carving from the surface at night leaves an open staircase
+behind the bot; followers are left to the existing threat-facing seal and
+fight logic. Not yet live-tested.
