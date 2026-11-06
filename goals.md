@@ -9,7 +9,11 @@ one playthrough is a test, not the definition of success.
 ## Session 2026-11-06 (port 55502) — start here
 
 Fresh world `lan-55502-20261106`: ten server-confirmed advancements in 28 min
-with no deaths through Suit Up (F057). Next actions, in order:
+with no deaths through Suit Up (F057). It ended at 15 advancements (through Cover Me
+with Diamonds) after seven deaths, F062–F070. The bot was stopped at 09:07:55Z on `cecbf1d`
+while rebuilding stone tools. Restart with `MC_WORLD_ID=lan-55502-20261106 ./scripts/run.sh PORT`.
+Most new survival reflexes (lava, air, suffocation, cornered fight, creeper shield brace,
+night restock and cave shelter) are regression-only; live-check them first. Next actions, in order:
 0. F070: watch the next night after a death: no restock trip at night, shelter in a mob
    cave, and no drop-down scouting while surfacing. F069: audit environmental hazards with no reflex (fall, suffocation, fire, cactus,
    powder snow); live-check `escape_lava`, `surface_for_air` and the cornered fight.

@@ -427,3 +427,6 @@ Death #3 came at 08:41:42Z in a tunnel melee: an armored escape pinned in place.
 Death #4 came at 08:46:34Z in lava. The lava escape reflex is regression-only (F069).
 Deaths #5–#7 came at 08:56–08:57Z: bare respawns in mob caves at night (F070). The bot was stopped at 08:58,
 patched and restarted on `cecbf1d`; the night-restock and cave-shelter rules are regression-only.
+
+Session end 2026-11-06 09:07:55Z: bot stopped on `cecbf1d`; 15 server-confirmed advancements on this world,
+seven deaths. Automated baseline: 303 tests passing, syntax checks passing.

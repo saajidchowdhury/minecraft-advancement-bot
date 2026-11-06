@@ -6,8 +6,9 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Updated 2026-11-06 ~04:05 Eastern. At handoff the bot was RUNNING on `cecbf1d` (PID 96556,
-`outputs/2026-11-06@04.03.39`), rebuilding from scratch after seven deaths (F062–F070); 15 advancements. A fresh LAN world on port 55502 uses world ID
+Updated 2026-11-06 ~04:08 Eastern. Session ended: the bot was STOPPED at 09:07:55Z (SIGINT,
+run `outputs/2026-11-06@04.03.39` on `cecbf1d`), rebuilding stone tools after seven deaths.
+No bot or watcher process is running. A fresh LAN world on port 55502 uses world ID
 `lan-55502-20261106`; see F057 for its timeline. F055 is resolved by F056. Code
 at `cecbf1d` passes all 303 tests and syntax checks. Read the latest
 `outputs/2026-11-06@*/session.json` for the running revision, and verify the PID
