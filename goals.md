@@ -20,6 +20,8 @@ the same world at 17:08:46Z (`outputs/2026-11-06@12.08.45`). Live-check, in orde
 5. Find why the launch reported "World seed changed" and cleared base memory.
 6. F072: watch fish hunts (air guard, drops in water), the shore wait, stew crafting and the
    provisional home being replaced on first open sky.
+7. F073/F074: watch for "came into view during" interrupts on resource walks, the direct lava
+   drive-out, and why a path entered lava despite `blocksToAvoid`. Death #8 (lava) reset gear.
 
 ## Session 2026-11-06 (port 55502)
 
