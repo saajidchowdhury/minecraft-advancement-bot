@@ -890,3 +890,6 @@ and three trigger it with heavier armor. The fight checks again each cycle,
 and a combat withdrawal replans on the threat schedule without routine
 mobility recovery. A replay regression verifies an arriving second zombie
 ends the attack sequence. Surviving the original cave encounter remains open.
+At handoff `9b7be67` was running on port 53606 in `outputs/2026-11-05@19.45.00`.
+It left the respawn shelter at 19:45:06 and began heading to the base. No
+replacement combat encounter was staged.
