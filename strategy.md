@@ -66,3 +66,8 @@ balanced_diet, bred_all_animals, complete_catalogue and similar exhaustive goals
   bookshelves come from loot and the stronghold library, not sugar-cane farming.
 - A longer Nether stay needs one gold armor piece (gold boots: four ingots) against
   piglins; the base currently stores all gold, so the planner must keep four ingots then.
+- Iron-pick wear at Y=-54 (2026-11-06, `03.01.22`): four iron picks in 20 min of diamond tunneling,
+  about 3 iron per ~55 tunnel blocks counting two-high cells and side probes. The diamond pick now
+  comes first at three diamonds (`dac689a`). Open trade-off, against the user's F043 direction to
+  mine with the iron pick: a stone pick is ~1/3 slower on deepslate but costs only cobblestone and
+  sticks. Measure probe blocks per pick before changing probe spacing or tool choice (G008).
