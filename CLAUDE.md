@@ -78,7 +78,8 @@ implementation work.
 - `findings.md`: accumulated lessons, evidence, pitfalls and current limitations.
 - `goals.md`: specific next steps, in priority order, with completion criteria.
 - `strategy.md`: higher-level throughput analysis and ranked levers behind the goals.
-- `README.md`: setup, controls and architecture; `VALIDATION.md`: test coverage.
+- `README.md`: player setup; `DEVELOPMENT.md`: configuration, controls and
+  architecture; `VALIDATION.md`: test coverage.
 
 Findings and goals provide informed direction, not rigid rules. Recheck
 changeable facts and adjust priorities to new evidence and user instructions.
