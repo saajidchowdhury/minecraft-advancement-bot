@@ -7,7 +7,7 @@ planning, not claims that their skills or advancements are implemented.
 
 | Find | Useful preparation or advancement branch | Current handling |
 | --- | --- | --- |
-| Exposed iron, coal and diamonds | Armor, shields, tools, buckets, fuel, lighting; Diamonds! and later enchanting | Current ore first; nearby harvestable reserves collected opportunistically |
+| Exposed iron, coal and diamonds | Armor, shields, tools, buckets, fuel, lighting; Diamonds! and later enchanting | Safe exposed diamonds interrupt other mining objectives; other ores can fill small reserves |
 | Gold | Gold armor for ordinary piglins and ingots for later bartering; does not protect against piglin brutes | Capped raw-gold/ingot reserve; armor/bartering skills pending |
 | Lapis | Later enchanting after a table, experience and equipment are available | Capped reserve; enchanting skill pending |
 | Copper and amethyst geodes | Two copper ingots plus an amethyst shard make a spyglass; looking at a parrot, ghast or dragon can give its associated advancement | Copper reserve; mature-cluster harvesting and spyglass skills pending; preserve budding amethyst |
@@ -56,4 +56,5 @@ checkpoint when diamond ore or an accessible chest comes into view.
 The bot can open visible ordinary chests and chest minecarts, leaving one
 inventory slot free and skipping its own base. It records each location and
 whether the container was emptied. It can retry a partial or failed visit
-after two minutes.
+after two minutes. A full survey and return through a naturally encountered
+mineshaft remains to be verified on LAN (G010).

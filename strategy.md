@@ -13,7 +13,7 @@ when new evidence changes a ranking; goals.md carries the actionable queue.
 | Decision-loop idle | 1.5 s fixed delay after every action; median action gap 3.6 s | ~5% of run time (fixed `b85f0da`) |
 | Idle nights | sheltering a whole night (~7 min) with nothing to do | Fixed: night mining `8afbc05`, `242cb07` |
 | Re-digging stairs | ~124 steps, 4–5 min per descent before F033 | Now mostly removed |
-| Stuck loops | wood/scout 'No path', shelter exits, recipe mismatches | Tens of minutes, now fixed |
+| Stuck loops | wood/scout 'No path', shelter exits, recipe mismatches | Tens of minutes; several causes fixed, obsidian retries still open (F055) |
 
 ## Throughput levers, ranked by expected gain per effort
 
@@ -25,8 +25,9 @@ when new evidence changes a ranking; goals.md carries the actionable queue.
    ingots are needed. Saves ~5 min per rebuild and most of the 29 min/day of idling.
 3. **Loop latency.** Replan 250 ms after a successful action instead of 1.5 s; keep
    1.5 s only after failures (to avoid fast failure loops) and 100 ms after threats.
-4. **Route to the Nether.** Ice Bucket Challenge → portal → Nether unlocks several
-   cheap advancements: Oh Shiny (gold to a piglin), Hidden in the Depths (ancient
+4. **Route to the Nether.** Fix the natural-site obsidian retry loop (F055)
+   before measuring a continuous portal run. Nether entry unlocks several cheap
+   advancements: Oh Shiny (gold to a piglin), Hidden in the Depths (ancient
    debris at Y 8–22 with the diamond pick), and later Into Fire / A Terrible Fortress.
 5. **Enchanter.** Book (sugar cane + leather), 2 diamonds and 4 obsidian; enchanting
    the pickaxe compounds mining speed. Depends on obsidian from step 4.
@@ -40,14 +41,16 @@ when new evidence changes a ranking; goals.md carries the actionable queue.
 
 ## Advancements reachable with current or near-current skills
 
-Earned (14): story root, mine_stone, upgrade_tools, smelt_iron, iron_tools,
+Earned in the port 51718 run (14): story root, mine_stone, upgrade_tools, smelt_iron, iron_tools,
 obtain_armor, lava_bucket, mine_diamond, shiny_gear; adventure root, kill_a_mob,
 sleep_in_bed (staged bed); husbandry root, plant_seed.
 
 Near: deflect_arrow (shield charge implemented), breed_an_animal and fishy_business
-(implemented), form_obsidian and enter_the_nether (implemented, unverified),
+(implemented), enter_the_nether (implemented, unverified),
 shoot_arrow, tame_an_animal, tactical_fishing, enchant_item, distract_piglin,
 obtain_ancient_debris, obtain_crying_obsidian, summon_iron_golem (36 iron + pumpkin).
+
+Ice Bucket Challenge was server-confirmed in a later staged LAN cast (F053).
 
 Out of scope: adventuring_time, explore_nether, all_effects, all_potions,
 balanced_diet, bred_all_animals, complete_catalogue and similar exhaustive goals.

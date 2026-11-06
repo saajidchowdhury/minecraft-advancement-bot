@@ -15,10 +15,10 @@ cd /Users/rf/Downloads/minecraft
 ./scripts/run.sh
 ```
 
-You can also override the port for one run:
+You can also pass the displayed LAN port for one run. For example:
 
 ```sh
-./scripts/run.sh 49871
+./scripts/run.sh 54390
 ```
 
 The current configuration uses `AdvancementBot`, owner `newflag`, offline LAN authentication, and Minecraft **26.1.2**. Version 26.1.2 advertises protocol 775; this project selects the pinned library's compatible `26.1` protocol data. Keep Minecraft open while the bot runs. Watch it from your normal player, or type `!come` to bring it toward you; `!resume` restarts advancement work.
@@ -66,19 +66,22 @@ The implemented route is:
    water trench can refill both buckets between casts.
 8. Gather ten obsidian, ignition supplies and food; **We Need to Go Deeper** — construct and enter a Nether portal.
 
-The bot waits near its destination after the supported route. Return it to the Overworld before a queued redstone demo. Autonomous fortress, stronghold and dragon progression are not implemented. The diamond, casting, portal and redstone skills still need end-to-end survival-world validation; their planner and geometry checks alone do not prove successful gameplay.
+The bot waits near its destination after the supported route. Return it to the Overworld before a queued redstone demo. Autonomous fortress, stronghold and dragon progression are not implemented. Staged LAN trials verified the diamond interrupt, a renewable water source, and one cast with server-confirmed Ice Bucket Challenge. A continuous run to ten obsidian and Nether entry is still unverified, as is the redstone demo.
 
 Equipment and ingredient preparation are objectives, not invented Java advancements. Completion announcements come exclusively from server advancement packets, including AND/OR criterion requirements, resets and revocations. The server restores the bot's advancement history when it rejoins. Current inventory determines whether lost tools must be rebuilt.
 
 Food, danger, recoverable death drops and night protection can interrupt the route. Mining uses exposed targets and checked staircase steps, avoids removing its own support, and replaces broken tools. Charcoal provides furnace fuel when coal is unavailable. Every eight horizontal tunnel blocks, the bot opens head-height probes up to five blocks on each side. It can crouch closer to the wall while staying in the tunnel cell. Reach and safety checks can shorten a probe, and exposed ore returns control to resource harvesting. `BOT_PROBE_SPACING=8` sets the interval. Set it to `0` to disable probing. Eight is a starting value, not a measured optimum.
 
-When no requested ore is exposed, mining also gathers nearby useful ores up to
-small reserve caps for later goals. A supplied and protected bot surveys connected
-large-cave floor before resuming a tunnel, with checked lighting, short supported
-steps, a visit cooldown and a shared exploration budget. Cave surveys disable
-digging and bridging, stop for threats, and append return waypoints. Before leaving
-the surface to mine, the bot stocks at least eight logs' worth of wood and sixteen
-hunger points of carried food. Live cave validation is pending. See
+Newly exposed diamonds can interrupt another mining objective when safe. After
+collecting the drop, the bot returns to the interrupted objective. It also
+gathers other nearby ores up to small reserve caps. A supplied and protected
+bot explores caves depth first, remembering checkpoints and return waypoints
+by dimension. It checks lighting and support, stops for threats, and avoids
+digging or bridging during the survey. It can loot visible chests and chest
+minecarts and remember whether each was emptied. Before leaving the surface
+to mine, it stocks at least eight logs' worth of wood and sixteen hunger
+points of carried food. A full natural cave survey and return still needs
+live validation. See
 [cave-opportunities.md](cave-opportunities.md) for researched branches and limits.
 
 Food gathering can turn nearby red and brown mushrooms, including drops from
@@ -95,8 +98,10 @@ Nightfall alone does not stop underground work. On the surface, a prepared bot
 can hunt isolated useful mobs within a small budget; weak or overwhelmed bots
 try safe sleep or shelter. Bed preparation uses available same-color wool, and
 beds are only used in the Overworld. In this LAN setup, the bot joins sleep
-only when it can observe the owner sleeping, and wakes when the owner wakes. Night hunts, shield timing, sleeping and
-shelter exits have focused tests but still need full live night validation.
+only when it can observe the owner sleeping, and wakes when the owner wakes.
+Staged trials confirmed Sweet Dreams and a spider hunt. The bot also earned
+Not Today, Thank You in a later LAN run. Reliable natural combat, cooperative
+sleep and shelter exits still need live validation.
 See [night-opportunities.md](night-opportunities.md) for researched drops,
 advancement dependencies, readiness thresholds and remaining skills.
 
@@ -122,7 +127,7 @@ new directory after a restart.
 node scripts/watch.js 'outputs/YYYY-MM-DD@HH.MM.SS' 1800
 ```
 
-Set `MC_WORLD_ID` to a unique label to retain home, mining routes, failure memory and pause/follow state across script restarts. This setup uses `lan-49871` for the current world. Use a different label for a different world; a changed server seed hash also clears saved coordinates. Leave the field empty for memory limited to the current process. Advancement completion always comes from the server, never the coordinate cache. Saved memory lives in `.state/` and writes through a temporary file and rename.
+Set `MC_WORLD_ID` to a unique label to retain home, mining routes, cave checkpoints, chest visits, failure memory and pause/follow state across script restarts. Keep the label when only the LAN port changes. Use a different label for a different world; a changed server seed hash also clears saved coordinates. Leave the field empty for memory limited to the current process. Advancement completion always comes from the server, never the coordinate cache. Saved memory lives in `.state/` and writes through a temporary file and rename.
 
 `BOT_SEED` makes exploration choices repeatable; server timing, entities and world changes still affect gameplay. `BOT_LOG_LEVEL=debug` increases navigation detail. Source is tracked in the private GitHub repository `saajidchowdhury/minecraft-advancement-bot`. Startup source hashes also identify the exact code loaded when testing a working tree.
 

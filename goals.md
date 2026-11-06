@@ -76,7 +76,7 @@ Live evidence: revision `932b1ed` received the lava-bucket advancement at
 first live milestone. Five approach/activation failures preceded success; source
 quarantine and repeatable dry-bank activation still need hardening.
 
-## G005 — Medium / staged cast verified — Diamonds and obsidian
+## G005 — High / live retry loop — Diamonds and obsidian
 
 Validate deep stair/branch mining, lighting and food/tool reserves, collection of
 three diamonds, and crafting a diamond pick. Check height choices against the
@@ -87,7 +87,10 @@ diamond pick and sufficient obsidian for a portal. Geometry tests alone are not
 completion. Fix unsafe/unproductive skills before adding more branches.
 
 F053 confirmed Ice Bucket Challenge and two water buckets after a staged cast.
-Verify natural lava resupply and the ten-block reserve on a continuous run.
+F054 verified the diamond interrupt on LAN with staged ore. First reproduce
+the live verification timeout at the site in F055 and identify which world
+change failed. Verify recovery at that site, natural lava resupply and the
+ten-block reserve on a continuous run.
 
 ## G006 — Medium / implemented, not yet live verified — Nether entry and a route back
 
@@ -126,7 +129,7 @@ occasional more interesting functional blueprints with physical validation and
 resumption after interruption. Return priority to survival and advancements when
 needed. Completion: a real working build, not just a planner or inventory recipe.
 
-## G010 — High / implemented, live validation pending — Caves and parallel preparation
+## G010 — High / implemented, full live survey pending — Caves and parallel preparation
 
 User direction: live tests target under-tested behavior while development can
 continue on distinguishable revisions. Favor worthwhile cave surveys and useful
@@ -142,8 +145,9 @@ food first.
 Live progress: `ac9e912` reduced rubble and resumed mining, and gathered three
 raw iron opportunistically while pursuing Diamonds! Some disposal routes still
 revisited trash, prompting a separately tested endpoint-exclusion refinement.
-Next: retry refined disposal, food provisioning, then a naturally encountered
-large cave survey and return. Record movement,
+Later LAN runs verified clutter cleanup and staged food recovery (F048/F050).
+Next: follow a naturally encountered large cave or mineshaft through a survey
+and return, including chest loot and remembered checkpoints. Record movement,
 lighting, ore/inventory changes and resource costs separately from server
 advancement evidence. Refine the supplies policy if it prevents useful surveys.
 After that, select one small cave branch (berry harvesting or safe axolotl

@@ -6,8 +6,13 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
-Latest food and mobility handoff is F048 below. Port 54390 was verified for that
-run. Read the newest `outputs/*/session.json` and verify the PID before taking over.
+Latest code run: `e01b598` on port 54390, `outputs/2026-11-05@23.51.05/`.
+All 261 tests and syntax checks passed. F048–F054 cover food recovery, tool
+maintenance, inventory disposal, cave exploration and loot memory, five-block
+probes, casting, and diamond interrupts. The staged casting and diamond replays
+succeeded. After restart, `gather_obsidian` repeatedly timed out verifying a
+world change at (-18,27,-8); see F055. Read the latest `session.json` and verify
+the PID and connection before taking over.
 
 Historical 18:20 Eastern handoff. Bot ran on LAN port 51718, PID 56696, code
 `a18c0ff`, rebuilding basic tools after a pickaxe loss; no log watcher is running. Verify the
@@ -1022,3 +1027,12 @@ The staged LAN replay placed one ore block behind solid deepslate at
 still in its original cell. The bot collected the fourth diamond, retained
 obsidian as its goal despite the newly affordable diamond boots, and queued
 inventory cleanup first. See `outputs/diamond-interrupt-setup.json`.
+
+## F055 — Obsidian verification repeats at a natural site [live failure]
+
+After the F054 restart, the bot repeatedly attempted `gather_obsidian` near
+(-18,27,-8), timed out after four seconds verifying a world change, and
+scouted without escaping the retry cycle. The log does not identify the
+failed interaction. This is separate from the successful staged cast in
+F053. Reproduce at the recorded site and identify the failed interaction
+before changing the casting geometry or recovery policy.

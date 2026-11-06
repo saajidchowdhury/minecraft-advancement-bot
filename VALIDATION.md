@@ -2,7 +2,12 @@
 
 Live tests: 2026-11-04–05, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
-## Verified in the user's survival world
+The latest code baseline (`e01b598`) passed all 261 tests and syntax checks.
+The staged LAN evidence for casting and diamond interrupts is near the end of
+this file. Continuous portal preparation remains open: F055 records repeated
+obsidian verification timeouts after the restart.
+
+## Initial survival baseline
 
 Server advancement packets confirmed:
 
@@ -22,7 +27,7 @@ Logs and snapshots are local in outputs/. The run beginning 23:33:29 captured ir
 
 ## Automated checks
 
-`npm run check` and `npm test` pass; the current baseline has 123 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
+`npm run check` and `npm test` passed the initial baseline of 123 focused tests. These cover protocol advancement requirements and revocations, inventory-based prerequisites, configuration bounds, seeds, atomic memory persistence, support preservation, up/down tunnel geometry, cave stair supports, tool-tier selection, mixed-plank charcoal fuel, cancellation, side-probe interval/reach/hazards, and portal geometry.
 
 The inherited Mineflayer patch was applied successfully to reconstructed pristine 4.39.0 craft/inventory sources. Dependency versions are locked. No gameplay result is inferred solely from a passing unit test.
 
@@ -30,7 +35,7 @@ The inherited Mineflayer patch was applied successfully to reconstructed pristin
 
 The 00:06:22 run on LAN port 50330 verified pursuit, food pickup, eating, Husbandry, chestplate crafting and equipping, and Suit Up. It also recorded probes exposing ore. The bot reached nine server-confirmed advancements.
 
-A mixed-plank charcoal failure was reproduced with an inventory snapshot that remains stale while a furnace window is open. Fuel selection now reads the open furnace window's inventory. The corrected regression passes; the new revision still needs a live mixed-plank retry. Later bucket, diamond, obsidian-casting, portal and redstone behavior has not yet completed an end-to-end live survival test. No claim of autonomous dragon completion or all-advancement support is made.
+A mixed-plank charcoal failure was reproduced with an inventory snapshot that remains stale while a furnace window is open. Fuel selection now reads the open furnace window's inventory. The corrected regression passes; the new revision still needs a live mixed-plank retry. At this point the bucket, diamond, obsidian, portal and redstone skills still awaited live validation. Later sections record progress. No claim of autonomous dragon completion or all-advancement support is made.
 
 ## Comment ceiling
 
@@ -383,3 +388,7 @@ progress, and retaining the interrupted objective after the pickup. The
 staged LAN trial collected one diamond from the hidden fixture at Y=-54.
 All 261 tests and syntax checks pass. Changed JavaScript files stay below 3%
 comment-bearing lines.
+
+F055 is an unresolved live failure. The natural run on `e01b598` repeatedly
+timed out in `gather_obsidian` near (-18,27,-8). The staged cast does not
+cover this site or prove a repeatable supply for a portal.

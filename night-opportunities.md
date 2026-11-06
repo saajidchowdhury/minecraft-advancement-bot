@@ -95,4 +95,6 @@ The final 01:55:10 staged trial completed a stationary NoAI spider hunt and reta
 two string, then encountered an unrelated natural zombie while mining. Continued
 damage and recovery-cancellation failures led to stopping the bot; the patched
 event logic has regression coverage but still needs live validation. This trial
-is not evidence of reliable natural night combat or projectile blocking.
+is not evidence of reliable natural night combat. A later LAN run earned
+Not Today, Thank You while returning to the surface (F046); that block does
+not establish reliable defense against an archer or crowd.
