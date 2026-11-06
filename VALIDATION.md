@@ -305,6 +305,19 @@ Both fail on the earlier code. Changed code comment ratios are 5/213
 zero comments. Live, the 19:03:00 run rebuilt stone, collected three ingots
 from the saved furnace and equipped a new iron pick before resuming work.
 
+`cf4f19b` passes 237 tests and syntax checks. Regressions cover the observed
+hungry-miner decision, pickless staircase refusal, the checked jump before a
+stale shaft, and wood and food reserves before iron or lava mining. Changed
+code comment ratios are 15/205 (`decision-engine.js`), 19/1078
+(`progression-skills.js`), and 63/2314 (`survival-bot.js`). Changed tests stay
+at or below 1.78%.
+
+The follow-up adds the observed low-health archer case and a shallow-base
+provisioning check. Both failed before the follow-up. Live on `cf4f19b`, the
+watcher reported critical damage, repeated fight refusal, and death. The bot
+restocked and rebuilt a stone pick after respawn. The exact hungry-miner craft
+and former stair timeout have regression coverage and await another live trial.
+
 The read-only log watcher was attached to the live port 53606 run for 120 s.
 Routine mining stayed quiet. A replay appended the real iron-pick recovery
 line, critical damage, a third retry, and an advancement to a temporary log.

@@ -4,7 +4,7 @@ const { pathfinder, Movements, goals } = require('mineflayer-pathfinder')
 const { plugin: collectBlockPlugin } = require('mineflayer-collectblock')
 const { Vec3 } = require('vec3')
 const { createRng } = require('./random')
-const { Actions, chooseAction } = require('./decision-engine')
+const { Actions, chooseAction, canSustainFight } = require('./decision-engine')
 const { RECIPES, nextAdvancement, ironPickPlankFuel } = require('./advancement-plan')
 const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
@@ -1445,7 +1445,7 @@ class SurvivalController {
                     throw new Error(reason)
                 }
                 // Twelve or more armor points make a lone melee duel safer than running (F030).
-                if (!hunt && this.bot.health <= (wornArmorPoints(this.bot) >= 12 ? 4 : 8)) {
+                if (!hunt && !canSustainFight(this.bot.health, wornArmorPoints(this.bot))) {
                     throw new Error('combat health too low; replanning escape')
                 }
                 const distance = this.bot.entity.position.distanceTo(entity.position)

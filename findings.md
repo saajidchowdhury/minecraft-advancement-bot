@@ -846,3 +846,28 @@ Live `ecf3f21` at 19:03 Eastern reproduced recovery from the same inventory and
 saved furnace, with no staged items. The bot crafted a stone pick at 19:03:04,
 collected the three ingots from (26,59,49) at 19:03:08, crafted and equipped
 the iron pick by 19:03:11, and resumed mining with the stone pick still carried.
+
+## F046 — Mining supplies and return stairs
+
+At 19:21:27 Eastern, the 19:03 run started a food return from Y=7 with hunger
+16 and no food. The lava-search action had tunneled without the mining supply
+checks. The bot walked the existing route to Y=43. An eight-second waypoint
+timeout at 19:22:14 discarded that route, and the older shaft was unreachable.
+After a creeper retreat and more climbing, both picks had worn out. Hunger
+still selected a food return over the available stone recipe, and the upward
+tunnel branch permitted hand digging. Stopped the run at 19:29:03.
+
+`cf4f19b` checks for 32 planks' worth of wood and 16 hunger points of carried
+food before mining from the surface, including a lava search. A ready pick
+recipe takes priority when the underground bot lacks a stone-tier tool. Stone
+digging requires a compatible pickaxe, including at the final dig call. Returns
+try the current route before the older shaft and use the checked jump for an
+adjacent rising step. Active descents save their stairs before the target depth.
+
+The 19:34:50 live retry encountered a skeleton before local crafting. The
+server confirmed Not Today, Thank You at 19:34:56. At 4.9 HP with a chestplate,
+the planner repeatedly chose a fight that the combat skill refused below 8 HP.
+The watcher reported the loop and death. After respawn the bot restocked a
+wooden pick and table from the vault and crafted a new stone pick at 19:36:23.
+The planner and executor now share the low-health limit. The supply check
+also covers shallow underground staging during daylight, including at the base.

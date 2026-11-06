@@ -373,3 +373,7 @@ advancementsPerHour across a full run.
 - F045: local stone pick rebuild, pickup of the saved three-ingot batch and
   replacement iron pick verified on port 53606. Recheck restock routing
   separately for gear losses after death.
+- F046: verify local pick crafting during a food return, walking an existing
+  route through a previously failing stair, and provisioning the next surface
+  departure with wood and food. The retry earned Not Today, Thank You and
+  exposed a low-health fight loop. The policy regression covers that loop.

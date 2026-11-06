@@ -202,6 +202,7 @@ test('a lava search stocks food before descent and continues if already undergro
     assert.equal(chooseAction(ready), Actions.FOOD)
     assert.equal(chooseAction({ ...ready, foodUnits: 16 }), 'fill_lava_bucket')
     assert.equal(chooseAction({ ...ready, underground: true }), 'fill_lava_bucket')
+    assert.equal(chooseAction({ ...ready, underground: true, y: 75, surfaceY: 81 }), 'return_surface')
 })
 
 test('an adjacent hostile is fought when armed and healthy, otherwise escaped', () => {
@@ -219,6 +220,9 @@ test('critical health with no nearby threat rests instead of starting cancellabl
 test('archers are fought at melee range and escaped from at range when hurt', () => {
     assert.equal(chooseAction(state({ rangedDistance: 0.8, hostileDistance: 0.8, hasWeapon: true, health: 8.5 })), Actions.FIGHT)
     assert.equal(chooseAction(state({ rangedDistance: 0.8, hostileDistance: 0.8, hasWeapon: true, health: 3 })), Actions.ESCAPE)
+    const wounded = { rangedDistance: 3.2, hostileDistance: 3.2, hasWeapon: true, health: 4.9, visibleHostiles: 1 }
+    assert.equal(chooseAction(state({ ...wounded, armorPoints: 6 })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ ...wounded, armorPoints: 12 })), Actions.FIGHT)
     assert.equal(chooseAction(state({ rangedDistance: 7.7, hostileDistance: 7.7, hasWeapon: true, health: 1.5, underground: true })), Actions.ESCAPE)
     assert.notEqual(chooseAction(state({ rangedDistance: 7.7, hostileDistance: 7.7, hasWeapon: true, health: 18 })), Actions.ESCAPE)
     assert.equal(chooseAction(state({ creeperDistance: 4, rangedDistance: 2, hasWeapon: true, health: 18 })), Actions.ESCAPE)

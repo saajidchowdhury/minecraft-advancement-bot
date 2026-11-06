@@ -28,6 +28,10 @@ const Actions = Object.freeze({
     EXPLORE: 'explore'
 })
 
+function canSustainFight (health, armorPoints) {
+    return health > (armorPoints >= 12 ? 4 : 8)
+}
+
 /**
   * Pure priority policy. Keeping this separate makes the bot's choices testable
   * without connecting to Minecraft.
@@ -36,7 +40,8 @@ function chooseAction (state) {
     // Running from an archer at arm's length only invites more arrows; melee it while able.
     // Standing still under arrows loses; a lone archer within twelve blocks is charged when healthy.
     if (!(state.creeperDistance <= 6) && state.hasWeapon && !((state.visibleHostiles ?? state.hostileCount ?? 0) > 1) &&
-        ((state.rangedDistance <= 3.5 && state.health > 4) || (state.rangedDistance <= 12 && state.health > 10))) {
+        ((state.rangedDistance <= 3.5 && canSustainFight(state.health, state.armorPoints)) ||
+            (state.rangedDistance <= 12 && state.health > 10))) {
         return Actions.FIGHT
     }
     // An armored, armed bot beats one or two melee attackers; running lets them keep hitting (F030, F032).
@@ -169,12 +174,13 @@ function chooseAction (state) {
     }
     // Torches and replacement picks need sticks; wood is only reachable on the surface.
     const mining = ['gather_iron', 'gather_coal', 'gather_diamonds', 'gather_redstone', 'gather_obsidian', 'fill_lava_bucket'].includes(action)
-    if (!state.underground && mining) {
+    const stagingNearSurface = state.underground && !state.isNight && state.y >= state.surfaceY - 8
+    if (mining && (!state.underground || stagingNearSurface)) {
         if ((state.planks || 0) + (state.logs || 0) * 4 < MIN_MINING_WOOD_PLANKS) {
-            return Actions.WOOD
+            return state.underground ? 'return_surface' : Actions.WOOD
         }
         if (state.foodUnits < MIN_MINING_FOOD_UNITS) {
-            return Actions.FOOD
+            return state.underground ? 'return_surface' : Actions.FOOD
         }
     }
     // Surfacing at night walked a weak bot into archers twice (F035); hunger returns stay above.
@@ -196,4 +202,4 @@ function chooseAction (state) {
     return surfaceBound ? 'return_surface' : action
 }
 
-module.exports = { Actions, chooseAction }
+module.exports = { Actions, chooseAction, canSustainFight }
