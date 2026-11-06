@@ -46,7 +46,7 @@ function disposalContext(open, inventory, route = []) {
         bot: {
             health: 20, game: { dimension: 'overworld' }, registry: require('minecraft-data')('26.1'),
             entity: { position: new Vec3(0.5, 64, 0.5) },
-            inventory: { items: () => inventory },
+            inventory: { items: () => inventory, emptySlotCount: () => 36 - inventory.length },
             blockAt(p) {
                 const air = p.y >= 64 && p.y < 66 && open(p.x, p.z)
                 return { name: air ? 'air' : 'stone', position: p, boundingBox: air ? 'empty' : 'block' }
@@ -67,6 +67,85 @@ function disposalContext(open, inventory, route = []) {
     }
     return c
 }
+
+test('cleanup clears the incidental stacks from the stalled LAN inventory', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const inventory = [
+        { name: 'cobblestone', count: 64 }, { name: 'dirt', count: 41 }, { name: 'gravel', count: 1 },
+        { name: 'mushroom_stew', count: 1 }, { name: 'iron_pickaxe', count: 1 }, { name: 'raw_iron', count: 2 },
+        { name: 'azalea', count: 1 }, { name: 'leaf_litter', count: 2 }, { name: 'moss_block', count: 7 },
+        { name: 'red_mushroom', count: 1 }, { name: 'brown_mushroom', count: 1 }, { name: 'bowl', count: 1 },
+        { name: 'birch_sapling', count: 1 }
+    ]
+    const c = disposalContext((x, z) => x === 0 && z >= 0 && z <= 8, inventory)
+    await performProgression(c, 'clear_inventory', {})
+    assert.deepEqual(inventory.map(item => item.name), ['cobblestone', 'dirt', 'gravel', 'mushroom_stew', 'iron_pickaxe', 'raw_iron'])
+    assert.equal(c.paused, false)
+    assert.equal(c.memory.paused, undefined)
+})
+
+test('cleanup leaves protected items alone when there is already space', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const inventory = [{ name: 'cobblestone', count: 64 }, { name: 'diamond', count: 1 }]
+    const c = disposalContext(() => false, inventory)
+    await performProgression(c, 'clear_inventory', {})
+    assert.equal(c.paused, false)
+    assert.equal(c.memory.paused, undefined)
+    assert.equal(c.tossed.length, 0)
+})
+
+test('a full inventory throws one low-priority stack even when it has no routine surplus', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const spare = { name: 'raw_copper', count: 7 }
+    const inventory = [
+        { name: 'mushroom_stew', count: 1 }, { name: 'iron_pickaxe', count: 1 },
+        { name: 'cobblestone', count: 64 }, { name: 'diamond', count: 1 }, spare
+    ]
+    const c = disposalContext((x, z) => x === 0 && z >= 0 && z <= 8, inventory)
+    c.bot.inventory.emptySlotCount = () => 5 - inventory.length
+    await performProgression(c, 'clear_inventory', {})
+    assert.deepEqual(c.tossed, [spare])
+    assert.equal(c.bot.inventory.emptySlotCount(), 1)
+    assert.equal(c.paused, false)
+})
+
+test('a full inventory with no safe toss route still releases one stack', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const spare = { name: 'leaf_litter', count: 2 }
+    const inventory = [{ name: 'iron_pickaxe', count: 1 }, spare]
+    const c = disposalContext((x, z) => x === 0 && z === 0, inventory)
+    c.bot.inventory.emptySlotCount = () => 2 - inventory.length
+    await performProgression(c, 'clear_inventory', {})
+    assert.deepEqual(c.tossed, [spare])
+    assert.equal(c.paused, false)
+})
+
+test('overflow uses a nearby owned chest when there is no safe toss route', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const spare = { name: 'leaf_litter', type: 10, count: 2 }
+    const inventory = [{ name: 'iron_pickaxe', count: 1 }, spare]
+    const c = disposalContext((x, z) => x === 0 && z === 0, inventory)
+    c.bot.inventory.emptySlotCount = () => 2 - inventory.length
+    c.memory.base = { dimension: 'overworld', chest: { x: 1, y: 64, z: 0 } }
+    c.checkAction = () => {}
+    const at = c.bot.blockAt
+    c.bot.blockAt = p => p.x === 1 && p.y === 64 && p.z === 0 ? { name: 'chest', boundingBox: 'block' } : at(p)
+    c.bot.openContainer = async block => {
+        assert.equal(block.name, 'chest')
+        return {
+            async deposit(type, metadata, count) {
+                assert.deepEqual([type, metadata, count], [spare.type, null, spare.count])
+                inventory.splice(1, 1)
+            },
+            containerItems: () => [spare],
+            close() {}
+        }
+    }
+    await performProgression(c, 'clear_inventory', {})
+    assert.equal(c.bot.inventory.emptySlotCount(), 1)
+    assert.deepEqual(c.memory.base.contents, { leaf_litter: 2 })
+    assert.equal(c.tossed.length, 0)
+})
 
 test('a dead-end tunnel throws all surplus back along the route without moving', async () => {
     const { performProgression } = require('../src/progression-skills')

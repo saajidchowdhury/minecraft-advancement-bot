@@ -1,9 +1,11 @@
 'use strict'
 
-// Item counts kept when freeing slots; rubble beyond these is surplus.
+// Item counts kept when freeing slots; unlisted items are protected.
 const RESERVES = Object.freeze({
     cobblestone: 64, cobbled_deepslate: 64, dirt: 16, granite: 0,
-    diorite: 0, andesite: 0, tuff: 0, gravel: 32, netherrack: 64
+    diorite: 0, andesite: 0, tuff: 0, gravel: 32, netherrack: 64,
+    azalea: 0, flowering_azalea: 0, leaf_litter: 0, moss_block: 0, moss_carpet: 0, birch_sapling: 0,
+    red_mushroom: 0, brown_mushroom: 0, bowl: 0
 })
 
 function discardableStacks(items) {
@@ -27,6 +29,22 @@ function discardableStack(items) {
 
 const TOOL = /_(pickaxe|sword|axe|shovel|hoe)$|^(shears|flint_and_steel|bucket|water_bucket|lava_bucket|shield|bow|crossbow|fishing_rod)$/
 const TIER = ['netherite', 'diamond', 'iron', 'golden', 'stone', 'wooden']
+
+function overflowStack(items, foods) {
+    const priority = name => {
+        if (TOOL.test(name) || /_(helmet|chestplate|leggings|boots|bed)$|^(crafting_table|furnace)$/.test(name)) {
+            return 4
+        }
+        if (/^(obsidian|diamond|ancient_debris|netherite_scrap|netherite_ingot)$/.test(name)) {
+            return 3
+        }
+        if (foods[name] || /_(log|wood|stem|hyphae|planks)$|^(stick|torch|coal|charcoal|raw_iron|iron_ingot)$/.test(name)) {
+            return 2
+        }
+        return Object.hasOwn(RESERVES, name) ? 1 : 0
+    }
+    return [...items].sort((a, b) => priority(a.name) - priority(b.name) || a.count - b.count)[0]
+}
 
 function described(item) {
     if (!item.maxDurability) {
@@ -66,4 +84,4 @@ function inventoryReport(items, worn) {
     return lines
 }
 
-module.exports = { discardableStack, discardableStacks, inventoryReport }
+module.exports = { discardableStack, discardableStacks, overflowStack, inventoryReport }

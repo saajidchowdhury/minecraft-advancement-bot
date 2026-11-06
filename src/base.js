@@ -339,6 +339,18 @@ async function restockAtBase(c) {
     c.log.info(`Restocked from base: ${taken.map(entry => `${entry.count} ${entry.name}`).join(', ') || 'nothing useful stored'}.`)
 }
 
+async function storeOverflowAtBase(c, item) {
+    const base = c.memory.base
+    const bot = c.bot
+    if (base?.dimension !== bot.game.dimension || bot.entity.position.distanceTo(new Vec3(base.chest.x, base.chest.y, base.chest.z)) > 8) {
+        return false
+    }
+    const freeSlots = bot.inventory.emptySlotCount()
+    await withChest(c, window => window.deposit(item.type, item.metadata ?? null, item.count, item.nbt))
+    c.log.info(`Stored ${item.count} ${item.name} to make room at the base.`)
+    return bot.inventory.emptySlotCount() > freeSlots
+}
+
 // Take a specific item for a one-off build (the golem's iron) without a full restock.
 async function withdrawItem(c, name, count) {
     const base = c.memory.base
@@ -354,4 +366,4 @@ async function withdrawItem(c, name, count) {
     })
 }
 
-module.exports = { depositPlan, restockPlan, baseState, vaultSite, establishBase, migrateBase, depositAtBase, restockAtBase, withdrawItem }
+module.exports = { depositPlan, restockPlan, baseState, vaultSite, establishBase, migrateBase, depositAtBase, restockAtBase, storeOverflowAtBase, withdrawItem }

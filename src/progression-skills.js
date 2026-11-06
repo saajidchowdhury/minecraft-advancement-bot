@@ -2,7 +2,8 @@
 
 const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
-const { discardableStacks } = require('./inventory')
+const { discardableStacks, overflowStack } = require('./inventory')
+const { storeOverflowAtBase } = require('./base')
 const { exploreCave, collectOpportunity, safeFooting, dryMovements, rememberOre, findPriorityDiamond } = require('./cave-exploration')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
 
@@ -845,7 +846,8 @@ function disposalPit(c, start) {
         const cells = [at(1, 1), at(2, 1), at(2, 0)]
         const sound = cells.every(p => {
             const block = bot.blockAt(p, false)
-            return block && !HAZARDS.has(block.name) && (block.boundingBox === 'empty' || (block.diggable && bot.canDigBlock?.(block) !== false)) &&
+            return block && !HAZARDS.has(block.name) && !PROTECTED_CONTAINERS.has(block.name) &&
+                (block.boundingBox === 'empty' || (block.diggable && bot.canDigBlock?.(block) !== false)) &&
                 [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0], [0, -1, 0]].every(([x, y, z]) => !liquid(bot.blockAt(p.offset(x, y, z), false)))
         })
         if (!sound || !solid(bot.blockAt(at(1, 0), false)) || !solid(bot.blockAt(at(1, 2), false)) ||
@@ -908,12 +910,14 @@ async function tossAll(c, stacks, target, signal) {
 
 async function clearInventory(c) {
     const bot = c.bot
-    const surplus = discardableStacks(bot.inventory.items())
+    const items = bot.inventory.items()
+    const full = bot.inventory.emptySlotCount() === 0
+    const surplus = discardableStacks(items)
     if (!surplus.length) {
-        c.paused = true
-        c.memory.paused = true
-        bot.chat('Inventory full of useful items. Please make room, then use !resume.')
-        return
+        if (!full || !items.length) {
+            return
+        }
+        surplus.push(overflowStack(items, bot.registry.foodsByName))
     }
     const signal = c.actionAbort?.signal
     const start = bot.entity.position.floored()
@@ -964,6 +968,20 @@ async function clearInventory(c) {
         }
     }
     if (!retreat) {
+        if (full) {
+            const stack = surplus[0]
+            const stored = await storeOverflowAtBase(c, stack).catch(error => {
+                c.log.warn(`Overflow storage failed: ${error.message}`)
+                return false
+            })
+            if (!stored && bot.inventory.emptySlotCount() === 0) {
+                check(c)
+                c.log.warn(`No safe disposal route; dropping ${stack.count} ${stack.name} here to free a slot.`)
+                await tossAll(c, [stack], start.offset(1.5, 0.5, 0.5), signal)
+                c.memory.disposalBackoffUntil = Date.now() + 5000
+            }
+            return
+        }
         throw disposalFailed(c, 'no open toss lane or supported disposal retreat; refusing a stationary drop/pickup loop')
     }
     const away = start.minus(retreat.at(-1))

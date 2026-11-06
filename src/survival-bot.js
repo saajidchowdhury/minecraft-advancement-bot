@@ -11,7 +11,7 @@ const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-
 const { prepareBed, huntAtNight, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
 const { exploreCave, collectOpportunity, findPriorityDiamond } = require('./cave-exploration')
-const { inventoryReport } = require('./inventory')
+const { discardableStack, inventoryReport } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
 const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnimals } = require('./farming')
 const { golemState, summonGolem } = require('./golem')
@@ -551,7 +551,9 @@ class SurvivalController {
         const hasWoodPickNow = this.hasItem('wooden_pickaxe') || hasStonePickNow
         const hasFurnaceNow = this.hasItem('furnace') || Boolean(this.findStation('furnace', 4))
         const ironIngots = this.countItems(['iron_ingot'])
-        const items = Object.fromEntries(this.bot.inventory.items().map(item => [item.name, item.count]))
+        const inventory = this.bot.inventory.items()
+        const items = Object.fromEntries(inventory.map(item => [item.name, item.count]))
+        const freeInventorySlots = this.bot.inventory.emptySlotCount()
         const torso = this.bot.inventory.slots[6]
         const offhand = this.bot.inventory.slots[45]
         const armorNames = ['iron_chestplate', 'diamond_chestplate', 'netherite_chestplate']
@@ -615,7 +617,9 @@ class SurvivalController {
             redstone: this.countItems(['redstone']), flint: this.countItems(['flint']),
             completedAdvancements: this.advancements.completed,
             dimension: this.bot.game.dimension, items,
-            inventoryFull: this.bot.inventory.emptySlotCount() <= 4 && !(this.memory.disposalBackoffUntil > Date.now()),
+            freeInventorySlots,
+            inventoryFull: (freeInventorySlots === 0 || (freeInventorySlots <= 4 && Boolean(discardableStack(inventory)))) &&
+                !(this.memory.disposalBackoffUntil > Date.now()),
             surfaceY: this.home?.y || 64, y: this.bot.entity.position.y,
             underground: Boolean(this.sheltered && this.memory.shelter?.burrowed) ||
                 (this.bot.entity.position.y < (this.home?.y || 64) - 3 && !(this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0))?.skyLight >= 12) &&

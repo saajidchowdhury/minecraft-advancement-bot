@@ -352,3 +352,9 @@ All 246 tests and syntax checks pass. Comment-bearing lines are 5/217 in
 19/1083 in `progression-skills.js`, and 63/2394 in `survival-bot.js`. Changed
 tests have at most 2/245 comment-bearing lines. The LAN run crafted a shovel
 from carried materials. Replacement after wear is covered by the planner test.
+
+F050 verifies clutter disposal, full packs without ordinary surplus, priority
+over a blocked tool craft, nearby chest storage, and the last-resort drop.
+All 252 tests and syntax checks pass. Changed JavaScript files stay below 8%
+comment-bearing lines. The LAN bot discarded the seven clutter stacks and
+resumed mining. The exact-full and chest paths have regression coverage.

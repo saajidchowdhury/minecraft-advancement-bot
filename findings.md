@@ -938,3 +938,19 @@ On port 54390, the `22.26.16` run made the shovel on its first action at
 22:26:20 Eastern, using its carried materials, and resumed iron gathering.
 The mixed-tunnel regression verifies shovel selection for dirt and grass
 blocks and pickaxe selection for stone.
+
+## F050 — Inventory cleanup must free space autonomously
+
+The `22.26.16` run paused with 32 of 36 slots occupied because cleanup only
+recognized surplus rubble. The inventory held exactly one stack of cobblestone,
+plus azalea, leaf litter, moss, a birch sapling, both raw mushrooms and a bowl.
+Cleanup now discards those incidental stacks while preserving prepared stew.
+After clearing the saved automatic pause, the `22.35.41` LAN run threw away all
+seven stacks, retained three stews, and resumed iron gathering.
+
+With a genuinely full pack, cleanup chooses one low-priority stack even if
+everything falls outside ordinary surplus. It uses the existing pit, toss lane,
+or retreat first. With no such route, it tries nearby owned storage and then
+drops one stack in place as a last resort. This last drop can be picked up again
+if the bot remains in the same cell, so cleanup gives other actions a brief
+window to use the new slot. Survival actions retain priority.

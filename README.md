@@ -84,6 +84,11 @@ giant mushroom caps, into stew. It crafts bowls at a crafting table when needed.
 Repeated movement stalls switch to cardinal scouting and, if that fails, a
 short staircase with support and liquid checks.
 
+Inventory cleanup throws away clutter and surplus rubble while keeping prepared
+food. If the pack fills without ordinary surplus, the bot frees a slot using a
+lower-priority stack. A nearby owned chest or barrel can take overflow when
+there is no safe place to throw it clear.
+
 Nightfall alone does not stop underground work. On the surface, a prepared bot
 can hunt isolated useful mobs within a small budget; weak or overwhelmed bots
 try safe sleep or shelter. Bed preparation uses available same-color wool, and

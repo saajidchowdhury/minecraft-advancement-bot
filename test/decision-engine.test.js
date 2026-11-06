@@ -114,6 +114,14 @@ test('the axe upgrade outranks optional activities while keeping threat interrup
     assert.equal(chooseAction({ ...ready, health: 6, hostileDistance: 2 }), Actions.ESCAPE)
 })
 
+test('a full pack frees a slot before rebuilding a missing pickaxe', () => {
+    const full = state({ underground: true, hasCraftingTable: true, cobblestone: 64, sticks: 2,
+        inventoryFull: true, freeInventorySlots: 0 })
+    assert.equal(chooseAction(full), 'clear_inventory')
+    assert.equal(chooseAction({ ...full, creeperDistance: 4 }), Actions.ESCAPE)
+    assert.equal(chooseAction({ ...full, inventoryFull: false, freeInventorySlots: 1 }), Actions.CRAFT_STONE_PICKAXE)
+})
+
 test('shovel crafting outranks optional work while danger, hunger and inventory cleanup still interrupt', () => {
     const ready = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true,
         hasWoodcuttingAxe: true, hasDiggingShovel: false, cobblestone: 1, sticks: 2,

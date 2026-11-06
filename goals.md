@@ -386,3 +386,5 @@ advancementsPerHour across a full run.
   and record the time and number of cap blocks needed compared with hunting.
 - F049: stone shovel crafting verified on the running LAN bot. Verify automatic
   replacement after wear during a future run.
+- F050: the LAN bot recovered from the clutter pause. Watch for a naturally
+  full pack to validate the ranked overflow and nearby storage paths in game.

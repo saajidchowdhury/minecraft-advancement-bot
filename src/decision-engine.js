@@ -88,7 +88,8 @@ function chooseAction (state) {
     }
     const progression = nextAdvancement(state)
     const craftPick = [Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_PICKAXE].includes(progression.action)
-    if (state.underground && craftPick && !state.hasStonePickaxe) {
+    const mustFreeSlot = state.freeInventorySlots === 0 && state.inventoryFull
+    if (state.underground && craftPick && !state.hasStonePickaxe && !mustFreeSlot) {
         return progression.action
     }
     // A verified night shelter is a sealed 1x1 column too; it must not trigger a shaft escape.
@@ -130,6 +131,9 @@ function chooseAction (state) {
     if (state.food <= 16 && !state.hasFood) {
         return state.underground ? 'return_surface' : Actions.FOOD
     }
+    if (mustFreeSlot) {
+        return 'clear_inventory'
+    }
     if (state.diamondInView && state.health > 10 && state.hostileDistance > 6) {
         return 'mine_diamond'
     }
@@ -142,7 +146,7 @@ function chooseAction (state) {
         return progression.action
     }
     // A miner without an iron pick rebuilds locally before making a restock trip.
-    if (!recoveringPick && state.baseRestock && state.hostileDistance > 12) {
+    if (!recoveringPick && state.baseRestock && state.hostileDistance > 12 && !(state.freeInventorySlots <= 1)) {
         return 'restock_base'
     }
     if (progression.action === Actions.CRAFT_STONE_AXE) {
