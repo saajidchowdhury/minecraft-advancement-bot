@@ -953,6 +953,13 @@ async function buildRedstone(c) {
 async function returnSurface(c) {
     const surfaceY = c.home?.y || 64
     const route = c.memory.mineRoute || []
+    // Walking off the route (ore pickup, restock) leaves deeper cells behind; resume at the nearest one.
+    const here = c.bot.entity.position
+    const nearest = route.reduce((best, p, i) => {
+        const d = here.distanceTo(new Vec3(p.x + 0.5, p.y, p.z + 0.5))
+        return d < best.d ? { i, d } : best
+    }, { i: -1, d: Infinity })
+    route.length = nearest.d <= 6 ? nearest.i + 1 : 0
     for (let i = 0; !c.memory.surfaceByStaircase && route.length; i++) {
         if (i === 6) {
             return

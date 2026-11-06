@@ -461,3 +461,24 @@ test('portal construction stands beside the frame plane, never inside a frame ce
     assert.equal(stands.every(p => p.z === 1 && p.y === 64 && p.x >= 0 && p.x <= 3), true)
     assert.equal(bot.game.dimension, 'the_nether')
 })
+
+test('a return trip resumes the remembered stairs at the nearest cell, not a stale deeper waypoint', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const route = [{ x: 0, y: 63, z: 0 }, { x: 1, y: 62, z: 1 }, { x: 2, y: 61, z: 2 }, { x: 20, y: 50, z: 20 }]
+    const bot = { health: 20, entity: { position: new Vec3(2.5, 61, 2.5) } }
+    const visited = []
+    const c = {
+        bot, running: true, paused: false, home: { y: 64 }, memory: { mineRoute: route }, log: { info() {}, warn() {} },
+        async gotoWithTimeout(goal) {
+            const target = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5)
+            if (bot.entity.position.distanceTo(target) > 3) {
+                throw new Error('return staircase timed out after 8s')
+            }
+            visited.push(`${goal.x},${goal.y},${goal.z}`)
+            bot.entity.position = target
+        }
+    }
+    await performProgression(c, 'return_surface', {})
+    assert.deepEqual(visited, ['2,61,2', '1,62,1', '0,63,0'])
+    assert.equal(c.memory.surfaceByStaircase, false)
+})
