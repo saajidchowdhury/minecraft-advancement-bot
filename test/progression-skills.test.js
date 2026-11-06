@@ -566,3 +566,28 @@ test('when water above blocks every rising step, the tunnel takes a level side s
     await assert.rejects(mineTunnel(c, 69), /stop after one step/)
     assert.deepEqual(steps, [64])
 })
+
+test('a level tunnel blocked by liquid on every side climbs one step around it', async () => {
+    const { mineTunnel } = require('../src/progression-skills')
+    const air = new Set(['0,64,0', '0,65,0'])
+    const water = [new Vec3(2, 64, 0), new Vec3(-2, 64, 0), new Vec3(0, 64, 2), new Vec3(0, 64, -2)]
+    const bot = {
+        health: 20, entity: { position: new Vec3(0.5, 64, 0.5) },
+        blockAt(p) {
+            const name = water.some(w => w.equals(p)) ? 'water' : air.has(`${p.x},${p.y},${p.z}`) ? 'air' : 'stone'
+            return { name, position: p, boundingBox: name === 'stone' ? 'block' : 'empty', diggable: true, canHarvest: () => true }
+        },
+        equip: async () => {}, canDigBlock: () => true,
+        async dig(block) { air.add(`${block.position.x},${block.position.y},${block.position.z}`) }
+    }
+    const steps = []
+    const c = {
+        bot, running: true, paused: false, actionAbort: new AbortController(), memory: {}, log: { info() {}, warn() {} },
+        bestItem: names => names.includes('iron_pickaxe') ? { name: 'iron_pickaxe' } : null,
+        async gotoWithTimeout(goal) { steps.push(goal.y); throw new Error('stop after one step') },
+        rememberBlockedTarget() {}
+    }
+    // The rising step goes through climbStep, which this fixture cannot complete; any error but
+    // the stall means a step was chosen.
+    await assert.rejects(mineTunnel(c, 64), error => !/no supported dry tunnel step/.test(error.message))
+})

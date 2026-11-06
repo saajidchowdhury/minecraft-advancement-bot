@@ -234,10 +234,11 @@ async function mineTunnel(c, targetY, heading = null) {
                 Math.hypot(feet.x + DIRECTIONS[a][0] - heading.x, feet.z + DIRECTIONS[a][1] - heading.z) -
                 Math.hypot(feet.x + DIRECTIONS[b][0] - heading.x, feet.z + DIRECTIONS[b][1] - heading.z))
         }
-        // Sloped steps first; when liquid or falling blocks surround all four, a level side step
-        // routes around the hazard (live 02.02.15 stalled three times in 16 minutes).
+        // The wanted slope first; when liquid or falling blocks touch all four, a level step (or, on a
+        // level tunnel, one step up or down) routes around the hazard (live 02.02.15, 02.29.19).
         const rise = Math.sign(targetY - feet.y)
-        for (const [index, dy] of [...directionOrder.map(i => [i, rise]), ...(rise ? directionOrder.map(i => [i, 0]) : [])]) {
+        const slopes = rise ? [rise, 0] : [0, 1, -1]
+        for (const [index, dy] of slopes.flatMap(dy => directionOrder.map(i => [i, dy]))) {
             const [dx, dz] = DIRECTIONS[index]
             const candidate = feet.offset(dx, dy, dz)
             const key = candidate.toString()
