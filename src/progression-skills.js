@@ -234,9 +234,12 @@ async function mineTunnel(c, targetY, heading = null) {
                 Math.hypot(feet.x + DIRECTIONS[a][0] - heading.x, feet.z + DIRECTIONS[a][1] - heading.z) -
                 Math.hypot(feet.x + DIRECTIONS[b][0] - heading.x, feet.z + DIRECTIONS[b][1] - heading.z))
         }
-        for (const index of directionOrder) {
+        // Sloped steps first; when liquid or falling blocks surround all four, a level side step
+        // routes around the hazard (live 02.02.15 stalled three times in 16 minutes).
+        const rise = Math.sign(targetY - feet.y)
+        for (const [index, dy] of [...directionOrder.map(i => [i, rise]), ...(rise ? directionOrder.map(i => [i, 0]) : [])]) {
             const [dx, dz] = DIRECTIONS[index]
-            const candidate = feet.offset(dx, Math.sign(targetY - feet.y), dz)
+            const candidate = feet.offset(dx, dy, dz)
             const key = candidate.toString()
             if (c.memory.minedCells?.has(key) || c.isBlockedTarget?.({ position: candidate }) || !safeTunnelStep(bot, feet, candidate, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt'])))) {
                 continue
