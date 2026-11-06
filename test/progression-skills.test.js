@@ -409,3 +409,55 @@ test('a lava source that cannot be scooped is quarantined, but a cancelled trip 
         assert.deepEqual(blocked, cancel ? [] : [lava])
     }
 })
+
+test('portal construction stands beside the frame plane, never inside a frame cell', async () => {
+    const { performProgression, portalFrame } = require('../src/progression-skills')
+    const origin = new Vec3(0, 64, 0)
+    const blocks = new Map()
+    const inventory = { obsidian: 10, cobblestone: 3, flint_and_steel: 1 }
+    const bot = {
+        health: 20, game: { dimension: 'overworld' }, entity: { position: origin.offset(1.5, 0, 0.5) },
+        blockAt(p) {
+            const name = blocks.get(p.toString()) ?? (p.y < 64 ? 'stone' : 'air')
+            return { position: p, name, boundingBox: ['air', 'fire', 'nether_portal'].includes(name) ? 'empty' : 'block' }
+        },
+        async equip() {},
+        async placeBlock(ref, face) {
+            const target = ref.position.plus(face)
+            const feet = bot.entity.position.floored()
+            assert.equal(target.equals(feet) || target.equals(feet.offset(0, 1, 0)), false, `placed into the bot at ${target}`)
+            const name = held
+            inventory[name]--
+            blocks.set(target.toString(), name)
+        },
+        async activateBlock(block) {
+            assert.equal(block.position.equals(origin.offset(1, 0, 0)), true)
+            for (const y of [1, 2, 3]) {
+                blocks.set(origin.offset(1, y, 0).toString(), 'nether_portal')
+                blocks.set(origin.offset(2, y, 0).toString(), 'nether_portal')
+            }
+        }
+    }
+    let held
+    const stands = []
+    const c = {
+        bot, running: true, paused: false, memory: { portalOrigin: { x: 0, y: 64, z: 0 } }, log: { info() {} },
+        advancements: { completed: new Set() },
+        isEmptyPlacementBlock: block => ['air', 'fire'].includes(block?.name),
+        bestItem: names => { held = names[0]; return inventory[held] > 0 ? { name: held } : null },
+        findNearestBlock: () => null,
+        async gotoWithTimeout(goal, ms, label) {
+            if (label === 'portal entry') {
+                bot.game.dimension = 'the_nether'
+                return
+            }
+            stands.push(new Vec3(goal.x, goal.y, goal.z))
+            bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5)
+        }
+    }
+    await performProgression(c, 'enter_nether', {})
+    assert.equal(portalFrame(origin).every(p => blocks.get(p.toString()) === 'obsidian'), true)
+    assert.ok(stands.length > 0)
+    assert.equal(stands.every(p => p.z === 1 && p.y === 64 && p.x >= 0 && p.x <= 3), true)
+    assert.equal(bot.game.dimension, 'the_nether')
+})

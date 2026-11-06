@@ -806,7 +806,7 @@ function portalFrame(origin) {
         .map(([x, y]) => origin.offset(x, y, 0))
 }
 
-async function placeAt(c, name, target) {
+async function placeAt(c, name, target, stand = null) {
     check(c)
     if (c.bot.blockAt(target)?.name === name) {
         return
@@ -814,7 +814,11 @@ async function placeAt(c, name, target) {
     if (!c.isEmptyPlacementBlock(c.bot.blockAt(target))) {
         throw new Error(`build site obstructed at ${target}`)
     }
-    await c.gotoWithTimeout(new goals.GoalNear(target.x, Math.min(target.y, c.bot.entity.position.y), target.z, 2), 10000, 'building approach')
+    if (!stand) {
+        await c.gotoWithTimeout(new goals.GoalNear(target.x, Math.min(target.y, c.bot.entity.position.y), target.z, 2), 10000, 'building approach')
+    } else if (!c.bot.entity.position.floored().equals(stand)) {
+        await c.gotoWithTimeout(new goals.GoalBlock(stand.x, stand.y, stand.z), 10000, 'building approach')
+    }
     for (const [dx, dy, dz] of [[0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]]) {
         const ref = c.bot.blockAt(target.offset(dx, dy, dz))
         if (!ref || ref.boundingBox !== 'block') {
@@ -869,14 +873,16 @@ async function enterNether(c) {
         }
         const { x, y, z } = c.memory.portalOrigin
         const origin = new Vec3(x, y, z)
-        await placeAt(c, 'cobblestone', origin)
-        await placeAt(c, 'cobblestone', origin.offset(3, 0, 0))
+        // Build from the cleared row beside the frame plane, so the bot never stands in a frame cell.
+        const build = (name, p) => placeAt(c, name, p, new Vec3(Math.min(Math.max(p.x, x), x + 3), y, z + 1))
+        await build('cobblestone', origin)
+        await build('cobblestone', origin.offset(3, 0, 0))
         for (const p of portalFrame(origin).filter(p => p.y < origin.y + 4)) {
-            await placeAt(c, 'obsidian', p)
+            await build('obsidian', p)
         }
-        await placeAt(c, 'cobblestone', origin.offset(0, 4, 0))
+        await build('cobblestone', origin.offset(0, 4, 0))
         for (const p of portalFrame(origin).filter(p => p.y === origin.y + 4)) {
-            await placeAt(c, 'obsidian', p)
+            await build('obsidian', p)
         }
         check(c)
         await bot.equip(c.bestItem(['flint_and_steel']), 'hand')
