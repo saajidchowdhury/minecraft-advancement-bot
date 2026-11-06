@@ -423,3 +423,22 @@ advancementsPerHour across a full run.
   and tool wear in the G008 spacing measurements.
 - F054: staged LAN replay verified an immediate diamond interrupt and return
   to the obsidian objective. Check natural interruptions during longer mining.
+
+## G015 — Medium / not started — Stronghold, library enchanting and the End portal
+
+User direction (2026-11-06): serious enchanting waits for a stronghold library's
+bookshelves; the bot should not farm sugar cane. Enchanter itself stays
+opportunistic (F059). A stronghold run also unlocks Eye Spy (`story/follow_ender_eye`),
+The End? (`story/enter_the_end`) and the enchanting payoff.
+Dependencies, cheapest first, to verify against 26.1.2 before coding:
+1. Ender pearls: endermen at night (12–16 needed with throw losses), or piglin
+   bartering with stored gold. Endermen need a 3-high-safe fighting spot.
+2. Blaze rods: a Nether fortress (A Terrible Fortress; Into Fire). This is the
+   riskiest step; it needs full iron or better, food, fire resistance if possible, and
+   a remembered portal route back (G006).
+3. Eyes of ender: throw, follow and triangulate; dig down to the stronghold.
+4. Library: carry bookshelves (silk touch not needed; bookshelves drop 3 books
+   without it, so take the books plus the room's loot) or enchant at a table placed
+   inside the library with 15 shelves in range.
+Completion: server-confirmed Eye Spy and a level-30 enchant on the diamond pick.
+Do not start before the Nether entry/return route is live-verified.
