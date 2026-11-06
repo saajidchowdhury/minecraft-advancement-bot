@@ -508,22 +508,30 @@ async function fillLavaBucket(c) {
         }
         return mineTunnel(c, targetY)
     }
-    await c.gotoWithTimeout(new goals.GoalNear(lava.position.x, lava.position.y, lava.position.z, 3), 12000, 'lava approach')
-    check(c)
-    if (c.bot.entity.position.distanceTo(lava.position.offset(0.5, 0.5, 0.5)) > 4.5) {
-        throw new Error('lava source is out of reach from dry ground')
-    }
     const empty = c.bot.inventory.items().find(item => item.name === 'bucket')
     if (!empty) {
         throw new Error('lava needs an empty bucket; filled buckets would pour instead')
     }
-    await c.bot.equip(empty, 'hand')
-    await c.bot.lookAt(lava.position.offset(0.5, 0.5, 0.5), true)
-    c.bot.activateItem()
     try {
-        await until(c, () => c.hasItem('lava_bucket'), 4000)
-    } finally {
-        c.bot.deactivateItem()
+        await c.gotoWithTimeout(new goals.GoalNear(lava.position.x, lava.position.y, lava.position.z, 3), 12000, 'lava approach')
+        check(c)
+        if (c.bot.entity.position.distanceTo(lava.position.offset(0.5, 0.5, 0.5)) > 4.5) {
+            throw new Error('lava source is out of reach from dry ground')
+        }
+        await c.bot.equip(empty, 'hand')
+        await c.bot.lookAt(lava.position.offset(0.5, 0.5, 0.5), true)
+        c.bot.activateItem()
+        try {
+            await until(c, () => c.hasItem('lava_bucket'), 4000)
+        } finally {
+            c.bot.deactivateItem()
+        }
+    } catch (error) {
+        // Ten casts need repeated lava trips; one unreachable source must not absorb every retry.
+        if (c.running && !c.paused && !c.actionAbort?.signal.aborted) {
+            c.rememberBlockedTarget(lava, 'lava source', error)
+        }
+        throw error
     }
 }
 

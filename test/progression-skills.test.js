@@ -382,3 +382,30 @@ test('lava for a cast is scooped only with an empty bucket, never a suffix-match
     await assert.rejects(performProgression(c, 'gather_obsidian', {}), /empty bucket/)
     assert.deepEqual(equipped, [])
 })
+
+test('a lava source that cannot be scooped is quarantined, but a cancelled trip is not', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const lava = { name: 'lava', position: new Vec3(3, 63, 0), getProperties: () => ({ level: 0 }) }
+    for (const cancel of [false, true]) {
+        const inventory = { bucket: 1 }
+        const blocked = []
+        const c = {
+            bot: {
+                health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) },
+                inventory: { items: () => Object.entries(inventory).filter(([, n]) => n).map(([name, count]) => ({ name, count })) }
+            },
+            running: true, paused: false, actionAbort: new AbortController(), log: { info() {}, warn() {} },
+            hasItem: name => inventory[name] > 0,
+            findNearestBlock: matcher => matcher('lava') ? lava : null,
+            async gotoWithTimeout() {
+                if (cancel) {
+                    c.actionAbort.abort()
+                }
+                throw new Error('lava approach timed out after 12s')
+            },
+            rememberBlockedTarget: block => blocked.push(block)
+        }
+        await assert.rejects(performProgression(c, 'fill_lava_bucket', {}), /lava approach/)
+        assert.deepEqual(blocked, cancel ? [] : [lava])
+    }
+})
