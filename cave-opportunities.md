@@ -14,7 +14,7 @@ planning, not claims that their skills or advancements are implemented.
 | Lush-cave glow berries | Edible supplies and renewable vines; can support cave trips without returning to surface | Food value known; harvesting berry-bearing cave vines pending |
 | Lush-cave axolotls and tropical fish | Catch an axolotl for The Cutest Predator; later axolotl-assisted combat for The Healing Power of Friendship! | Bucket/entity interaction and safe-bank approach pending |
 | Glow squid | Glow ink for Glow and Behold, which requires making a sign glow | Combat, pickup and sign interaction pending |
-| Mineshafts | Wood structures, rails and chest minecarts; glow berries are among chest loot | Recognizing structures and selective container looting pending; avoid cave-spider spawners |
+| Mineshafts | Wood structures, rails and chest minecarts with loot including glow berries | Survey walks rails and can loot chest minecarts. Nearby spawner blocks and mobs limit exploration |
 | Underground lava/water and natural descent | Hot Stuff, obsidian, portal preparation and access to deeper ore levels | Existing bucket/obsidian route; bounded dry walking added, no swimming or cliff drops for exploration |
 | Deep-dark/ancient-city features | Possible later exploration and loot | Defer; survey avoids adjacent sculk sensors/shriekers and treats wardens as threats |
 
@@ -37,19 +37,23 @@ tunnel. Reserve caps count raw and processed forms together where appropriate:
 diamonds 5, iron 24, coal/charcoal 16, gold 8, copper 4, lapis 12, redstone 16.
 One block's drop can exceed a cap. These are initial quotas, not optimized values.
 
-A survey searches at most 160 connected cells within 12 horizontal blocks and
-six vertical blocks, distinguishes roofed chambers from tunnels/surface, and
-walks at most six adjacent supported steps per action. It favors unvisited
-floor and useful descent, with a total budget of 24 steps per two-minute window.
+A depth-first survey checks at most 160 connected cells within 12 horizontal
+and vertical blocks. It recognizes roofed caves and rail corridors and chooses
+an unvisited endpoint within eight supported walking steps. It can cross
+earlier checkpoints to reach another branch and favors movement toward the
+requested depth. The shared budget is 48 steps per two-minute window.
 Each step has a three-second navigation limit. Digging, bridging, parkour and
 multi-block drops are disabled during the survey. Torches are placed and checked
 before moving; low food/health, nearby threats or missing protection stop it.
 At least eight hunger points of carried food, armor and an offhand shield are
-required. A surface departure for deep mining prepares twelve food points.
+required. A surface departure for deep mining prepares sixteen food points.
 
-Visit cooldowns include dimension, expire after fifteen minutes and retain at
-most 2048 cells. Existing world-seed invalidation clears them for a new world.
-Return waypoints are appended before walking, including when navigation fails;
-this records a route, not proof that a later return cannot become obstructed.
-The bot still needs live cave/return validation. Looting, entity capture,
-planting, enchanting and spyglass use remain separate future skills.
+Explored checkpoints are stored by dimension, up to 2048 cells, and survive
+restarts with world memory enabled. The bot records return waypoints before
+walking and shortens the return route when retracing a step. It yields at a
+checkpoint when diamond ore or an accessible chest comes into view.
+
+The bot can open visible ordinary chests and chest minecarts, leaving one
+inventory slot free and skipping its own base. It records each location and
+whether the container was emptied. It can retry a partial or failed visit
+after two minutes.

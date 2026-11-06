@@ -358,3 +358,9 @@ over a blocked tool craft, nearby chest storage, and the last-resort drop.
 All 252 tests and syntax checks pass. Changed JavaScript files stay below 8%
 comment-bearing lines. The LAN bot discarded the seven clutter stacks and
 resumed mining. The exact-full and chest paths have regression coverage.
+
+F051 covers a narrow rail corridor, checkpoint backtracking, dimension-scoped
+checkpoints, interruption by visible diamonds, and discovery and looting of
+chests and chest minecarts. The LAN replay exercised a natural cave walk and
+two staged loot containers. All 256 tests and syntax checks pass. Changed
+JavaScript files stay below 8% comment-bearing lines.

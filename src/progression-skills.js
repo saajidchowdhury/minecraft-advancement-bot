@@ -472,7 +472,11 @@ async function fillLavaBucket(c) {
         filter: b => Number(b.getProperties().level) === 0
     })
     if (!lava) {
-        return mineTunnel(c, c.bot.game.minY < 0 ? -54 : 11)
+        const targetY = c.bot.game.minY < 0 ? -54 : 11
+        if (await exploreCave(c, targetY)) {
+            return
+        }
+        return mineTunnel(c, targetY)
     }
     await c.gotoWithTimeout(new goals.GoalNear(lava.position.x, lava.position.y, lava.position.z, 3), 12000, 'lava approach')
     check(c)

@@ -3,9 +3,13 @@
 const { Vec3 } = require('vec3')
 const { Movements, goals } = require('mineflayer-pathfinder')
 
-const AIR = new Set(['air', 'cave_air', 'void_air', 'torch', 'wall_torch'])
+const RAILS = new Set(['rail', 'powered_rail', 'detector_rail', 'activator_rail'])
+const AIR = new Set(['air', 'cave_air', 'void_air', 'torch', 'wall_torch', ...RAILS])
 const DANGER = new Set(['lava', 'water', 'fire', 'soul_fire', 'magma_block', 'campfire',
-    'soul_campfire', 'cactus', 'powder_snow', 'pointed_dripstone', 'sculk_shrieker', 'sculk_sensor'])
+    'soul_campfire', 'cactus', 'powder_snow', 'pointed_dripstone', 'sculk_shrieker', 'sculk_sensor', 'spawner', 'trial_spawner'])
+const SURVEY_STEPS = 48
+const SURVEY_MS = 120000
+const SURVEY_LEG_STEPS = 8
 const ROCK = new Set(['stone', 'deepslate', 'granite', 'diorite', 'andesite', 'tuff', 'calcite', 'dripstone_block'])
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 const ORES = [
@@ -56,46 +60,56 @@ function caveRoof(bot, p) {
     return bot.blockAt(p, false)?.name === 'cave_air'
 }
 
-function findCaveRoute(bot, visits, targetY, now = Date.now(), blocked = () => false) {
+function findCaveRoute(bot, visits, targetY, blocked = () => false) {
     const start = bot.entity.position.floored()
-    const queue = [{ p: start, path: [] }]
-    const seen = new Set([start.toString()])
-    const candidates = []
+    const stack = [{ p: start, path: [] }]
+    const seen = new Set()
+    const visited = p => visits.has(`${bot.game.dimension}:${p}`)
+    const depthCost = p => Math.abs(p.y - targetY)
+    let best = null
     let junctions = 0
-    for (let i = 0; i < queue.length && i < 160; i++) {
-        const node = queue[i]
-        let exits = 0
+    let naturalPassage = false
+    while (stack.length && seen.size < 160) {
+        const node = stack.pop()
+        if (seen.has(node.p.toString())) {
+            continue
+        }
+        seen.add(node.p.toString())
+        const neighbors = []
         for (const [dx, dz] of DIRECTIONS) {
             for (const dy of [0, -1, 1]) {
                 const p = node.p.offset(dx, dy, dz)
-                if (Math.abs(p.y - start.y) > 6 || Math.hypot(p.x - start.x, p.z - start.z) > 12 ||
+                if (Math.abs(p.y - start.y) > 12 || Math.hypot(p.x - start.x, p.z - start.z) > 12 ||
                     blocked({ position: p }) || !safeFooting(bot, p) || (dy !== 0 && !AIR.has(bot.blockAt((dy > 0 ? node.p : p).offset(0, 2, 0), false)?.name))) {
                     continue
                 }
-                exits++
-                if (!seen.has(p.toString()) && queue.length < 160) {
-                    seen.add(p.toString())
-                    queue.push({ p, path: [...node.path, p] })
-                }
+                neighbors.push(p)
                 break
             }
         }
-        if (caveRoof(bot, node.p)) {
-            if (exits >= 3) {
-                junctions++
+        const feet = bot.blockAt(node.p, false)?.name
+        const shaft = RAILS.has(feet)
+        const roof = caveRoof(bot, node.p)
+        naturalPassage ||= shaft || (roof && feet === 'cave_air')
+        if (roof && neighbors.length >= 3) {
+            junctions++
+        }
+        if ((roof || shaft) && node.path.length && !visited(node.p)) {
+            const score = -3 * depthCost(node.p) + 0.9 * node.path.length
+            if (!best || score > best.score) {
+                best = { path: node.path, score }
             }
-            const key = `${bot.game.dimension}:${node.p}`
-            if (node.path.length > 0 && now - (visits.get(key) ?? -Infinity) >= 15 * 60 * 1000) {
-                const score = exits * 2 + Math.min(node.path.length, 6) - Math.abs(node.p.y - targetY) * 0.75
-                candidates.push({ ...node, score })
+        }
+        if (node.path.length < SURVEY_LEG_STEPS) {
+            neighbors.sort((a, b) => Number(visited(b)) - Number(visited(a)) || depthCost(b) - depthCost(a))
+            for (const p of neighbors) {
+                if (!seen.has(p.toString())) {
+                    stack.push({ p, path: [...node.path, p] })
+                }
             }
         }
     }
-    if (junctions < 4 || candidates.length === 0) {
-        return []
-    }
-    candidates.sort((a, b) => b.score - a.score)
-    return candidates[0].path.slice(0, 6)
+    return best && (naturalPassage || junctions >= 4) ? best.path : []
 }
 
 async function collectOpportunity(c, excluded = []) {
@@ -195,17 +209,17 @@ async function exploreCave(c, targetY) {
     check(c, signal)
     const state = c.observe()
     if (state.dimension !== 'overworld' || state.health < 16 || state.food < 18 || state.foodUnits < 8 ||
-        !state.armorEquipped || !state.shieldEquipped || state.hostileDistance <= 12 || bot.inventory.emptySlotCount() <= 4) {
+        !state.armorEquipped || !state.shieldEquipped || state.hostileDistance <= 12 || bot.inventory.emptySlotCount() <= 1) {
         return false
     }
     if (!(c.memory.caveVisits instanceof Map)) {
         c.memory.caveVisits = new Map()
     }
     const budget = c.memory.caveSurvey
-    if (budget?.dimension === state.dimension && Date.now() - budget.startedAt < 120000 && budget.steps >= 24) {
+    if (budget?.dimension === state.dimension && Date.now() - budget.startedAt < SURVEY_MS && budget.steps >= SURVEY_STEPS) {
         return false
     }
-    const route = findCaveRoute(bot, c.memory.caveVisits, targetY, Date.now(), b => c.isBlockedTarget(b))
+    const route = findCaveRoute(bot, c.memory.caveVisits, targetY, b => c.isBlockedTarget(b))
     if (route.length === 0) {
         return false
     }
@@ -221,7 +235,7 @@ async function exploreCave(c, targetY) {
         check(c, signal)
     }
     const walking = dryMovements(bot)
-    if (!budget || budget.dimension !== state.dimension || Date.now() - budget.startedAt >= 120000) {
+    if (!budget || budget.dimension !== state.dimension || Date.now() - budget.startedAt >= SURVEY_MS) {
         c.memory.caveSurvey = { dimension: state.dimension, startedAt: Date.now(), steps: 0 }
     }
     const previous = c.movements
@@ -232,7 +246,12 @@ async function exploreCave(c, targetY) {
         for (const p of route) {
             check(c, signal)
             const current = c.observe()
-            if (c.memory.caveSurvey.steps >= 24 || current.health < 16 || current.food < 18 || current.hostileDistance <= 12 || !safeFooting(bot, p)) {
+            if (current.lootTarget || current.diamondInView) {
+                return true
+            }
+            if (c.memory.caveSurvey.steps >= SURVEY_STEPS || Date.now() - c.memory.caveSurvey.startedAt >= SURVEY_MS ||
+                current.health < 16 || current.food < 18 || current.hostileDistance <= 12 || current.visibleHostiles >= 2 ||
+                bot.inventory.emptySlotCount() <= 1 || !safeFooting(bot, p)) {
                 break
             }
             const feet = bot.entity.position.floored()
@@ -244,12 +263,19 @@ async function exploreCave(c, targetY) {
             // Torch light 14 falls by one per block; one per ~7 cells keeps survey floors lit.
             const lit = bot.blockAt(feet)?.skyLight >= 12 || c.findNearestBlock?.(name => name === 'torch' || name === 'wall_torch', 6)
             if (c.countItems(['torch']) > 0 && !lit) {
+                const onRail = RAILS.has(bot.blockAt(feet)?.name)
+                const torchCell = onRail ? feet.offset(0, 1, 0) : feet
+                const support = onRail ? DIRECTIONS.map(([dx, dz]) => bot.blockAt(torchCell.offset(dx, 0, dz)))
+                    .find(block => block?.boundingBox === 'block' && !DANGER.has(block.name)) : bot.blockAt(feet.offset(0, -1, 0))
+                if (!support) {
+                    break
+                }
                 await bot.equip(c.bestItem(['torch']), 'hand')
                 check(c, signal)
-                await bot.placeBlock(bot.blockAt(feet.offset(0, -1, 0)), new Vec3(0, 1, 0))
+                await bot.placeBlock(support, torchCell.minus(support.position))
                 await bot.waitForTicks(4)
                 check(c, signal)
-                if (bot.blockAt(feet)?.name !== 'torch') {
+                if (!['torch', 'wall_torch'].includes(bot.blockAt(torchCell)?.name)) {
                     throw new Error('cave torch placement was not confirmed')
                 }
             }
@@ -265,11 +291,14 @@ async function exploreCave(c, targetY) {
                 throw error
             }
             check(c, signal)
-            if (bot.entity.position.distanceTo(p.offset(0.5, 0, 0.5)) > 1) {
+            if (!bot.entity.position.floored().equals(p)) {
                 throw new Error('cave waypoint was not reached')
             }
             c.memory.caveSurvey.steps++
             c.memory.caveVisits.set(`${bot.game.dimension}:${p}`, Date.now())
+            if (c.memory.mineRoute.at(-2) && p.equals(c.memory.mineRoute.at(-2))) {
+                c.memory.mineRoute.splice(-2)
+            }
             moved = true
         }
     } finally {

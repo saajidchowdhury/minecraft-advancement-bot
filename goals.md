@@ -130,10 +130,11 @@ continue on distinguishable revisions. Favor worthwhile cave surveys and useful
 later supplies alongside the current advancement. See F013 and the research in
 `cave-opportunities.md`; both agent instruction files carry this guidance.
 
-Implemented: dry supported cave routing, natural descent preference, lighting,
-food/protection/threat gates, visit cooldowns, a shared 24-step/two-minute budget,
-return waypoints and capped opportunistic ore reserves. The original primary
-ore target retains priority. Surface deep mining prepares carried food first.
+Implemented: dry depth-first cave routing, saved checkpoints, natural descent
+preference, lighting, food/protection/threat gates, a shared 48-step/two-minute
+budget, return waypoints and capped opportunistic ore reserves. Visible diamonds
+and reachable loot interrupt the survey. Surface deep mining prepares carried
+food first.
 
 Live progress: `ac9e912` reduced rubble and resumed mining, and gathered three
 raw iron opportunistically while pursuing Diamonds! Some disposal routes still
@@ -388,3 +389,5 @@ advancementsPerHour across a full run.
   replacement after wear during a future run.
 - F050: the LAN bot recovered from the clutter pause. Watch for a naturally
   full pack to validate the ranked overflow and nearby storage paths in game.
+- F051: validate a naturally encountered mineshaft from entry to a confirmed
+  return. Record how far the descent saves tunneling and when threats end it.

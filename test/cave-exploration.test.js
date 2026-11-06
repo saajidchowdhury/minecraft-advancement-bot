@@ -49,7 +49,7 @@ function caveWorld() {
 test('a large cave offers a bounded connected walk before more tunneling', () => {
     const { c } = caveWorld()
     const route = findCaveRoute(c.bot, new Map(), -54)
-    assert.ok(route.length > 0 && route.length <= 6)
+    assert.ok(route.length > 0 && route.length <= 8)
     let from = c.bot.entity.position.floored()
     for (const p of route) {
         assert.equal(Math.abs(p.x - from.x) + Math.abs(p.z - from.z), 1)
@@ -66,6 +66,27 @@ test('cave discovery rejects surface terrain and one-block tunnels', () => {
     assert.deepEqual(findCaveRoute(c.bot, new Map(), 16), [])
     c.bot.blockAt = p => p.z !== 0 ? { name: 'stone', boundingBox: 'block' } : blockAt(p)
     assert.deepEqual(findCaveRoute(c.bot, new Map(), 16), [])
+})
+
+test('DFS follows a narrow mineshaft and backtracks through checkpoints to the other branch', () => {
+    const { c } = caveWorld()
+    c.bot.entity.position = new Vec3(4.5, 64, 0.5)
+    c.bot.blockAt = p => {
+        const corridor = p.z === 0 && p.x >= 0 && p.x <= 8
+        const name = corridor && p.y === 64 ? 'rail' : corridor && p.y === 65 ? 'cave_air' : 'stone'
+        return { name, position: p, boundingBox: name === 'stone' ? 'block' : 'empty' }
+    }
+    const checkpoints = new Map()
+    const first = findCaveRoute(c.bot, checkpoints, -54)
+    assert.equal(first.length, 4)
+    for (const p of [c.bot.entity.position.floored(), ...first]) {
+        checkpoints.set(`overworld:${p}`, 1000)
+    }
+    c.bot.entity.position = first.at(-1).offset(0.5, 0, 0.5)
+    const second = findCaveRoute(c.bot, checkpoints, -54)
+    assert.equal(second.length, 8)
+    assert.equal(second[3].x, 4)
+    assert.equal(second.at(-1).x, first.at(-1).x === 0 ? 8 : 0)
 })
 
 test('cave footing rejects unloaded terrain, liquids, spikes and deep-dark triggers', () => {
@@ -94,7 +115,7 @@ test('cave search prefers natural steps toward the requested ore depth', () => {
     assert.ok(route.at(-1).y < 64)
 })
 
-test('cave visit cooldown is dimension scoped and expires', () => {
+test('saved cave checkpoints stay explored and are scoped to the dimension', () => {
     const { c } = caveWorld()
     const visits = new Map()
     for (let x = -12; x <= 12; x++) {
@@ -102,18 +123,19 @@ test('cave visit cooldown is dimension scoped and expires', () => {
             visits.set(`overworld:${new Vec3(x, 64, z)}`, 1000)
         }
     }
-    assert.deepEqual(findCaveRoute(c.bot, visits, 16, 2000), [])
+    assert.deepEqual(findCaveRoute(c.bot, visits, 16), [])
     c.bot.game.dimension = 'the_nether'
-    assert.ok(findCaveRoute(c.bot, visits, 16, 2000).length > 0)
+    assert.ok(findCaveRoute(c.bot, visits, 16).length > 0)
     c.bot.game.dimension = 'overworld'
-    assert.ok(findCaveRoute(c.bot, visits, 16, 1000000).length > 0)
-    assert.deepEqual(findCaveRoute(c.bot, new Map(), 16, 2000, () => true), [])
+    assert.deepEqual(findCaveRoute(c.bot, visits, 16), [])
+    assert.deepEqual(findCaveRoute(c.bot, new Map(), 16, () => true), [])
 })
 
 test('a cave survey lights supported steps, saves return waypoints and restores movement policy', async () => {
     const { c, moves, original } = caveWorld()
+    c.bot.inventory.emptySlotCount = () => 4
     assert.equal(await exploreCave(c, 16), true)
-    assert.ok(moves.length > 0 && moves.length <= 6)
+    assert.ok(moves.length > 0 && moves.length <= 8)
     assert.equal(c.memory.mineRoute.length, moves.length)
     assert.equal(c.memory.mineRoute[0].x, 0)
     assert.equal(c.activeMovements, original)
@@ -161,6 +183,15 @@ test('a newly approaching hostile ends the survey before another step', async ()
     assert.equal(moves.length, 1)
 })
 
+test('a newly visible diamond interrupts the cave walk at the next checkpoint', async () => {
+    const { c, moves, state } = caveWorld()
+    const go = c.gotoWithTimeout
+    c.gotoWithTimeout = async goal => { await go(goal); state.diamondInView = true }
+    assert.equal(await exploreCave(c, -54), true)
+    assert.equal(moves.length, 1)
+    assert.ok(c.memory.caveVisits.has(`overworld:${moves[0]}`))
+})
+
 test('opportunistic ores respect reserves, tool tier and inventory headroom', async () => {
     const { c, inventory } = caveWorld()
     const target = { name: 'deepslate_gold_ore', position: new Vec3(2, 64, 0), canHarvest: type => type === 1 }
@@ -189,7 +220,7 @@ test('the real diamond action surveys a cave instead of digging when no requeste
 
 test('survey work has a shared step budget rather than exploring indefinitely', async () => {
     const { c, moves } = caveWorld()
-    c.memory.caveSurvey = { dimension: 'overworld', startedAt: Date.now(), steps: 23 }
+    c.memory.caveSurvey = { dimension: 'overworld', startedAt: Date.now(), steps: 47 }
     assert.equal(await exploreCave(c, 16), true)
     assert.equal(moves.length, 1)
     assert.equal(await exploreCave(c, 16), false)
@@ -218,7 +249,7 @@ test('a cave survey spaces torches instead of lighting every step', async () => 
         .find(b => match(b.name) && b.p.distanceTo(c.bot.entity.position.floored()) <= distance) || null
     assert.equal(await exploreCave(c, 16), true)
     assert.ok(moves.length >= 4)
-    assert.equal(16 - inventory.find(item => item.name === 'torch').count, 1)
+    assert.ok(16 - inventory.find(item => item.name === 'torch').count <= Math.ceil(moves.length / 7))
 })
 
 function diamondWorld(extra = {}) {

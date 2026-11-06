@@ -11,6 +11,7 @@ const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-
 const { prepareBed, huntAtNight, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
 const { exploreCave, collectOpportunity, findPriorityDiamond } = require('./cave-exploration')
+const { findNearbyLoot, lootChest } = require('./loot')
 const { discardableStack, inventoryReport } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
 const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnimals } = require('./farming')
@@ -77,7 +78,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     smelt_charcoal: 45000, craft_progression: 45000, equip_armor: 10000, equip_shield: 10000,
     fill_water_bucket: 90000, fill_lava_bucket: 90000, gather_diamonds: 90000, gather_obsidian: 90000,
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
-    clear_inventory: 30000, mine_diamond: 45000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
+    clear_inventory: 30000, mine_diamond: 45000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
     wake: 10000, hunt_night: 45000, sleep: 30000, prepare_bed: 45000, prepare_night_weapon: 30000, leave_shelter: 20000,
     [Actions.EXPLORE]: 60000
@@ -88,7 +89,7 @@ const STATIONARY_ACTIONS = new Set([
     'wake', 'sleep', 'prepare_bed', 'prepare_night_weapon', 'leave_shelter',
     Actions.CRAFT_TABLE, Actions.CRAFT_WOODEN_PICKAXE, Actions.CRAFT_WOODEN_SWORD, Actions.CRAFT_STONE_PICKAXE,
     Actions.CRAFT_FURNACE, Actions.SMELT_IRON, Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_AXE, Actions.CRAFT_STONE_SHOVEL,
-    'clear_inventory', 'smelt_charcoal', 'craft_progression', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', Actions.SHELTER
+    'clear_inventory', 'loot_chest', 'smelt_charcoal', 'craft_progression', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', Actions.SHELTER
 ])
 
 function shouldRelocateAfterStationFailure (action, failureCount, message) {
@@ -640,6 +641,9 @@ class SurvivalController {
             state.diamondInView = false
             this.log.warn(`Diamond search failed; ignoring it this cycle: ${error.message}`)
         }
+        if (this.mcData && state.health >= 16 && state.hostileDistance > 12 && freeInventorySlots > 1) {
+            state.lootTarget = findNearbyLoot(this)
+        }
         if (state.redstoneRequested && nextAdvancement(state).action === 'wait' && state.dimension === 'overworld') {
             state.sideGoal = redstonePlan(state)
         }
@@ -648,6 +652,7 @@ class SurvivalController {
 
     async perform (action, state) {
         switch (action) {
+            case 'loot_chest': return lootChest(this, state.lootTarget)
             case 'plant_seed': return plantSeed(this)
             case 'go_fish': return goFish(this)
             case 'breed_animals': return breedAnimals(this)

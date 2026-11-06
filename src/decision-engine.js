@@ -137,6 +137,9 @@ function chooseAction (state) {
     if (state.diamondInView && state.health > 10 && state.hostileDistance > 6) {
         return 'mine_diamond'
     }
+    if (state.lootTarget && state.health >= 16 && state.hostileDistance > 12 && !(state.freeInventorySlots <= 1)) {
+        return 'loot_chest'
+    }
     if (craftPick) {
         return progression.action
     }

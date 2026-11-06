@@ -954,3 +954,21 @@ or retreat first. With no such route, it tries nearby owned storage and then
 drops one stack in place as a last resort. This last drop can be picked up again
 if the bot remains in the same cell, so cleanup gives other actions a brief
 window to use the new slot. Survival actions retain priority.
+
+## F051 — Cave checkpoints and chest loot
+
+At 22:42 Eastern the bot alternated between (63,5,-19) and (59,2,-17).
+The old survey could choose an unvisited endpoint beyond its six-step walk,
+then reverse direction before reaching that endpoint. It also required four
+junctions, which excludes narrow mineshafts. The depth-first search now picks a
+fresh checkpoint within the walking limit and can use visited cells to reach a
+different branch. Rails and natural cave air can qualify a narrow passage.
+Checkpoints and chest locations persist with world memory. Diamond sightings
+and loot interrupt the survey after a step, with existing ore and threat checks.
+
+In the staged LAN cave run, the bot walked eight steps from (63,5,-19) to
+(57,2,-17) and saved nine checkpoints. A separate staged ordinary chest and
+chest minecart yielded five bread and both containers were recorded as emptied.
+The bot was returned to its original position. No native mineshaft was
+identified at the replay site. See `outputs/cave-loot-setup.json` and
+`outputs/cave-loot-containers.json` for setup and teardown.
