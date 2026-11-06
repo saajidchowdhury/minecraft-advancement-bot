@@ -193,3 +193,19 @@ test('an unreachable smelt furnace is tunneled toward, then forgotten after twel
     await assert.rejects(c.collectSmelt(job), /No path/)
     assert.equal(c.memory.smeltJob, null)
 })
+
+test('a distant smelt job is abandoned unless its iron justifies the trip', () => {
+    const { SurvivalController } = require('../src/survival-bot')
+    const c = Object.create(SurvivalController.prototype)
+    c.bot = { game: { dimension: 'overworld' }, entity: { position: new Vec3(47.5, 8, -72.5) } }
+    c.log = { warn() {} }
+    c.hasAnyItem = () => false
+    c.memory = { smeltJob: { dimension: 'overworld', x: 233, y: -54, z: -155, count: 3, readyAt: 0 } }
+    const { smeltJobState } = require('../src/survival-bot')
+    assert.equal(typeof smeltJobState, 'function')
+    assert.deepEqual(smeltJobState(c), { smeltRunning: false, smeltReady: false })
+    assert.equal(c.memory.smeltJob, null)
+    c.memory = { smeltJob: { dimension: 'overworld', x: 100, y: 8, z: -72, count: 32, readyAt: 0 } }
+    assert.equal(smeltJobState(c).smeltReady, true)
+    assert.notEqual(c.memory.smeltJob, null)
+})

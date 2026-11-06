@@ -161,7 +161,14 @@ function actionMadeProgress (action, before, after, moved) {
 // A running job is ready once its time has passed, or at once if the bot has strayed far
 // enough that the furnace might be left behind.
 function smeltJobState (c) {
-    const job = c.memory.smeltJob
+    let job = c.memory.smeltJob
+    // A job's pull scales with its iron: death #5 (03.50.23) walked a bare respawn ~250 blocks
+    // through a skeleton cave toward a 3-iron furnace.
+    if (job && job.dimension === c.bot.game?.dimension &&
+        c.bot.entity.position.distanceTo(new Vec3(job.x, job.y, job.z)) > 48 + 4 * (job.count || 0)) {
+        c.log?.warn?.(`Abandoning the distant smelt job at ${job.x},${job.y},${job.z} (${job.count} raw iron).`)
+        c.memory.smeltJob = job = null
+    }
     if (!job || job.dimension !== c.bot.game.dimension) {
         return { smeltRunning: false, smeltReady: false }
     }
@@ -2650,7 +2657,7 @@ class SurvivalController {
 }
 
 module.exports = {
-    SurvivalController, HOSTILES, PREY, FOOD_VALUES, actionMadeProgress,
+    SurvivalController, HOSTILES, PREY, FOOD_VALUES, actionMadeProgress, smeltJobState,
     shouldRelocateAfterStationFailure, mobilityRecoveryKind,
     pathfinderDropLimitForLanding, SAFE_PATHFINDER_DROP,
     heapPressureExceeded, PATH_SEARCH_RADIUS, HEAP_GUARD_BYTES, coveredAbove
