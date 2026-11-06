@@ -100,10 +100,11 @@ test('a one-block descent behind the bot is a usable staircase exit', () => {
 
 test('a tree whose log cannot be reached is skipped as a whole trunk', async () => {
     const logs = [73, 74, 75].map(y => ({ name: 'acacia_log', position: new Vec3(-35, y, -27) }))
+    const branch = [{ name: 'acacia_log', position: new Vec3(-36, 76, -28) }, { name: 'acacia_log', position: new Vec3(-37, 77, -29) }]
     const c = Object.create(SurvivalController.prototype)
     Object.assign(c, {
         memory: { blockedTargets: new Map() }, actionAbort: new AbortController(),
-        bot: { collectBlock: { findFromVein: () => logs } },
+        bot: { collectBlock: { findFromVein: (block, max) => max > 3 ? [...logs, ...branch] : logs } },
         findNearestBlock: () => logs[0],
         async collectTarget(target, anchor) {
             c.rememberBlockedTarget(anchor, 'tree', new Error('resource approach timed out after 10s'))
@@ -112,5 +113,5 @@ test('a tree whose log cannot be reached is skipped as a whole trunk', async () 
         log: { warn() {} }
     })
     await assert.rejects(c.gatherWood(), /approach timed out/)
-    assert.equal(logs.every(log => c.isBlockedTarget(log)), true)
+    assert.equal([...logs, ...branch].every(log => c.isBlockedTarget(log)), true)
 })

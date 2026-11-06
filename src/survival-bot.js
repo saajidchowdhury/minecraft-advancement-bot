@@ -1149,9 +1149,10 @@ class SurvivalController {
         try {
             await this.collectTarget(trunk.length > 0 ? trunk : block, block, 'tree')
         } catch (error) {
-            // An unreachable log means an unreachable tree; skip its other logs too.
+            // An unreachable log means an unreachable tree; skip its other logs too. The library's
+            // vein search can revisit a log, so a wider bound covers diagonal acacia trunks.
             if (!signal?.aborted) {
-                for (const log of trunk) {
+                for (const log of [...trunk, ...this.bot.collectBlock.findFromVein(block, 12, 8, 1)]) {
                     this.memory.blockedTargets.set(this.targetKey(log), Date.now() + 120000)
                 }
             }
