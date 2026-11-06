@@ -100,6 +100,16 @@ Each launch prints its output directory under `outputs/YYYY-MM-DD@HH.MM.SS/` (Am
 - `p.pid`: bot process ID.
 - `finished.json`: stop reason and elapsed wall time after a clean shutdown.
 
+To watch a live run from a second terminal, pass the run directory to the
+read-only watcher. It starts at the end of the log and prints advancements,
+iron pickaxe recoveries, deaths, critical damage, repeated failures, disconnects
+and log silence. The optional duration defaults to 1,800 seconds. Attach to the
+new directory after a restart.
+
+```sh
+node scripts/watch.js 'outputs/YYYY-MM-DD@HH.MM.SS' 1800
+```
+
 Set `MC_WORLD_ID` to a unique label to retain home, mining routes, failure memory and pause/follow state across script restarts. This setup uses `lan-49871` for the current world. Use a different label for a different world; a changed server seed hash also clears saved coordinates. Leave the field empty for memory limited to the current process. Advancement completion always comes from the server, never the coordinate cache. Saved memory lives in `.state/` and writes through a temporary file and rename.
 
 `BOT_SEED` makes exploration choices repeatable; server timing, entities and world changes still affect gameplay. `BOT_LOG_LEVEL=debug` increases navigation detail. Source is tracked in the private GitHub repository `saajidchowdhury/minecraft-advancement-bot`. Startup source hashes also identify the exact code loaded when testing a working tree.

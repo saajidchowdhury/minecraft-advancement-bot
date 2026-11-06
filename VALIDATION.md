@@ -304,3 +304,10 @@ Both fail on the earlier code. Changed code comment ratios are 5/213
 (`progression-skills.js`) and 63/2286 (`survival-bot.js`). Changed tests have
 zero comments. Live, the 19:03:00 run rebuilt stone, collected three ingots
 from the saved furnace and equipped a new iron pick before resuming work.
+
+The read-only log watcher was attached to the live port 53606 run for 120 s.
+Routine mining stayed quiet. A replay appended the real iron-pick recovery
+line, critical damage, a third retry, and an advancement to a temporary log.
+All were reported, while historical lines, ordinary actions, and a single
+failure were suppressed. The watcher exited on the run's finish marker.
+All 234 tests and syntax checks pass. Watcher comment ratio is 0/66.
