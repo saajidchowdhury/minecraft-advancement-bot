@@ -684,3 +684,29 @@ test('an escape pinned in its starting cell by an adjacent zombie turns into a f
     assert.equal(chooseAction({ ...trapped, cornered: true }), Actions.FIGHT)
     assert.equal(chooseAction({ ...trapped, cornered: true, creeperDistance: 4 }), Actions.ESCAPE)
 })
+
+test('burning in lava pre-empts everything: water is poured at the feet and the bot steps to dry ground', async () => {
+    const { chooseAction } = require('../src/decision-engine')
+    assert.equal(chooseAction({ health: 6, food: 20, hostileDistance: 2, hasWeapon: true, inLava: true, headInWater: true, oxygen: 2 }), 'escape_lava')
+    const c = Object.create(SurvivalController.prototype)
+    const events = []
+    let goal
+    c.log = { warn() {} }
+    c.bot = {
+        entity: { position: new Vec3(245.5, -52, -155.5), isInLava: true },
+        inventory: { items: () => [{ name: 'water_bucket' }] },
+        blockAt(p) {
+            const name = p.y === -53 ? 'stone' : (p.x === 245 && p.z === -156) || (p.x === 246 && p.z === -156) ? 'lava' : 'air'
+            return { name, boundingBox: name === 'stone' ? 'block' : 'empty' }
+        },
+        async equip(item) { events.push(`equip:${item.name}`) },
+        async lookAt() {}, activateItem() { events.push('pour') }, deactivateItem() {},
+        setControlState(control, on) { events.push(`${control}:${on}`) }
+    }
+    c.gotoWithTimeout = async g => { goal = g }
+    assert.equal(c.inLava(), true)
+    await c.escapeLava()
+    assert.deepEqual(events, ['equip:water_bucket', 'pour', 'jump:true', 'jump:false'])
+    assert.equal(c.bot.blockAt(new Vec3(goal.x, goal.y, goal.z)).name, 'air')
+    assert.notDeepEqual([goal.x, goal.z], [246, -156])
+})

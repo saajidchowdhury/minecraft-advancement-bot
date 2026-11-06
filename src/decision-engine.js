@@ -44,6 +44,10 @@ function outnumbered (closeHostiles, armorPoints) {
   */
 function chooseAction (state) {
     // Drowning costs 2 HP/s once air runs out and nothing else can fix it (02.56.08 died underwater).
+    // Lava costs 4 HP per half second (03.45.28 died in 2.5 s standing still in it).
+    if (state.inLava) {
+        return 'escape_lava'
+    }
     if (state.headInWater && (state.oxygen ?? 20) <= 12) {
         return 'surface_for_air'
     }
