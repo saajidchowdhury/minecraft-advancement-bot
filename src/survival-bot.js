@@ -85,6 +85,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     wake: 10000, hunt_night: 45000, sleep: 30000, prepare_bed: 45000, prepare_night_weapon: 30000, leave_shelter: 20000,
     [Actions.EXPLORE]: 60000
 })
+const INTERACTIVE = /(^|_)(furnace|smoker|chest|barrel|crafting_table|enchanting_table|anvil|bed|door|trapdoor|fence_gate|button|lever|shulker_box)$/
 const STATIONARY_ACTIONS = new Set([
     Actions.DESCEND,
     Actions.ASCEND,
@@ -1985,19 +1986,31 @@ class SurvivalController {
         if (!item) {
             throw new Error('out of shelter blocks')
         }
+        // Clicking a furnace or table opens it instead of placing (03.32.42: three refusals on the
+        // bot's own furnace); plain supports come first, and an interactive one is used sneaking.
+        const interactive = name => PROTECTED_CONTAINERS.has(name) || INTERACTIVE.test(name)
         const references = [[0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]]
-        for (const [dx, dy, dz] of references) {
-            const ref = this.bot.blockAt(target.offset(dx, dy, dz))
-            if (!ref || ref.boundingBox !== 'block') {
-                continue
-            }
-            await this.bot.equip(item, 'hand')
-            this.checkAction(signal)
-            await this.bot.placeBlock(ref, new Vec3(-dx, -dy, -dz))
-            this.checkAction(signal)
-            return
+            .map(([dx, dy, dz]) => ({ face: new Vec3(-dx, -dy, -dz), ref: this.bot.blockAt(target.offset(dx, dy, dz)) }))
+            .filter(({ ref }) => ref?.boundingBox === 'block')
+            .sort((a, b) => interactive(a.ref.name) - interactive(b.ref.name))
+        const choice = references[0]
+        if (!choice) {
+            throw new Error(`no support for block at ${target}`)
         }
-        throw new Error(`no support for block at ${target}`)
+        await this.bot.equip(item, 'hand')
+        this.checkAction(signal)
+        const sneak = interactive(choice.ref.name)
+        if (sneak) {
+            this.bot.setControlState('sneak', true)
+        }
+        try {
+            await this.bot.placeBlock(choice.ref, choice.face)
+        } finally {
+            if (sneak) {
+                this.bot.setControlState('sneak', false)
+            }
+        }
+        this.checkAction(signal)
     }
 
     async breakBlockAt (position) {

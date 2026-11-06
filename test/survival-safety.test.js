@@ -639,3 +639,29 @@ test('a bot out of air underwater swims to the nearest breathable cell before an
     assert.deepEqual([goal.x, goal.y, goal.z], [2, 53, 0])
     assert.deepEqual(controls, ['jump:true', 'jump:false'])
 })
+
+test('a survival block is placed against plain stone before a furnace, and sneaks when only a furnace supports it', async () => {
+    for (const [sideSolid, expected] of [[true, 'stone:1,0,0'], [false, 'furnace:0,1,0:sneak']]) {
+        const target = new Vec3(0, -53, 0)
+        const placed = []
+        let sneaking = false
+        const c = Object.create(SurvivalController.prototype)
+        Object.assign(c, {
+            running: true, paused: false, actionAbort: new AbortController(), log: { info() {}, warn() {} },
+            bestItem: () => ({ name: 'cobblestone' }), isEmptyPlacementBlock: b => b?.name === 'air',
+            bot: {
+                health: 20, entity: { position: new Vec3(0.5, -52, 1.5) },
+                blockAt(p) {
+                    const name = p.equals(target.offset(0, -1, 0)) ? 'furnace' : (sideSolid && p.equals(target.offset(-1, 0, 0))) ? 'stone' : 'air'
+                    return { name, position: p, boundingBox: name === 'air' ? 'empty' : 'block' }
+                },
+                async equip() {},
+                setControlState(control, on) { if (control === 'sneak') sneaking = on },
+                async placeBlock(ref, face) { placed.push(`${ref.name}:${face.x},${face.y},${face.z}${sneaking ? ':sneak' : ''}`) }
+            }
+        })
+        await c.placeSurvivalBlock(target)
+        assert.deepEqual(placed, [expected])
+        assert.equal(sneaking, false)
+    }
+})
