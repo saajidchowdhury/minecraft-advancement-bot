@@ -2026,3 +2026,36 @@ furnace using a server-side guard against players above/around it. An initial
 setup stopped before placing anything because the distant site was unloaded;
 the repeat loaded the recorded safe hillside before validating the site.
 Produced code comment ratios: food.js 22/324 (6.79%), its tests 0/259 (0%).
+
+## Session handoff — 2026-11-07, America/New_York
+
+The normal visible Terminal bot remains running: PID 40090, LAN port 52171,
+world key lan-49871, outputs/2026-11-07@01.35.47, startup revision cf8876e.
+All startup JavaScript hashes match the working tree. Verify the latest
+process/socket and log before stopping or restarting; do not launch a second
+bot. Documentation commits after cf8876e do not require a runtime restart.
+
+Snapshot at 06:37:28Z: full health/food (20/20), mining iron toward Y=16,
+near (-57.5,19,273.7), goal iron chestplate. It now carries an iron pick,
+stone axe and shovel. Equipment slots were empty because this is a rebuild
+after the earlier cave death; the latest run has no recorded death or newly
+earned advancement. It had started another five-iron furnace job at
+(-59,38,252) at 06:36:43Z. Inspect current state before relying on this snapshot.
+
+Validated source milestones: 39f5df1 equips carried protection before tool
+recovery; 5c76964 adds crowd wall refuges, no generic bridges and bounded
+descent detours; 3ed68c9 plus 74f295f prepare hunting tools and use charged
+axe attacks while tracking prey; 458fb97 fixes cooking-return navigation.
+The last full suite passed all 399 tests with zero failures; npm run check
+passed. Use the bundled Node via scripts/run.sh or add its bin directory to
+PATH for npm test/check. No source changes follow that validation in this
+handoff. AGENTS.md and CLAUDE.md remain identical; the pre-existing untracked
+.DS_Store was left alone.
+
+Highest remaining live checks: natural crowd refuge and obstructed-seal retry,
+natural cooking return, and an observed axe-equipped animal kill. The staged
+four-mob refuge and original-hillside furnace tests passed; their test mobs,
+temporary structures and supplied items were removed, and only the bot was
+returned to its pre-test location. Keep staged evidence separate from unaided
+progression. Older leaf/drop, natural water/workstation and underground night
+fallback checks remain in goals.md; do not infer completion from unit tests.

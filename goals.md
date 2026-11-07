@@ -1,10 +1,34 @@
 # Prioritized development goals
 
-Updated 2026-11-06 ~13:45 (America/New_York); G015 is the next action. This is a working queue, not a rigid script.
+Updated 2026-11-07 (America/New_York). Next: validate natural survival and
+recovery on the current build before expanding the advancement route.
+This is a working queue, not a rigid script.
 Reorder it when new evidence or user instructions warrant. Keep IDs stable and
 record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
+
+Session handoff: the normal bot remains running on port 52171, PID 40090,
+from cf8876e in outputs/2026-11-07@01.35.47. Verify process identity and
+the latest log before stopping or launching anything; do not duplicate it.
+All runtime JavaScript hashes match the working tree. Automated baseline:
+399 passing tests and syntax checks. This handoff changes documentation only.
+
+Next checks, in order:
+1. F094 / survival: observe a natural crowd retreat, including an obstructed
+   seal and retry. The four-mob staged corridor passed; a large cave remains
+   unverified. The latest snapshot is rebuilding armor, so monitor threats.
+2. F096 / cooking: observe a naturally earned cooking return. The original
+   hillside staged repeat passed in 11.243 s; no repeated thirty-second walk
+   retries should return. Preserve a pending job when cancellation interrupts.
+3. F095 / hunting: verify a natural axe-equipped kill and charged swings.
+   Axe/shovel crafting passed naturally; weapon selection and timing are
+   automated evidence. Continue the iron kit, then diamond tools and portal
+   preparation; do not expand Nether/stronghold behavior before survival holds.
+
+Two existing sections below share G015 (death cascades and stronghold work).
+Prioritize the survival section; stronghold work remains gated on a verified
+Nether entry/return. IDs are preserved rather than silently renumbered.
 
 F096 fixes repeated thirty-second cooking-return attempts: interaction-reach
 goals, eight-second approaches and a bounded detour on the first failure.
