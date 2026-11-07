@@ -288,11 +288,57 @@ test('daytime melee damage interrupts work so the bot fights or escapes before c
     assert.equal(cancels.length, 1)
 })
 
+test('a confirmed hit from behind interrupts digging and turns an armored bot to fight', async () => {
+    const bot = new EventEmitter()
+    bot.entity = { position: new Vec3(0.5, 64, 0.5), yaw: 0, pitch: 0 }
+    bot.game = { dimension: 'overworld' }
+    bot.health = 20
+    bot.world = { raycast: () => null }
+    const zombie = { isValid: true, name: 'zombie', height: 1.9, position: new Vec3(0.5, 64, 2) }
+    bot.entities = { 1: zombie }
+    bot.nearestEntity = predicate => predicate(zombie) ? zombie : null
+    bot.lookAt = async point => {
+        assert.ok(point.z > bot.entity.position.z)
+        bot.entity.yaw = Math.PI
+    }
+    const c = Object.create(SurvivalController.prototype)
+    const actions = []
+    Object.assign(c, {
+        bot, running: true, busy: true, activeAction: 'fill_water_bucket', actionAbort: new AbortController(),
+        memory: {}, failures: new Map(),
+        log: { info() {}, warn() {} }, isNight: () => false, onState() {}, inventorySummary: () => '',
+        scheduleLoop() {}, verifyActionProgress() {},
+        observe() {
+            const hostile = c.nearestEntity(new Set(['zombie']), 4)
+            return {
+                health: bot.health, food: 16, hasFood: true, hasWeapon: true, armorPoints: 18, underground: true,
+                hostile, hostileDistance: hostile ? 1.5 : Infinity, visibleHostiles: hostile ? 1 : 0,
+                completedAdvancements: new Set()
+            }
+        },
+        async performWithTimeout(action, state) { actions.push([action, state.hostile]) }
+    })
+    c.bindEvents()
+    assert.equal(c.canSee(zombie), false)
+    bot.emit('entityHurt', bot.entity)
+    bot.emit('entityHurt', { position: bot.entity.position }, zombie)
+    assert.equal(c.actionAbort.signal.aborted, false)
+    bot.emit('entityHurt', bot.entity, zombie)
+    bot.health = 17.62
+    bot.emit('health')
+    assert.equal(c.actionAbort.signal.reason, 'attacked by zombie')
+    assert.equal(c.canSee(zombie), false)
+    c.busy = false
+    c.activeAction = null
+    await c.tick()
+    assert.deepEqual(actions, [[Actions.FIGHT, zombie]])
+})
+
 test('one unreachable death drop does not stop collection of the reachable stacks', async () => {
     const visited = []
     const c = {
         running: true, paused: false, actionAbort: new AbortController(), log: { warn() {} }, rememberBlockedTarget() {},
-        bot: { entity: { position: new Vec3(0, 64, 0) } },
+        bot: { entity: { position: new Vec3(0, 64, 0) } }, canSee: () => true,
         async gotoWithTimeout(goal) {
             visited.push(goal.x)
             if (goal.x === 4) {
@@ -771,6 +817,27 @@ test('a resource walk yields once iron or food comes into view, and the yield co
     assert.equal(cancelled, 'pick_glow_berries came into view during gather_iron')
     assert.equal(actionMadeProgress(Actions.IRON, {}, { ironInView: true }, false), true)
     assert.equal(actionMadeProgress(Actions.IRON, { ironInView: true }, { ironInView: true }, false), false)
+})
+
+test('a daylight wood run below its reserve does not yield to opportunistic food', async t => {
+    t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] })
+    const c = Object.create(SurvivalController.prototype)
+    let seen = null
+    let cancelled = null
+    let finish
+    Object.assign(c, {
+        bot: { entity: { position: new Vec3(0, 64, 0) } }, log: { info() {}, warn() {} },
+        actionAbort: new AbortController(), priorityTargetInView: () => seen,
+        perform: () => new Promise(resolve => { finish = resolve }),
+        cancelCurrentTask(reason) { cancelled = reason; c.actionAbort.abort(reason) }
+    })
+    const run = c.performWithTimeout(Actions.WOOD, { logs: 31, planks: 3, isNight: false })
+    await new Promise(resolve => setImmediate(resolve))
+    seen = 'pick_glow_berries'
+    t.mock.timers.tick(1500)
+    finish()
+    await run
+    assert.equal(cancelled, null)
 })
 
 test('a lava escape that drives out directly skips the pathfinder, and lava cancels replan at once', async () => {

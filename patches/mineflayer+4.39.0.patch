@@ -36,10 +36,49 @@ index fb2766a..2a7d7c2 100644
      if (craftingTable) {
        if (!windowCraftingTable) {
 diff --git a/node_modules/mineflayer/lib/plugins/inventory.js b/node_modules/mineflayer/lib/plugins/inventory.js
-index bab0eef..4276b33 100644
+index bab0eef..39d4a79 100644
 --- a/node_modules/mineflayer/lib/plugins/inventory.js
 +++ b/node_modules/mineflayer/lib/plugins/inventory.js
-@@ -569,6 +569,26 @@ function inject (bot, { hideErrors }) {
+@@ -363,11 +363,7 @@
+   }
+ 
+   function extendWindow (window) {
+-    window.close = () => {
+-      const closed = closeWindow(window)
+-      window.emit('close')
+-      return closed
+-    }
++    window.close = () => closeWindow(window)
+ 
+     window.withdraw = async (itemType, metadata, count, nbt) => {
+       if (bot.inventory.emptySlotCount() === 0) {
+@@ -431,17 +427,23 @@
+   // never sent. A rejected click already carries the full inventory, so the
+   // sync click's outcome is not an error.
+   function closeWindow (window) {
++    if (window !== bot.currentWindow && window !== bot.inventory) return Promise.resolve()
+     bot._client.write('close_window', {
+       windowId: window.id
+     })
+     copyInventory(window)
+     lastClosedWindow = window
+-    bot.currentWindow = null
+-    bot.emit('windowClose', window)
++    finishWindowClose(window)
+     if (bot.supportFeature('stateIdUsed')) return Promise.resolve()
+     return clickWindow(-999, 0, 0).catch(() => {})
+   }
+ 
++  function finishWindowClose (window) {
++    bot.currentWindow = null
++    bot.emit('windowClose', window)
++    window.emit('close')
++  }
++
+   function copyInventory (window) {
+     const slotOffset = window.inventoryStart - bot.inventory.inventoryStart
+     for (let i = window.inventoryStart; i < window.inventoryEnd; i++) {
+@@ -569,6 +571,26 @@
      return changedSlots
    }
  
@@ -66,7 +105,7 @@ index bab0eef..4276b33 100644
    async function clickWindow (slot, mouseButton, mode) {
      // if you click on the quick bar and have dug recently,
      // wait a bit
-@@ -607,7 +627,9 @@ function inject (bot, { hideErrors }) {
+@@ -607,7 +629,9 @@
            // 5,
            // 6
          ].includes(click.mode)) {
@@ -76,3 +115,26 @@ index bab0eef..4276b33 100644
        } else {
          // this is used as a fallback
          const oldSlots = JSON.parse(JSON.stringify(window.slots))
+@@ -749,10 +773,8 @@
+     prepareWindow(bot.currentWindow)
+   })
+   bot._client.on('close_window', (packet) => {
+-    // close window
+-    const oldWindow = bot.currentWindow
+-    bot.currentWindow = null
+-    bot.emit('windowClose', oldWindow)
++    const window = bot.currentWindow
++    if (window?.id === packet.windowId) finishWindowClose(window)
+   })
+   // Window ids restart with the player entity, so a later window can reuse
+   // the closed one's id and its early sync must not be taken for a trailing one.
+@@ -764,8 +786,7 @@
+     lastClosedWindow = null
+     const oldWindow = bot.currentWindow
+     if (!oldWindow) return
+-    bot.currentWindow = null
+-    bot.emit('windowClose', oldWindow)
++    finishWindowClose(oldWindow)
+   })
+   // A respawn (death or dimension change) replaces the server-side player
+   // entity and resets its window id counter, so pending window state can

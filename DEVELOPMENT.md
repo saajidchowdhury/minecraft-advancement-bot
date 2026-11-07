@@ -120,12 +120,24 @@ interrupts the same way while raw iron plus ingots are below 16 plus the ingots
 for missing iron gear (pickaxe, shield, sword, four armor pieces, three buckets).
 It also gathers other nearby ores up to reserve caps (coal and charcoal: 32). A supplied and protected
 bot explores caves depth first, remembering checkpoints and return waypoints by
-dimension. It checks lighting and support, stops for threats, and avoids
+dimension. It excludes remembered mining passages from surveys and checks the
+local light level before placing a torch. A placement check enforces at least
+10 blocks of straight-line distance from every nearby torch or wall torch,
+including ones behind the bot. It checks support, stops for threats, and avoids
 digging or bridging during the survey. It can loot visible chests and chest
-minecarts and remember whether each was emptied. Before leaving the surface to
-mine, it stocks 32 logs (a plank counts as a quarter log) and a meal reserve of
-16 average cooked land meats, measured as hunger plus saturation with raw food at
-its cooked value. Raw meat, fish and potatoes are cooked in fire-and-forget
+minecarts and remember whether each was emptied. Target discovery uses a
+100° horizontal by 70° vertical view and a clear ray from eye level.
+Resource searches can turn in place to look around. Buried ore coordinates
+do not steer the tunnel. With no visible iron, the fallback heads toward
+Y=16. A mined block opens up to six adjacent faces. The bot can turn to
+mine a remembered face while the opening is still air and the face has a
+clear sightline. Movement and placement checks still read nearby block geometry.
+Before leaving the surface to mine in daylight, it stocks 32 logs (a plank
+counts as a quarter log), then 16 average cooked land meats (260.48 hunger plus
+saturation points). Urgent hunger and ready furnace output can still interrupt
+restocking. Raw food counts at its cooked value. Nearby open ground sets the
+reserve check's height at a shallow mine entrance even below the original spawn.
+Raw meat, fish and potatoes are cooked in fire-and-forget
 furnace jobs. While the meal reserve is short it takes food on the way, underground
 or not: cod and salmon near the water surface, ripe glow berries, mushroom stew (up to
 four) and tropical fish, and it waits at a remembered fish shore before scouting. At
@@ -158,6 +170,14 @@ Path searches and actions have limits; an operation that refuses cancellation
 triggers reconnection before another action starts.
 
 ## State and debugging
+
+Endermen have a separate defensive response. Ordinary look calls and each
+physics tick avoid unobstructed enderman faces, including yaw interpolation.
+Visible anger or an attributed hit interrupts work and follow mode. The bot
+pours carried water outside the Nether, tries a sealed burrow, and carves a
+two-high side refuge if the shaft cannot be sealed. It keeps the enclosure
+closed while the remembered threat remains; endermen are never combat targets.
+Command staging remains external to the gameplay controller.
 
 Each launch prints its output directory under `outputs/YYYY-MM-DD@HH.MM.SS/`
 (America/New_York):

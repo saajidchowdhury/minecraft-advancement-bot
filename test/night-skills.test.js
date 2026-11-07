@@ -116,6 +116,7 @@ test('combat cancellation releases an active shield and prevents the next attack
     let shield = false
     let attacks = 0
     c.bestItem = () => null
+    c.canSee = () => true
     c.bot.inventory.slots = []
     c.bot.inventory.slots[45] = { name: 'shield' }
     c.bot.pathfinder = { setGoal() {} }

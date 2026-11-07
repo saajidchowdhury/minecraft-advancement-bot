@@ -46,6 +46,7 @@ test('a stationary prey pursuit is quarantined before the outer movement watchdo
     c.running = true
     c.actionAbort = new AbortController()
     c.bestItem = () => null
+    c.canSee = () => true
     c.log = { warn() {} }
     c.memory = { blockedTargets: new Map() }
     c.bot = {

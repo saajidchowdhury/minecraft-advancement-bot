@@ -314,7 +314,7 @@ async function migrateBase(c) {
         c.checkAction()
         await bot.dig(chest, true)
         await bot.waitForTicks(6)
-        const drop = Object.values(bot.entities || {}).find(e => e.isValid && e.name === 'item' && e.position.distanceTo(chest.position.offset(0.5, 0, 0.5)) <= 3)
+        const [drop] = c.visibleDrops(chest.position.offset(0.5, 0, 0.5), 3)
         if (drop) {
             const p = drop.position.floored()
             await c.gotoWithTimeout(new goals.GoalNear(p.x, p.y, p.z, 0), 4000, 'chest pickup').catch(() => {})

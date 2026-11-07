@@ -157,6 +157,7 @@ test('directed staircase mines supported steps without ever digging below the cu
         const tool = { name: 'stone_pickaxe' }
         const bot = {
             health: 20,
+            game: { dimension: 'overworld' },
             entity: { position: new Vec3(0, 64, 0) },
             blockAt(p) {
                 const empty = air.has(p.toString())
@@ -189,7 +190,7 @@ test('ascending across an open cave places attached stair supports before walkin
     const { mineTunnel } = require('../src/progression-skills')
     const placed = new Set()
     const bot = {
-        health: 20, entity: { position: new Vec3(0.5, 64, 0.5) },
+        health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) },
         blockAt(p) {
             const solid = p.y < 64 || placed.has(p.toString())
             return { name: solid ? 'stone' : 'air', position: p, boundingBox: solid ? 'block' : 'empty', diggable: true, canHarvest: () => true }
@@ -236,7 +237,7 @@ test('tunnel digging uses an axe on wooden blocks and keeps the iron pick for st
     const pick = { name: 'iron_pickaxe', type: data.itemsByName.iron_pickaxe.id }
     const dug = []
     const bot = {
-        health: 20, entity: { position: new Vec3(0, 64, 0) },
+        health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0, 64, 0) },
         blockAt(p) {
             const name = p.equals(wood) ? 'oak_planks' : 'stone'
             const block = Block.fromStateId(data.blocksByName[name].defaultState, 0)
@@ -314,7 +315,7 @@ test('losing the iron pick mid-tunnel stops digging so the planner can recover',
     const start = new Vec3(0, 64, 0)
     const pickaxes = ['iron_pickaxe', 'stone_pickaxe']
     const bot = {
-        health: 20, entity: { position: start }, blockAt: world().blockAt,
+        health: 20, game: { dimension: 'overworld' }, entity: { position: start }, blockAt: world().blockAt,
         equip: async () => {}, canDigBlock: () => true,
         async dig() { digs++; if (digs === 1) { pickaxes.shift() } }
     }
@@ -416,7 +417,9 @@ test('portal construction stands beside the frame plane, never inside a frame ce
     const blocks = new Map()
     const inventory = { obsidian: 10, cobblestone: 3, flint_and_steel: 1 }
     const bot = {
-        health: 20, game: { dimension: 'overworld' }, entity: { position: origin.offset(1.5, 0, 0.5) },
+        health: 20, game: { dimension: 'overworld' }, entity: { position: origin.offset(1.5, 0, 0.5), yaw: 0, pitch: 0 },
+        async look() {},
+        async waitForTicks() {},
         blockAt(p) {
             const name = blocks.get(p.toString()) ?? (p.y < 64 ? 'stone' : 'air')
             return { position: p, name, boundingBox: ['air', 'fire', 'nether_portal'].includes(name) ? 'empty' : 'block' }
@@ -442,7 +445,7 @@ test('portal construction stands beside the frame plane, never inside a frame ce
     const stands = []
     const c = {
         bot, running: true, paused: false, memory: { portalOrigin: { x: 0, y: 64, z: 0 } }, log: { info() {} },
-        advancements: { completed: new Set() },
+        advancements: { completed: new Set() }, checkAction() {},
         isEmptyPlacementBlock: block => ['air', 'fire'].includes(block?.name),
         bestItem: names => { held = names[0]; return inventory[held] > 0 ? { name: held } : null },
         findNearestBlock: () => null,
@@ -501,6 +504,16 @@ test('reaching the home level inside a hill keeps climbing until the sky is open
     }
 })
 
+test('a shallow return finishes at open ground below the home plateau', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const bot = { health: 20, entity: { position: new Vec3(-63.5, 85, 22.5) },
+        blockAt: () => ({ name: 'air', boundingBox: 'empty' }) }
+    const c = { bot, home: { y: 119 }, memory: {}, bestItem: () => null,
+        async gotoWithTimeout() { assert.fail('already out on the lower surface') } }
+    await performProgression(c, 'return_surface', { departureSurfaceY: 86 })
+    assert.equal(c.memory.surfaceByStaircase, false)
+})
+
 test('a pickaxe-free bot below the surface walks up toward the home level instead of failing at once', async () => {
     const { performProgression } = require('../src/progression-skills')
     const bot = { health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(6.5, 65, 3.5) },
@@ -548,7 +561,7 @@ test('when water above blocks every rising step, the tunnel takes a level side s
     const air = new Set(['0,64,0', '0,65,0'])
     const water = new Vec3(0, 68, 0)
     const bot = {
-        health: 20, entity: { position: new Vec3(0.5, 64, 0.5) },
+        health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) },
         blockAt(p) {
             const name = p.equals(water) ? 'water' : air.has(`${p.x},${p.y},${p.z}`) ? 'air' : 'stone'
             return { name, position: p, boundingBox: name === 'stone' ? 'block' : 'empty', diggable: true, canHarvest: () => true }

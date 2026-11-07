@@ -31,7 +31,7 @@ function updateNightState(c, state) {
     state.armorPoints = wornArmorPoints(bot)
     const threats = Object.values(bot.entities).filter(e => e.isValid && c.hostileNames.has(e.name))
         .map(entity => ({ entity, distance: bot.entity.position.distanceTo(entity.position) }))
-        .filter(entry => entry.distance <= 24)
+        .filter(entry => entry.distance <= 24 && c.canSee(entry.entity))
     state.hostileCount = threats.filter(entry => entry.distance <= 12).length
     state.dangerousNightThreat = threats.some(({ entity, distance }) =>
         (entity.name === 'creeper' && distance <= 6) || (entity.name === 'witch' && distance <= 10) || entity.name === 'warden')

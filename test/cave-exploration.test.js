@@ -3,7 +3,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { Vec3 } = require('vec3')
-const { safeFooting, findCaveRoute, exploreCave, collectOpportunity, findPriorityDiamond } = require('../src/cave-exploration')
+const { safeFooting, findCaveRoute, exploreCave, collectOpportunity, findPriorityDiamond, minedPassage } = require('../src/cave-exploration')
 const { performProgression } = require('../src/progression-skills')
 
 function caveWorld() {
@@ -15,20 +15,30 @@ function caveWorld() {
     const original = { safeToBreak: () => true }
     const c = {
         memory: {}, running: true, paused: false, actionAbort: new AbortController(), movements: original,
-        observe: () => state, log: { info() {} }, isBlockedTarget: () => false, rememberBlockedTarget() {},
+        observe: () => state, log: { info() {} }, isBlockedTarget: () => false, rememberBlockedTarget() {}, checkAction() {},
         bestItem: names => inventory.find(item => names.includes(item.name)),
         countItems: names => inventory.filter(item => names.includes(item.name)).reduce((sum, item) => sum + item.count, 0),
         findNearestBlock: () => null,
         bot: {
             registry: require('minecraft-data')('26.1'), health: 20,
-            game: { dimension: 'overworld', minY: -64 }, entity: { position: new Vec3(0.5, 64, 0.5) },
+            game: { dimension: 'overworld', minY: -64 }, entity: { position: new Vec3(0.5, 64, 0.5), yaw: 0, pitch: 0 },
             inventory: { emptySlotCount: () => 10, items: () => inventory },
+            findBlock({ matching, point, maxDistance, useExtraInfo }) {
+                return [...blocks.keys()].map(key => c.bot.blockAt(new Vec3(...key.slice(1, -1).split(',').map(Number))))
+                    .filter(b => matching.includes(c.bot.registry.blocksByName[b.name].id) &&
+                        b.position.distanceTo(point) <= maxDistance && useExtraInfo(b))
+                    .sort((a, b) => a.position.distanceTo(point) - b.position.distanceTo(point))[0] || null
+            },
             blockAt(p) {
                 const name = blocks.has(p.toString()) ? blocks.get(p.toString()) : (p.y < 64 || p.y >= 70 ? 'stone' : 'air')
-                return name === null ? null : { name, position: p, boundingBox: ['air', 'torch'].includes(name) ? 'empty' : 'block' }
+                const light = Math.max(0, ...[...blocks].filter(([, value]) => value === 'torch').map(([key]) => {
+                    const source = new Vec3(...key.slice(1, -1).split(',').map(Number))
+                    return 14 - Math.abs(source.x - p.x) - Math.abs(source.y - p.y) - Math.abs(source.z - p.z)
+                }))
+                return name === null ? null : { name, position: p, light, boundingBox: ['air', 'torch'].includes(name) ? 'empty' : 'block' }
             },
             pathfinder: { setGoal() {}, setMovements(m) { c.activeMovements = m } },
-            equip: async () => {}, waitForTicks: async () => {},
+            equip: async () => {}, look: async () => {}, waitForTicks: async () => {},
             async placeBlock(floor) {
                 assert.equal(c.activeMovements.canDig, false)
                 blocks.set(floor.position.offset(0, 1, 0).toString(), 'torch')
@@ -269,6 +279,76 @@ test('a cave survey spaces torches instead of lighting every step', async () => 
     assert.ok(16 - inventory.find(item => item.name === 'torch').count <= Math.ceil(moves.length / 7))
 })
 
+test('survey lighting uses the light level when an earlier torch is outside the forward view', async () => {
+    const { c, inventory, moves } = caveWorld()
+    c.findNearestBlock = () => null
+    assert.equal(await exploreCave(c, 16), true)
+    assert.ok(moves.length >= 4)
+    assert.ok(16 - inventory.find(item => item.name === 'torch').count <= Math.ceil(moves.length / 7))
+})
+
+test('cave torches stay ten blocks apart even when light readings remain zero', async () => {
+    const { c, blocks } = caveWorld()
+    const blockAt = c.bot.blockAt
+    c.bot.blockAt = p => ({ ...blockAt(p), light: 0, skyLight: 0 })
+    await exploreCave(c, 16)
+    await exploreCave(c, 16)
+    const torches = [...blocks].filter(([, name]) => name === 'torch')
+        .map(([key]) => new Vec3(...key.slice(1, -1).split(',').map(Number)))
+    assert.ok(torches.length > 0)
+    for (const [index, a] of torches.entries()) {
+        assert.ok(torches.slice(index + 1).every(b => a.distanceTo(b) >= 10))
+    }
+})
+
+test('a torch within ten blocks prevents placement and exactly ten blocks is allowed', async () => {
+    for (const [distance, expected] of [[0, 0], [9, 0], [10, 1]]) {
+        const { c, blocks, inventory, moves } = caveWorld()
+        blocks.set(new Vec3(-distance, 64, 0).toString(), 'wall_torch')
+        const blockAt = c.bot.blockAt
+        c.bot.blockAt = p => ({ ...blockAt(p), light: 0, skyLight: 0 })
+        const goto = c.gotoWithTimeout
+        c.gotoWithTimeout = async goal => {
+            await goto(goal)
+            c.observe = () => ({ dimension: 'overworld', health: 1 })
+        }
+        await exploreCave(c, 16)
+        assert.equal(moves.length, 1)
+        assert.equal(16 - inventory.find(item => item.name === 'torch').count, expected)
+    }
+})
+
+test('ore excavation is remembered as an artificial passage before a survey', async () => {
+    const { c, blocks } = caveWorld()
+    const { rememberMiningExposure } = require('../src/cave-exploration')
+    for (let x = -12; x <= 12; x++) {
+        for (let z = -12; z <= 12; z++) {
+            const position = new Vec3(x, 64, z)
+            rememberMiningExposure(c, { name: 'coal_ore', position })
+        }
+    }
+    assert.equal(await exploreCave(c, 16), false)
+    assert.equal(blocks.size, 0)
+})
+
+test('cave surveys reject passages the bot already excavated, including legacy memory', async () => {
+    for (const legacy of [false, true]) {
+        const { c, moves } = caveWorld()
+        c.memory.minedCells = new Set()
+        for (let x = -12; x <= 12; x++) {
+            for (let z = -12; z <= 12; z++) {
+                const p = new Vec3(x, 64, z)
+                c.memory.minedCells.add(legacy ? p.toString() : `overworld:${p}`)
+            }
+        }
+        c.bot.game.dimension = 'the_nether'
+        assert.equal(Boolean(minedPassage(c, new Vec3(1, 64, 0))), false)
+        c.bot.game.dimension = 'overworld'
+        assert.equal(await exploreCave(c, 16), false)
+        assert.equal(moves.length, 0)
+    }
+})
+
 function diamondWorld(extra = {}) {
     const { oreSeen } = require('../src/cave-exploration')
     // Main tunnel x=0,z=0..5 (feet/head y=64..65); probe hole at head height x=1..3,z=0.
@@ -279,7 +359,7 @@ function diamondWorld(extra = {}) {
         return { name, position: p, boundingBox: ['air', 'water', 'glow_lichen'].includes(name) ? 'empty' : 'block', canHarvest: () => true }
     }
     const bot = {
-        entity: { position: new Vec3(0.5, 64, 0.5) }, game: { dimension: 'overworld' }, blockAt,
+        entity: { position: new Vec3(0.5, 64, 0.5), yaw: -Math.PI / 2 }, game: { dimension: 'overworld' }, blockAt,
         inventory: { items: () => [{ name: 'iron_pickaxe', type: 1 }] },
         world: {
             raycast(from, dir, range) {
@@ -304,7 +384,7 @@ function diamondWorld(extra = {}) {
                 for (let y = -4; y <= 4; y++) {
                     for (let z = -range; z <= range; z++) {
                         const b = blockAt(new Vec3(x, 64 + y, z))
-                        if (match(b.name) && (!options.filter || options.filter(b))) {
+                        if (match(b.name) && (!options.sight || options.sight(b)) && (!options.filter || options.filter(b))) {
                             found.push(b)
                         }
                     }
@@ -325,15 +405,20 @@ test('a diamond seen only by the face beside a probe hole still counts as in vie
     assert.deepEqual(findPriorityDiamond(c).position, ore.position)
 })
 
-test('probe-exposed diamonds are remembered even without a line of sight; liquid-adjacent ones are refused', () => {
-    const { rememberOre } = require('../src/cave-exploration')
-    const hidden = new Vec3(4, 65, -1).toString()
-    const { c } = diamondWorld({ [new Vec3(2, 65, 1).toString()]: 'deepslate', [hidden]: 'diamond_ore' })
+test('a cached diamond behind stone stays hidden and visible liquid-adjacent ore is refused', () => {
+    const hidden = new Vec3(4, 65, -1)
+    const { c } = diamondWorld({ '(2, 65, 1)': 'deepslate', [hidden.toString()]: 'diamond_ore' })
+    c.memory.knownOres = [{ x: hidden.x, y: hidden.y, z: hidden.z, dimension: 'overworld', at: Date.now() }]
     assert.equal(findPriorityDiamond(c), null)
-    rememberOre(c, new Vec3(4, 65, -1))
-    assert.deepEqual(String(findPriorityDiamond(c).position), hidden)
     const wet = diamondWorld({ [new Vec3(2, 66, 1).toString()]: 'water' })
     assert.equal(findPriorityDiamond(wet.c), null)
+})
+
+test('a clear diamond is outside the view when the bot faces away', () => {
+    const { c, bot } = diamondWorld()
+    assert.ok(findPriorityDiamond(c))
+    bot.entity.yaw += Math.PI
+    assert.equal(findPriorityDiamond(c), null)
 })
 
 test('an ore face covered by glow lichen is still in view', () => {

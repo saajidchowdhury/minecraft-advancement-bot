@@ -6,6 +6,36 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
+F086 adds enderman gaze protection and a dedicated refuge response. Staged LAN
+checks cover neutral aiming, water, stone burrowing and an occupied-shaft side
+refuge. Follow up on a natural encounter and refuge exit after anger clears;
+the supplied iron gear and command-spawned mobs are not unaided progression.
+
+Next daylight departure check (F077). Use a lower surface near a high spawn
+with empty reserves. Confirm it stocks 32 log equivalents first, then reaches
+260.48 meal points before departing. Also check that a protected bot still
+goes underground at night. F082 supersedes F077's previous food-first order.
+
+F078 is fixed. The port 52171 Terminal log captures warning stacks for the
+next extended cooking and smelting run.
+
+F079 needs a live check of a daylight food hunt and a complete iron trip.
+Confirm that visible resources are still gathered after the view restriction.
+During the iron trip, check a face-adjacent vein where a block exposed by
+the bot falls outside its forward view (F080).
+
+F081 needs a live rear-hit check. Confirm the first attributed melee
+hit interrupts digging and the bot turns before it tries to eat.
+
+F083 removes the deprecated entity getter from searches. Other terminal
+warnings remain enabled.
+
+F084 needs a live natural-cave check. Verify the survey enters new cave
+space and lights it without retracing the bot's stairs or placing a torch
+on every step.
+F085 adds a hard minimum distance of ten blocks between cave torches.
+Check the new placement coordinates against this bound in the next cave survey.
+
 ## G015 — Highest / next session — Stop death cascades (F076)
 
 Five deaths in 20 minutes followed one kit loss. In priority order:

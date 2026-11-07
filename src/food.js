@@ -86,14 +86,15 @@ function foodOpportunity(c, state) {
         return { action: 'hunt_fish', target: fish[0] }
     }
     const vine = c.findNearestBlock(name => VINES.includes(name), 16, {
-        visible: true, filter: block => block.getProperties?.().berries === true
+        filter: block => block.getProperties?.().berries === true
     })
     if (vine) {
         return { action: 'pick_glow_berries', target: vine }
     }
     const canBowl = c.countItems(['bowl']) > 0 || (state.hasCraftingTable && (state.planks >= 3 || state.logs > 0))
     if (canBowl && c.countItems(['mushroom_stew']) < MAX_STEWS &&
-        MUSHROOMS.every(name => c.countItems([name]) > 0 || c.findNearestBlock(block => block === name || block === `${name}_block`, 16))) {
+        MUSHROOMS.every(name => c.countItems([name]) > 0 ||
+            c.findNearestBlock(block => block === name || block === `${name}_block`, 16, { mining: true }))) {
         return { action: 'gather_mushroom_stew', target: null }
     }
     return fish[0] ? { action: 'hunt_fish', target: fish[0] } : null
@@ -247,7 +248,7 @@ async function pickGlowBerries(c) {
             return
         }
         const vine = c.findNearestBlock(name => VINES.includes(name), picked ? 6 : 16, {
-            visible: true, filter: block => block.getProperties?.().berries === true && (!picked || block.position.distanceTo(origin) <= 12)
+            filter: block => block.getProperties?.().berries === true && (!picked || block.position.distanceTo(origin) <= 12)
         })
         if (!vine) {
             return
@@ -262,8 +263,7 @@ async function pickGlowBerries(c) {
             if (c.bot.blockAt(vine.position)?.getProperties?.().berries === true) {
                 throw new Error('vine kept its berries after use')
             }
-            const drops = Object.values(c.bot.entities).filter(e => e.isValid && e.name === 'item' &&
-                e.position.distanceTo(vine.position.offset(0.5, 0.5, 0.5)) <= 6)
+            const drops = c.visibleDrops(vine.position.offset(0.5, 0.5, 0.5), 6)
             for (const drop of drops) {
                 c.checkAction(signal)
                 const p = drop.position.floored()

@@ -12,7 +12,7 @@ function site() {
     const contents = [{ name: 'diamond', type: 1, count: 2 }, { name: 'bread', type: 2, count: 3 }]
     const c = {
         memory: {}, checkAction() {}, canSee: () => true, log: { info() {} },
-        observe: () => ({ health: 20, hostileDistance: Infinity }),
+        observe: () => ({ health: 20, hostileDistance: Infinity, underground: true, y: 40, surfaceY: 64 }),
         findNearestBlock: (matches, radius, options) => matches(chest.name) && options.filter(chest) ? chest : null,
         bot: {
             game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 40, 0.5) },

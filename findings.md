@@ -6,6 +6,15 @@ stable; correct or qualify an old finding when new evidence changes it.
 
 ## Current handoff
 
+Port 52171 is active in Terminal (PID 27456, run `outputs/2026-11-06@22.26.46`,
+profile `lan-49871`). It uses the working-tree changes through F085 and
+resumed descending toward diamonds. F082 reached 33 logs before food.
+
+The 19:59 Eastern run on port 51528 (PID 18292, `6091863`, world profile
+`lan-49871`) started its iron descent without food below a high spawn (F077).
+The departure fix is in the working tree. The running bot is already deep
+underground on its startup revision.
+
 Updated 2026-11-06 ~13:45 Eastern. Session ended: the bot was STOPPED at 18:40:11Z (SIGINT,
 PID 7261, run `outputs/2026-11-06@12.39.17` on `c085d82`) after five deaths in 20 minutes
 (F076); it is bare at spawn. No bot, watcher or monitor is running. The LAN world is the same
@@ -1458,3 +1467,191 @@ Run `outputs/2026-11-06@12.39.17` (`c085d82`), 18:18–18:38Z; game day began ~1
 The earlier success (F075) shows the rebuild works; the losses are the spawner encounter and
 a hostile spawn area. User direction for the fix (2026-11-06): a bare respawn at night has
 nothing to lose, so it need not bunker immediately; see G015.
+
+## F077 — First iron descent skipped the meal reserve [live observation + regressions]
+
+Run `outputs/2026-11-06@19.59.31` (`6091863`, port 51528). The bot gathered
+wood from Y=122 down to Y=86. At 01:04:13Z it chose `gather_iron` at
+(-63,86,22) with 31 logs, one logged plank and no carried food or previous food
+action. The saved home is (-1,119,-5), and the saved mine route begins at the
+iron departure. The old planner replays this bypass if the bot sees cover on
+the lower terrain. The historical log has no time-of-day or underground reading
+for that decision.
+
+Daylight departure now prioritizes food over the wood reserve and visible ore
+near the surface. Shallow covered ground uses the last nearby open ground as
+its reference, including when returning to the surface. Action logs record
+meal points, time of day and the underground classification. Both regressions
+failed on the original source and pass with the fix. Live verification is pending.
+
+The new world on port 52171 exercised the daylight food priority. It chose
+`gather_food` at 0 meal points and moved to bulk wood at 270.8 points.
+The first iron descent started after nightfall with 289.6 meal points, so
+this did not exercise the final daylight departure gate.
+
+## F078 — Furnace window progress listener leak [reproduced + regressions]
+
+A prior launch log printed `MaxListenersExceededWarning` for 11
+`craft_progress_bar` listeners, and the user saw the same count on port 52171.
+Opening and closing 12 furnaces via the real Mineflayer plugins reproduced the
+warning. `bot.closeWindow(window)` fired the bot-level event but skipped the
+window's own `close` event, leaving one callback registered after each close.
+Server close packets also skipped that event.
+
+The pinned Mineflayer patch now emits both events through one close path.
+Stale close calls and packets leave the next window alone. Both regressions
+failed before the fix and pass after it. Fresh-package patch application
+passed. The bot was restarted in Terminal on the same LAN port with warning
+traces enabled. It collected the pending cooked beef and resumed surfacing
+without a listener warning.
+
+## F079 — Mining follows visible targets only [replay + regressions]
+
+In the port 52171 run, `gather_iron` chose Y=27 because it had found an
+unexposed ore block in loaded chunk data. It tunneled for about 25 s
+before exposing the first block, then gathered seven raw iron. Cached
+ore could also bypass the sightline requirement on priority searches.
+
+Resource and entity discovery now uses a bounded forward view and an
+eye-level sightline. The bot turns when a resource search comes up
+empty. Iron falls back to Y=16 with no visible target, side probes only
+flag ore that is in view, and stale ore memory does not select targets.
+Pathfinding and safety checks still use block geometry. Regressions
+cover buried iron, a cached diamond behind stone, facing away from an
+exposed diamond, turning to find a resource, and an approach that
+finishes with the target still occluded.
+
+Live smoke test on port 52171 after restart. At 02:22:35Z the bot selected
+visible deepslate diamond at (66,-10,232), then resumed looking for lava
+with the diamond count up from three to four. No staged commands were used.
+
+## F080 — Continue mining newly exposed faces [saved terrain + regression]
+
+In the F079 run the bot mined diamond at (65,-53,276) and passed the
+neighbor at (66,-53,276). The saved tunnel shows the second ore's west
+face open. A sight replay at (65.5,-54,276.5) sees it after turning east
+and misses it while facing down the tunnel.
+
+Successful digs record the neighbors of the opening in the controller's
+dimension-scoped cache, capped at 128 openings. A mining search can
+consider a recorded neighbor outside the view while the opening is
+still air and a ray reaches the target. The bot turns to aim before
+digging. An unrelated ore still requires the normal view. The focused
+regression failed before the change and now mines the second block,
+checks a resealed opening and checks dimension isolation.
+
+## F081 — A close zombie hit failed to interrupt an upward dig [live + regression]
+
+On port 52171 the server recorded the bot's zombie death at 21:41:19
+Eastern and the owner's zombie death 29 s later. It did not identify the
+zombies. The inventory reply showed a diamond chestplate and leggings,
+iron helmet and boots, diamond sword, shield and cooked food. While
+carving upward for water at (-27,-36,364), the bot took six hits of
+about 2.38 HP and kept digging until 5.7 HP. It attempted to eat three
+times while a zombie was within 0.5 blocks. It died at (-27,-35,363).
+
+The health listener consulted the forward view before interrupting
+work. A regression reproduced the missed interrupt with a zombie
+behind the bot. The Mineflayer hurt event now interrupts work on a
+close hit attributed to a hostile and provides a short-lived bearing.
+The next decision turns toward that point and checks sight normally.
+The regression confirms a fight at 17.62 HP, with no response to another
+player's hit or a hit without a source.
+
+## F082 — Daylight wood before food and the delayed iron pick [live + regressions]
+
+Port 52171, run `outputs/2026-11-06@21.46.10`. The bot spent its
+remaining daylight on the meal reserve and entered the night with one
+birch log. It reached 14 raw iron by 02:55:34Z with no coal, charcoal
+or planks. The planner could burn carried planks but did not convert the
+log for fuel. It requested surface wood and the nighttime fallback
+continued mining. At 02:58:27Z, a replacement stone pick converted the
+birch log, leaving two sticks and two planks. Those planks fueled three
+ingots at 02:58:34Z. The bot collected the ingots at 02:59:12Z and
+crafted the iron pick at 02:59:13Z.
+
+User direction supersedes F077's food-first ordering. Daylight mining
+preparation now stocks 32 log equivalents before optional food
+gathering or starting cooking. The wood task also ignores ordinary
+ore and food detours until stocked. Emergency hunger and collecting
+ready furnace output still take priority.
+
+## F083 — Remove deprecated entity lookup traces [logs + regression]
+
+The terminal trace `entity.mobType is deprecated` appears in the earlier
+2026-11-06 run at about 12:49 Eastern (`outputs/launch-head.txt`) and in
+the evening Terminal logs. Mineflayer's entity lookup can encounter
+unnamed placeholders. The fallback accessed a deprecated getter that
+calls `console.trace` on every read, outside the normal bot log.
+Searches now match the registry name and skip unnamed entries.
+
+## F084 — Surveys climbed the bot's stairs and placed excess torches [live + regressions]
+
+Run `outputs/2026-11-06@22.07.48`, 03:14:11–03:14:48Z. The bot
+surveyed upward along its own staircase, from about (-20,24,163) to
+(-10,34,162). The survey classification accepted the passage's open
+geometry, without excluding known mining cells. Each step looked for
+a torch using the F079 view filter. Torches behind the bot were missed,
+and four coal were crafted into torches as it walked back up.
+
+Surveys now exclude remembered excavated cells. New mining-cell entries
+carry a dimension prefix, and legacy entries apply to the Overworld.
+Lighting uses the local block-light level, with a threshold of eight,
+so turning away from a torch does not trigger another placement.
+Checkpoints remain memory entries. Both regressions failed before
+these changes.
+
+## F085 — Hard ten-block cave torch spacing [live report + regressions]
+
+F084's light-only guard was insufficient. Run `outputs/2026-11-06@22.18.10`
+tried to place a torch at (14,16,151) at 03:22:58Z while the cell already
+contained a torch. The placement exception and repeated lighting attempts
+show that the light reading alone did not prevent duplicates.
+
+User direction sets a minimum ten-meter separation. Cave placement now
+checks torch and wall-torch block positions within ten blocks, as a local
+placement constraint independent of the forward view. It refuses distances
+below ten and permits exactly ten. The spacing regression forces all light
+readings to zero. Mining exposure tracking also persists the actual cells
+dug out by ore collection, so those rooms can be excluded from cave surveys
+along with the staircase. All three new regressions failed before the fix.
+
+## F086 — Enderman gaze prevention and sealed refuges [live + regressions]
+
+Port 52171 recorded the enderman death at 22:38:16 Eastern, near
+(44,0,193). Repeated hits interrupted neither mining nor subsequent eating
+and waiting; diagnostics reported no threats. Endermen were excluded from
+ordinary hostiles because they are neutral, but had no separate aggression
+response. The initial provocation was not recorded, so accidental gaze is
+possible rather than established.
+
+Look calls and a physics-tick guard now avoid unobstructed enderman faces,
+including intermediate yaw sweeps. Visible anger uses registry metadata;
+attributed damage works behind the bot. Either interrupts work or following
+and selects a dedicated refuge before eating or combat. Further enderman
+hits cannot cancel that response. Direct enderman combat is refused.
+
+The bot pours carried water outside the Nether, digs a checked three-block
+column and seals it. If that fails, it carves a two-high side passage, moves
+two blocks sideways, seals the entrance and verifies the enclosure. A refuge
+failure cannot invoke normal shaft escape or unstick recovery. A still-present
+remembered enderman is not declared safe after sixty seconds: calm must be
+visible, or the entity absent after the quiet interval. This conservative
+policy may wait enclosed rather than resume productive mining.
+
+Command-staged trials supplied iron armor, shield, iron tools and cooked pork,
+with clear midnight weather and spawned endermen near (96,96,240). Commands
+stopped before each autonomous trial. Ten face-aim requests left a neutral
+enderman neutral. Water, stone without water and occupied-shaft trials ended
+enclosed at 20 HP without attacking, after one, two and three enderman hits,
+respectively. These are supplied-kit tests, not survival-earned progression.
+
+Earlier trials exposed water flooding because shelter placement skipped water
+cells, and a refused shaft roof under continued enderman attack. Roof placement
+now replaces water and waits for drainage; the occupied-shaft trial validates
+the low side-refuge fallback. The final repeat recorded the bot still protected
+at 66.5 seconds with the enderman present. Ignored records are under
+outputs/enderman-* and outputs/stage-enderman-test.js. Cleanup removed the
+arena and tagged mob, retained one supplied kit and returned the bot to its
+prior surface position. Natural encounters and departure after anger clears
+remain unverified. All 346 tests and syntax checks pass.

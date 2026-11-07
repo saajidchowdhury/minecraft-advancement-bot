@@ -93,6 +93,7 @@ test('glow berries are picked from ripe vines and a vine that keeps its berries 
     Object.assign(c, {
         findNearestBlock: (predicate, range, options) => predicate(vine.name) && options.filter(vine) && !blocked ? vine : null,
         gotoWithTimeout: async () => { items.push({ name: 'glow_berries', count: 1 }) },
+        visibleDrops: () => Object.values(c.bot.entities),
         rememberBlockedTarget: () => { blocked++ }
     })
     c.bot.blockAt = () => vine

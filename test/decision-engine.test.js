@@ -231,6 +231,24 @@ test('a lava search stocks food before descent and continues if already undergro
     assert.equal(chooseAction({ ...ready, underground: true, y: 75, surfaceY: 81 }), 'return_surface')
 })
 
+test('daylight iron departure stocks wood before food on terrain below the spawn plateau', () => {
+    const miner = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasStonePickaxe: true,
+        hasWoodcuttingAxe: true, hasDiggingShovel: true, hasFurnace: true, sticks: 2,
+        logs: 31, planks: 1, mealReserve: 0, surfaceY: 119, departureSurfaceY: 86, y: 86 })
+    assert.equal(chooseAction({ ...miner, underground: true }), 'return_surface')
+    assert.equal(chooseAction({ ...miner, underground: false }), Actions.WOOD)
+    assert.equal(chooseAction({ ...miner, underground: false, ironInView: true }), Actions.WOOD)
+    assert.equal(chooseAction({ ...miner, underground: false, foodOpportunity: { action: 'hunt_fish' } }), Actions.WOOD)
+    assert.equal(chooseAction({ ...miner, underground: false, canCook: true }), Actions.WOOD)
+    assert.equal(chooseAction({ ...miner, underground: false, food: 16 }), Actions.FOOD)
+    assert.equal(chooseAction({ ...miner, underground: false, planks: 4 }), Actions.FOOD)
+    assert.equal(chooseAction({ ...miner, underground: false, planks: 4, ironInView: true }), Actions.FOOD)
+    assert.equal(chooseAction({ ...miner, underground: true, isNight: true }), Actions.IRON)
+    assert.equal(chooseAction({ ...miner, underground: true, y: 70 }), Actions.IRON)
+    assert.equal(chooseAction({ ...miner, underground: false, mealReserve: 261 }), Actions.WOOD)
+    assert.equal(chooseAction({ ...miner, underground: false, mealReserve: 261, logs: 32 }), Actions.IRON)
+})
+
 test('an adjacent hostile is fought when armed and healthy, otherwise escaped', () => {
     assert.equal(chooseAction(state({ hostileDistance: 1.2, hasWeapon: true, health: 17 })), Actions.FIGHT)
     assert.equal(chooseAction(state({ hostileDistance: 1.2, hasWeapon: false, health: 17 })), Actions.ESCAPE)

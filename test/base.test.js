@@ -136,6 +136,7 @@ test('migrating a base empties its container and equips a tool before reclaiming
         c.bot.dig = async block => { order.push(`dig ${block.name}`) }
         c.bot.waitForTicks = async () => {}
         c.bot.entities = {}
+        c.visibleDrops = () => []
         await migrateBase(c)
         assert.deepEqual(items.map(i => [i.name, i.count]).sort(), [['diamond', 4], ['iron_ingot', 9]])
         assert.deepEqual(order, [`equip for ${name}`, `dig ${name}`])
@@ -214,6 +215,7 @@ test('a chest vault with rock on top is migrated by digging the block above the 
     c.bot.openContainer = async block => { order.push(solid.has(roof.toString()) ? 'open blocked' : 'open'); return open(block) }
     c.bot.waitForTicks = async () => {}
     c.bot.entities = {}
+    c.visibleDrops = () => []
     await migrateBase(c)
     assert.deepEqual(order, ['dig dirt', 'open', 'dig chest'])
     assert.deepEqual(items.map(i => [i.name, i.count]), [['diamond', 2]])

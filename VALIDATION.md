@@ -2,6 +2,76 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F086 passes 346 tests and syntax checks. Eleven regressions cover enderman
+hit interrupts, refuge priority and cancellation, neutral/angry metadata,
+dimension isolation, face avoidance including long-range gaze, follow-mode
+interruption, water replacement, an occupied-shaft side refuge and threat
+persistence beyond sixty seconds. All eleven fail on the pre-fix source.
+
+Command-staged LAN tests on port 52171 supplied iron gear and spawned
+endermen. Neutral face-aim requests stayed safe; water, stone/no-water and
+occupied-shaft trials ended in verified enclosures at full health without
+attacking. Earlier trials exposed water flooding and a refused no-water
+roof; reruns passed after fixes. The final occupied-shaft trial kept its
+refuge closed beyond sixty seconds with the enderman still present.
+These are supplied-kit tests. Natural encounters and safe resumption after
+anger clears remain pending. Setup scripts and logs stay under ignored outputs.
+
+F085 passes 335 tests and syntax checks. New regressions enforce ten-block
+torch spacing with light fixed at zero, verify the nine/ten-block boundary
+and duplicate-cell refusal, and exclude ore-excavated rooms from surveys.
+All three failed before the fix.
+
+F084 covers torch spacing when earlier torches are out of view and
+exclusion of excavated passages from cave surveys. It checks legacy
+mining memory and dimension isolation. Both regressions failed before
+the fix. All 332 tests and syntax checks passed. The patched LAN bot
+reconnected and resumed crafting. A fresh natural-cave trial is pending.
+
+F083's regression searches a real unnamed Prismarine entity followed by
+a named zombie. The old code emitted one trace. The fix finds the zombie
+without emitting any. All 330 tests and syntax checks passed.
+
+F082 verifies daylight wood before the meal reserve, including when food
+or iron is visible. The resource watchdog regression verifies that visible
+food cannot cancel a wood run below the reserve. Both failed before the fix.
+All 329 tests and syntax checks passed. On the replacement LAN run
+`outputs/2026-11-06@22.03.34`, the bot chose wood with both reserves
+short. It resumed wood after the F083 restart at 30 logs and switched to
+food at 33 logs in `outputs/2026-11-06@22.07.48`.
+
+F081 replays an attributed melee hit from outside the forward view through
+the controller's event handling and decision tick. The regression failed
+before the fix and now confirms the bot interrupts work, turns and fights
+while healthy. All 328 tests and syntax checks passed. The LAN restart
+was verified. A live rear-hit trial is pending.
+
+F080 adds a two-block vein regression through the normal dig wrapper,
+target selection and harvesting path. It verifies the newly exposed face
+can be mined while the bot starts facing away, and that a resealed
+opening, another dimension and unrelated ore do not get the exception.
+All 327 tests and syntax checks passed. The patched LAN run started
+successfully and awaits a live vein check.
+
+F079 covers occluded and out-of-view block targets, visible ore faces at
+probe holes, deliberate turns to scan, and default iron descent despite
+buried ore in loaded chunks. The five focused regressions failed against
+the original source. All 326 tests and syntax checks passed. On port 52171,
+the restarted bot collected one visible diamond before resuming the lava search.
+
+F078 passes 323 tests and syntax checks. Its two new regressions run the actual
+Mineflayer inventory and furnace plugins with simulated window packets.
+Twelve direct open/close cycles return the progress listener count to
+baseline. A server close removes the listener and stale closes preserve the
+next window. Both tests failed before the fix. Patch-package applied the
+updated patch to a fresh 4.39.0 tarball.
+
+The F077 departure fix passes 321 tests and syntax checks. The two new
+regressions reproduce the missing daytime meal check below a high spawn and
+an unnecessary climb past the lower exit. Both fail against the pre-fix
+source. Port 51528 supplied the failure trace. The fix awaits a live daylight
+departure.
+
 The latest code baseline (`c085d82` code, docs after) passed all 319 tests and syntax checks.
 F072–F074 added fish, stew, shore-wait, provisional-home, walk-interrupt, lava-escape and
 fuel-less cooking regressions. Live 2026-11-06 afternoon: priority iron, walk interrupts,

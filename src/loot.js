@@ -25,7 +25,7 @@ function findNearbyLoot(c) {
         const record = chestRecord(c, target)
         return !record.exhausted && !(record.retryAfter > Date.now())
     }
-    const chest = c.findNearestBlock(name => name === 'chest', 12, { visible: true, filter: available })
+    const chest = c.findNearestBlock(name => name === 'chest', 12, { filter: available })
     const cart = bot.nearestEntity(entity => entity.name === 'chest_minecart' && entity.isValid &&
         entity.position.distanceTo(bot.entity.position) <= 12 && c.canSee(entity) && available(entity))
     if (!chest || !cart) {

@@ -4,14 +4,16 @@ const { pathfinder, Movements, goals } = require('mineflayer-pathfinder')
 const { plugin: collectBlockPlugin } = require('mineflayer-collectblock')
 const { Vec3 } = require('vec3')
 const { createRng } = require('./random')
-const { Actions, chooseAction, canSustainFight, outnumbered } = require('./decision-engine')
+const { Actions, chooseAction, canSustainFight, outnumbered, hasMiningWood } = require('./decision-engine')
 const { RECIPES, nextAdvancement, ironPickPlankFuel, ironReserveCap } = require('./advancement-plan')
 const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
 const { prepareBed, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
 const { FOOD_VALUES, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
-const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, oreSight, rememberExposedDiamonds } = require('./cave-exploration')
+const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight,
+    rememberMiningExposure, exposedByDig } = require('./cave-exploration')
+const { inView, blockInView, scanFor } = require('./vision')
 const { findNearbyLoot, lootChest } = require('./loot')
 const { discardableStack, inventoryReport } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
@@ -51,6 +53,7 @@ const PATH_SEARCH_RADIUS = 48
 const HEAP_GUARD_BYTES = 768 * 1024 * 1024
 const ACTION_TIMEOUT_MS = Object.freeze({
     [Actions.ESCAPE]: 30000,
+    avoid_enderman: 30000,
     [Actions.DESCEND]: 30000,
     [Actions.ASCEND]: 90000,
     [Actions.RECOVER]: 90000,
@@ -80,6 +83,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
 const MELEE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'spider', 'cave_spider', 'vindicator', 'piglin_brute', 'zombified_piglin'])
 const INTERACTIVE = /(^|_)(furnace|smoker|chest|barrel|crafting_table|enchanting_table|anvil|bed|door|trapdoor|fence_gate|button|lever|shulker_box)$/
 const STATIONARY_ACTIONS = new Set([
+    'avoid_enderman',
     Actions.DESCEND,
     Actions.ASCEND,
     'wake', 'sleep', 'prepare_bed', 'leave_shelter', 'shoot_arrow', 'cook_food',
@@ -259,6 +263,9 @@ class SurvivalController {
             })
         })
         this.bot.on('death', () => {
+            this.lastHitBearing = null
+            const endermanDeath = Boolean(this.endermanThreat && this.endermanThreat.dimension === this.bot.game?.dimension)
+            this.endermanThreat = null
             const position = this.bot.entity && this.bot.entity.position
             if (position) {
                 const previous = this.memory.lastDeath
@@ -270,7 +277,7 @@ class SurvivalController {
                 // A fresh respawn cannot win where a crowd or an archer just killed a geared bot.
                 // Lava also burns the drops, so a lava death site is never worth the trip back.
                 const dangerous = near.filter(e => e.distance <= 12).length >= 2 || near.some(e => ARCHERS.has(e.name) && e.distance <= 16) ||
-                    Boolean(this.inLava?.())
+                    Boolean(this.inLava?.()) || endermanDeath
                 this.memory.lastDeath = {
                     x: Math.floor(position.x), y: Math.floor(position.y), z: Math.floor(position.z),
                     diedAt: sameRecovery ? previous.diedAt : Date.now(),
@@ -284,18 +291,62 @@ class SurvivalController {
             this.log.warn('Bot died; it will resume after respawning.')
             this.sheltered = false
             this.shelterCenter = null
+            this.lastDepartureSurface = null
             this.cancelCurrentTask('death')
+        })
+        this.bot.on('entityHurt', (victim, source) => {
+            const action = this.activeAction || this.lastAction
+            if (victim === this.bot.entity && source?.isValid && source.name === 'enderman') {
+                this.endermanThreat = { id: source.id, dimension: this.bot.game.dimension, at: Date.now(), hit: true }
+                this.lastHitBearing = null
+                if (this.running && !this.paused && this.bot.health > 0 &&
+                    !['avoid_enderman', 'escape_lava', 'surface_for_air', 'clear_head'].includes(action)) {
+                    this.urgentReplan = true
+                    if (this.busy) {
+                        this.cancelCurrentTask('enderman attack; taking refuge')
+                    } else {
+                        this.scheduleLoop(0)
+                    }
+                }
+                return
+            }
+            if (!this.running || this.paused || this.followPlayer || !victim || victim !== this.bot.entity ||
+                this.bot.health <= 0 || !source?.isValid || !HOSTILES.has(source.name) ||
+                victim.position.distanceTo(source.position) > 4 ||
+                (this.busy && [Actions.FIGHT, Actions.ESCAPE, 'escape_lava', 'surface_for_air', 'clear_head'].includes(action))) {
+                return
+            }
+            this.lastHitBearing = {
+                point: source.position.offset(0, 0.75 * (source.height ?? 1.6), 0),
+                dimension: this.bot.game.dimension,
+                at: Date.now()
+            }
+            if (!this.busy) {
+                this.scheduleLoop(0)
+            } else if (!this.actionAbort?.signal.aborted) {
+                const weapon = source.heldItem?.name
+                this.cancelCurrentTask(`attacked by ${source.name}${weapon ? ` holding ${weapon}` : ''}`)
+            }
         })
         let previousHealth = this.bot.health
         this.bot.on('health', () => {
             const action = this.activeAction || this.lastAction
             const tookDamage = Number.isFinite(previousHealth) && previousHealth - this.bot.health > 0.01
             if (this.running && tookDamage) {
-                const threats = Object.values(this.bot.entities || {}).filter(entity => entity.isValid && HOSTILES.has(entity.name) &&
+                const threats = Object.values(this.bot.entities || {}).filter(entity => entity.isValid &&
+                    (HOSTILES.has(entity.name) || (entity.name === 'enderman' && this.endermanThreat?.id === entity.id)) &&
                     this.bot.entity.position.distanceTo(entity.position) <= 12)
                     .map(entity => `${entity.name}:${this.bot.entity.position.distanceTo(entity.position).toFixed(1)}`)
                 this.log.warn(`Damage: hp=${previousHealth.toFixed(2)}->${this.bot.health.toFixed(2)}, action=${action}, ` +
                     `sheltered=${this.sheltered}, nearby threats=${threats.join(',') || 'none'}, at ${this.positionText()}.`)
+                if (action === 'avoid_enderman') {
+                    if (this.inLava?.() && this.busy && !this.actionAbort?.signal.aborted) {
+                        this.urgentReplan = true
+                        this.cancelCurrentTask('burning in lava')
+                    }
+                    previousHealth = this.bot.health
+                    return
+                }
                 if (this.memory && this.bot.game?.dimension === 'overworld' && this.isNight?.() &&
                     this.bot.entity.position.y >= (this.home?.y || 64) - 3 &&
                     (previousHealth - this.bot.health >= 4 || this.bot.health <= 16)) {
@@ -334,7 +385,7 @@ class SurvivalController {
                 }
             }
             previousHealth = this.bot.health
-            if (this.bot.health <= 6 && this.busy && ![Actions.ESCAPE, 'escape_lava', 'surface_for_air', 'clear_head'].includes(action) &&
+            if (this.bot.health <= 6 && this.busy && ![Actions.ESCAPE, 'avoid_enderman', 'escape_lava', 'surface_for_air', 'clear_head'].includes(action) &&
                 (tookDamage || ![Actions.EAT, Actions.SHELTER].includes(action)) && !this.actionAbort?.signal.aborted) {
                 this.cancelCurrentTask('critical health')
             }
@@ -348,10 +399,25 @@ class SurvivalController {
             this.log.warn(`Creeper visible at ${this.bot.entity.position.distanceTo(entity.position).toFixed(1)} blocks; interrupting ${this.activeAction}.`)
             this.cancelCurrentTask('creeper approaching')
         })
+        const endermanAlert = entity => {
+            if (entity.name !== 'enderman' || !this.running || this.paused || this.bot.health <= 0 ||
+                !this.endermanDanger() || ['avoid_enderman', 'escape_lava', 'surface_for_air', 'clear_head'].includes(this.activeAction) ||
+                this.actionAbort?.signal.aborted) {
+                return
+            }
+            this.urgentReplan = true
+            if (this.busy) {
+                this.cancelCurrentTask('angry enderman; taking refuge')
+            } else {
+                this.scheduleLoop(0)
+            }
+        }
+        this.bot.on('entityUpdate', endermanAlert)
+        this.bot.on('entityMoved', endermanAlert)
         this.bot.on('chat', (username, message) => this.onChat(username, message))
     }
 
-    async onSpawn () {
+    configureDigging () {
         // The pinned registry uses a harvest restriction in place of the tool speed tag.
         const obsidian = this.bot.registry.blocksByName.obsidian
         if (obsidian?.material === 'incorrect_for_wooden_tool') {
@@ -366,8 +432,17 @@ class SurvivalController {
             if (block?.material === 'mineable/shovel') {
                 this.log.debug?.(`Breaking ${block.name} with ${tool?.name || 'bare hands'}.`)
             }
-            return dig(block, ...args)
+            const dimension = this.bot.game.dimension
+            await dig(block, ...args)
+            if (block && this.bot.game.dimension === dimension) {
+                rememberMiningExposure(this, block)
+            }
         }
+    }
+
+    async onSpawn () {
+        this.configureDigging()
+        this.configureLooking()
         this.log.info(`Spawned as ${this.bot.username} on Minecraft ${this.bot.version} at ${this.positionText()}; waiting for terrain...`)
         try {
             await this.bot.waitForChunksToLoad()
@@ -455,7 +530,7 @@ class SurvivalController {
             return
         }
 
-        if (this.followPlayer) {
+        if (this.followPlayer && !this.endermanDanger()) {
             const entity = this.bot.players[this.followPlayer]?.entity
             if (entity && !this.bot.pathfinder.isMoving()) {
                 this.bot.pathfinder.setGoal(new GoalFollow(entity, 2), true)
@@ -469,6 +544,11 @@ class SurvivalController {
         try {
             let state
             try {
+                const hit = this.lastHitBearing
+                this.lastHitBearing = null
+                if (hit && hit.dimension === this.bot.game.dimension && Date.now() - hit.at <= 1500) {
+                    await this.bot.lookAt(hit.point, true)
+                }
                 state = this.observe()
                 action = chooseAction(state)
             } catch (error) {
@@ -485,7 +565,8 @@ class SurvivalController {
                 this.loggedGoalId = advancement.id
                 this.log.info(`Advancement target: ${advancement.title} (${advancement.reason})`)
             }
-            this.log.info(`Action: ${action} | hp=${state.health.toFixed(1)} food=${state.food} | ${this.inventorySummary()} | at ${this.positionText()}`)
+            this.log.info(`Action: ${action} | hp=${state.health.toFixed(1)} food=${state.food} | ${this.inventorySummary()} | at ${this.positionText()} | ` +
+                `mealPoints=${state.mealReserve?.toFixed(1)} timeOfDay=${this.bot.time?.timeOfDay} underground=${state.underground}`)
             this.onState(state, action)
             const actionStart = this.bot.entity.position.clone()
             // Remember where an escape began; one that cannot leave that spot is cornered (03.36.15).
@@ -527,7 +608,7 @@ class SurvivalController {
             // starting a staircase, descent, or relocation that uses the same bot.
             this.clearCurrentTask()
             await sleep(100)
-            if (this.urgentReplan || !this.running || this.paused || this.followPlayer || this.bot.health <= 0) {
+            if (this.urgentReplan || action === 'avoid_enderman' || !this.running || this.paused || this.followPlayer || this.bot.health <= 0) {
                 return
             }
             this.actionAbort = new AbortController()
@@ -622,6 +703,7 @@ class SurvivalController {
             !(shaft.retryAfter > Date.now()) && feet.distanceTo(new Vec3(shaftEntrance.x, shaftEntrance.y, shaftEntrance.z)) <= 12 &&
             shaft.cells.at(-1).y <= feet.y - 6
         const state = {
+            endermanDanger: this.endermanDanger(),
             health: this.bot.health,
             food: this.bot.food,
             hostile,
@@ -686,6 +768,12 @@ class SurvivalController {
             redstoneInProgress: Boolean(this.memory.redstoneOrigin),
             redstoneRequested: Boolean(this.memory.redstoneRequested)
         }
+        if (state.dimension === 'overworld' && !state.underground && feet.y >= Math.min(state.surfaceY, 63) - 16) {
+            this.lastDepartureSurface = feet
+        }
+        if (state.dimension === 'overworld' && this.lastDepartureSurface?.distanceTo(feet) <= 24) {
+            state.departureSurfaceY = this.lastDepartureSurface.y
+        }
         if (state.health <= 6) {
             this.recoveringHealth = true
         } else if (state.health >= 14) {
@@ -727,6 +815,7 @@ class SurvivalController {
 
     async perform (action, state) {
         switch (action) {
+            case 'avoid_enderman': return this.avoidEnderman()
             case 'mine_diamond': {
                 if (!this.memory.diamondDetour) {
                     const goal = nextAdvancement(state)
@@ -868,11 +957,13 @@ class SurvivalController {
                     movementWatchdog.unref()
                 }))
             }
-            if (INTERRUPTIBLE.has(action)) {
-                const initial = this.priorityTargetInView()
+            const stockingWood = action === Actions.WOOD && !state.isNight && !hasMiningWood(state)
+            if (INTERRUPTIBLE.has(action) && !stockingWood) {
+                const allowOre = action !== Actions.FOOD && !(action === 'return_surface' && state.mealReserve < MIN_MINING_MEALS)
+                const initial = this.priorityTargetInView(allowOre)
                 attempts.push(new Promise(resolve => {
                     opportunityWatchdog = setInterval(() => {
-                        const seen = this.priorityTargetInView()
+                        const seen = this.priorityTargetInView(allowOre)
                         if (seen && seen !== initial) {
                             clearInterval(opportunityWatchdog)
                             cancelledByGuard = true
@@ -933,14 +1024,15 @@ class SurvivalController {
         this.log.info(`Recovering dropped items at ${death.x},${death.y},${death.z}; about ${secondsLeft}s remain before despawn.`)
         await this.bot.pathfinder.goto(new GoalNear(death.x, death.y, death.z, 4))
         await sleep(500)
-        const drops = Object.values(this.bot.entities).filter(entity =>
-            entity && entity.isValid && entity.name === 'item' &&
-            entity.position.distanceTo(this.bot.entity.position) <= 16)
-        if (drops.length > 0) {
+        const drops = await scanFor(this, () => {
+            const visible = this.visibleDrops(this.bot.entity.position, 16)
+            return visible.length ? visible : null
+        })
+        if (drops) {
             await this.collectTarget(drops, null, 'death drops')
             await sleep(500)
         }
-        this.log.info(`Death-site recovery complete; collected ${drops.length} nearby item stack${drops.length === 1 ? '' : 's'}.`)
+        this.log.info(`Death-site recovery complete; targeted ${drops?.length ?? 0} visible item stacks.`)
         this.memory.lastDeath = null
     }
 
@@ -1227,12 +1319,13 @@ class SurvivalController {
     }
 
     async gatherWood () {
-        const block = this.findNearestBlock(name =>
-            LOG_SUFFIXES.some(suffix => name.endsWith(suffix)) && !name.includes('stripped_'), 48, { visible: true })
+        const block = await scanFor(this, () => this.findNearestBlock(name =>
+            LOG_SUFFIXES.some(suffix => name.endsWith(suffix)) && !name.includes('stripped_'), 48, { mining: true }))
         if (!block) {
             return this.scout(36)
         }
         const trunk = this.bot.collectBlock.findFromVein(block, 3, 6, 1)
+            .filter(log => log.position.equals(block.position) || blockInView(this.bot, log, exposedByDig(this, log)))
         const signal = this.actionAbort?.signal
         try {
             await this.collectTarget(trunk.length > 0 ? trunk : block, block, 'tree')
@@ -1264,11 +1357,11 @@ class SurvivalController {
 
     async gatherStone () {
         const feet = this.bot.entity.position.floored()
-        const block = this.findNearestBlock(name =>
+        const block = await scanFor(this, () => this.findNearestBlock(name =>
             ['stone', 'cobblestone', 'deepslate', 'cobbled_deepslate'].includes(name), 24, {
-            visible: true,
+            mining: true,
             filter: candidate => candidate.position.x !== feet.x || candidate.position.z !== feet.z
-        })
+        }))
         if (!block) {
             return mineTunnel(this, 16)
         }
@@ -1301,14 +1394,14 @@ class SurvivalController {
         if (await this.gatherMushroomStew(state)) {
             return
         }
-        const berry = this.findNearestBlock(name => name === 'sweet_berry_bush', 32)
-        if (berry) {
-            await this.collectTarget(berry, berry, 'berries')
+        const target = await scanFor(this, () => this.findNearestBlock(name => name === 'sweet_berry_bush', 32, { mining: true }) ||
+            this.nearestEntity(PREY, 48))
+        if (target?.name === 'sweet_berry_bush') {
+            await this.collectTarget(target, target, 'berries')
             return
         }
-        const animal = this.nearestEntity(PREY, 48)
-        if (animal) {
-            return this.fight(animal, true)
+        if (target) {
+            return this.fight(target, true)
         }
         if (state.foodOpportunity) {
             return this.perform(state.foodOpportunity.action, state)
@@ -1342,7 +1435,7 @@ class SurvivalController {
                 return true
             }
             const targets = missing.map(name => this.findNearestBlock(
-                block => block === name || block === `${name}_block`, 16
+                block => block === name || block === `${name}_block`, 16, { mining: true }
             ))
             if (targets.some(block => !block)) {
                 return false
@@ -1355,33 +1448,29 @@ class SurvivalController {
     async gatherOre (names, radius) {
         const wanted = new Set(names)
         const feet = this.bot.entity.position.floored()
-        const block = this.findNearestBlock(name => wanted.has(name), radius, {
-            visible: true,
+        const block = await scanFor(this, () => this.findNearestBlock(name => wanted.has(name), radius, {
+            sight: b => miningSight(this, b, radius),
             filter: candidate => candidate.position.x !== feet.x || candidate.position.z !== feet.z
-        })
+        }))
         if (!block) {
             if (await collectOpportunity(this, names) || await exploreCave(this, names.includes('iron_ore') ? 16 : feet.y)) {
                 return
             }
-            const nearby = this.findNearestBlock(name => wanted.has(name), 12, {
-                filter: candidate => candidate.position.y <= feet.y && candidate.position.y >= feet.y - 4
-            })
-            this.log.debug(`Ore search: ${names[0]}: nearest=${nearby ? nearby.position : 'none'}; exposed target=none; held=${this.bot.heldItem?.name}`)
-            return mineTunnel(this, nearby ? nearby.position.y : (names.includes('iron_ore') ? 16 : feet.y), nearby?.position)
+            return mineTunnel(this, names.includes('iron_ore') ? 16 : feet.y)
         }
         await this.collectTarget(block, block, block.name)
     }
 
     // The decision loop's opportunistic targets, cheaply: null, 'diamond', 'iron' or a food action.
-    priorityTargetInView () {
+    priorityTargetInView (allowOre = true) {
         try {
             if (!this.mcData || !this.canPursueDiamond()) {
                 return null
             }
-            if (findPriorityDiamond(this)) {
+            if (allowOre && findPriorityDiamond(this)) {
                 return 'diamond'
             }
-            if (this.ironWanted && findPriorityOre(this, IRON_ORES)) {
+            if (allowOre && this.ironWanted && findPriorityOre(this, IRON_ORES)) {
                 return 'iron'
             }
             const items = this.bot.inventory.items()
@@ -1415,7 +1504,7 @@ class SurvivalController {
                 }
                 if (entry.name === 'item') {
                     // Pickup reaches about one block; one unreachable stack must not strand the reachable rest.
-                    if (entry.isValid) {
+                    if (entry.isValid && this.canSee(entry)) {
                         const p = entry.position.floored()
                         await this.gotoWithTimeout(new goals.GoalNear(p.x, p.y, p.z, 1), 8000, 'item pickup')
                             .catch(error => {
@@ -1432,10 +1521,10 @@ class SurvivalController {
                 if (!block || block.type !== entry.type || (block.boundingBox === 'empty' && !block.diggable)) {
                     continue
                 }
-                let sight = priorityOre && oreSight(this.bot, block, 4.5)
+                let sight = block.name.endsWith('_ore') && miningSight(this, block, 4.5)
                 if (!this.bot.canDigBlock(block) || (!sight && !this.bot.canSeeBlock(block))) {
                     await this.gotoWithTimeout(new goals.GoalLookAtBlock(block.position, this.bot.world), 10000, 'resource approach')
-                    sight = priorityOre && oreSight(this.bot, block, 4.5)
+                    sight = block.name.endsWith('_ore') && miningSight(this, block, 4.5)
                 }
                 if (signal?.aborted) {
                     throw new Error('collection cancelled')
@@ -1446,6 +1535,9 @@ class SurvivalController {
                 }
                 if (!this.movements.safeToBreak(block)) {
                     throw new Error(`unsafe block to mine: ${block.name}`)
+                }
+                if (!this.bot.canDigBlock(block) || (!sight && !this.bot.canSeeBlock(block))) {
+                    throw new Error(`block is not visible or reachable: ${block.name}`)
                 }
                 await this.bot.tool.equipForBlock(block, { requireHarvest: true, getFromChest: false })
                 if (signal?.aborted) {
@@ -1463,13 +1555,11 @@ class SurvivalController {
                     this.checkAction(signal)
                 }
                 await this.bot.dig(block, sight ? 'ignore' : true)
-                rememberExposedDiamonds(this, block.position)
                 await sleep(600)
                 if (signal?.aborted) {
                     throw new Error('collection cancelled')
                 }
-                const drops = Object.values(this.bot.entities).filter(e => e.isValid && e.name === 'item' &&
-                    e.position.distanceTo(block.position.offset(0.5, 0.5, 0.5)) <= 3)
+                const drops = this.visibleDrops(block.position.offset(0.5, 0.5, 0.5), 3)
                 for (const drop of drops) {
                     if (signal?.aborted) {
                         throw new Error('collection cancelled')
@@ -1664,6 +1754,9 @@ class SurvivalController {
     async fight (entity, hunt = false, guard = null, cornered = false) {
         const signal = this.actionAbort?.signal
         this.checkAction(signal)
+        if (entity?.name === 'enderman') {
+            throw new Error('endermen require refuge, not combat')
+        }
         if (!entity || !entity.isValid) {
             throw new Error('target disappeared')
         }
@@ -1694,6 +1787,9 @@ class SurvivalController {
                     throw new Error('outnumbered in combat; replanning escape')
                 }
                 const distance = this.bot.entity.position.distanceTo(entity.position)
+                if (hunt && !this.canSee(entity)) {
+                    throw new Error('prey went out of view')
+                }
                 if (distance > 3.1) {
                     if (!following || this.bot.targetDigBlock || chasePosition.distanceTo(this.bot.entity.position) >= 0.75) {
                         chasePosition = this.bot.entity.position.clone()
@@ -1755,8 +1851,7 @@ class SurvivalController {
                 throw new Error(reason)
             }
             if (hunt) {
-                const drops = Object.values(this.bot.entities || {}).filter(drop => drop.isValid && drop.name === 'item' &&
-                    drop.position.distanceTo(entity.position) <= 4)
+                const drops = this.visibleDrops(entity.position, 4)
                 if (drops.length > 0) {
                     await this.collectTarget(drops, null, 'hunting drops')
                 }
@@ -1782,17 +1877,170 @@ class SurvivalController {
         await this.bot.pathfinder.goto(new GoalNear(x, Math.floor(here.y), z, 3))
     }
 
+    configureLooking () {
+        const bot = this.bot
+        const look = bot.look.bind(bot)
+        const safe = (yaw, pitch) => {
+            const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
+            const direction = new Vec3(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch))
+            return !Object.values(bot.entities).some(e => {
+                if (!e.isValid || e.name !== 'enderman') {
+                    return false
+                }
+                const head = e.position.offset(0, 2.55, 0).minus(eye)
+                const distance = head.norm()
+                const along = head.dot(direction)
+                const radius = Math.max(0.85, Math.sqrt(0.05 * distance) + 0.15)
+                return distance <= 64 && along > 0 && head.minus(direction.scaled(along)).norm() < radius &&
+                    !bot.world.raycast(eye, head.normalize(), distance)
+            })
+        }
+        bot.look = async (yaw, pitch, force) => {
+            const near = Object.values(bot.entities).some(e => e.isValid && e.name === 'enderman' &&
+                e.position.distanceTo(bot.entity.position) <= 64)
+            if (!near) {
+                return look(yaw, pitch, force)
+            }
+            for (const offset of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
+                for (const candidate of [pitch, -Math.PI / 3, -Math.PI / 2, 0, Math.PI / 3, Math.PI / 2]) {
+                    if (safe(yaw + offset, candidate)) {
+                        // Force skips Mineflayer's intermediate yaw sweep through an enderman's face.
+                        return look(yaw + offset, candidate, true)
+                    }
+                }
+            }
+            return look(yaw, -Math.PI / 2, true)
+        }
+        bot.on('physicsTick', () => {
+            if (bot.entity && !safe(bot.entity.yaw, bot.entity.pitch)) {
+                bot.look(bot.entity.yaw, bot.entity.pitch, true).catch(error => this.log.warn(`Safe look failed: ${error.message}`))
+            }
+        })
+    }
+
+    endermanDanger () {
+        const now = Date.now()
+        const dimension = this.bot.game.dimension
+        const keys = this.bot.registry?.entitiesByName?.enderman?.metadataKeys || []
+        const angry = e => Boolean(e.metadata?.[keys.indexOf('creepy')] || e.metadata?.[keys.indexOf('stared_at')])
+        const seen = Object.values(this.bot.entities || {}).find(e => e.isValid && e.name === 'enderman' &&
+            e.position.distanceTo(this.bot.entity.position) <= 24 && angry(e) && this.canSee(e))
+        if (seen) {
+            this.endermanThreat = { id: seen.id, dimension, at: now }
+        }
+        const threat = this.endermanThreat
+        if (!threat || threat.dimension !== dimension) {
+            this.endermanThreat = null
+            return false
+        }
+        const entity = this.bot.entities[threat.id]
+        if ((!entity?.isValid && now - threat.at > 60000) ||
+            (entity?.isValid && !angry(entity) && this.canSee(entity) && now - threat.at > 5000)) {
+            this.endermanThreat = null
+            return false
+        }
+        return true
+    }
+
+    async avoidEnderman () {
+        this.checkAction()
+        this.bot.pathfinder.setGoal(null)
+        this.bot.clearControlStates()
+        const enclosed = () => this.shelterCenter && this.hasEnclosedShelter(this.shelterCenter)
+        if (!enclosed()) {
+            const feet = this.bot.entity.position.floored()
+            const water = this.bestItem(['water_bucket'])
+            if (water && this.bot.game.dimension !== 'the_nether' &&
+                this.bot.blockAt(feet.offset(0, -1, 0), false)?.boundingBox === 'block') {
+                await this.bot.equip(water, 'hand')
+                this.checkAction()
+                await this.bot.lookAt(feet.offset(0.5, -0.1, 0.5), true)
+                this.bot.activateItem()
+                this.bot.deactivateItem()
+                await this.bot.waitForTicks(4)
+                this.checkAction()
+                this.log.warn(`Enderman refuge: poured water at ${feet}.`)
+            }
+            try {
+                await this.burrow()
+            } catch (error) {
+                this.checkAction()
+                this.log.warn(`Enderman burrow unavailable: ${error.message}; carving a low side refuge.`)
+                await this.endermanSideRefuge().catch(async sideError => {
+                    this.checkAction()
+                    this.log.warn(`Side refuge unavailable: ${sideError.message}; building enclosure.`)
+                    await this.makeNightSafe()
+                })
+            }
+        }
+        this.checkAction()
+        if (!enclosed()) {
+            throw new Error('enderman refuge is not enclosed')
+        }
+        this.log.info('Enderman refuge verified; keeping the enclosure closed.')
+        if (this.bot.food < 20 && this.bestFood()) {
+            await this.eat()
+        }
+        for (let tick = 0; tick < 40 && this.endermanDanger(); tick++) {
+            this.checkAction()
+            await this.bot.waitForTicks(1)
+        }
+    }
+
+    async endermanSideRefuge () {
+        const origin = this.bot.entity.position.floored()
+        const at = p => this.bot.blockAt(p, false)
+        const solid = p => at(p)?.boundingBox === 'block' && !['magma_block', 'cactus', 'powder_snow'].includes(at(p).name)
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const cells = [1, 2].flatMap(n => [1, 0].map(dy => origin.offset(n * dx, dy, n * dz)))
+            const center = origin.offset(2 * dx, 0, 2 * dz)
+            if (!cells.every(p => solid(p) && at(p).diggable && !PROTECTED_CONTAINERS.has(at(p).name) &&
+                !['sand', 'red_sand', 'gravel'].includes(at(p).name) &&
+                (at(p).material !== 'mineable/pickaxe' || miningPickaxe(this, at(p)))) ||
+                ![1, 2].every(n => solid(origin.offset(n * dx, -1, n * dz)) && solid(origin.offset(n * dx, 2, n * dz))) ||
+                ![-1, 0, 1].every(x => [-1, 0, 1].every(z => [0, 1].every(y => solid(center.offset(x, y, z)))))) {
+                continue
+            }
+            for (const cell of cells) {
+                this.checkAction()
+                await this.equipStoneDigTool(at(cell))
+                this.checkAction()
+                await this.bot.dig(at(cell), true)
+            }
+            await this.gotoWithTimeout(new goals.GoalBlock(center.x, center.y, center.z), 3000, 'low enderman refuge')
+            for (const dy of [0, 1]) {
+                await this.placeSurvivalBlock(origin.offset(dx, dy, dz))
+            }
+            this.checkAction()
+            if (!this.hasEnclosedShelter(center)) {
+                throw new Error('side refuge enclosure incomplete')
+            }
+            this.shelterCenter = center.clone()
+            this.memory.shelter = { x: center.x, y: center.y, z: center.z, dimension: this.bot.game.dimension, burrowed: true }
+            this.sheltered = true
+            return
+        }
+        throw new Error('no enclosed two-high side passage')
+    }
+
     canSee (entity) {
-        const eye = this.bot.entity.position.offset(0, 1.62, 0)
-        const target = entity.position.offset(0, 1.2, 0)
-        const range = eye.distanceTo(target)
-        return range < 0.01 || !this.bot.world.raycast(eye, target.minus(eye).scaled(1 / range), range)
+        const eye = this.bot.entity.position.offset(0, this.bot.entity.eyeHeight ?? 1.62, 0)
+        return [0.25, 0.75].some(fraction => {
+            const target = entity.position.offset(0, (entity.height ?? 1.6) * fraction, 0)
+            const ray = target.minus(eye)
+            return inView(this.bot, eye, target) && !this.bot.world.raycast(eye, ray.normalize(), ray.norm())
+        })
     }
 
     visibleThreatCount (range = 5) {
         const position = this.bot.entity.position
         return Object.values(this.bot.entities || {}).filter(entity => entity.isValid && HOSTILES.has(entity.name) &&
             position.distanceTo(entity.position) <= range && this.canSee(entity)).length
+    }
+
+    visibleDrops (position, radius) {
+        return Object.values(this.bot.entities || {}).filter(entity => entity.isValid && entity.name === 'item' &&
+            entity.position.distanceTo(position) <= radius && this.canSee(entity))
     }
 
     // Creepers only swell and archers only shoot with line of sight, and outrunning either
@@ -2014,7 +2262,7 @@ class SurvivalController {
                 return
             }
             this.checkAction(signal)
-            const dirt = this.findNearestBlock(name => name === 'dirt' || name === 'cobblestone', 16)
+            const dirt = this.findNearestBlock(name => name === 'dirt' || name === 'cobblestone', 16, { mining: true })
             if (dirt) {
                 await this.collectTarget(dirt, dirt, 'shelter blocks')
             } else {
@@ -2138,6 +2386,10 @@ class SurvivalController {
         await waitUntil(() => this.countItems(BUILDING_BLOCKS) > 0, 2000, 100).catch(() => {})
         await this.placeSurvivalBlock(center.offset(0, 2, 0))
         this.checkAction(signal)
+        if ([0, 1].some(dy => at(center.offset(0, dy, 0))?.name === 'water')) {
+            await until(this, () => [0, 1].every(dy => this.isEmptyPlacementBlock(at(center.offset(0, dy, 0)))), 5000)
+            this.checkAction(signal)
+        }
         if (!this.hasEnclosedShelter(center)) {
             throw new Error('burrow enclosure incomplete')
         }
@@ -2153,7 +2405,7 @@ class SurvivalController {
         await clearPlants(this, [target])
         this.checkAction(signal)
         const existing = this.bot.blockAt(target)
-        if (!this.isEmptyPlacementBlock(existing)) {
+        if (!this.isEmptyPlacementBlock(existing) && existing?.name !== 'water') {
             return
         }
         const item = this.bestItem(BUILDING_BLOCKS)
@@ -2260,15 +2512,11 @@ class SurvivalController {
     }
 
     findStation (name, maxDistance = 4) {
-        const block = this.mcData && this.mcData.blocksByName[name]
-        if (!block) {
-            return null
-        }
-        return this.bot.findBlock({ matching: block.id, maxDistance })
+        return this.mcData ? this.findNearestBlock(candidate => candidate === name, maxDistance) : null
     }
 
     async getStation (name) {
-        let station = this.findStation(name, 4)
+        let station = await scanFor(this, () => this.findStation(name, 4))
         if (station) {
             return station
         }
@@ -2392,7 +2640,7 @@ class SurvivalController {
         }
         await this.bot.dig(current, true)
         await this.bot.waitForTicks(6)
-        const drop = Object.values(this.bot.entities || {}).find(e => e.isValid && e.name === 'item' && e.position.distanceTo(current.position.offset(0.5, 0, 0.5)) <= 3)
+        const [drop] = this.visibleDrops(current.position.offset(0.5, 0, 0.5), 3)
         if (drop) {
             const p = drop.position.floored()
             await this.gotoWithTimeout(new GoalNear(p.x, p.y, p.z, 0), 4000, 'workstation pickup').catch(() => {})
@@ -2533,16 +2781,16 @@ class SurvivalController {
         }
         const search = { matching: ids, maxDistance }
         search.useExtraInfo = block => !this.isBlockedTarget(block) &&
-            (!options.visible || this.bot.canSeeBlock(block)) &&
-            (!options.filter || options.filter(block))
+            (!options.filter || options.filter(block)) &&
+            (options.sight ? options.sight(block) : blockInView(this.bot, block, options.mining && exposedByDig(this, block)))
         return this.bot.findBlock(search)
     }
 
     nearestEntity (names, maxDistance = 16) {
         return this.bot.nearestEntity(entity => {
-            const name = entity.name || entity.mobType
-            return entity.isValid && names.has(name) && (!PREY.has(name) || !this.isBlockedTarget(entity)) &&
-                this.bot.entity.position.distanceTo(entity.position) <= maxDistance
+            const name = entity.name
+            return entity.isValid && names.has(name) && this.bot.entity.position.distanceTo(entity.position) <= maxDistance &&
+                (!PREY.has(name) || !this.isBlockedTarget(entity)) && this.canSee(entity)
         })
     }
 

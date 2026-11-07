@@ -4,7 +4,8 @@ const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { discardableStacks, overflowStack } = require('./inventory')
 const { storeOverflowAtBase } = require('./base')
-const { exploreCave, collectOpportunity, safeFooting, dryMovements, rememberOre, rememberExposedDiamonds, findPriorityDiamond, findPriorityOre, IRON_ORES } = require('./cave-exploration')
+const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight, minedPassage, exposedDiamond, findPriorityDiamond, findPriorityOre, IRON_ORES } = require('./cave-exploration')
+const { scanFor } = require('./vision')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
 
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
@@ -105,6 +106,8 @@ async function probeTunnelSides(c, direction) {
     const eye = () => bot.entity.position.offset(0, 1.62, 0)
     probe: for (const side of [-1, 1]) {
         const faceNormal = new Vec3(-side * dz, 0, side * dx)
+        check(c)
+        await bot.lookAt(eye().minus(faceNormal), true)
         for (let depth = 1; depth <= 5; depth++) {
             check(c)
             if (!bot.entity.position.floored().equals(feet) || bot.entity.position.distanceTo(anchor) > 0.6) {
@@ -119,8 +122,7 @@ async function probeTunnelSides(c, direction) {
                 continue
             }
             if (block.name.endsWith('_ore')) {
-                rememberOre(c, position)
-                foundOre = true
+                foundOre ||= Boolean(miningSight(c, block))
                 break
             }
             if (!['stone', 'deepslate', 'granite', 'diorite', 'andesite', 'tuff', 'calcite', 'netherrack'].includes(block.name) ||
@@ -166,16 +168,16 @@ async function probeTunnelSides(c, direction) {
             check(c)
             await bot.dig(block, true, faceNormal)
             dug++
-            for (const b of neighbors.filter(b => b.name.endsWith('_ore'))) {
-                rememberOre(c, b.position)
-                foundOre = true
-            }
+            foundOre ||= neighbors.some(b => b.name.endsWith('_ore') && miningSight(c, b))
             if (miningPickaxe(c)?.name !== tool.name) {
                 break probe
             }
             if (foundOre) {
                 break
             }
+        }
+        if (foundOre) {
+            break
         }
     }
     c.memory.probeMinedBlocks = (c.memory.probeMinedBlocks || 0) + dug
@@ -241,8 +243,7 @@ async function mineTunnel(c, targetY, heading = null) {
         for (const [index, dy] of slopes.flatMap(dy => directionOrder.map(i => [i, dy]))) {
             const [dx, dz] = DIRECTIONS[index]
             const candidate = feet.offset(dx, dy, dz)
-            const key = candidate.toString()
-            if (c.memory.minedCells?.has(key) || c.isBlockedTarget?.({ position: candidate }) || !safeTunnelStep(bot, feet, candidate, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt'])))) {
+            if (minedPassage(c, candidate) || c.isBlockedTarget?.({ position: candidate }) || !safeTunnelStep(bot, feet, candidate, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt'])))) {
                 continue
             }
             target = candidate
@@ -280,7 +281,7 @@ async function mineTunnel(c, targetY, heading = null) {
                 }
                 await bot.equip(currentTool, 'hand')
                 await bot.dig(block, true)
-                if (rememberExposedDiamonds(c, p) && c.findNearestBlock && c.canPursueDiamond?.() !== false && findPriorityDiamond(c)) {
+                if (c.findNearestBlock && exposedDiamond(c, p) && c.canPursueDiamond?.() !== false && findPriorityDiamond(c)) {
                     c.log.info('Tunnel dig exposed diamond ore; yielding to collect it.')
                     return
                 }
@@ -304,7 +305,7 @@ async function mineTunnel(c, targetY, heading = null) {
         if (!c.memory.minedCells) {
             c.memory.minedCells = new Set()
         }
-        c.memory.minedCells.add(feet.toString())
+        c.memory.minedCells.add(`${bot.game.dimension}:${feet}`)
         if (!c.memory.mineRoute) {
             c.memory.mineRoute = []
         }
@@ -462,13 +463,13 @@ async function followShaft(c, direction) {
 async function gatherDeep(c, names) {
     const bot = c.bot
     const feet = bot.entity.position.floored()
-    const block = c.findNearestBlock(name => names.includes(name), 24, {
-        visible: true,
+    const block = await scanFor(c, () => c.findNearestBlock(name => names.includes(name), 24, {
+        sight: b => miningSight(c, b, 24),
         filter: b => (b.position.x !== feet.x || b.position.z !== feet.z) &&
             ['air', 'cave_air', 'void_air', 'stone', 'deepslate'].includes(bot.blockAt(b.position.offset(0, -1, 0))?.name) &&
             ![new Vec3(1, 0, 0), new Vec3(-1, 0, 0), new Vec3(0, -1, 0), new Vec3(0, 0, 1), new Vec3(0, 0, -1)]
                 .some(d => ['lava', 'water'].includes(bot.blockAt(b.position.plus(d))?.name))
-    })
+    }))
     if (block) {
         return c.collectTarget(block, block, block.name)
     }
@@ -503,9 +504,9 @@ async function fillLavaBucket(c) {
     if (c.hasItem('lava_bucket')) {
         return until(c, () => c.advancements.completed.has('minecraft:story/lava_bucket'), 5000)
     }
-    const lava = c.findNearestBlock(name => name === 'lava', 32, {
+    const lava = await scanFor(c, () => c.findNearestBlock(name => name === 'lava', 32, {
         filter: b => Number(b.getProperties().level) === 0
-    })
+    }))
     if (!lava) {
         const targetY = c.bot.game.minY < 0 ? -54 : 11
         if (await exploreCave(c, targetY)) {
@@ -644,9 +645,9 @@ async function fillWaterBucket(c) {
     if (before >= 2) {
         return
     }
-    const water = c.findNearestBlock(name => name === 'water', 48, {
+    const water = await scanFor(c, () => c.findNearestBlock(name => name === 'water', 48, {
         filter: b => liquidSource(b, 'water')
-    })
+    }))
     if (!water) {
         if (c.observe().underground) {
             return returnSurface(c)
@@ -786,7 +787,7 @@ async function gatherObsidian(c) {
         delete c.memory.obsidianCast
     }
     const exposed = c.findNearestBlock(name => name === 'obsidian', 24, {
-        visible: true,
+        mining: true,
         filter: block => c.movements.safeToBreak(block) &&
             !DIRECTIONS.some(([dx, dz]) => ['lava', 'water'].includes(c.bot.blockAt(block.position.offset(dx, 0, dz))?.name)) &&
             c.bot.blockAt(block.position.offset(0, -1, 0))?.boundingBox === 'block'
@@ -879,7 +880,7 @@ async function enterNether(c) {
     if (bot.game.dimension === 'the_nether') {
         return until(c, () => c.advancements.completed.has('minecraft:story/enter_the_nether'), 5000)
     }
-    let portal = c.findNearestBlock(name => name === 'nether_portal', 32)
+    let portal = await scanFor(c, () => c.findNearestBlock(name => name === 'nether_portal', 32))
     if (!portal) {
         if (!c.memory.portalOrigin) {
             const here = bot.entity.position.floored()
@@ -1000,8 +1001,7 @@ function coveredAbove(bot, head) {
     return false
 }
 
-async function returnSurface(c) {
-    const surfaceY = c.home?.y || 64
+async function returnSurface(c, surfaceY = c.home?.y || 64) {
     const route = c.memory.mineRoute || []
     // Walking off the route (ore pickup, restock) leaves deeper cells behind; resume at the nearest one.
     const here = c.bot.entity.position
@@ -1290,12 +1290,14 @@ async function leaveNether(c) {
     if (bot.game.dimension !== 'the_nether') {
         return
     }
-    const portal = c.findNearestBlock(name => name === 'nether_portal', 16)
+    const occupied = bot.blockAt(bot.entity.position.floored())
+    const portal = occupied?.name === 'nether_portal'
+        ? occupied : await scanFor(c, () => c.findNearestBlock(name => name === 'nether_portal', 16))
     if (!portal) {
         throw new Error('no nether portal within 16 blocks to return through')
     }
     // An arriving player stands in the portal on cooldown; step out, then walk back in.
-    if (bot.blockAt(bot.entity.position.floored())?.name === 'nether_portal') {
+    if (portal === occupied) {
         const out = DIRECTIONS.map(([dx, dz]) => bot.entity.position.floored().offset(dx, 0, dz))
             .find(p => safeFooting(bot, p) && bot.blockAt(p)?.name !== 'nether_portal')
         if (!out) {
@@ -1348,7 +1350,7 @@ async function performProgression(c, action, state) {
         case 'enter_nether': return enterNether(c)
         case 'leave_nether': return leaveNether(c)
         case 'build_redstone': return buildRedstone(c)
-        case 'return_surface': return returnSurface(c)
+        case 'return_surface': return returnSurface(c, state.departureSurfaceY)
         case 'wait': return sleep(2000)
         default: throw new Error(`unknown progression action: ${action}`)
     }

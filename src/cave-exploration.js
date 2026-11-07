@@ -2,6 +2,7 @@
 
 const { Vec3 } = require('vec3')
 const { Movements, goals } = require('mineflayer-pathfinder')
+const { inView } = require('./vision')
 
 const RAILS = new Set(['rail', 'powered_rail', 'detector_rail', 'activator_rail'])
 const AIR = new Set(['air', 'cave_air', 'void_air', 'torch', 'wall_torch', ...RAILS])
@@ -10,6 +11,7 @@ const DANGER = new Set(['lava', 'water', 'fire', 'soul_fire', 'magma_block', 'ca
 const SURVEY_STEPS = 48
 const SURVEY_MS = 120000
 const SURVEY_LEG_STEPS = 8
+const TORCH_SPACING = 10
 const ROCK = new Set(['stone', 'deepslate', 'granite', 'diorite', 'andesite', 'tuff', 'calcite', 'dripstone_block'])
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 const ORES = [
@@ -58,6 +60,14 @@ function caveRoof(bot, p) {
         }
     }
     return bot.blockAt(p, false)?.name === 'cave_air'
+}
+
+function minedPassage(c, p) {
+    const dimension = c.bot.game.dimension
+    return c.memory.minedCells?.has(`${dimension}:${p}`) ||
+        (dimension === 'overworld' && c.memory.minedCells?.has(p.toString())) ||
+        c.memory.excavatedCells?.has(`${dimension}:${p}`) ||
+        c.memory.excavatedCells?.has(`${dimension}:${p.offset(0, 1, 0)}`)
 }
 
 function findCaveRoute(bot, visits, targetY, blocked = () => false) {
@@ -126,7 +136,7 @@ async function collectOpportunity(c, excluded = []) {
             continue
         }
         const block = c.findNearestBlock(name => names.includes(name), 6, {
-            visible: true,
+            sight: b => miningSight(c, b, 6),
             filter: b => (b.position.x !== feet.x || b.position.z !== feet.z) &&
                 c.movements.safeToBreak(b) && c.bot.inventory.items().some(item => item.name.endsWith('_pickaxe') && b.canHarvest(item.type))
         })
@@ -142,6 +152,36 @@ async function collectOpportunity(c, excluded = []) {
 const DIAMOND_ORES = ['diamond_ore', 'deepslate_diamond_ore']
 const IRON_ORES = ['iron_ore', 'deepslate_iron_ore']
 const FACES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]
+const OPEN_AIR = new Set(['air', 'cave_air', 'void_air'])
+const MAX_MINED_OPENINGS = 128
+
+function rememberMiningExposure(c, block) {
+    const bot = c.bot
+    const p = block.position
+    if (OPEN_AIR.has(block.name) || !OPEN_AIR.has(bot.blockAt(p, false)?.name)) {
+        return
+    }
+    const openings = c.minedOpenings ??= new Map()
+    const key = `${bot.game.dimension}:${p}`
+    const excavated = c.memory.excavatedCells ??= new Set()
+    excavated.add(key)
+    if (excavated.size > 4096) {
+        excavated.delete(excavated.values().next().value)
+    }
+    openings.delete(key)
+    openings.set(key, FACES.map(([x, y, z]) => bot.blockAt(p.offset(x, y, z), false)?.name))
+    if (openings.size > MAX_MINED_OPENINGS) {
+        openings.delete(openings.keys().next().value)
+    }
+}
+
+function exposedByDig(c, block) {
+    return Boolean(c.minedOpenings?.size) && FACES.some(([x, y, z], face) => {
+        const p = block.position.offset(-x, -y, -z)
+        return c.minedOpenings.get(`${c.bot.game.dimension}:${p}`)?.[face] === block.name &&
+            OPEN_AIR.has(c.bot.blockAt(p, false)?.name)
+    })
+}
 
 // Glow lichen, vines and moss carpet cover cave ore faces without hiding them; a user saw iron
 // behind lichen that the bot skipped (17:23Z). Liquids stay opaque here.
@@ -151,8 +191,8 @@ function seeThrough(block) {
 
 // Mineflayer's canSeeBlock aims only at the block centre; ore exposed on one face beside a
 // probe hole fails it although a player sees that face. Ray-cast to each air-exposed face.
-function oreSight(bot, block, range = 16) {
-    const eye = bot.entity.position.offset(0, 1.62, 0)
+function oreSight(bot, block, range = 16, allowTurn = false) {
+    const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
     for (const [x, y, z] of FACES) {
         if (!seeThrough(bot.blockAt(block.position.offset(x, y, z), false))) {
             continue
@@ -162,8 +202,11 @@ function oreSight(bot, block, range = 16) {
                 const point = block.position.offset(x ? 0.5 + 0.49 * x : u,
                     y ? 0.5 + 0.49 * y : x ? u : v, z ? 0.5 + 0.49 * z : v)
                 const distance = eye.distanceTo(point)
+                if (distance > range || (!allowTurn && !inView(bot, eye, point))) {
+                    continue
+                }
                 const dir = point.minus(eye).scaled(1 / distance)
-                const hit = distance <= range && bot.world.raycast(eye, dir, distance + 0.1)
+                const hit = bot.world.raycast(eye, dir, distance + 0.1)
                 if (hit?.intersect && hit.intersect.plus(dir.scaled(1e-3)).floored().equals(block.position)) {
                     return point
                 }
@@ -177,35 +220,16 @@ function oreSeen(bot, block, range) {
     return Boolean(oreSight(bot, block, range))
 }
 
-function rememberOre(c, position) {
+function miningSight(c, block, range) {
+    return oreSight(c.bot, block, range, exposedByDig(c, block))
+}
+
+function exposedDiamond(c, opened) {
     const bot = c.bot
-    const block = bot.blockAt(position, false)
-    if (!block?.name.endsWith('_ore')) {
-        return
-    }
-    c.memory.knownOres = (c.memory.knownOres || []).filter(o => Date.now() - o.at < 600000 &&
-        !(o.dimension === bot.game?.dimension && position.equals(new Vec3(o.x, o.y, o.z)))).slice(-63)
-    c.memory.knownOres.push({ x: position.x, y: position.y, z: position.z, dimension: bot.game?.dimension, at: Date.now() })
-}
-
-function rememberExposedDiamonds(c, opened) {
-    if (!AIR.has(c.bot.blockAt(opened, false)?.name)) {
-        return false
-    }
-    let found = false
-    for (const [dx, dy, dz] of FACES) {
-        const p = opened.offset(dx, dy, dz)
-        if (DIAMOND_ORES.includes(c.bot.blockAt(p, false)?.name)) {
-            rememberOre(c, p)
-            found = true
-        }
-    }
-    return found
-}
-
-function knownOre(c, block) {
-    return (c.memory.knownOres || []).some(o => o.dimension === c.bot.game?.dimension && Date.now() - o.at < 600000 &&
-        block.position.equals(new Vec3(o.x, o.y, o.z)))
+    return AIR.has(bot.blockAt(opened, false)?.name) && FACES.some(([dx, dy, dz]) => {
+        const block = bot.blockAt(opened.offset(dx, dy, dz), false)
+        return DIAMOND_ORES.includes(block?.name) && miningSight(c, block)
+    })
 }
 
 // Diamonds (and iron below its reserve cap) outrank routine work once seen or exposed by a probe,
@@ -214,10 +238,10 @@ function findPriorityOre(c, ores, range = 16) {
     const bot = c.bot
     const feet = bot.entity.position.floored()
     return c.findNearestBlock(name => ores.includes(name), range, {
+        sight: b => miningSight(c, b, range),
         filter: b => !(b.position.x === feet.x && b.position.z === feet.z && b.position.y < feet.y) &&
             FACES.every(([x, y, z]) => !['water', 'lava', 'bubble_column'].includes(bot.blockAt(b.position.offset(x, y, z), false)?.name ?? 'water')) &&
-            bot.inventory.items().some(item => item.name.endsWith('_pickaxe') && b.canHarvest(item.type)) &&
-            (knownOre(c, b) || oreSeen(bot, b, range))
+            bot.inventory.items().some(item => item.name.endsWith('_pickaxe') && b.canHarvest(item.type))
     })
 }
 
@@ -258,7 +282,7 @@ async function exploreCave(c, targetY) {
     if (budget?.dimension === state.dimension && Date.now() - budget.startedAt < SURVEY_MS && budget.steps >= SURVEY_STEPS) {
         return false
     }
-    const route = findCaveRoute(bot, c.memory.caveVisits, targetY, b => c.isBlockedTarget(b))
+    const route = findCaveRoute(bot, c.memory.caveVisits, targetY, b => c.isBlockedTarget(b) || minedPassage(c, b.position))
     if (route.length === 0) {
         return false
     }
@@ -299,11 +323,16 @@ async function exploreCave(c, targetY) {
             if (c.memory.caveVisits.size > 2048) {
                 c.memory.caveVisits.delete(c.memory.caveVisits.keys().next().value)
             }
-            // Torch light 14 falls by one per block; one per ~7 cells keeps survey floors lit.
-            const lit = bot.blockAt(feet)?.skyLight >= 12 || c.findNearestBlock?.(name => name === 'torch' || name === 'wall_torch', 6)
+            const light = bot.blockAt(feet)
+            const onRail = RAILS.has(light?.name)
+            const torchCell = onRail ? feet.offset(0, 1, 0) : feet
+            const lit = light?.skyLight >= 12 || light?.light >= 8 || bot.findBlock({
+                point: torchCell,
+                matching: ['torch', 'wall_torch'].map(name => bot.registry.blocksByName[name].id),
+                maxDistance: TORCH_SPACING,
+                useExtraInfo: block => block.position.distanceTo(torchCell) < TORCH_SPACING
+            })
             if (c.countItems(['torch']) > 0 && !lit) {
-                const onRail = RAILS.has(bot.blockAt(feet)?.name)
-                const torchCell = onRail ? feet.offset(0, 1, 0) : feet
                 const support = onRail ? DIRECTIONS.map(([dx, dz]) => bot.blockAt(torchCell.offset(dx, 0, dz)))
                     .find(block => block?.boundingBox === 'block' && !DANGER.has(block.name)) : bot.blockAt(feet.offset(0, -1, 0))
                 if (!support) {
@@ -317,6 +346,7 @@ async function exploreCave(c, targetY) {
                 if (!['torch', 'wall_torch'].includes(bot.blockAt(torchCell)?.name)) {
                     throw new Error('cave torch placement was not confirmed')
                 }
+                c.log.info(`Placed cave torch at ${torchCell}; light=${light?.light}, minimum spacing=${TORCH_SPACING} blocks.`)
             }
             check(c, signal)
             if (!c.memory.mineRoute) {
@@ -347,4 +377,5 @@ async function exploreCave(c, targetY) {
     return moved
 }
 
-module.exports = { safeFooting, findCaveRoute, exploreCave, collectOpportunity, dryMovements, oreSight, oreSeen, rememberOre, rememberExposedDiamonds, findPriorityDiamond, findPriorityOre, IRON_ORES }
+module.exports = { safeFooting, findCaveRoute, exploreCave, collectOpportunity, dryMovements, oreSeen, miningSight, minedPassage,
+    rememberMiningExposure, exposedByDig, exposedDiamond, findPriorityDiamond, findPriorityOre, IRON_ORES }

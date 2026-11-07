@@ -13,6 +13,7 @@ function farm(items) {
     const c = {
         running: true, paused: false, actionAbort: new AbortController(), memory: {}, log: { info() {} },
         advancements: { completed },
+        visibleDrops: () => Object.values(c.bot.entities || {}),
         hasItem: name => items.includes(name), hasAnyItem: names => names.some(n => items.includes(n)),
         countItems: () => 4, bestItem: names => ({ name: names.find(n => items.includes(n)) }),
         checkAction() {}, ensurePlanks: async () => {}, ensureItem: async name => items.push(name), collectTarget: async () => {},
@@ -98,6 +99,7 @@ test('fishing crafts a rod, walks to open water and casts until the server confi
     const c = {
         running: true, paused: false, actionAbort: new AbortController(), memory: {}, log: { info() {} },
         advancements: { completed }, checkAction() {},
+        visibleDrops: () => Object.values(c.bot.entities || {}),
         hasItem: name => items.includes(name), countItems: names => names.includes('string') ? 3 : 4,
         bestItem: names => ({ name: names[0] }), ensurePlanks: async () => {}, ensureItem: async name => { items.push(name); calls.push(`craft ${name}`) },
         findNearestBlock: (match, range, options) => match('water') && options.filter(water) ? water : null,
@@ -165,7 +167,7 @@ test('breeding feeds two nearby adults of one species with their tag food until 
     const hen = (id, x) => ({ id, name: 'chicken', isValid: true, position: new Vec3(x, 64, 0) })
     const c = {
         running: true, paused: false, actionAbort: new AbortController(), memory: {}, log: { info() {} },
-        advancements: { completed }, checkAction() {},
+        advancements: { completed }, checkAction() {}, canSee: () => true,
         hasAnyItem: names => names.includes('wheat_seeds'), bestItem: names => ({ name: names[0] }),
         async gotoWithTimeout() {},
         bot: {

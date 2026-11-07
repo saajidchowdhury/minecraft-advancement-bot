@@ -5,23 +5,40 @@ const assert = require('node:assert/strict')
 const { Vec3 } = require('vec3')
 const mcData = require('minecraft-data')('26.1')
 const { probeTunnelSides, mineTunnel } = require('../src/progression-skills')
+const { SurvivalController } = require('../src/survival-bot')
 
 function miningWorld(overrides = new Map()) {
-    const air = new Set()
+    const air = new Set(['(0, 64, 0)', '(0, 65, 0)'])
     const dug = []
     const controls = {}
     let heading = new Vec3(0, 0, 0)
     const bot = {
         health: 20,
-        entity: { position: new Vec3(0.5, 64, 0.5), eyeHeight: 1.62 },
+        entity: { position: new Vec3(0.5, 64, 0.5), eyeHeight: 1.62, yaw: -Math.PI / 2, pitch: 0 },
+        game: { dimension: 'overworld' },
+        world: {
+            raycast(eye, dir, range) {
+                for (let t = 0; t <= range; t += 0.01) {
+                    const intersect = eye.plus(dir.scaled(t))
+                    if (bot.blockAt(intersect.floored()).boundingBox === 'block') {
+                        return { intersect }
+                    }
+                }
+                return null
+            }
+        },
         blockAt(p) {
             const name = overrides.get(p.toString()) || (air.has(p.toString()) ? 'air' : 'stone')
             return { name, position: p, boundingBox: name === 'air' ? 'empty' : 'block', diggable: true, canHarvest: () => true }
         },
         canDigBlock: block => bot.entity.position.offset(0, 1.65, 0).distanceTo(block.position.offset(0.5, 0.5, 0.5)) <= 5.1,
         canSeeBlock: () => true, equip: async () => {},
+        async look(yaw, pitch) {
+            Object.assign(bot.entity, { yaw, pitch })
+        },
         async lookAt(target) {
-            const delta = target.minus(bot.entity.position)
+            const delta = target.minus(bot.entity.position.offset(0, bot.entity.eyeHeight, 0))
+            await bot.look(Math.atan2(-delta.x, -delta.z), Math.atan2(delta.y, Math.hypot(delta.x, delta.z)))
             heading = new Vec3(delta.x, 0, delta.z).normalize()
         },
         setControlState(key, value) { controls[key] = value },
@@ -41,7 +58,7 @@ function miningWorld(overrides = new Map()) {
     }
     return {
         bot, dug, memory: {}, running: true, paused: false, actionAbort: new AbortController(), probeSpacing: 8,
-        bestItem: () => ({ name: 'iron_pickaxe' }), log: { info() {} },
+        bestItem: () => ({ name: 'iron_pickaxe' }), log: { info() {}, debug() {} },
         async gotoWithTimeout(goal) {
             bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5)
         }
@@ -89,17 +106,82 @@ test('two four-block tunnel actions trigger one pair of probes at spacing eight'
 test('tunneling yields for newly exposed diamond ore before advancing past it', async () => {
     const ore = new Vec3(1, 65, 1)
     const c = miningWorld(new Map([[ore.toString(), 'deepslate_diamond_ore']]))
-    c.bot.game = { dimension: 'overworld' }
     c.bot.inventory = { items: () => [{ name: 'iron_pickaxe', type: 1 }] }
-    c.bot.world = { raycast: () => null }
-    c.findNearestBlock = (matches, range, { filter }) => {
+    c.findNearestBlock = (matches, range, { filter, sight }) => {
         const block = c.bot.blockAt(ore)
-        return matches(block.name) && filter(block) ? block : null
+        return matches(block.name) && filter(block) && sight(block) ? block : null
     }
     await mineTunnel(c, 64)
     assert.deepEqual(c.dug, [new Vec3(1, 65, 0)])
     assert.equal(c.bot.entity.position.x, 0.5)
-    assert.deepEqual(c.memory.knownOres.map(({ x, y, z }) => new Vec3(x, y, z)), [ore])
+})
+
+test('mining one diamond reveals its face-adjacent vein even while the bot faces away', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] })
+    const first = new Vec3(1, 65, 0)
+    const next = new Vec3(1, 65, 1)
+    const unrelated = new Vec3(0, 65, -1)
+    const c = miningWorld(new Map([first, next, unrelated].map(p => [p.toString(), 'deepslate_diamond_ore'])))
+    c.mcData = mcData
+    c.bot.registry = mcData
+    c.bot.heldItem = { name: 'iron_pickaxe', type: 1 }
+    c.bot.inventory = { items: () => [c.bot.heldItem] }
+    c.bot.tool = { equipForBlock: async () => {} }
+    c.movements = { safeToBreak: () => true }
+    c.checkAction = () => {}
+    c.isBlockedTarget = () => false
+    c.visibleDrops = () => []
+    c.findNearestBlock = SurvivalController.prototype.findNearestBlock
+    c.bot.findBlock = ({ matching, useExtraInfo }) => [first, next, unrelated].map(p => c.bot.blockAt(p))
+        .find(b => matching.includes(mcData.blocksByName[b.name].id) && useExtraInfo(b)) || null
+    const blockAt = c.bot.blockAt
+    let sealed = false
+    c.bot.blockAt = p => {
+        const block = blockAt(p)
+        block.type = mcData.blocksByName[block.name].id
+        if (sealed && p.equals(first)) {
+            return { ...block, name: 'deepslate', type: mcData.blocksByName.deepslate.id }
+        }
+        return c.dug.some(dug => dug.equals(p)) ? { ...block, name: 'air', boundingBox: 'empty', type: 0 } : block
+    }
+    const { findPriorityDiamond } = require('../src/cave-exploration')
+    assert.deepEqual(findPriorityDiamond(c)?.position, first)
+    SurvivalController.prototype.configureDigging.call(c)
+    await c.bot.dig(c.bot.blockAt(first), true)
+    await c.bot.look(Math.PI / 2, 0)
+    sealed = true
+    assert.equal(findPriorityDiamond(c), null)
+    sealed = false
+    c.bot.game.dimension = 'the_nether'
+    assert.equal(findPriorityDiamond(c), null)
+    c.bot.game.dimension = 'overworld'
+    const target = findPriorityDiamond(c)
+    assert.deepEqual(target?.position, next)
+    const mining = SurvivalController.prototype.collectTarget.call(c, target, target, 'priority diamond')
+    for (let i = 0; i < 12; i++) {
+        await Promise.resolve()
+        t.mock.timers.tick(600)
+    }
+    await mining
+    assert.deepEqual(c.dug, [first, next])
+    assert.equal(findPriorityDiamond(c), null)
+})
+
+test('the iron skill descends toward its normal depth when loaded iron is behind stone', async () => {
+    const hidden = new Vec3(0, 64, -4)
+    const c = miningWorld(new Map([[hidden.toString(), 'iron_ore']]))
+    c.mcData = mcData
+    c.observe = () => ({ dimension: 'overworld', health: 12 })
+    c.checkAction = () => {}
+    c.isBlockedTarget = () => false
+    c.findNearestBlock = SurvivalController.prototype.findNearestBlock
+    c.bot.canSeeBlock = () => false
+    c.bot.findBlock = ({ matching, useExtraInfo }) => {
+        const block = c.bot.blockAt(hidden)
+        return matching.includes(mcData.blocksByName[block.name].id) && useExtraInfo(block) ? block : null
+    }
+    await SurvivalController.prototype.gatherOre.call(c, ['iron_ore'], 16)
+    assert.equal(c.bot.entity.position.y, 60)
 })
 
 test('a mixed tunnel uses the stone shovel on dirt and grass blocks and the pick on stone', async () => {

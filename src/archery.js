@@ -43,7 +43,7 @@ function archeryTarget(c) {
         .filter(e => e.isValid && TARGETS.has(e.name) && !c.isBlockedTarget(e))
         .map(entity => ({ entity, distance: here.distanceTo(entity.position) }))
         .filter(({ entity, distance }) => distance >= MIN_RANGE && distance <= MAX_RANGE &&
-            Math.abs(entity.position.y - here.y) <= 4 && clearShot(bot, entity))
+            Math.abs(entity.position.y - here.y) <= 4 && c.canSee(entity) && clearShot(bot, entity))
         .sort((a, b) => a.distance - b.distance)[0]?.entity || null
 }
 

@@ -15,7 +15,7 @@ function farmingState(c, state) {
     state.canPlantSeed = Boolean(!state.completedAdvancements?.has('minecraft:husbandry/plant_seed') && state.dimension === 'overworld' &&
         !state.underground && !state.isNight && state.hostileDistance > 16 && state.hasCraftingTable &&
         (c.hasItem('wooden_hoe') || c.hasAnyItem(['stone_hoe', 'iron_hoe', 'diamond_hoe']) || state.planks + state.logs * 4 >= 4) &&
-        (c.hasAnyItem(SEEDS) || c.findNearestBlock(name => GRASS.includes(name), 16)) &&
+        (c.hasAnyItem(SEEDS) || c.findNearestBlock(name => GRASS.includes(name), 16, { mining: true })) &&
         !backedOff(memory))
     return state
 }
@@ -27,7 +27,7 @@ async function plantSeed(c) {
         // Short grass drops wheat seeds one time in eight; a dozen breaks nearly always suffice.
         for (let i = 0; i < 12 && !c.hasAnyItem(SEEDS); i++) {
             c.checkAction()
-            const grass = c.findNearestBlock(name => GRASS.includes(name), 16)
+            const grass = c.findNearestBlock(name => GRASS.includes(name), 16, { mining: true })
             if (!grass) {
                 throw new Error('no grass nearby for seeds')
             }
@@ -42,7 +42,7 @@ async function plantSeed(c) {
             }
             await bot.dig(bot.blockAt(grass.position), true)
             await bot.waitForTicks(6)
-            const drop = Object.values(bot.entities || {}).find(e => e.isValid && e.name === 'item' && e.position.distanceTo(grass.position.offset(0.5, 0, 0.5)) <= 3)
+            const [drop] = c.visibleDrops(grass.position.offset(0.5, 0, 0.5), 3)
             if (drop) {
                 const p = drop.position.floored()
                 await c.gotoWithTimeout(new goals.GoalNear(p.x, p.y, p.z, 0), 4000, 'seed pickup').catch(() => {})
@@ -156,7 +156,7 @@ function breedingPair(c) {
             continue
         }
         const adults = Object.values(bot.entities || {}).filter(e => e.isValid && e.name === species &&
-            here.distanceTo(e.position) <= 16 && !c.memory.breeding?.fed?.includes(e.id))
+            here.distanceTo(e.position) <= 16 && !c.memory.breeding?.fed?.includes(e.id) && c.canSee(e))
             .sort((a, b) => here.distanceTo(a.position) - here.distanceTo(b.position))
         if (adults.length >= 2) {
             return { species, foods, pair: adults.slice(0, 2) }

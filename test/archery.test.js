@@ -15,7 +15,7 @@ function scene({ inventory = {}, entities = [], completed = new Set() } = {}) {
         bot, memory: {}, advancements: { completed }, log: { info() {} },
         hasItem: name => (inventory[name] || 0) > 0,
         countItems: names => names.reduce((sum, name) => sum + (inventory[name] || 0), 0),
-        isBlockedTarget: () => false
+        isBlockedTarget: () => false, canSee: () => true
     }
 }
 

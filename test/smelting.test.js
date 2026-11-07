@@ -124,7 +124,7 @@ test('reclaiming a placed furnace digs it directly instead of through collectTar
         memory: { ownedStations: new Set(['overworld:1,64,0']) },
         targetKey: block => `${block.position.x},${block.position.y},${block.position.z}`,
         collectTarget: async () => { throw new Error('unsafe block to mine: furnace') },
-        gotoWithTimeout: async () => {},
+        gotoWithTimeout: async () => {}, visibleDrops: () => [],
         bot: {
             game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) }, entities: {},
             blockAt: () => station, dig: async () => { dug = true }, waitForTicks: async () => {}

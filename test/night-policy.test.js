@@ -19,7 +19,7 @@ function nightWorld() {
         hasIronPickaxe: true, hasStoneUtilityPickaxe: true, hasIronArmor: true, hasShield: true, gear: new Set(['iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']), 
         diamonds: 0, completedAdvancements: new Set(['minecraft:story/lava_bucket', 'minecraft:adventure/kill_a_mob']) }
     const c = {
-        memory: {}, hostileNames: HOSTILES, log: { warn() {} }, isBlockedTarget: () => false,
+        memory: {}, hostileNames: HOSTILES, log: { warn() {} }, isBlockedTarget: () => false, canSee: () => true,
         countItems: names => inventory.filter(i => names.includes(i.name)).reduce((sum, i) => sum + i.count, 0),
         bestItem: names => inventory.find(i => names.includes(i.name)), findNearestBlock: () => null,
         bot: { game: { dimension: 'overworld' }, time: { day: 2, timeOfDay: 14000 },

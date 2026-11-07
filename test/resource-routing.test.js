@@ -4,23 +4,44 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { Vec3 } = require('vec3')
 const { SurvivalController } = require('../src/survival-bot')
+const { scanFor } = require('../src/vision')
 
-test('ordinary stone collection only requests exposed targets', async () => {
-    let search
-    const target = { position: new Vec3(1, 63, 0), name: 'stone' }
-    const controller = {
-        bot: { entity: { position: new Vec3(0, 64, 0) } },
-        findNearestBlock(predicate, radius, options) {
-            search = options
-            assert.equal(predicate('stone'), true)
-            return target
-        },
-        async collectTarget(block) {
-            assert.equal(block, target)
+test('entity searches ignore unnamed packet placeholders without deprecation traces', t => {
+    const Entity = require('prismarine-entity')('26.1')
+    const unnamed = new Entity(1)
+    const zombie = new Entity(2)
+    zombie.name = 'zombie'
+    zombie.position = new Vec3(0, 64, -2)
+    const trace = t.mock.method(console, 'trace', () => {})
+    const c = {
+        bot: { entity: { position: new Vec3(0, 64, 0) },
+            nearestEntity: match => [unnamed, zombie].find(match) || null },
+        canSee: () => true
+    }
+    assert.equal(SurvivalController.prototype.nearestEntity.call(c, new Set(['zombie'])), zombie)
+    assert.equal(trace.mock.callCount(), 0)
+})
+
+test('block searches reject occluded targets and turn to discover a target behind the bot', async () => {
+    const hidden = { position: new Vec3(0, 65, -3), name: 'stone' }
+    const target = { position: new Vec3(0, 65, 3), name: 'stone' }
+    const controller = Object.create(SurvivalController.prototype)
+    controller.mcData = { blocksByName: { stone: { name: 'stone', id: 1 } } }
+    controller.isBlockedTarget = () => false
+    controller.checkAction = () => {}
+    controller.bot = {
+        entity: { position: new Vec3(0.5, 64, 0.5), yaw: 0, pitch: 0 },
+        canSeeBlock: block => block !== hidden,
+        findBlock: ({ useExtraInfo }) => [hidden, target].find(useExtraInfo) || null,
+        waitForTicks: async () => {},
+        async look(yaw, pitch) {
+            Object.assign(this.entity, { yaw, pitch })
         }
     }
-    await SurvivalController.prototype.gatherStone.call(controller)
-    assert.equal(search.visible, true)
+    const find = () => controller.findNearestBlock(name => name === 'stone', 12)
+    assert.equal(find(), null)
+    assert.equal(await scanFor(controller, find), target)
+    assert.equal(controller.bot.entity.yaw, Math.PI)
 })
 
 test('a mining staircase with a walkable step behind is not treated as a vertical trap', () => {
@@ -54,6 +75,23 @@ test('approaching a resource cannot make the bot mine its own support block', as
     }
     await assert.rejects(SurvivalController.prototype.collectTarget.call(controller, block), /support/)
     assert.equal(dug, false)
+})
+
+test('collection refuses to dig when the resource is still occluded after approaching', async () => {
+    const target = { type: 1, name: 'stone', position: new Vec3(0, 65, -2), boundingBox: 'block', canHarvest: () => true }
+    const controller = {
+        running: true,
+        bot: {
+            entity: { position: new Vec3(0.5, 64, 0.5) }, heldItem: { type: 1 }, world: {},
+            blockAt: () => target, canDigBlock: () => true, canSeeBlock: () => false,
+            tool: { equipForBlock: async () => {} },
+            dig: async () => assert.fail('attempted to dig through the wall')
+        },
+        movements: { safeToBreak: () => true },
+        gotoWithTimeout: async () => {},
+        rememberBlockedTarget: () => {}
+    }
+    await assert.rejects(SurvivalController.prototype.collectTarget.call(controller, target), /not visible or reachable/)
 })
 
 test('a horizontal tunnel dead end still has a walkable exit behind', () => {
@@ -104,7 +142,8 @@ test('a tree whose log cannot be reached is skipped as a whole trunk', async () 
     const c = Object.create(SurvivalController.prototype)
     Object.assign(c, {
         memory: { blockedTargets: new Map() }, actionAbort: new AbortController(),
-        bot: { collectBlock: { findFromVein: (block, max) => max > 3 ? [...logs, ...branch] : logs } },
+        bot: { entity: { position: new Vec3(-34.5, 72, -25.5) }, canSeeBlock: () => true,
+            collectBlock: { findFromVein: (block, max) => max > 3 ? [...logs, ...branch] : logs } },
         findNearestBlock: () => logs[0],
         async collectTarget(target, anchor) {
             c.rememberBlockedTarget(anchor, 'tree', new Error('resource approach timed out after 10s'))
