@@ -1853,3 +1853,22 @@ failed pickup no longer quarantines reachable trunk blocks; cancellation still
 propagates. Resource-approach failures continue to blacklist unreachable trees.
 Two regressions failed before this change and now pass. The full suite has
 376 tests. The incorrect live quarantine expired while this fix was tested.
+
+## F093 — Unequipped recovery gear and a broken pick caused a night idle loop
+
+Run outputs/2026-11-07@00.18.50 broke its stone pick at 05:21:26Z,
+sealed a shelter at (122,45,61), then repeatedly waited at full health and
+food. The last snapshot carried armor and shields but all equipment slots
+were empty. It had 29 cooked porkchops and abundant cobblestone, but only
+one plank, no logs and no sticks: a replacement stone pick was not craftable.
+The remaining wooden pick was usable. Armor selection sat behind tool
+prerequisites, and the night fallback required a stone pick before allowing
+any work.
+
+Carried armor upgrades and a shield now equip after urgent survival actions,
+ahead of tool progression or waiting. A sheltered miner crafts a ready
+replacement pick before the night wait gate. Without enough sticks, a wooden
+backup pick permits coal gathering, then stone work after the coal reserve
+reaches 32; it is not assigned iron or diamond harvesting. No-tool and
+low-health shelters still wait. Three regressions fail on the old source;
+all 379 tests and syntax checks pass. Live restart evidence follows separately.

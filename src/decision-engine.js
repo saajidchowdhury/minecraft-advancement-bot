@@ -32,6 +32,9 @@ const Actions = Object.freeze({
 
 // Safe night work banks iron to its reserve cap before switching to diamonds.
 function nightMining (state, progression) {
+    if (!state.hasStonePickaxe) {
+        return (state.coal || 0) < 32 ? Actions.COAL : Actions.STONE
+    }
     if (NIGHT_CARVE_ACTIONS.has(progression.action)) {
         return progression.action
     }
@@ -101,6 +104,12 @@ function chooseAction (state) {
     if (state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood) {
         return Actions.EAT
     }
+    if (state.armorUpgrade) {
+        return 'equip_armor'
+    }
+    if (state.hasShield && !state.shieldEquipped) {
+        return 'equip_shield'
+    }
     // At critical health each regeneration update cancels work; with food >= 18 rest while it regenerates.
     // Rest continues to 14 HP: resuming at 7.7 HP in the same cave let a zombie kill the bot (00.54.52).
     if ((state.health <= 6 || (state.recoveringHealth && state.health < 14)) && state.food >= 18 &&
@@ -117,20 +126,20 @@ function chooseAction (state) {
     if (state.isNight && state.underground && state.health <= 12) {
         return state.sheltered ? 'wait' : Actions.SHELTER
     }
+    const progression = nextAdvancement(state)
+    const craftPick = [Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_PICKAXE].includes(progression.action)
+    const mustFreeSlot = state.freeInventorySlots === 0 && state.inventoryFull
+    if ((state.underground || state.sheltered) && craftPick && !state.hasStonePickaxe && !mustFreeSlot) {
+        return progression.action
+    }
     if (state.isNight && state.sheltered && !state.underground) {
         if (state.canSleep) {
             return 'leave_shelter'
         }
-        return state.canMineFromShelter && state.hasStonePickaxe && state.health > 12 ? 'mine_from_shelter' : 'wait'
+        return state.canMineFromShelter && state.hasWoodenPickaxe && state.health > 12 ? 'mine_from_shelter' : 'wait'
     }
     if (state.needsShelterExit) {
         return 'leave_shelter'
-    }
-    const progression = nextAdvancement(state)
-    const craftPick = [Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_PICKAXE].includes(progression.action)
-    const mustFreeSlot = state.freeInventorySlots === 0 && state.inventoryFull
-    if (state.underground && craftPick && !state.hasStonePickaxe && !mustFreeSlot) {
-        return progression.action
     }
     // A verified night shelter is a sealed 1x1 column too; it must not trigger a shaft escape.
     if (state.shaftTrapped && !state.sheltered) {
@@ -264,7 +273,7 @@ function chooseAction (state) {
             state.rawIron + state.ironIngots >= 3 && state.health > 12) {
             return Actions.COAL
         }
-        return state.hasStonePickaxe ? nightMining(state, progression) : state.sheltered ? 'wait' : Actions.SHELTER
+        return state.hasWoodenPickaxe ? nightMining(state, progression) : state.sheltered ? 'wait' : Actions.SHELTER
     }
     return surfaceBound ? 'return_surface' : action
 }

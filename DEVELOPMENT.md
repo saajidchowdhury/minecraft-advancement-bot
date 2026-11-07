@@ -106,12 +106,15 @@ Current inventory determines whether lost tools must be rebuilt.
 ## Behavior summary
 
 Food, danger, recoverable death drops and night protection can interrupt the
-route. Mining uses exposed targets and checked staircase steps, avoids removing
+route. Carried armor upgrades and shields equip before tool progression or
+night waiting. Shelters permit local replacement-pick crafting and safe work
+with a wooden backup pick, restricted to coal and stone until tools improve.
+Mining uses exposed targets and checked staircase steps, avoids removing
 its own support, and replaces broken tools. Charcoal provides furnace fuel when
-coal is unavailable. Every eight horizontal tunnel blocks, the bot opens
+coal is unavailable. Every five horizontal tunnel blocks, the bot opens
 head-height probes up to five blocks on each side. It can crouch closer to the
 wall while staying in the tunnel cell. Reach and safety checks can shorten a
-probe, and exposed ore returns control to resource harvesting. Eight is a
+probe, and exposed ore returns control to resource harvesting. Five is a
 starting value, not a measured optimum.
 
 Newly exposed diamonds can interrupt another mining objective when safe. After

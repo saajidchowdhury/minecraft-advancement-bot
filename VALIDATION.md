@@ -2,6 +2,12 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F093 passes 379 tests and syntax checks. Three regressions fail on the old
+source: equip carried armor/shield despite missing tool materials, craft a
+ready replacement before a shelter wait, and use a wooden backup for coal or
+stone while nighttime wood resupply waits. Urgent danger still wins, and
+no-tool/low-health shelters still wait. Live restart evidence is recorded below.
+
 F092 adds two moving-item pickup regressions, bringing the suite to 376.
 Both fail on the pre-fix source. Live inspection confirms the leaf sight
 change works; a subsequent pickup timeout had quarantined the remaining logs.

@@ -52,10 +52,40 @@ test('night shelter outranks resource progression', () => {
 })
 
 test('a healthy sheltered miner can head below ground at night', () => {
-    const sheltered = state({ isNight: true, sheltered: true, canMineFromShelter: true, hasStonePickaxe: true })
+    const sheltered = state({ isNight: true, sheltered: true, canMineFromShelter: true, hasWoodenPickaxe: true, hasStonePickaxe: true })
     assert.equal(chooseAction(sheltered), 'mine_from_shelter')
     assert.equal(chooseAction({ ...sheltered, health: 12 }), 'wait')
     assert.equal(chooseAction({ ...sheltered, canMineFromShelter: false }), 'wait')
+})
+
+test('carried armor and shields equip before a broken pick stalls night work', () => {
+    const miner = state({ isNight: true, underground: true, sheltered: true,
+        hasCraftingTable: true, hasWoodenPickaxe: true, hasFurnace: true,
+        planks: 1, cobblestone: 75, ironIngots: 2, coal: 1,
+        hasFood: true, armorUpgrade: true, hasShield: true })
+    assert.equal(chooseAction(miner), 'equip_armor')
+    assert.equal(chooseAction({ ...miner, armorUpgrade: false }), 'equip_shield')
+    assert.equal(chooseAction({ ...miner, oxygen: 10 }), 'surface_for_air')
+    assert.equal(chooseAction({ ...miner, endermanDanger: true }), 'avoid_enderman')
+})
+
+test('a sheltered miner repairs a broken pick before the night wait gate', () => {
+    const miner = state({ isNight: true, sheltered: true, hasCraftingTable: true,
+        hasWoodenPickaxe: true, cobblestone: 75, sticks: 2 })
+    assert.equal(chooseAction(miner), Actions.CRAFT_STONE_PICKAXE)
+    assert.equal(chooseAction({ ...miner, underground: true }), Actions.CRAFT_STONE_PICKAXE)
+    assert.equal(chooseAction({ ...miner, ironIngots: 3 }), Actions.CRAFT_IRON_PICKAXE)
+})
+
+test('a wooden backup pick permits coal and stone work while night wood resupply waits', () => {
+    const miner = state({ isNight: true, underground: true, sheltered: true,
+        hasCraftingTable: true, hasWoodenPickaxe: true, hasFurnace: true,
+        planks: 1, cobblestone: 75, ironIngots: 2, coal: 1 })
+    assert.equal(chooseAction(miner), Actions.COAL)
+    assert.equal(chooseAction({ ...miner, coal: 32 }), Actions.STONE)
+    assert.equal(chooseAction({ ...miner, hasWoodenPickaxe: false }), 'wait')
+    assert.equal(chooseAction({ ...miner, health: 12 }), 'wait')
+    assert.equal(chooseAction({ ...miner, underground: false, canMineFromShelter: true }), 'mine_from_shelter')
 })
 
 test('a nearby known shaft lets a healthy bot continue work before it builds a night shelter', () => {
@@ -327,7 +357,7 @@ test('a non-urgent surface trip waits underground in shelter at night', () => {
     assert.equal(chooseAction(state({ ...night, health: 12, hasFood: false })), Actions.SHELTER)
     assert.equal(chooseAction(state({ ...night, health: 12, hasFood: false, sheltered: true })), 'wait')
     assert.equal(chooseAction(state({ ...night, rawIron: 40 })), 'gather_diamonds')
-    assert.equal(chooseAction(state({ ...night, rawIron: 40, hasStonePickaxe: false })), Actions.SHELTER)
+    assert.equal(chooseAction(state({ ...night, rawIron: 40, hasStonePickaxe: false, hasWoodenPickaxe: false, hasIronPickaxe: false })), Actions.SHELTER)
     assert.equal(chooseAction(state({ ...night, isNight: false })), 'return_surface')
     // User direction: night mining continues regardless of carried food until health is low.
     assert.equal(chooseAction(state({ ...night, food: 10, hasFood: false })), Actions.IRON)
@@ -352,7 +382,7 @@ test('a protected, supplied miner on the surface at night carves down instead of
     assert.equal(chooseAction(dusk), Actions.IRON)
     assert.equal(chooseAction({ ...dusk, hostileDistance: 12 }), Actions.SHELTER)
     assert.equal(chooseAction({ ...dusk, health: 12 }), Actions.SHELTER)
-    assert.equal(chooseAction({ ...dusk, shieldEquipped: false }), Actions.SHELTER)
+    assert.equal(chooseAction({ ...dusk, shieldEquipped: false }), 'equip_shield')
     assert.equal(chooseAction({ ...dusk, logs: 0, foodUnits: 0 }), Actions.IRON)
     assert.equal(chooseAction({ ...dusk, isNight: false }), Actions.WOOD)
 })
@@ -416,7 +446,7 @@ test('a surface bot at night goes underground or shelters but never keeps surfac
     assert.equal(chooseAction({ ...geared, isNight: false }), Actions.WOOD)
     assert.equal(chooseAction(geared), Actions.IRON)
     assert.equal(chooseAction({ ...geared, nightShaftReady: true }), 'descend_shaft_at_night')
-    assert.equal(chooseAction({ ...geared, armorPoints: 0, shieldEquipped: false }), Actions.SHELTER)
+    assert.equal(chooseAction({ ...geared, armorPoints: 0, shieldEquipped: false }), 'equip_shield')
     assert.equal(chooseAction({ ...geared, underground: true, health: 12 }), Actions.SHELTER)
     assert.equal(chooseAction({ ...geared, underground: true, health: 12, sheltered: true }), 'wait')
 })
