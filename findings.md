@@ -1836,3 +1836,20 @@ server breath metadata, cancellation and the swim rescue used the real runtime.
 The initial low-health setup also exposed a separate startup limitation: a
 water-supported spawn can be mistaken for a raised platform before the normal
 loop starts. That startup path remains an observation/follow-up target.
+
+## F092 — A moving log drop was mistaken for an unreachable tree
+
+The first F090 restart did find and cut oak at (114,73,41), but timed out
+on mined-item pickup at 2026-11-07T05:15:04Z. That exception blacklisted the
+remaining logs at Y=74 and 75 for two minutes. A read-only live inspection
+confirmed the lower remaining log was visible through leaves but excluded by
+the active quarantine. Its native collision-based sight check remained false,
+so the leaf-transparency change was working; pickup handling was a second bug.
+
+Pickup goals now follow the item's current position and complete when the
+server marks the collected entity invalid. Both loose-item collection and
+post-mining pickup use this goal. Tree pickup has a four-second bound and a
+failed pickup no longer quarantines reachable trunk blocks; cancellation still
+propagates. Resource-approach failures continue to blacklist unreachable trees.
+Two regressions failed before this change and now pass. The full suite has
+376 tests. The incorrect live quarantine expired while this fix was tested.

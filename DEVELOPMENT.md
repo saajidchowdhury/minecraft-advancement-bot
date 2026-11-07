@@ -128,7 +128,9 @@ digging or bridging during the survey. It can loot visible chests and chest
 minecarts and remember whether each was emptied. Target discovery uses a
 100° horizontal by 70° vertical view and a clear ray from eye level. Visual
 rays pass through leaves; solid blocks retain normal occlusion. Wood searches
-also look upward for remaining canopy logs.
+also look upward for remaining canopy logs. Item pickup follows moving drops
+and stops once the server removes the collected entity. A tree-drop pickup
+timeout does not blacklist the remaining trunk.
 Resource searches can turn in place to look around. Buried ore coordinates
 do not steer the tunnel. With no visible iron, the fallback heads toward
 Y=16. Tunneling keeps a stable heading and a frontier scoped by dimension and

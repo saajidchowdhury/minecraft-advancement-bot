@@ -87,3 +87,39 @@ test('a reachable trunk behind leaves is harvested without an unnecessary approa
     await operation
     assert.equal(dug, true)
 })
+
+test('item pickup follows falling drops and completes when the server removes the collected entity', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] })
+    const drop = { name: 'item', isValid: true, position: new Vec3(0.5, 73, 0.5) }
+    const c = { running: true, paused: false, actionAbort: new AbortController(), canSee: () => true,
+        bot: { entity: { position: new Vec3(0.5, 71, 0.5) } }, rememberBlockedTarget() {},
+        async gotoWithTimeout(goal) {
+            drop.position = new Vec3(0.5, 71, 0.5)
+            goal.hasChanged?.()
+            assert.equal(goal.isEnd({ x: 0, y: 71, z: 0 }), true)
+            drop.position = new Vec3(10, 73, 10)
+            drop.isValid = false
+            assert.equal(goal.isEnd({ x: 0, y: 71, z: 0 }), true)
+        } }
+    const operation = SurvivalController.prototype.collectTarget.call(c, drop)
+    for (let i = 0; i < 10; i++) { await Promise.resolve(); t.mock.timers.tick(1000) }
+    await operation
+})
+
+test('a tree-drop pickup timeout does not quarantine reachable trunk blocks', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] })
+    const p = new Vec3(1, 65, 0)
+    const { bot } = leafWorld([[p, 'oak_log']])
+    bot.heldItem = { type: data.itemsByName.iron_axe.id }
+    bot.canDigBlock = () => true
+    bot.tool = { equipForBlock: async () => {} }
+    bot.dig = async () => {}
+    const c = { bot, running: true, paused: false, actionAbort: new AbortController(), movements: { safeToBreak: () => true },
+        log: { debug() {}, warn() {} },
+        visibleDrops: () => [{ name: 'item', isValid: true, position: new Vec3(1.5, 65, 0.5) }],
+        gotoWithTimeout: async () => { throw new Error('mined item pickup timed out') },
+        rememberBlockedTarget: () => assert.fail('quarantined the tree because of a pickup timeout') }
+    const operation = SurvivalController.prototype.collectTarget.call(c, bot.blockAt(p), bot.blockAt(p), 'tree')
+    for (let i = 0; i < 20; i++) { await Promise.resolve(); t.mock.timers.tick(1000) }
+    await operation
+})

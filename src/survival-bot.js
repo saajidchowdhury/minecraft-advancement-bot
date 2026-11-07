@@ -127,6 +127,13 @@ function mobilityRecoveryKind (shaftTrapped, elevationTrapped) {
     return null
 }
 
+function droppedItemGoal (entity) {
+    const goal = new GoalFollow(entity, 1)
+    const reached = goal.isEnd.bind(goal)
+    goal.isEnd = node => entity.isValid === false || reached(node)
+    return goal
+}
+
 function pathfinderDropLimitForLanding (surfaceDrop) {
     return Math.min(4, surfaceDrop + 1)
 }
@@ -1516,7 +1523,6 @@ class SurvivalController {
         const collection = { anchor, label }
         this.activeCollection = collection
         const signal = this.actionAbort?.signal
-        const priorityOre = label.startsWith('priority ')
         try {
             const targets = Array.isArray(target) ? target : [target]
             for (const entry of targets) {
@@ -1527,7 +1533,7 @@ class SurvivalController {
                     // Pickup reaches about one block; one unreachable stack must not strand the reachable rest.
                     if (entry.isValid && this.canSee(entry)) {
                         const p = entry.position.floored()
-                        await this.gotoWithTimeout(new goals.GoalNear(p.x, p.y, p.z, 1), 8000, 'item pickup')
+                        await this.gotoWithTimeout(droppedItemGoal(entry), 8000, 'item pickup')
                             .catch(error => {
                                 if (signal?.aborted || targets.length === 1) {
                                     throw error
@@ -1587,9 +1593,13 @@ class SurvivalController {
                         throw new Error('collection cancelled')
                     }
                     if (drop.isValid) {
-                        const p = drop.position.floored()
-                        const goal = priorityOre ? new GoalNear(p.x, p.y, p.z, 1) : new goals.GoalBlock(p.x, p.y, p.z)
-                        await this.gotoWithTimeout(goal, 8000, 'mined item pickup')
+                        await this.gotoWithTimeout(droppedItemGoal(drop), label === 'tree' ? 4000 : 8000, 'mined item pickup')
+                            .catch(error => {
+                                if (signal?.aborted || label !== 'tree') {
+                                    throw error
+                                }
+                                this.log.warn(`Skipping tree drop pickup: ${error.message}`)
+                            })
                     }
                 }
                 await sleep(300)

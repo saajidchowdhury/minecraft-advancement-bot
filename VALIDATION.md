@@ -2,6 +2,10 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F092 adds two moving-item pickup regressions, bringing the suite to 376.
+Both fail on the pre-fix source. Live inspection confirms the leaf sight
+change works; a subsequent pickup timeout had quarantined the remaining logs.
+
 F090/F091 pass 374 tests and syntax checks. Five new leaf-vision regressions
 use actual block shapes and the Prismarine ray iterator; six drowning/station
 regressions cover interruption, direct swimming and safe workstation handling.
