@@ -7,7 +7,13 @@ and two strengthened movement regressions fail on the old source. Eight new
 component tests exercise the crowd latch, immediate interruption, two-block
 wall sealing, inward continuation, retry after an obstructed seal, unsupported
 gap refusal, cancellation and combat movement. These new component tests are
-specifications for the new refuge skill. Staged LAN evidence follows separately.
+specifications for the new refuge skill. Staged LAN trial on 5c76964 supplied
+iron gear and released three zombies plus a skeleton in a roofed corridor.
+The bot ran 24 supported steps, placed exactly two sealing blocks, then
+mined inward four steps at 20 HP with no attacks or scaffolding. Commands
+were limited to setup and cleanup. Test mobs, supplied gear and temporary
+arena were removed; cleanup guarded against any player above the footprint.
+Natural large-cave behavior and a live blocked-seal retry remain unverified.
 
 F093 passes 379 tests and syntax checks. Three regressions fail on the old
 source: equip carried armor/shield despite missing tool materials, craft a

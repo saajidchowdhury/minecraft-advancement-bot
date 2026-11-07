@@ -1919,3 +1919,21 @@ two strengthened bridge/recovery regressions fail on the pre-fix sources.
 Eight new component tests cover threat memory, event interruption, a real
 two-block seal, continued inward mining, a failed-seal retry, unsupported
 gaps, cancellation, and combat movement. Staged LAN evidence follows separately.
+
+Staged LAN trial on 5c76964, outputs/crowd-refuge-test.json: supplied iron
+gear, a pick, blocks and food; created a roofed stone corridor entirely in
+previously verified air. Three zombies and a skeleton were released with AI
+enabled before the autonomous trial. Four hostiles were visible at its start.
+The bot ran 24 supported steps, sealed the pocket at (-21,142,125) with
+exactly two blocks and continued inward to Y=138.9. Health stayed 20; there
+were no attacks and no scaffold placements. Every retreat leg used no-dig
+movements. No commands ran during retreat, sealing or inward mining.
+
+Cleanup returned only the bot to its original location, removed the four
+tagged test mobs and supplied items, and restored its original equipment.
+The temporary arena was removed with a server-side guard requiring no player
+anywhere above its footprint. No observer was teleported. The obstructed-seal
+retry and a natural large-cave encounter remain automated-only/unverified
+respectively; the narrow staged corridor is not an unaided survival run.
+Produced code files have 0–8.68% comment-bearing lines (highest: decision-engine.js
+25/288). The new refuge skill and its tests contain no comment-bearing lines.

@@ -7,8 +7,10 @@ The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
 F094 fixes unlimited level detours, bridging recovery and crowd fight/escape
-oscillation. All 390 tests pass. Verify a staged four-mob wall retreat and
-inward mining, then observe a natural cave encounter on the fixed runtime.
+oscillation. All 390 tests pass. A staged three-zombie/one-skeleton trial
+verified a 24-step retreat, two-block seal and inward mining at full health,
+with no attacks or bridges. Test mobs, supplied gear and arena were removed.
+Observe a natural large-cave retreat and a live obstructed-seal retry next.
 
 F093 fixes gear left unequipped behind tool prerequisites and night idling with
 a usable wooden backup pick. Three pre-fix regressions pass. The natural
