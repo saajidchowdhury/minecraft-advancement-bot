@@ -1871,4 +1871,14 @@ replacement pick before the night wait gate. Without enough sticks, a wooden
 backup pick permits coal gathering, then stone work after the coal reserve
 reaches 32; it is not assigned iron or diamond harvesting. No-tool and
 low-health shelters still wait. Three regressions fail on the old source;
-all 379 tests and syntax checks pass. Live restart evidence follows separately.
+all 379 tests and syntax checks pass.
+
+Natural restart on 39f5df1, outputs/2026-11-07@00.29.28, immediately
+equipped diamond helmet, iron chestplate/leggings/boots and shield. Daytime
+had arrived during development. After a bounded staircase escape from its
+sealed shelter, the bot followed its return route from Y=45 to Y=60 and
+selected gather_wood at 05:29:49Z, still at 20 HP/food. All running source
+hashes match the commit. This confirms equipment and ending the idle loop;
+wooden-pick night mining remains regression-only because the live restart
+was during daylight. No commands or inventory changes staged this restart.
+Comment-bearing lines: decision-engine.js 25/281 (8.90%); its test 1/452 (0.22%).

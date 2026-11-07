@@ -6,7 +6,11 @@ F093 passes 379 tests and syntax checks. Three regressions fail on the old
 source: equip carried armor/shield despite missing tool materials, craft a
 ready replacement before a shelter wait, and use a wooden backup for coal or
 stone while nighttime wood resupply waits. Urgent danger still wins, and
-no-tool/low-health shelters still wait. Live restart evidence is recorded below.
+no-tool/low-health shelters still wait. Natural restart on 39f5df1 equipped
+diamond helmet, iron chestplate/leggings/boots and shield, escaped its shelter
+and returned from Y=45 to Y=60 for daytime wood resupply at full health/food.
+All runtime source hashes match. No commands staged this restart; wooden-pick
+night mining remains covered by automated regressions only.
 
 F092 adds two moving-item pickup regressions, bringing the suite to 376.
 Both fail on the pre-fix source. Live inspection confirms the leaf sight

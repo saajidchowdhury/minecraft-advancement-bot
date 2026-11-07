@@ -7,8 +7,10 @@ The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
 F093 fixes gear left unequipped behind tool prerequisites and night idling with
-a usable wooden backup pick. Three pre-fix regressions pass. Verify equipment
-and resumed mining in the current natural shelter after restart.
+a usable wooden backup pick. Three pre-fix regressions pass. The natural
+restart equipped all armor and shield, escaped the shelter and resumed daytime
+wood resupply. Observe the backup-pick fallback on a subsequent underground
+night; the live restart was already daytime.
 
 F092 fixes moving-drop pickup and prevents a pickup timeout from blacklisting
 the remaining trunk. Verify the two logs from the live tree after restart.
