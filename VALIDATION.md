@@ -8,7 +8,10 @@ axe/shovel preparation, a sword preferred over an axe with uncharged swings,
 and an air guard unable to interrupt before that swing. Mock-clock tests
 verify the first charge and at least 1250 ms between stone-axe hits. Cooldowns
 were checked against the installed official Java 26.1.2 item definitions.
-Live tool crafting and hunting evidence follows separately.
+Natural restart on 3ed68c9 crafted a stone axe, then a stone shovel, and
+resumed food gathering with both at full health/food. No commands staged
+this restart; runtime hashes match. A live axe-equipped animal kill remains
+unverified.
 
 F094 passes 390 tests and syntax checks. Three new policy/descent regressions
 and two strengthened movement regressions fail on the old source. Eight new

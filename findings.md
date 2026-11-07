@@ -1964,4 +1964,13 @@ the hunting air/health guard and cancellation responsive.
 Four regressions fail on the pre-fix source: tool rebuilding after iron was
 previously earned, preparation before routine hunting, axe preference/charged
 swings, and the air guard interrupting before a swing. All 394 tests and
-syntax checks pass. Live evidence follows separately.
+syntax checks pass.
+
+Natural restart on 3ed68c9, outputs/2026-11-07@01.20.17, crafted a
+stone axe at 06:20:22Z and stone shovel at 06:20:25Z. It collected its
+finished cooking job, restored the wood reserve and resumed gather_food at
+06:20:35Z with both tools, 20 HP and 20 food. No commands staged this run;
+all runtime source hashes match. A natural axe-equipped animal kill remains
+unverified; weapon choice, charge timing and air interruption are regression
+evidence. Produced code files have 0–8.56% comment-bearing lines (highest:
+decision-engine.js 25/292).

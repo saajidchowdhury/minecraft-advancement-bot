@@ -8,8 +8,9 @@ one playthrough is a test, not the definition of success.
 
 F095 restores stone pick -> axe -> shovel preparation after a rebuild and
 before routine hunting. Prey attacks prefer axes and respect their cooldown.
-All 394 tests pass. Verify natural tool crafting and an axe-equipped hunt
-after restart; urgent survival remains ahead of tool preparation.
+All 394 tests pass. Natural restart crafted the axe and shovel in order,
+then resumed food gathering at full health. Observe an axe-equipped animal
+kill next; urgent survival remains ahead of tool preparation.
 
 F094 fixes unlimited level detours, bridging recovery and crowd fight/escape
 oscillation. All 390 tests pass. A staged three-zombie/one-skeleton trial
