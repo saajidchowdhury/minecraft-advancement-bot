@@ -1937,3 +1937,31 @@ retry and a natural large-cave encounter remain automated-only/unverified
 respectively; the narrow staged corridor is not an unaided survival run.
 Produced code files have 0–8.68% comment-bearing lines (highest: decision-engine.js
 25/288). The new refuge skill and its tests contain no comment-bearing lines.
+
+## F095 — Rebuilding iron progression skipped hunting tools
+
+The stone axe and shovel were already planner goals after a stone pick,
+but a remembered iron-tools advancement suppressed both during iron-pick
+replacement. After the F094 death this let the bot hunt without either tool.
+Surface hunger and food opportunities also preceded ordinary tool preparation,
+and fight(..., true) preferred swords over every axe.
+
+The historical-advancement exception is removed. After a stone pick, the bot
+prepares its axe and shovel before ordinary surface hunting, including their
+wood/stone prerequisites. Immediate danger, eating, critical health and severe
+hunger still interrupt. An already craftable iron pick or finished iron smelt
+can still be collected first. Hunting prefers the best carried axe over a
+sword; hostile combat retains sword preference. Copper axes are recognized
+as usable tools in this Java version.
+
+Hunting axe attacks wait for a charged first swing and subsequent swings:
+1250 ms for wood/stone/copper, 1112 ms for iron and 1000 ms for gold/diamond/
+netherite. These values follow the installed official Java 26.1.2 Items class:
+axe attack-speed modifiers are -3.2/-3.1/-3.0 against the player's base 4/s.
+The previous shared 650 ms interval weakened axe hits. Cooldown polling keeps
+the hunting air/health guard and cancellation responsive.
+
+Four regressions fail on the pre-fix source: tool rebuilding after iron was
+previously earned, preparation before routine hunting, axe preference/charged
+swings, and the air guard interrupting before a swing. All 394 tests and
+syntax checks pass. Live evidence follows separately.

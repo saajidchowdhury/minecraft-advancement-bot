@@ -6,6 +6,11 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
+F095 restores stone pick -> axe -> shovel preparation after a rebuild and
+before routine hunting. Prey attacks prefer axes and respect their cooldown.
+All 394 tests pass. Verify natural tool crafting and an axe-equipped hunt
+after restart; urgent survival remains ahead of tool preparation.
+
 F094 fixes unlimited level detours, bridging recovery and crowd fight/escape
 oscillation. All 390 tests pass. A staged three-zombie/one-skeleton trial
 verified a 24-step retreat, two-block seal and inward mining at full health,

@@ -2,6 +2,14 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F095 passes 394 tests and syntax checks. Four regressions fail on the old
+source: remembered iron progression skipping tools, routine hunting bypassing
+axe/shovel preparation, a sword preferred over an axe with uncharged swings,
+and an air guard unable to interrupt before that swing. Mock-clock tests
+verify the first charge and at least 1250 ms between stone-axe hits. Cooldowns
+were checked against the installed official Java 26.1.2 item definitions.
+Live tool crafting and hunting evidence follows separately.
+
 F094 passes 390 tests and syntax checks. Three new policy/descent regressions
 and two strengthened movement regressions fail on the old source. Eight new
 component tests exercise the crowd latch, immediate interruption, two-block

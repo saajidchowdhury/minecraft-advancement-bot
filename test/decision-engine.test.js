@@ -144,6 +144,19 @@ test('the axe upgrade outranks optional activities while keeping threat interrup
     assert.equal(chooseAction({ ...ready, health: 6, hostileDistance: 2 }), Actions.ESCAPE)
 })
 
+test('a stone pick prepares an axe and shovel before ordinary hunger or a food opportunity sends it hunting', () => {
+    const hunter = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasStonePickaxe: true,
+        hasWoodcuttingAxe: false, hasDiggingShovel: false, cobblestone: 4, sticks: 4, logs: 32,
+        food: 12, completedAdvancements: new Set(['minecraft:story/iron_tools']) })
+    assert.equal(chooseAction(hunter), 'craft_stone_axe')
+    assert.equal(chooseAction({ ...hunter, hasWoodcuttingAxe: true }), 'craft_stone_shovel')
+    assert.equal(chooseAction({ ...hunter, hasWoodcuttingAxe: true, hasDiggingShovel: true }), Actions.FOOD)
+    assert.equal(chooseAction({ ...hunter, food: 20, foodOpportunity: { action: 'hunt_fish' } }), 'craft_stone_axe')
+    assert.equal(chooseAction({ ...hunter, health: 5 }), Actions.FOOD)
+    assert.equal(chooseAction({ ...hunter, food: 4 }), Actions.FOOD)
+    assert.equal(chooseAction({ ...hunter, creeperDistance: 4 }), Actions.ESCAPE)
+})
+
 test('a full pack frees a slot before rebuilding a missing pickaxe', () => {
     const full = state({ underground: true, hasCraftingTable: true, cobblestone: 64, sticks: 2,
         inventoryFull: true, freeInventorySlots: 0 })

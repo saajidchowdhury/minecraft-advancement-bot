@@ -10,7 +10,7 @@ const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./adv
 
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
 const PROTECTED_CONTAINERS = new Set(['furnace', 'barrel', 'chest'])
-const WOODCUTTING_AXES = ['netherite_axe', 'diamond_axe', 'iron_axe', 'stone_axe']
+const WOODCUTTING_AXES = ['netherite_axe', 'diamond_axe', 'iron_axe', 'copper_axe', 'stone_axe']
 const DIGGING_SHOVELS = ['netherite_shovel', 'diamond_shovel', 'iron_shovel', 'stone_shovel']
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))

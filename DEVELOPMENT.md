@@ -109,6 +109,10 @@ Food, danger, recoverable death drops and night protection can interrupt the
 route. Carried armor upgrades and shields equip before tool progression or
 night waiting. Shelters permit local replacement-pick crafting and safe work
 with a wooden backup pick, restricted to coal and stone until tools improve.
+After a stone pick, an axe and shovel precede ordinary surface hunting,
+including after a death or tool loss. Hunting prefers axes and waits for
+charged swings; a stone axe charges for 1.25 seconds. Urgent survival actions
+still interrupt preparation and cooldowns.
 Mining uses exposed targets and checked staircase steps, avoids removing
 its own support, and replaces broken tools. Charcoal provides furnace fuel when
 coal is unavailable. Every five horizontal tunnel blocks, the bot opens

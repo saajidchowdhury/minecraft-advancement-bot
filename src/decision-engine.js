@@ -174,6 +174,10 @@ function chooseAction (state) {
         return carveDown ? nightMining(state, progression) : Actions.SHELTER
     }
     const nightUnderground = state.isNight && state.underground
+    if (!state.underground && state.health > 10 && state.food > 6 && !state.inventoryFull &&
+        ['stone_axe', 'stone_shovel'].includes(progression.item)) {
+        return progression.action
+    }
     if (state.health <= 10 && !state.hasFood && !nightUnderground) {
         return state.underground ? 'return_surface' : Actions.FOOD
     }

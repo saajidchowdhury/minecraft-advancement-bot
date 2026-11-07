@@ -7,6 +7,56 @@ const { Vec3 } = require('vec3')
 const goto = require('mineflayer-pathfinder/lib/goto')
 const { SurvivalController } = require('../src/survival-bot')
 
+function axeHunter() {
+    const c = Object.create(SurvivalController.prototype)
+    const target = { name: 'cow', isValid: true, position: new Vec3(2, 64, 0) }
+    const hits = [], equipped = []
+    Object.assign(c, { running: true, paused: false, actionAbort: new AbortController(), canSee: () => true,
+        visibleDrops: () => [], bot: { health: 20, entity: { position: new Vec3(0, 64, 0) },
+            inventory: { items: () => [{ name: 'diamond_sword' }, { name: 'stone_axe' }], slots: [] },
+            pathfinder: { setGoal() {} }, lookAt: async () => {},
+            async equip(item) { equipped.push(item.name) },
+            attack() { hits.push(Date.now()); if (hits.length === 2) { target.isValid = false } }
+        } })
+    return { c, target, hits, equipped }
+}
+
+test('prey attacks prefer a stone axe over a carried sword and wait for charged swings', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+    const { c, target, hits, equipped } = axeHunter()
+    const start = Date.now()
+    const operation = c.fight(target, true)
+    await Promise.resolve()
+    for (let i = 0; i < 50; i++) {
+        t.mock.timers.tick(100)
+        await Promise.resolve()
+        await Promise.resolve()
+    }
+    await operation
+    assert.equal(equipped[0], 'stone_axe')
+    assert.equal(hits.length, 2)
+    assert.ok(hits[0] - start >= 1250)
+    assert.ok(hits[1] - hits[0] >= 1250)
+})
+
+test('the prey guard can interrupt an axe cooldown before the first attack', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+    const { c, target, hits } = axeHunter()
+    let shortOfAir = false
+    const operation = c.fight(target, true, () => shortOfAir ? 'fish hunt is short of air' : null)
+    const rejected = assert.rejects(operation, /short of air/)
+    await Promise.resolve()
+    await Promise.resolve()
+    shortOfAir = true
+    for (let i = 0; i < 10; i++) {
+        t.mock.timers.tick(100)
+        await Promise.resolve()
+        await Promise.resolve()
+    }
+    await rejected
+    assert.equal(hits.length, 0)
+})
+
 test('pursuit keeps one dynamic goal while an animal remains out of attack range', async t => {
     t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
     let pursuitGoals = 0

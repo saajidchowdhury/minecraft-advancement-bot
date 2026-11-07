@@ -61,6 +61,14 @@ test('the shovel follows the stone pick and axe and is replaced before routine p
     assert.equal(nextAdvancement({ ...state, ironIngots: 3 }).action, 'craft_iron_pickaxe')
 })
 
+test('remembered iron progression cannot skip the axe and shovel after a stone pick rebuild', () => {
+    const rebuilt = { ...established, hasIronPickaxe: false, hasWoodcuttingAxe: false,
+        hasDiggingShovel: false, completedAdvancements: new Set(['minecraft:story/iron_tools']) }
+    assert.equal(nextAdvancement(rebuilt).action, 'craft_stone_axe')
+    assert.equal(nextAdvancement({ ...rebuilt, hasWoodcuttingAxe: true }).action, 'craft_stone_shovel')
+    assert.equal(nextAdvancement({ ...rebuilt, hasWoodcuttingAxe: true, hasDiggingShovel: true }).item, 'iron_pickaxe')
+})
+
 test('armor needs eight ingots and smelts available raw iron in bounded batches', () => {
     assert.equal(nextAdvancement({ ...established, hasIronArmor: false }).action, 'gather_iron')
     assert.equal(nextAdvancement({ ...established, hasIronArmor: false, rawIron: 3 }).action, 'smelt_iron')

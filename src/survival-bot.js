@@ -53,6 +53,8 @@ const SAFE_PATHFINDER_DROP = 3
 // digging enabled can branch through millions of underground block states.
 const PATH_SEARCH_RADIUS = 48
 const HEAP_GUARD_BYTES = 768 * 1024 * 1024
+const HUNT_AXE_COOLDOWN_MS = Object.freeze({ wooden_axe: 1250, stone_axe: 1250, copper_axe: 1250,
+    iron_axe: 1112, golden_axe: 1000, diamond_axe: 1000, netherite_axe: 1000 })
 const ACTION_TIMEOUT_MS = Object.freeze({
     [Actions.ESCAPE]: 30000,
     [Actions.REFUGE]: 30000,
@@ -752,7 +754,7 @@ class SurvivalController {
             creeperDistance: creeperVisible ? this.bot.entity.position.distanceTo(creeper.position) : Infinity,
             ranged: archerVisible ? archer : null,
             rangedDistance: archerVisible ? this.bot.entity.position.distanceTo(archer.position) : Infinity,
-            hasWeapon: Boolean(this.bestItem(['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword', 'netherite_axe', 'diamond_axe', 'iron_axe', 'stone_axe', 'wooden_axe'])),
+            hasWeapon: Boolean(this.bestItem(['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword', ...WOODCUTTING_AXES, 'golden_axe', 'wooden_axe'])),
             hasFood: Boolean(this.bestFood()),
             isNight: this.isNight(),
             sheltered: this.sheltered,
@@ -1812,12 +1814,16 @@ class SurvivalController {
         if (!entity || !entity.isValid) {
             throw new Error('target disappeared')
         }
-        const weapon = this.bestItem(['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword', 'netherite_axe', 'diamond_axe', 'iron_axe', 'stone_axe', 'wooden_axe'])
+        const swords = ['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword']
+        const axes = [...WOODCUTTING_AXES, 'golden_axe', 'wooden_axe']
+        const weapon = this.bestItem(hunt ? [...axes, ...swords] : [...swords, ...axes])
         if (weapon) {
             await this.bot.equip(weapon, 'hand')
             this.checkAction(signal)
         }
         const deadline = Date.now() + 20000
+        const huntCooldownMs = hunt ? HUNT_AXE_COOLDOWN_MS[weapon?.name] || 0 : 0
+        let nextHuntAttackAt = Date.now() + huntCooldownMs
         let chasePosition = this.bot.entity.position.clone()
         let chaseProgressAt = Date.now()
         let following = false
@@ -1870,6 +1876,10 @@ class SurvivalController {
                     }
                     this.bot.pathfinder.setGoal(null)
                     following = false
+                    if (Date.now() < nextHuntAttackAt) {
+                        await sleep(Math.min(100, nextHuntAttackAt - Date.now()))
+                        continue
+                    }
                     await this.bot.lookAt(entity.position.offset(0, Math.min(entity.height || 1, 1.4), 0), true)
                     this.checkAction(signal)
                     if (this.bot.inventory?.slots[45]?.name === 'shield' && (!hunt || guard)) {
@@ -1886,7 +1896,8 @@ class SurvivalController {
                         break
                     }
                     this.bot.attack(entity)
-                    await sleep(650)
+                    nextHuntAttackAt = Date.now() + huntCooldownMs
+                    await sleep(huntCooldownMs ? 100 : 650)
                 }
             }
             this.checkAction(signal)

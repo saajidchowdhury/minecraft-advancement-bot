@@ -199,11 +199,13 @@ function planAdvancement(state) {
     if (state.hasDiamondPickaxe && state.diamonds >= RECIPES.diamond_sword.diamonds && !owns(state, ['diamond_sword', 'netherite_sword'])) {
         return craft(state, 'prep:diamond sword', 'diamond_sword')
     }
-    const replacingIronPick = !state.hasIronPickaxe && state.completedAdvancements?.has('minecraft:story/iron_tools')
-    if (state.hasWoodcuttingAxe === false && !replacingIronPick) {
+    if (!state.hasIronPickaxe && state.smeltReady) {
+        return craft(state, 'minecraft:story/iron_tools', 'iron_pickaxe', 'craft_iron_pickaxe')
+    }
+    if (state.hasWoodcuttingAxe === false) {
         return craft(state, 'prep:woodcutting axe', 'stone_axe', 'craft_stone_axe')
     }
-    if (state.hasDiggingShovel === false && !replacingIronPick) {
+    if (state.hasDiggingShovel === false) {
         return craft(state, 'prep:digging shovel', 'stone_shovel', 'craft_stone_shovel')
     }
     if (!state.hasFurnace && !state.smeltReady && !state.smeltRunning && !state.smeltNeedsFuel) {
