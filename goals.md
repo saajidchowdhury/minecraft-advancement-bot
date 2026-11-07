@@ -6,6 +6,12 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
+F088 fixes clockwise tunnel spirals using a stable heading and a saved tunnel
+frontier. Six pre-fix routing regressions now pass, along with cancellation
+coverage. A command-staged sixteen-step LAN crossing and detour return passed.
+Monitor a natural ore-detour return and hazard bypass next. Before removing any
+staged structure, check for observers and return them to supported ground.
+
 F086 adds enderman gaze protection and a dedicated refuge response. Staged LAN
 checks cover neutral aiming, water, stone burrowing and an occupied-shaft side
 refuge. Follow up on a natural encounter and refuge exit after anger clears;

@@ -2,6 +2,14 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F088 passes 354 tests and syntax checks. Six routing regressions fail on the
+pre-fix source and pass after the stable-heading/frontier change; an additional
+check covers cancellation before a return. The 6x7 replay advances straight.
+A command-staged LAN test returned from a detour with digging disabled, crossed
+a remembered passage and advanced sixteen straight steps at full health.
+Natural ore-detour return and hazard bypass remain observation targets. The
+cleanup incident and dropped-item recovery are documented in findings.md.
+
 F087 adds a regression verifying four intervening main-tunnel blocks between
 five-block side branches. The old eight-step default fails; the new five-step
 interval passes. All 347 tests and syntax checks pass.

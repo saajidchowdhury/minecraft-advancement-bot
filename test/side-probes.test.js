@@ -59,7 +59,7 @@ function miningWorld(overrides = new Map()) {
     }
     return {
         bot, dug, memory: {}, running: true, paused: false, actionAbort: new AbortController(), probeSpacing: 8,
-        bestItem: () => ({ name: 'iron_pickaxe' }), log: { info() {}, debug() {} },
+        bestItem: () => ({ name: 'iron_pickaxe' }), log: { info() {}, debug() {}, warn() {} },
         async gotoWithTimeout(goal) {
             bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5)
         }
@@ -114,6 +114,120 @@ test('default side probes leave four main-tunnel blocks between successive branc
     assert.deepEqual(branches, [5, 10])
     assert.equal(branches[1] - branches[0] - 1, 4)
     assert.equal(c.dug.filter(p => p.z !== 0).length, 20)
+})
+
+test('an old passage around a 6x7 area cannot make the tunnel spiral through its interior', async () => {
+    const openings = new Map()
+    const visited = new Set()
+    for (let x = 0; x <= 7; x++) {
+        for (let z = 0; z <= 8; z++) {
+            if (x === 0 || x === 7 || z === 0 || z === 8) {
+                const p = new Vec3(x, 64, z)
+                visited.add(`overworld:${p}`)
+                openings.set(p.toString(), 'air')
+                openings.set(p.offset(0, 1, 0).toString(), 'air')
+            }
+        }
+    }
+    const c = miningWorld(openings)
+    c.bot.entity.position = new Vec3(1.5, 64, 1.5)
+    c.memory.minedCells = visited
+    c.probeSpacing = 0
+    for (let i = 0; i < 10; i++) {
+        await mineTunnel(c, 64)
+    }
+    assert.equal(c.bot.entity.position.x, 41.5)
+    assert.equal(c.bot.entity.position.z, 1.5)
+    assert.equal(c.dug.every(p => p.z === 1), true)
+})
+
+test('a head-height probe opening does not turn the main tunnel', async () => {
+    const p = new Vec3(1, 65, 0)
+    const c = miningWorld(new Map([[p.toString(), 'air']]))
+    c.memory.excavatedCells = new Set([`overworld:${p}`])
+    c.probeSpacing = 0
+    await mineTunnel(c, 64)
+    assert.deepEqual(c.bot.entity.position, new Vec3(4.5, 64, 0.5))
+})
+
+test('after an ore detour the bot walks to the frontier without digging, then resumes its heading', async () => {
+    const c = miningWorld()
+    c.probeSpacing = 0
+    c.bot.registry = mcData
+    c.movements = { canDig: true }
+    let movements = c.movements
+    c.bot.pathfinder = { setMovements: m => { movements = m } }
+    await mineTunnel(c, 64)
+    const frontier = c.bot.entity.position.clone()
+    c.bot.entity.position = new Vec3(3.5, 63, 2.5)
+    let returned = false
+    const move = c.gotoWithTimeout
+    c.gotoWithTimeout = async (goal, timeout, label) => {
+        if (!returned) {
+            assert.equal(movements.canDig, false)
+            assert.deepEqual(new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5), frontier)
+            returned = true
+        }
+        await move(goal)
+    }
+    await mineTunnel(c, 64)
+    assert.equal(returned, true)
+    assert.equal(movements, c.movements)
+    assert.deepEqual(c.bot.entity.position, new Vec3(8.5, 64, 0.5))
+})
+
+test('a local obstacle detour keeps the original main-tunnel heading on subsequent steps', async () => {
+    const c = miningWorld(new Map([[new Vec3(1, 64, 0).toString(), 'furnace']]))
+    c.probeSpacing = 0
+    await mineTunnel(c, 64)
+    await mineTunnel(c, 64)
+    assert.deepEqual(c.bot.entity.position, new Vec3(7.5, 64, 1.5))
+})
+
+test('a frontier is scoped to its dimension and mining depth and ignored after distant travel', async () => {
+    for (const change of ['dimension', 'depth', 'distance']) {
+        const c = miningWorld()
+        c.probeSpacing = 0
+        await mineTunnel(c, 64)
+        c.bot.entity.position = new Vec3(change === 'distance' ? 100.5 : 1.5, 64, 1.5)
+        if (change === 'dimension') {
+            c.bot.game.dimension = 'the_nether'
+        }
+        const depth = change === 'depth' ? 60 : 64
+        await mineTunnel(c, depth)
+        assert.equal(c.memory.tunnelFrontier?.dimension, c.bot.game.dimension)
+        assert.equal(c.memory.tunnelFrontier?.targetY, depth)
+        assert.equal(c.bot.entity.position.z, 1.5)
+        assert.equal(c.bot.entity.position.x, change === 'distance' ? 104.5 : 5.5)
+    }
+})
+
+test('a failed frontier return restores mining movements and never carves a replacement route', async () => {
+    const c = miningWorld()
+    c.probeSpacing = 0
+    c.bot.registry = mcData
+    c.movements = { canDig: true }
+    let movements = c.movements
+    c.bot.pathfinder = { setMovements: m => { movements = m } }
+    await mineTunnel(c, 64)
+    c.bot.entity.position = new Vec3(3.5, 64, 1.5)
+    const dug = c.dug.length
+    c.gotoWithTimeout = async () => { throw new Error('No path to tunnel frontier') }
+    await assert.rejects(mineTunnel(c, 64), /No path to tunnel frontier/)
+    assert.equal(movements, c.movements)
+    assert.equal(c.dug.length, dug)
+    assert.equal(c.memory.tunnelFrontier, null)
+})
+
+test('cancellation during equip cannot start a frontier return', async () => {
+    const c = miningWorld()
+    c.probeSpacing = 0
+    c.bot.registry = mcData
+    await mineTunnel(c, 64)
+    c.bot.entity.position = new Vec3(3.5, 64, 1.5)
+    c.bot.equip = async () => c.actionAbort.abort()
+    c.bot.pathfinder = { setMovements: () => assert.fail('started returning after cancellation') }
+    await assert.rejects(mineTunnel(c, 64), /action cancelled/)
 })
 
 test('tunneling yields for newly exposed diamond ore before advancing past it', async () => {

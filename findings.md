@@ -1664,3 +1664,61 @@ Defaults, the example configuration and local LAN configuration use five.
 The regression tunnels twelve blocks and verifies branch positions at steps
 five and ten, with twenty total side blocks mined. It failed with the former
 eight-step default. Existing explicit interval-eight coverage remains valid.
+
+## F088 — Clockwise tunnel steering can excavate rectangular rooms [logs + replay]
+
+The 23:19:37 LAN run spiraled near (203–206,-54,27–33) after collecting
+diamonds and resuming gather_diamonds. There were ten gather_diamonds actions
+and no cave-survey messages during 23:20–23:21 Eastern. Floor drops and stair
+corrections accompanied the loop. This episode is tunnel routing, not a cave
+survey; cave surveys explicitly disable digging.
+
+mineTunnel rejects minedPassage cells, which include both previously walked
+mining cells and blocks opened by probes or ore collection. It then tries
+headings in a fixed clockwise order from mineDirection. Those two rules can
+force successive turns around older passages and spiral inward through fresh
+stone instead of returning to the advancing tunnel end.
+
+The ignored outputs/replay-mining-spiral.js uses the real mineTunnel routine
+with the side-probe test fixture. An existing passage around a 6x7 interior
+causes forty of forty-two cells to be traversed and excavated in a spiral,
+without invoking cave exploration or side probes. This establishes the routing
+failure independently of cave detection. This was the pre-fix replay.
+Keep the cave exclusion, but separate it from tunnel continuation: preserve
+forward progress across ore detours and return to a usable tunnel frontier
+rather than treating every remembered excavation as a forbidden destination.
+
+
+F088 fix: tunnel continuation now retains a dimension/depth-scoped frontier and
+a stable main heading. A nearby detour returns to that point using dry movements
+with digging, bridging and tower building disabled. The return is bounded to
+twelve seconds; a path failure restores mining movements and invalidates that
+frontier. Unsafe or distant frontiers are ignored. Forward steps may cross
+remembered openings; lateral fallbacks still exclude mined passages and cannot
+reverse the main heading. Cave-survey exclusions remain intact.
+
+Six routing regressions failed on the pre-fix source and now pass: the 6x7
+spiral, a probe opening, ore-detour return, local obstacle heading, frontier
+scoping and failed-return recovery. An additional cancellation check guards
+equipping before a return. The original replay now advances forty straight
+steps, crossing one row of the rectangle rather than filling its interior.
+All 354 tests and syntax checks pass.
+
+Command-staged LAN validation used existing mining gear and a temporary stone
+enclosure near (97,96,61). The bot walked back from a staged detour without
+digging, crossed a remembered surrounding passage, then mined sixteen forward
+steps at Y=96 and Z=61, ending at 20 HP. Side probes appeared at X=102,107,112.
+No commands ran during the mining phase. This validates the targeted routine
+under staged geometry; a natural ore-detour return remains to be observed.
+The first setup was outside loaded chunks and never ran the trial; moving the
+setup near the bot resolved that setup issue. Ignored evidence is recorded in
+outputs/tunnel-frontier-test.json and its log.
+
+Cleanup incident: the owner teleported into the test enclosure before cleanup.
+Removing it caused a fall death. The recovery helper preserved and returned
+21 nearby dropped item entities and the available XP orb to the respawned
+player; inventory pickup was server-confirmed. Original pre-death XP was not
+recorded, so full XP restoration is unverified. The external staging helper
+now moves any observer still inside the removal bounds to the bot's original
+supported position before deleting the temporary blocks. Check for observers
+before all future staged-structure cleanup.

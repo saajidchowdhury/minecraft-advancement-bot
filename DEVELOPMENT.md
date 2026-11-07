@@ -129,7 +129,11 @@ minecarts and remember whether each was emptied. Target discovery uses a
 100° horizontal by 70° vertical view and a clear ray from eye level.
 Resource searches can turn in place to look around. Buried ore coordinates
 do not steer the tunnel. With no visible iron, the fallback heads toward
-Y=16. A mined block opens up to six adjacent faces. The bot can turn to
+Y=16. Tunneling keeps a stable heading and a frontier scoped by dimension and
+target depth. After nearby detours it walks back without digging or bridging
+before resuming. Existing excavations may be crossed forward; lateral bypasses
+retain mining exclusions and cannot reverse the main heading.
+A mined block opens up to six adjacent faces. The bot can turn to
 mine a remembered face while the opening is still air and the face has a
 clear sightline. Movement and placement checks still read nearby block geometry.
 Before leaving the surface to mine in daylight, it stocks 32 logs (a plank

@@ -222,15 +222,49 @@ async function mineTunnel(c, targetY, heading = null) {
         throw new Error('mining requires a pickaxe')
     }
     await bot.equip(tool, 'hand')
+    check(c)
     if (targetY < start.y && c.memory.surfaceByStaircase) {
         c.memory.surfaceByStaircase = false
         c.memory.mineRoute = []
+    }
+    let frontier = null
+    if (!heading) {
+        const saved = c.memory.tunnelFrontier
+        if (saved?.dimension === bot.game.dimension && saved.targetY === targetY) {
+            c.memory.mineDirection = saved.direction
+            const point = new Vec3(saved.x, saved.y, saved.z)
+            if (start.distanceTo(point) <= 24 && safeFooting(bot, point)) {
+                frontier = saved
+                if (!start.equals(point)) {
+                    c.log.info(`Returning to tunnel frontier at ${point} without digging.`)
+                    bot.pathfinder.setMovements(dryMovements(bot))
+                    try {
+                        await c.gotoWithTimeout(new goals.GoalBlock(point.x, point.y, point.z), 12000, 'tunnel frontier')
+                        check(c)
+                        if (!bot.entity.position.floored().equals(point)) {
+                            throw new Error('tunnel frontier was not reached')
+                        }
+                    } catch (error) {
+                        if (!c.actionAbort?.signal.aborted) {
+                            c.memory.tunnelFrontier = null
+                        }
+                        throw error
+                    } finally {
+                        bot.pathfinder.setMovements(c.movements)
+                    }
+                }
+            }
+        }
+        frontier ??= { x: start.x, y: start.y, z: start.z, dimension: bot.game.dimension,
+            targetY, direction: c.memory.mineDirection || 0 }
+        c.memory.tunnelFrontier = frontier
     }
     for (let step = 0; step < 4; step++) {
         check(c)
         const feet = bot.entity.position.floored()
         let target = null
-        const directionOrder = [0, 1, 2, 3].map(turn => ((c.memory.mineDirection || 0) + turn) % 4)
+        const forward = frontier?.direction ?? (c.memory.mineDirection || 0)
+        const directionOrder = (heading ? [0, 1, 2, 3] : [0, 1, 3]).map(turn => (forward + turn) % 4)
         if (heading) {
             directionOrder.sort((a, b) =>
                 Math.hypot(feet.x + DIRECTIONS[a][0] - heading.x, feet.z + DIRECTIONS[a][1] - heading.z) -
@@ -243,7 +277,8 @@ async function mineTunnel(c, targetY, heading = null) {
         for (const [index, dy] of slopes.flatMap(dy => directionOrder.map(i => [i, dy]))) {
             const [dx, dz] = DIRECTIONS[index]
             const candidate = feet.offset(dx, dy, dz)
-            if (minedPassage(c, candidate) || c.isBlockedTarget?.({ position: candidate }) || !safeTunnelStep(bot, feet, candidate, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt'])))) {
+            if ((!heading && index !== forward && minedPassage(c, candidate)) ||
+                c.isBlockedTarget?.({ position: candidate }) || !safeTunnelStep(bot, feet, candidate, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt'])))) {
                 continue
             }
             target = candidate
@@ -310,6 +345,9 @@ async function mineTunnel(c, targetY, heading = null) {
             c.memory.mineRoute = []
         }
         c.memory.mineRoute.push({ x: feet.x, y: feet.y, z: feet.z })
+        if (frontier) {
+            Object.assign(frontier, { x: target.x, y: target.y, z: target.z })
+        }
         if (c.memory.minedCells.size > 4096) {
             c.memory.minedCells.delete(c.memory.minedCells.values().next().value)
         }
