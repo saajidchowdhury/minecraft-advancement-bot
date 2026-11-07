@@ -11,7 +11,7 @@ const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-
 const { prepareBed, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
 const { FOOD_VALUES, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
-const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight,
+const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight, dryMovements,
     rememberMiningExposure, exposedByDig } = require('./cave-exploration')
 const { inView, blockInView, scanFor } = require('./vision')
 const { findNearbyLoot, lootChest } = require('./loot')
@@ -21,7 +21,7 @@ const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnima
 const { archeryState, shootArrow } = require('./archery')
 const { enchantingState, gatherLeather, enchantItem } = require('./enchanting')
 const { golemState, summonGolem } = require('./golem')
-const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
+const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
 
 const { GoalNear, GoalFollow } = goals
 
@@ -414,6 +414,13 @@ class SurvivalController {
         }
         this.bot.on('entityUpdate', endermanAlert)
         this.bot.on('entityMoved', endermanAlert)
+        this.bot.on('time', () => {
+            if (this.running && this.busy && this.activeAction === 'fill_water_bucket' && this.waterDaytimeSearch &&
+                this.isNight() && !this.actionAbort?.signal.aborted) {
+                this.urgentReplan = true
+                this.cancelCurrentTask('nightfall during surface water search')
+            }
+        })
         this.bot.on('chat', (username, message) => this.onChat(username, message))
     }
 
@@ -608,7 +615,8 @@ class SurvivalController {
             // starting a staircase, descent, or relocation that uses the same bot.
             this.clearCurrentTask()
             await sleep(100)
-            if (this.urgentReplan || action === 'avoid_enderman' || !this.running || this.paused || this.followPlayer || this.bot.health <= 0) {
+            if (this.urgentReplan || ['avoid_enderman', 'fill_water_bucket'].includes(action) ||
+                !this.running || this.paused || this.followPlayer || this.bot.health <= 0) {
                 return
             }
             this.actionAbort = new AbortController()
@@ -2685,7 +2693,7 @@ class SurvivalController {
         await mineTunnel(this, Math.floor(this.bot.entity.position.y) + 4)
     }
 
-    async scout (distance) {
+    async scout (distance, { surfaceOnly = false } = {}) {
         const here = this.bot.entity.position
         const offsets = [0, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2, 3 * Math.PI / 4, -3 * Math.PI / 4, Math.PI]
         const distances = [...new Set([distance, Math.max(16, Math.floor(distance * 2 / 3)), 10])]
@@ -2731,6 +2739,14 @@ class SurvivalController {
 
         this.log.info(`Land scout selected ${selected.x},${Math.floor(here.y)},${selected.z} ` +
             `(land=${selected.landSamples}, water=${selected.waterSamples}, visited=${selected.visits}).`)
+        if (surfaceOnly) {
+            if (this.isNight()) {
+                throw new Error('surface water exploration is daytime only')
+            }
+            const walking = dryMovements(this.bot)
+            walking.exclusionAreasStep.push(block => block.position && openToSky(this.bot, block.position.offset(0, 1, 0)) ? 0 : 100)
+            this.bot.pathfinder.setMovements(walking)
+        }
         try {
             // Terrain height at the target is unknown; a fixed-height 3-D goal can sit in air or rock.
             const goal = new goals.GoalNearXZ(selected.x, selected.z, 3)
@@ -2745,6 +2761,10 @@ class SurvivalController {
             this.scoutAngle += Math.PI / 3
             this.scoutSteps += 1
             throw error
+        } finally {
+            if (surfaceOnly) {
+                this.bot.pathfinder.setMovements(this.movements)
+            }
         }
     }
 

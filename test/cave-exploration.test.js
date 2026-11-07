@@ -69,6 +69,12 @@ test('a large cave offers a bounded connected walk before more tunneling', () =>
     }
 })
 
+test('cave surveys honor the water search cover restriction before walking', async () => {
+    const { c, moves } = caveWorld()
+    assert.equal(await exploreCave(c, 64, () => false), false)
+    assert.equal(moves.length, 0)
+})
+
 test('cave discovery rejects surface terrain and one-block tunnels', () => {
     const { c } = caveWorld()
     const blockAt = c.bot.blockAt

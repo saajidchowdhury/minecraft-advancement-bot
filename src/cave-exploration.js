@@ -266,7 +266,7 @@ function dryMovements(bot) {
     return walking
 }
 
-async function exploreCave(c, targetY) {
+async function exploreCave(c, targetY, canEnter = () => true) {
     const bot = c.bot
     const signal = c.actionAbort?.signal
     check(c, signal)
@@ -282,7 +282,8 @@ async function exploreCave(c, targetY) {
     if (budget?.dimension === state.dimension && Date.now() - budget.startedAt < SURVEY_MS && budget.steps >= SURVEY_STEPS) {
         return false
     }
-    const route = findCaveRoute(bot, c.memory.caveVisits, targetY, b => c.isBlockedTarget(b) || minedPassage(c, b.position))
+    const route = findCaveRoute(bot, c.memory.caveVisits, targetY,
+        b => !canEnter(b.position) || c.isBlockedTarget(b) || minedPassage(c, b.position))
     if (route.length === 0) {
         return false
     }
@@ -314,7 +315,7 @@ async function exploreCave(c, targetY) {
             }
             if (c.memory.caveSurvey.steps >= SURVEY_STEPS || Date.now() - c.memory.caveSurvey.startedAt >= SURVEY_MS ||
                 current.health < 16 || current.food < 18 || current.hostileDistance <= 12 || current.visibleHostiles >= 2 ||
-                bot.inventory.emptySlotCount() <= 1 || !safeFooting(bot, p)) {
+                bot.inventory.emptySlotCount() <= 1 || !canEnter(p) || !safeFooting(bot, p)) {
                 break
             }
             const feet = bot.entity.position.floored()

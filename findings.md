@@ -1722,3 +1722,35 @@ recorded, so full XP restoration is unverified. The external staging helper
 now moves any observer still inside the removal bounds to the bot's original
 supported position before deleting the temporary blocks. Check for observers
 before all future staged-structure cleanup.
+
+
+## F089 — Water search abandoned a covered staircase at the surface-height threshold
+
+Port 52171, run outputs/2026-11-06@23.35.06: fill_water_bucket carved
+from (92,44,65) to (108,60,65). At 23:36:40 Eastern its observation changed
+to underground=false at Y=60, because home Y was 63 and the depth test used
+a strict three-block margin. That was not proof of an actual surface exit.
+The next land scout selected (91,60,48), using a horizontal-only goal, and
+ended at (89,39,50). It then built another staircase from that lower location.
+
+Water search now checks the actual sky column, including roofs beyond the
+old twenty-four-block cover check. Leaves do not count as solid cave roofs,
+and unloaded columns are not assumed open. During daylight, no visible water
+within bucket reach means finish the surface return, then scout with digging
+and bridging disabled and covered cave cells excluded. Water approach paths
+use the same covered/outdoor distinction. Generic failure recovery cannot
+start an unrestricted land scout for this action.
+
+User steering: surface exploration is daytime only. At night the bot searches
+visible underground sources and bounded covered cave routes, then tunnels at
+its present depth while retaining cover. It shelters if invoked on the open
+surface, and waits underground if every covered tunnel step is blocked.
+Nightfall interrupts a daytime water action before continuing surface travel.
+A nearby reachable spring can still be filled immediately.
+
+All eight water-search regressions fail against the pre-fix sources; a further
+cave-route test covers the nighttime cover restriction. Nine new cases bring
+the full suite to 363 passing tests, plus syntax checks. Existing return-route
+fixtures now include actual roofs above underground starting cells, so an
+all-air mock is not incorrectly treated as an underground staircase.
+No new artificial world structures are used for this fix's validation.

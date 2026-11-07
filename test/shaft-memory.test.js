@@ -68,7 +68,8 @@ test('a return follows the current stairs with the checked jump fallback before 
     const target = new Vec3(41, 70, 12)
     c.memory.mineRoute = [target]
     c.bestItem = () => null
-    c.bot.blockAt = p => p.equals(target.offset(0, -1, 0)) ? { name: 'stone', boundingBox: 'block' } : { name: 'air', boundingBox: 'empty' }
+    c.bot.blockAt = p => p.equals(target.offset(0, -1, 0)) || p.equals(new Vec3(42, 73, 12))
+        ? { name: 'stone', boundingBox: 'block' } : { name: 'air', boundingBox: 'empty' }
     c.bot.pathfinder = { setGoal() {} }
     c.bot.lookAt = async () => {}
     c.bot.setControlState = (key, value) => {

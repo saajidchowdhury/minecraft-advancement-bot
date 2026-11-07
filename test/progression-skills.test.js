@@ -468,7 +468,9 @@ test('portal construction stands beside the frame plane, never inside a frame ce
 test('a return trip resumes the remembered stairs at the nearest cell, not a stale deeper waypoint', async () => {
     const { performProgression } = require('../src/progression-skills')
     const route = [{ x: 0, y: 63, z: 0 }, { x: 1, y: 62, z: 1 }, { x: 2, y: 61, z: 2 }, { x: 20, y: 50, z: 20 }]
-    const bot = { health: 20, entity: { position: new Vec3(2.5, 61, 2.5) }, blockAt: () => ({ name: 'air', boundingBox: 'empty' }) }
+    const bot = { health: 20, entity: { position: new Vec3(2.5, 61, 2.5) },
+        blockAt: p => ({ name: p.y === 64 && p.x > 0 ? 'stone' : 'air',
+            boundingBox: p.y === 64 && p.x > 0 ? 'block' : 'empty' }) }
     const visited = []
     const c = {
         bot, running: true, paused: false, home: { y: 64 }, memory: { mineRoute: route }, log: { info() {}, warn() {} },

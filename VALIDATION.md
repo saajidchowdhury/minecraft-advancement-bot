@@ -2,6 +2,14 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F089 passes 363 tests and syntax checks. Eight water-search regressions fail
+on the pre-fix source and pass now: falsely reported surface state, underground
+night search, blocked night search, lower surface, covered-path restrictions,
+full-column sky checks, nightfall interruption and cancellation without
+quarantining a usable water source. A cave-route regression
+checks the supplied cover restriction. Natural day/night water runs remain
+observation targets. No new world structures were staged.
+
 F088 passes 354 tests and syntax checks. Six routing regressions fail on the
 pre-fix source and pass after the stable-heading/frontier change; an additional
 check covers cancellation before a return. The 6x7 replay advances straight.

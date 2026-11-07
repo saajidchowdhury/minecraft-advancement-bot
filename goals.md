@@ -6,6 +6,11 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
+F089 fixes the water search's false surface detection and cave-entering scout.
+Daylight searches finish a real exit; nighttime searches stay underground.
+Observe a natural daytime exit, water pickup, and a nightfall transition on the
+new policy. Automated coverage passes; no new structure staging is needed.
+
 F088 fixes clockwise tunnel spirals using a stable heading and a saved tunnel
 frontier. Six pre-fix routing regressions now pass, along with cancellation
 coverage. A command-staged sixteen-step LAN crossing and detour return passed.

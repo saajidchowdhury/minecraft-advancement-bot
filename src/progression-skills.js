@@ -214,7 +214,7 @@ async function climbStep(c, target) {
     }
 }
 
-async function mineTunnel(c, targetY, heading = null) {
+async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
     const bot = c.bot
     const tool = miningPickaxe(c)
     const start = bot.entity.position.floored()
@@ -277,6 +277,9 @@ async function mineTunnel(c, targetY, heading = null) {
         for (const [index, dy] of slopes.flatMap(dy => directionOrder.map(i => [i, dy]))) {
             const [dx, dz] = DIRECTIONS[index]
             const candidate = feet.offset(dx, dy, dz)
+            if (undergroundOnly && openToSky(bot, candidate.offset(0, dy === 0 ? 2 : 3, 0))) {
+                continue
+            }
             if ((!heading && index !== forward && minedPassage(c, candidate)) ||
                 c.isBlockedTarget?.({ position: candidate }) || !safeTunnelStep(bot, feet, candidate, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt'])))) {
                 continue
@@ -683,14 +686,48 @@ async function fillWaterBucket(c) {
     if (before >= 2) {
         return
     }
-    const water = await scanFor(c, () => c.findNearestBlock(name => name === 'water', 48, {
-        filter: b => liquidSource(b, 'water')
+    const night = Boolean(c.isNight?.())
+    const feet = bot.entity.position.floored()
+    const outside = openToSky(bot, feet.offset(0, 1, 0))
+    c.waterDaytimeSearch = !night
+    const range = night && !outside ? 32 : outside && !night ? 48 : 4
+    const water = await scanFor(c, () => c.findNearestBlock(name => name === 'water', range, {
+        filter: b => liquidSource(b, 'water') &&
+            (bot.entity.position.distanceTo(b.position.offset(0.5, 0.5, 0.5)) <= 4.5 ||
+                openToSky(bot, b.position.offset(0, 1, 0)) === outside)
     }))
     if (!water) {
-        if (c.observe().underground) {
+        if (night) {
+            if (outside) {
+                return c.makeNightSafe()
+            }
+            if (await exploreCave(c, feet.y, p => !openToSky(bot, p.offset(0, 1, 0)))) {
+                return
+            }
+            try {
+                return await mineTunnel(c, feet.y, null, true)
+            } catch (error) {
+                check(c)
+                if (!/no supported dry tunnel step/.test(error.message)) {
+                    throw error
+                }
+                c.log.info('No covered water-search route; waiting underground.')
+                await bot.waitForTicks(20)
+                check(c)
+                return
+            }
+        }
+        if (!outside) {
             return returnSurface(c)
         }
-        return c.scout(24)
+        return c.scout(24, { surfaceOnly: true })
+    }
+    const guarded = Boolean(bot.pathfinder && c.movements)
+    if (guarded) {
+        const walking = dryMovements(bot)
+        walking.exclusionAreasStep.push(block => block.position &&
+            openToSky(bot, block.position.offset(0, 1, 0)) === outside ? 0 : 100)
+        bot.pathfinder.setMovements(walking)
     }
     try {
         const banks = DIRECTIONS.flatMap(([dx, dz]) => [water.position.offset(dx, 1, dz), water.position.offset(dx, 0, dz)])
@@ -716,8 +753,14 @@ async function fillWaterBucket(c) {
             () => c.countItems(['water_bucket']) > before, 'fill water bucket')
         c.log.info(`Water buckets ready: ${c.countItems(['water_bucket'])}/2.`)
     } catch (error) {
-        c.rememberBlockedTarget(water, 'water source', error)
+        if (c.running && !c.paused && !c.actionAbort?.signal.aborted) {
+            c.rememberBlockedTarget(water, 'water source', error)
+        }
         throw error
+    } finally {
+        if (guarded) {
+            bot.pathfinder.setMovements(c.movements)
+        }
     }
 }
 
@@ -1039,7 +1082,25 @@ function coveredAbove(bot, head) {
     return false
 }
 
+function openToSky(bot, head) {
+    if (bot.blockAt(head, false)?.skyLight === 15) {
+        return true
+    }
+    const top = (bot.game?.minY ?? -64) + (bot.game?.height ?? 384)
+    for (let y = head.y; y < top; y++) {
+        const block = bot.blockAt(new Vec3(head.x, y, head.z), false)
+        if (!block || (block.boundingBox === 'block' && !block.name.endsWith('_leaves'))) {
+            return false
+        }
+    }
+    return true
+}
+
 async function returnSurface(c, surfaceY = c.home?.y || 64) {
+    if (openToSky(c.bot, c.bot.entity.position.floored().offset(0, 1, 0))) {
+        c.memory.surfaceByStaircase = false
+        return
+    }
     const route = c.memory.mineRoute || []
     // Walking off the route (ore pickup, restock) leaves deeper cells behind; resume at the nearest one.
     const here = c.bot.entity.position
@@ -1074,8 +1135,9 @@ async function returnSurface(c, surfaceY = c.home?.y || 64) {
     }
     const head = c.bot.entity.position.floored().offset(0, 1, 0)
     // Hills rise above the home level; reaching home Y inside one left the bot walled in (00.35.19).
-    const enclosed = c.bot.entity.position.y >= surfaceY - 1 && coveredAbove(c.bot, head)
-    if ((c.bot.entity.position.y >= surfaceY - 1 && !enclosed) || (!enclosed && await followShaft(c, 'up'))) {
+    const outside = openToSky(c.bot, head)
+    const enclosed = c.bot.entity.position.y >= surfaceY - 1 && !outside
+    if (outside || (!enclosed && await followShaft(c, 'up'))) {
         c.memory.surfaceByStaircase = false
         return
     }
@@ -1394,4 +1456,4 @@ async function performProgression(c, action, state) {
     }
 }
 
-module.exports = { armorUpgrades, coveredAbove, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS }
+module.exports = { armorUpgrades, coveredAbove, openToSky, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS }

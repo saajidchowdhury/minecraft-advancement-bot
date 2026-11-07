@@ -173,6 +173,13 @@ sleep and shelter exits still need live validation. See
 Path searches and actions have limits; an operation that refuses cancellation
 triggers reconnection before another action starts.
 
+Water search uses actual sky exposure rather than the near-home height flag.
+During daylight it finishes returning to open ground before surface scouting;
+scout and bucket-approach paths cannot dig or bridge into another cave.
+At night it searches covered caves and tunnels at the current depth, preserving
+cover and interrupting any daytime water trip at nightfall. A visible spring
+already within bucket reach can still supply water without a surface detour.
+
 ## State and debugging
 
 Endermen have a separate defensive response. Ordinary look calls and each
