@@ -62,7 +62,7 @@ test('crowding ends surface work for the rest of that night even after threats d
         c.bot.entities[i] = mob('zombie', 6 + i)
     }
     updateNightState(c, state)
-    assert.equal(chooseAction(state), 'escape')
+    assert.equal(chooseAction(state), 'retreat_to_wall')
     c.bot.entities = {}
     updateNightState(c, state)
     assert.equal(chooseAction(state), 'shelter')

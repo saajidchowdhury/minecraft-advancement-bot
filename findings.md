@@ -1882,3 +1882,40 @@ hashes match the commit. This confirms equipment and ending the idle loop;
 wooden-pick night mining remains regression-only because the live restart
 was during daylight. No commands or inventory changes staged this restart.
 Comment-bearing lines: decision-engine.js 25/281 (8.90%); its test 1/452 (0.22%).
+
+## F094 — A failed descent recovered by bridging into a mob-filled cave
+
+Run outputs/2026-11-07@00.29.28 retained target Y=-54 but repeatedly
+logged Y=-5 -> -5. Its downward steps were rejected while level fallbacks
+remained available indefinitely. At 05:49:39Z the third failed tunnel action
+triggered unstick scouting with generic scaffolding and a six-block drop
+limit. The bounded cave survey itself disables bridging. Skeleton damage
+followed at 05:49:52Z, then mining/escape/fight alternation and death at
+05:51:02Z, (-40,-13,236). The exact placed bridge blocks were not logged;
+the user observed dirt bridging and a shot-induced fall. The recovery path
+permitted both, which is reproduced by the movement regressions.
+
+Generic pathfinder scaffolding is now disabled. Combat escape and pursuit
+use dry walking movements; unstick no longer bridges, digs during its scout,
+or accepts deeper falls. Deep-mining recovery rotates and attempts a supported
+descent instead of digging up. A descending tunnel permits at most eight
+level detour steps before reporting a blocked descent, and does not open
+side probes more than eight blocks from its intended mining layer.
+
+Three observed hostiles within sixteen blocks latch a wall retreat ahead
+of cornered combat. The latch retains only actually observed threat positions
+and survives turning away; mob movement pre-empts ordinary work immediately.
+Supported routes seek clearance before digging a one-block-wide, two-high
+wall pocket. The bot enters and verifies two doorway blocks, placing the head
+block first. Obstruction or failed sealing causes another run and a different
+pocket attempt. A confirmed seal clears the retreat; inward mining replaces
+the old cave frontier. Lava, suffocation, air rescue and enderman refuge retain
+priority. Attempts, searches and path legs are bounded; cancellation restores
+movement ownership. No supported route means refusal to bridge, not combat
+against the crowd.
+
+All 390 tests and syntax checks pass. Three policy/descent regressions and
+two strengthened bridge/recovery regressions fail on the pre-fix sources.
+Eight new component tests cover threat memory, event interruption, a real
+two-block seal, continued inward mining, a failed-seal retry, unsupported
+gaps, cancellation, and combat movement. Staged LAN evidence follows separately.

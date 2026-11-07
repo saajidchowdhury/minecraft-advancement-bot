@@ -273,7 +273,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
         // The wanted slope first; when liquid or falling blocks touch all four, a level step (or, on a
         // level tunnel, one step up or down) routes around the hazard (live 02.02.15, 02.29.19).
         const rise = Math.sign(targetY - feet.y)
-        const slopes = rise ? [rise, 0] : [0, 1, -1]
+        const slopes = rise ? (rise < 0 && frontier?.levelSteps >= 8 ? [rise] : [rise, 0]) : [0, 1, -1]
         for (const [index, dy] of slopes.flatMap(dy => directionOrder.map(i => [i, dy]))) {
             const [dx, dz] = DIRECTIONS[index]
             const candidate = feet.offset(dx, dy, dz)
@@ -289,6 +289,9 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
             break
         }
         if (!target) {
+            if (rise < 0 && frontier?.levelSteps >= 8) {
+                throw new Error('tunnel descent blocked after eight level detour steps')
+            }
             throw new Error('no supported dry tunnel step; exposed liquid or falling blocks nearby')
         }
         const floor = bot.blockAt(target.offset(0, -1, 0), false)
@@ -350,6 +353,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
         c.memory.mineRoute.push({ x: feet.x, y: feet.y, z: feet.z })
         if (frontier) {
             Object.assign(frontier, { x: target.x, y: target.y, z: target.z })
+            frontier.levelSteps = target.y < feet.y ? 0 : (frontier.levelSteps || 0) + 1
         }
         if (c.memory.minedCells.size > 4096) {
             c.memory.minedCells.delete(c.memory.minedCells.values().next().value)
@@ -359,7 +363,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
             c.log.info('Priority ore came into view; leaving the tunnel segment to mine it.')
             return
         }
-        if (target.y === feet.y && c.probeSpacing > 0) {
+        if (target.y === feet.y && Math.abs(targetY - target.y) <= 8 && c.probeSpacing > 0) {
             c.memory.probeSteps = (c.memory.probeSteps || 0) + 1
             if (c.memory.probeSteps >= c.probeSpacing) {
                 c.memory.probeSteps = 0

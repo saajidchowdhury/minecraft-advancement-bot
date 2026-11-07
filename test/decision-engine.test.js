@@ -304,9 +304,25 @@ test('archers are fought at melee range and escaped from at range when hurt', ()
 
 test('a crowd of hostiles is escaped rather than fought, even at full health', () => {
     const crowd = { rangedDistance: 0.8, hostileDistance: 0.8, hasWeapon: true, health: 20, hostileCount: 6 }
-    assert.equal(chooseAction(state(crowd)), Actions.ESCAPE)
+    assert.equal(chooseAction(state(crowd)), Actions.REFUGE)
     assert.equal(chooseAction(state({ ...crowd, hostileCount: 1 })), Actions.FIGHT)
     assert.equal(chooseAction(state({ ...crowd, hostileCount: 2, rangedDistance: Infinity })), Actions.FIGHT)
+})
+
+test('a crowd retreat stays ahead of cornered fighting and progression after mobs leave the view', () => {
+    const miner = state({ health: 5, food: 18, hasFood: true, hasWeapon: true, armorPoints: 18,
+        cornered: true, hostileDistance: 1, visibleHostiles: 4, closeHostiles: 3 })
+    assert.equal(chooseAction(miner), 'retreat_to_wall')
+    assert.equal(chooseAction({ ...miner, visibleHostiles: 0, closeHostiles: 0, hostileDistance: Infinity,
+        crowdRetreat: true, cornered: false }), 'retreat_to_wall')
+    assert.equal(chooseAction({ ...miner, oxygen: 8 }), 'surface_for_air')
+})
+
+test('a sealed combat refuge mines inward instead of leaving for daylight or an old frontier', () => {
+    const miner = state({ combatRefuge: true, needsShelterExit: true,
+        hasWoodenPickaxe: true, health: 20, food: 20 })
+    assert.equal(chooseAction(miner), 'mine_from_refuge')
+    assert.equal(chooseAction({ ...miner, health: 5, food: 20 }), 'wait')
 })
 
 test('an unarmored bot withdraws when two hostiles close in', () => {
@@ -318,7 +334,7 @@ test('an unarmored bot withdraws when two hostiles close in', () => {
 
 test('hostiles hidden behind a sealed pocket do not force the bot back out', () => {
     assert.equal(chooseAction(state({ health: 1.3, food: 20, hostileCount: 6, visibleHostiles: 0, hostileDistance: 13 })), 'wait')
-    assert.equal(chooseAction(state({ health: 18, hostileCount: 6, visibleHostiles: 4, hostileDistance: 3 })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ health: 18, hostileCount: 6, visibleHostiles: 4, hostileDistance: 3 })), Actions.REFUGE)
 })
 
 test('an adjacent attacker is fought before eating when the bot is healthy and armed', () => {
@@ -333,7 +349,7 @@ test('a fully armored, armed bot keeps fighting a lone melee attacker instead of
     assert.equal(chooseAction(state(duel)), Actions.FIGHT)
     assert.equal(chooseAction(state({ ...duel, health: 4 })), Actions.ESCAPE)
     assert.equal(chooseAction(state({ ...duel, armorPoints: 5 })), Actions.ESCAPE)
-    assert.equal(chooseAction(state({ ...duel, visibleHostiles: 3 })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ ...duel, visibleHostiles: 3 })), Actions.REFUGE)
 })
 
 test('a lone archer shooting from mid-range is charged when healthy, covered from when hurt', () => {
@@ -347,7 +363,7 @@ test('an armored bot fights two zombies once a creeper is beyond its fuse range'
     const pair = { hostileDistance: 1.3, hasWeapon: true, armorPoints: 16, visibleHostiles: 2, health: 9.6 }
     assert.equal(chooseAction(state(pair)), Actions.FIGHT)
     assert.equal(chooseAction(state({ ...pair, creeperDistance: 5 })), Actions.ESCAPE)
-    assert.equal(chooseAction(state({ ...pair, visibleHostiles: 3 })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ ...pair, visibleHostiles: 3 })), Actions.REFUGE)
 })
 
 test('a non-urgent surface trip waits underground in shelter at night', () => {

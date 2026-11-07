@@ -67,6 +67,7 @@ test('safe movements prohibit generic A-star from mining straight down', () => {
     movements.getMoveDown({}, neighbors)
     assert.deepEqual(neighbors, [])
     assert.equal(movements.canDig, true)
+    assert.deepEqual(movements.scafoldingBlocks, [])
 })
 
 test('generic pathfinder digging preserves furnaces and storage containers', () => {
@@ -96,7 +97,7 @@ test('a two-deep pit inside roofless shelter walls has a one-step exit', () => {
 })
 
 test('repeated navigation failures scout without diagonal steps and restore normal movements', async () => {
-    for (const [health, expected] of [[20, 6], [12, 3]]) {
+    for (const [health, expected] of [[20, 2], [12, 2]]) {
         const active = []
         const original = { name: 'normal' }
         const c = {
@@ -106,6 +107,8 @@ test('repeated navigation failures scout without diagonal steps and restore norm
                 const movement = active.at(-1)
                 c.dropDuringScout = movement.maxDropDown
                 assert.notEqual(movement.getMoveDiagonal, Object.getPrototypeOf(movement).getMoveDiagonal)
+                assert.deepEqual(movement.scafoldingBlocks, [])
+                assert.equal(movement.canDig, false)
             }
         }
         c.configureSafeMovements = SurvivalController.prototype.configureSafeMovements

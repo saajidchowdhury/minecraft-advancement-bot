@@ -6,6 +6,10 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
+F094 fixes unlimited level detours, bridging recovery and crowd fight/escape
+oscillation. All 390 tests pass. Verify a staged four-mob wall retreat and
+inward mining, then observe a natural cave encounter on the fixed runtime.
+
 F093 fixes gear left unequipped behind tool prerequisites and night idling with
 a usable wooden backup pick. Three pre-fix regressions pass. The natural
 restart equipped all armor and shield, escaped the shelter and resumed daytime

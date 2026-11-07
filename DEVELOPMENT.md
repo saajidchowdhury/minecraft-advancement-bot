@@ -117,6 +117,16 @@ wall while staying in the tunnel cell. Reach and safety checks can shorten a
 probe, and exposed ore returns control to resource harvesting. Five is a
 starting value, not a measured optimum.
 
+Generic pathfinding cannot place scaffold blocks. Combat escape/pursuit and
+recovery scouting use supported dry routes without digging or bridging.
+Three observed hostiles within sixteen blocks latch a wall retreat: run clear,
+dig and enter a one-by-two wall pocket, then confirm two sealing doorway
+blocks. A blocked seal triggers another run before retrying. Once enclosed,
+the bot mines inward and abandons the dangerous old tunnel frontier. Turning
+away from the mob group does not end the retreat. Descending tunnels permit
+eight level detour steps before reporting a blocked descent; side probes wait
+until within eight blocks of the target layer.
+
 Newly exposed diamonds can interrupt another mining objective when safe. After
 collecting the drop, the bot returns to the interrupted objective. Visible iron
 interrupts the same way while raw iron plus ingots are below 16 plus the ingots

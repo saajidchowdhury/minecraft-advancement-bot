@@ -721,7 +721,7 @@ test('a survival block is placed against plain stone before a furnace, and sneak
     }
 })
 
-test('an escape pinned in its starting cell by an adjacent zombie turns into a fight, even outnumbered', () => {
+test('an escape pinned in its starting cell cannot turn crowd retreat into a fight', () => {
     const { chooseAction, Actions } = require('../src/decision-engine')
     const c = Object.create(SurvivalController.prototype)
     const zombie = { name: 'zombie' }
@@ -735,9 +735,10 @@ test('an escape pinned in its starting cell by an adjacent zombie turns into a f
     c.escapeOrigin = { position: new Vec3(238.5, -19, -126.5), at: Date.now() - 1500 }
     assert.equal(c.escapePinned(), false)
     const trapped = { health: 6.6, food: 17, hasWeapon: true, armorPoints: 15, closeHostiles: 3, visibleHostiles: 3, hostileDistance: 0.4 }
-    assert.equal(chooseAction(trapped), Actions.ESCAPE)
-    assert.equal(chooseAction({ ...trapped, cornered: true }), Actions.FIGHT)
-    assert.equal(chooseAction({ ...trapped, cornered: true, creeperDistance: 4 }), Actions.ESCAPE)
+    assert.equal(chooseAction(trapped), Actions.REFUGE)
+    assert.equal(chooseAction({ ...trapped, cornered: true }), Actions.REFUGE)
+    assert.equal(chooseAction({ ...trapped, cornered: true, creeperDistance: 4 }), Actions.REFUGE)
+    assert.equal(chooseAction({ ...trapped, cornered: true, closeHostiles: 1, visibleHostiles: 1 }), Actions.FIGHT)
 })
 
 test('burning in lava pre-empts everything: water is poured at the feet and the bot steps to dry ground', async () => {

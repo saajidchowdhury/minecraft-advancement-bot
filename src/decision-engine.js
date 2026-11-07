@@ -8,6 +8,7 @@ const NIGHT_CARVE_ACTIONS = new Set(['gather_iron', 'gather_coal', 'gather_diamo
 
 const Actions = Object.freeze({
     ESCAPE: 'escape',
+    REFUGE: 'retreat_to_wall',
     DESCEND: 'descend_safely',
     ASCEND: 'escape_shaft',
     RECOVER: 'recover_items',
@@ -68,6 +69,9 @@ function chooseAction (state) {
     }
     if (state.endermanDanger) {
         return 'avoid_enderman'
+    }
+    if (state.crowdRetreat || (state.visibleHostiles ?? state.hostileCount ?? 0) >= 3) {
+        return Actions.REFUGE
     }
     // An escape pinned in place by adjacent melee mobs only absorbs hits; fight back (03.36.15).
     if (state.cornered && state.hasWeapon && !(state.creeperDistance <= 6)) {
@@ -131,6 +135,9 @@ function chooseAction (state) {
     const mustFreeSlot = state.freeInventorySlots === 0 && state.inventoryFull
     if ((state.underground || state.sheltered) && craftPick && !state.hasStonePickaxe && !mustFreeSlot) {
         return progression.action
+    }
+    if (state.combatRefuge) {
+        return state.hasWoodenPickaxe ? 'mine_from_refuge' : 'wait'
     }
     if (state.isNight && state.sheltered && !state.underground) {
         if (state.canSleep) {

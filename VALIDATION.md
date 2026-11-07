@@ -2,6 +2,13 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F094 passes 390 tests and syntax checks. Three new policy/descent regressions
+and two strengthened movement regressions fail on the old source. Eight new
+component tests exercise the crowd latch, immediate interruption, two-block
+wall sealing, inward continuation, retry after an obstructed seal, unsupported
+gap refusal, cancellation and combat movement. These new component tests are
+specifications for the new refuge skill. Staged LAN evidence follows separately.
+
 F093 passes 379 tests and syntax checks. Three regressions fail on the old
 source: equip carried armor/shield despite missing tool materials, craft a
 ready replacement before a shelter wait, and use a wooden backup for coal or

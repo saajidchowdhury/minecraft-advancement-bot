@@ -22,6 +22,7 @@ const { archeryState, shootArrow } = require('./archery')
 const { enchantingState, gatherLeather, enchantItem } = require('./enchanting')
 const { golemState, summonGolem } = require('./golem')
 const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
+const { updateCrowdRetreat, retreatToWall, mineFromRefuge } = require('./crowd-retreat')
 
 const { GoalNear, GoalFollow } = goals
 
@@ -54,6 +55,7 @@ const PATH_SEARCH_RADIUS = 48
 const HEAP_GUARD_BYTES = 768 * 1024 * 1024
 const ACTION_TIMEOUT_MS = Object.freeze({
     [Actions.ESCAPE]: 30000,
+    [Actions.REFUGE]: 30000,
     avoid_enderman: 30000,
     [Actions.DESCEND]: 30000,
     [Actions.ASCEND]: 90000,
@@ -300,6 +302,8 @@ class SurvivalController {
             this.sheltered = false
             this.shelterCenter = null
             this.lastDepartureSurface = null
+            this.crowdRetreat = null
+            this.memory.combatRefuge = null
             this.cancelCurrentTask('death')
         })
         this.bot.on('entityHurt', (victim, source) => {
@@ -321,7 +325,7 @@ class SurvivalController {
             if (!this.running || this.paused || this.followPlayer || !victim || victim !== this.bot.entity ||
                 this.bot.health <= 0 || !source?.isValid || !HOSTILES.has(source.name) ||
                 victim.position.distanceTo(source.position) > 4 ||
-                (this.busy && [Actions.FIGHT, Actions.ESCAPE, 'escape_lava', 'surface_for_air', 'clear_head'].includes(action))) {
+                (this.busy && [Actions.FIGHT, Actions.ESCAPE, Actions.REFUGE, 'escape_lava', 'surface_for_air', 'clear_head'].includes(action))) {
                 return
             }
             this.lastHitBearing = {
@@ -380,7 +384,7 @@ class SurvivalController {
                 const attacker = this.nearestEntity?.(HOSTILES, 4) ||
                     Object.values(this.bot.entities || {}).find(e => e.isValid && ARCHERS.has(e.name) &&
                         this.bot.entity.position.distanceTo(e.position) <= 16 && this.canSee?.(e))
-                if (attacker && this.busy && ![Actions.ESCAPE, Actions.FIGHT].includes(action) && !this.actionAbort?.signal.aborted) {
+                if (attacker && this.busy && ![Actions.ESCAPE, Actions.FIGHT, Actions.REFUGE].includes(action) && !this.actionAbort?.signal.aborted) {
                     // Work must not continue under melee attack; the next decision fights or escapes.
                     this.cancelCurrentTask(`attacked by ${attacker.name}`)
                 }
@@ -393,13 +397,22 @@ class SurvivalController {
                 }
             }
             previousHealth = this.bot.health
-            if (this.bot.health <= 6 && this.busy && ![Actions.ESCAPE, 'avoid_enderman', 'escape_lava', 'surface_for_air', 'clear_head'].includes(action) &&
+            if (this.bot.health <= 6 && this.busy && ![Actions.ESCAPE, Actions.REFUGE, 'avoid_enderman', 'escape_lava', 'surface_for_air', 'clear_head'].includes(action) &&
                 (tookDamage || ![Actions.EAT, Actions.SHELTER].includes(action)) && !this.actionAbort?.signal.aborted) {
                 this.cancelCurrentTask('critical health')
             }
         })
         this.bot.on('entityMoved', entity => {
-            if (entity.name !== 'creeper' || !this.running || !this.busy || this.activeAction === Actions.ESCAPE ||
+            if (this.running && !this.paused && this.bot.health > 0 && this.bot.entity && HOSTILES.has(entity.name) &&
+                ![Actions.REFUGE, 'avoid_enderman', 'escape_lava', 'surface_for_air', 'clear_head'].includes(this.activeAction) &&
+                updateCrowdRetreat(this, HOSTILES)) {
+                if (this.busy && !this.actionAbort?.signal.aborted) {
+                    this.cancelCurrentTask('crowd of mobs; taking wall refuge')
+                } else if (!this.busy) {
+                    this.scheduleLoop(0)
+                }
+            }
+            if (entity.name !== 'creeper' || !this.running || !this.busy || [Actions.ESCAPE, Actions.REFUGE].includes(this.activeAction) ||
                 this.actionAbort?.signal.aborted || !this.bot.entity ||
                 this.bot.entity.position.distanceTo(entity.position) > 6 || !this.canSee(entity)) {
                 return
@@ -556,7 +569,7 @@ class SurvivalController {
             return
         }
 
-        if (this.followPlayer && !this.endermanDanger() && (this.bot.oxygenLevel ?? 20) > 12) {
+        if (this.followPlayer && !this.endermanDanger() && !updateCrowdRetreat(this, HOSTILES) && (this.bot.oxygenLevel ?? 20) > 12) {
             const entity = this.bot.players[this.followPlayer]?.entity
             if (entity && !this.bot.pathfinder.isMoving()) {
                 this.bot.pathfinder.setGoal(new GoalFollow(entity, 2), true)
@@ -634,7 +647,7 @@ class SurvivalController {
             // starting a staircase, descent, or relocation that uses the same bot.
             this.clearCurrentTask()
             await sleep(100)
-            if (this.urgentReplan || ['avoid_enderman', 'fill_water_bucket'].includes(action) ||
+            if (this.urgentReplan || [Actions.REFUGE, 'mine_from_refuge', 'avoid_enderman', 'fill_water_bucket'].includes(action) ||
                 !this.running || this.paused || this.followPlayer || this.bot.health <= 0) {
                 return
             }
@@ -819,6 +832,11 @@ class SurvivalController {
         // Hostiles behind walls cannot reach a sealed pocket; only visible ones make a crowd.
         state.visibleHostiles = this.visibleThreatCount(12)
         state.closeHostiles = this.visibleThreatCount()
+        state.crowdRetreat = updateCrowdRetreat(this, HOSTILES)
+        if (this.memory.combatRefuge?.dimension !== this.bot.game.dimension) {
+            this.memory.combatRefuge = null
+        }
+        state.combatRefuge = Boolean(this.memory.combatRefuge)
         state.gear = new Set([...this.bot.inventory.items(), ...[5, 6, 7, 8, 45].map(slot => this.bot.inventory.slots[slot])]
             .filter(Boolean).map(item => item.name))
         state.armorUpgrade = armorUpgrades(this.bot).length > 0
@@ -888,6 +906,8 @@ class SurvivalController {
                     return this.takeCover(state.creeper, 8)
                 }
                 return state.rangedDistance <= 16 ? this.takeCover(state.ranged, 24) : this.escapeFrom(state.hostile)
+            case Actions.REFUGE: return retreatToWall(this)
+            case 'mine_from_refuge': return mineFromRefuge(this, state)
             case Actions.DESCEND: return this.descendSafely()
             case Actions.ASCEND: return this.escapeVerticalShaft()
             case Actions.RECOVER: return this.recoverItems()
@@ -1802,6 +1822,7 @@ class SurvivalController {
         let chaseProgressAt = Date.now()
         let following = false
         let shielding = false
+        this.bot.pathfinder.setMovements?.(dryMovements(this.bot))
         try {
             while (entity.isValid && Date.now() < deadline) {
                 this.checkAction(signal)
@@ -1814,7 +1835,7 @@ class SurvivalController {
                     this.urgentReplan = true
                     throw new Error('combat health too low; replanning escape')
                 }
-                if (!hunt && !cornered && outnumbered(this.visibleThreatCount(), wornArmorPoints(this.bot))) {
+                if (!hunt && (updateCrowdRetreat(this, HOSTILES) || (!cornered && outnumbered(this.visibleThreatCount(), wornArmorPoints(this.bot))))) {
                     this.urgentReplan = true
                     throw new Error('outnumbered in combat; replanning escape')
                 }
@@ -1894,6 +1915,7 @@ class SurvivalController {
             }
             this.bot.pathfinder.setGoal(null)
             this.bot.deactivateItem?.()
+            this.bot.pathfinder.setMovements?.(this.movements)
         }
     }
 
@@ -1906,7 +1928,12 @@ class SurvivalController {
         const length = Math.max(Math.sqrt(away.x * away.x + away.z * away.z), 0.01)
         const x = Math.floor(here.x + (away.x / length) * 16)
         const z = Math.floor(here.z + (away.z / length) * 16)
-        await this.bot.pathfinder.goto(new GoalNear(x, Math.floor(here.y), z, 3))
+        this.bot.pathfinder.setMovements(dryMovements(this.bot))
+        try {
+            await this.gotoWithTimeout(new GoalNear(x, Math.floor(here.y), z, 3), 6000, 'combat escape')
+        } finally {
+            this.bot.pathfinder.setMovements(this.movements)
+        }
     }
 
     configureLooking () {
@@ -2728,20 +2755,16 @@ class SurvivalController {
         await this.scout(36)
     }
 
-    // Repeated 'No path' means walls and drops deeper than the safe limit enclose the bot.
-    // At good health accept a longer fall (damage = drop - 3 hp); otherwise dig a short stair up.
     async unstick () {
         const signal = this.actionAbort?.signal
-        const loose = new Movements(this.bot)
-        this.configureSafeMovements(loose)
-        loose.maxDropDown = this.bot.health >= 16 ? 6 : SAFE_PATHFINDER_DROP
+        const loose = dryMovements(this.bot)
         loose.getMoveDiagonal = () => {}
         if (!this.bot.entity?.isInWater) {
             const water = this.bot.registry.blocksByName.water.id
             loose.blocksToAvoid.add(water)
             loose.blocksCantBreak.add(water)
         }
-        this.log.warn(`No route out; scouting with cardinal steps and a ${loose.maxDropDown}-block drop limit, then digging upward if needed.`)
+        this.log.warn(`No route out; scouting supported cardinal steps without bridging; maximum drop=${loose.maxDropDown}.`)
         this.bot.pathfinder.setMovements(loose)
         try {
             await this.scout(16)
@@ -2755,7 +2778,12 @@ class SurvivalController {
         this.bot.pathfinder.setGoal(null)
         await this.bot.waitForTicks(2)
         this.checkAction(signal)
-        await mineTunnel(this, Math.floor(this.bot.entity.position.y) + 4)
+        const descending = ['gather_diamonds', 'gather_redstone', 'gather_lapis'].includes(this.activeAction || this.lastAction)
+        if (descending) {
+            this.memory.tunnelFrontier = null
+            this.memory.mineDirection = ((this.memory.mineDirection || 0) + 1) % 4
+        }
+        await mineTunnel(this, Math.floor(this.bot.entity.position.y) + (descending ? -4 : 4))
     }
 
     async scout (distance, { surfaceOnly = false } = {}) {
@@ -2924,6 +2952,7 @@ class SurvivalController {
             !movements.bot.inventory?.items().some(item => item.name.endsWith('_pickaxe') && block.canHarvest(item.type)) ? 100 : 0)
         movements.allow1by1towers = false
         movements.allowParkour = false
+        movements.scafoldingBlocks = []
         movements.maxDropDown = SAFE_PATHFINDER_DROP
         movements.canDig = true
         movements.dontCreateFlow = true
@@ -2975,7 +3004,7 @@ class SurvivalController {
     cancelCurrentTask (reason) {
         this.log.warn(`Cancelling current task: ${reason}`)
         // Lava costs ~2.5 HP per half second; the 1.5 s failure back-off cost death #8 (17:30:23Z).
-        this.urgentReplan = /creeper|attacked|critical health|night damage|sheltered|lava|suffocat|air/.test(reason)
+        this.urgentReplan = /crowd|creeper|attacked|critical health|night damage|sheltered|lava|suffocat|air/.test(reason)
         this.actionAbort?.abort(reason)
         if (this.activeCollection && /(is stuck|timed out|memory guard)/.test(reason)) {
             this.rememberBlockedTarget(

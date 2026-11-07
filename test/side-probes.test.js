@@ -78,6 +78,17 @@ test('probes reach five blocks on both sides while staying in the tunnel cell', 
     assert.equal(c.dug.some(p => p.z === 5), true)
 })
 
+test('a blocked diamond descent cannot drift level indefinitely or probe the wrong layer', async () => {
+    const c = miningWorld()
+    const blockAt = c.bot.blockAt
+    c.bot.blockAt = p => p.y === 62 ? { name: 'water', position: p, boundingBox: 'empty' } : blockAt(p)
+    await mineTunnel(c, -54)
+    await mineTunnel(c, -54)
+    await assert.rejects(mineTunnel(c, -54), /descent blocked/)
+    assert.equal(c.dug.some(p => p.z !== 0), false)
+    assert.equal(c.bot.entity.position.y, 64)
+})
+
 test('a liquid or falling-block neighbor stops that probe before opening the hazard', async () => {
     for (const hazard of ['lava', 'water', 'gravel', 'sand']) {
         const c = miningWorld(new Map([[new Vec3(0, 65, 3).toString(), hazard]]))
