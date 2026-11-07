@@ -8,7 +8,9 @@ one playthrough is a test, not the definition of success.
 
 F096 fixes repeated thirty-second cooking-return attempts: interaction-reach
 goals, eight-second approaches and a bounded detour on the first failure.
-All 399 tests pass. Verify collection at the original hillside furnace site.
+All 399 tests pass. An original-site staged repeat recovered after the first
+timeout and collected finished food in 11.243 s at full health. Observe the
+next naturally earned cooking return; the one-item test output was supplied.
 
 F095 restores stone pick -> axe -> shovel preparation after a rebuild and
 before routine hunting. Prey attacks prefer axes and respect their cooldown.

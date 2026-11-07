@@ -7,7 +7,13 @@ source: interaction from a hillside ledge, bounded first-failure detouring,
 movement restoration on cancellation, actual arrival despite the library's
 empty-noPath resolution, and refusing to route toward a known missing furnace.
 The empty-path case uses the real pinned pathfinder goto implementation.
-Original-site LAN evidence follows separately.
+Original-site staged LAN repeat on 458fb97 returned from the previously stuck
+hillside cell, hit the eight-second limit once, detoured immediately and
+collected finished output in 11.243 s at 20 HP. The intentionally future ETA
+did not delay collection. All route legs disabled digging and scaffolding;
+commands ran only during setup/cleanup. The supplied one-item output and
+temporary furnace were removed, and only the bot was returned to its original
+mine position. A naturally earned return on the fixed code remains unverified.
 
 F095 passes 394 tests and syntax checks. Four regressions fail on the old
 source: remembered iron progression skipping tools, routine hunting bypassing

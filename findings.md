@@ -1994,8 +1994,8 @@ without waiting for the estimated cooking finish time.
 
 The old goal required standing within two blocks of the furnace coordinates,
 although a hillside ledge farther away can be within interaction reach.
-Cooking returns now target visible interaction reach with a four-block safety
-margin and dry walking movements. Each approach has an eight-second limit.
+Cooking returns now target visible interaction reach capped at four blocks,
+using dry walking movements. Each approach has an eight-second limit.
 The first no-path/timeout immediately attempts a six-block lateral detour
 (four-second limit), then retries once. Subsequent detours alternate sides.
 Every goal is checked against the actual final position, covering the pinned
@@ -2007,4 +2007,22 @@ is inferred from the estimated finish timestamp.
 
 Five regressions fail on the pre-fix source, including the real pathfinder
 goto implementation's empty-path behavior. All 399 tests and syntax checks
-pass. Staged original-site evidence follows separately.
+pass.
+
+Original-site LAN trial on 458fb97, outputs/furnace-return-test.json:
+staged one furnace at the now-empty original site (-27,74,194), with a
+single cooked chicken in its output and no input. Started from the original
+stalled cell (-33,78,191). The first approach timed out at eight seconds;
+the immediate lateral detour and retry collected the food after 11.243 s
+total. It finished near (-28.32,76.23,195.53) at 20 HP, from an interaction
+position outside the old two-block goal. The job was cleared despite a
+deliberately future estimated finish timestamp, confirming actual empty input
+and output collection control completion. All three route legs disabled
+digging and scaffolding. No commands ran during the autonomous trial.
+
+Setup replaced only verified air. Cleanup returned only the bot to its
+original mine position, removed the supplied chicken and removed the staged
+furnace using a server-side guard against players above/around it. An initial
+setup stopped before placing anything because the distant site was unloaded;
+the repeat loaded the recorded safe hillside before validating the site.
+Produced code comment ratios: food.js 22/324 (6.79%), its tests 0/259 (0%).
