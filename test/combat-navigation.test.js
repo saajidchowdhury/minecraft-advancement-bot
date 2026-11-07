@@ -10,20 +10,20 @@ const { SurvivalController } = require('../src/survival-bot')
 function axeHunter() {
     const c = Object.create(SurvivalController.prototype)
     const target = { name: 'cow', isValid: true, position: new Vec3(2, 64, 0) }
-    const hits = [], equipped = []
+    const hits = [], equipped = [], aims = []
     Object.assign(c, { running: true, paused: false, actionAbort: new AbortController(), canSee: () => true,
         visibleDrops: () => [], bot: { health: 20, entity: { position: new Vec3(0, 64, 0) },
             inventory: { items: () => [{ name: 'diamond_sword' }, { name: 'stone_axe' }], slots: [] },
-            pathfinder: { setGoal() {} }, lookAt: async () => {},
+            pathfinder: { setGoal() {} }, lookAt: async point => { aims.push(point) },
             async equip(item) { equipped.push(item.name) },
             attack() { hits.push(Date.now()); if (hits.length === 2) { target.isValid = false } }
         } })
-    return { c, target, hits, equipped }
+    return { c, target, hits, equipped, aims }
 }
 
 test('prey attacks prefer a stone axe over a carried sword and wait for charged swings', async t => {
     t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
-    const { c, target, hits, equipped } = axeHunter()
+    const { c, target, hits, equipped, aims } = axeHunter()
     const start = Date.now()
     const operation = c.fight(target, true)
     await Promise.resolve()
@@ -31,6 +31,10 @@ test('prey attacks prefer a stone axe over a carried sword and wait for charged 
         t.mock.timers.tick(100)
         await Promise.resolve()
         await Promise.resolve()
+        if (i === 5) {
+            assert.ok(aims.length > 0, 'the hunter must track its prey while the axe charges')
+            assert.equal(hits.length, 0)
+        }
     }
     await operation
     assert.equal(equipped[0], 'stone_axe')

@@ -13,6 +13,10 @@ resumed food gathering with both at full health/food. No commands staged
 this restart; runtime hashes match. A live axe-equipped animal kill remains
 unverified.
 
+F095 cooldown follow-up: the hunter tracks close prey while charging, not
+only when ready to hit. The strengthened aim-before-swing assertion fails
+on 3ed68c9; all 394 tests and syntax checks pass with the correction.
+
 F094 passes 390 tests and syntax checks. Three new policy/descent regressions
 and two strengthened movement regressions fail on the old source. Eight new
 component tests exercise the crowd latch, immediate interruption, two-block

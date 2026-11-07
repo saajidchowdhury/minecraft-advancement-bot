@@ -1876,12 +1876,12 @@ class SurvivalController {
                     }
                     this.bot.pathfinder.setGoal(null)
                     following = false
+                    await this.bot.lookAt(entity.position.offset(0, Math.min(entity.height || 1, 1.4), 0), true)
+                    this.checkAction(signal)
                     if (Date.now() < nextHuntAttackAt) {
                         await sleep(Math.min(100, nextHuntAttackAt - Date.now()))
                         continue
                     }
-                    await this.bot.lookAt(entity.position.offset(0, Math.min(entity.height || 1, 1.4), 0), true)
-                    this.checkAction(signal)
                     if (this.bot.inventory?.slots[45]?.name === 'shield' && (!hunt || guard)) {
                         this.bot.activateItem(true)
                         await sleep(350)

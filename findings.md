@@ -1974,3 +1974,9 @@ all runtime source hashes match. A natural axe-equipped animal kill remains
 unverified; weapon choice, charge timing and air interruption are regression
 evidence. Produced code files have 0–8.56% comment-bearing lines (highest:
 decision-engine.js 25/292).
+
+F095 follow-up: keep aiming at close prey during axe charging. The initial
+cooldown check ran before lookAt, so it postponed tracking for up to 1.25 s.
+A strengthened assertion fails on 3ed68c9 and requires aiming before the
+first swing while retaining the full charge. The aim update now precedes
+the cooldown wait. All 394 tests and syntax checks still pass.
