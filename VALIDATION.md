@@ -2,6 +2,10 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F087 adds a regression verifying four intervening main-tunnel blocks between
+five-block side branches. The old eight-step default fails; the new five-step
+interval passes. All 347 tests and syntax checks pass.
+
 F086 passes 346 tests and syntax checks. Eleven regressions cover enderman
 hit interrupts, refuge priority and cancellation, neutral/angry metadata,
 dimension isolation, face avoidance including long-range gaze, follow-mode

@@ -45,7 +45,7 @@ function loadConfig() {
         },
         owner: process.env.MC_OWNER || '',
         worldId,
-        probeSpacing: integer('BOT_PROBE_SPACING', 8, 0, 64),
+        probeSpacing: integer('BOT_PROBE_SPACING', 5, 0, 64),
         seed: integer('BOT_SEED', 1, 0, 4294967295),
         reconnect: bool('BOT_RECONNECT', true),
         reconnectDelayMs: integer('BOT_RECONNECT_DELAY_MS', 10000, 1000, 300000),

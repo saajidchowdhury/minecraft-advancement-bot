@@ -6,6 +6,7 @@ const { Vec3 } = require('vec3')
 const mcData = require('minecraft-data')('26.1')
 const { probeTunnelSides, mineTunnel } = require('../src/progression-skills')
 const { SurvivalController } = require('../src/survival-bot')
+const { loadConfig } = require('../src/config')
 
 function miningWorld(overrides = new Map()) {
     const air = new Set(['(0, 64, 0)', '(0, 65, 0)'])
@@ -101,6 +102,18 @@ test('two four-block tunnel actions trigger one pair of probes at spacing eight'
     assert.equal(c.memory.probeMinedBlocks, 10)
     assert.equal(c.memory.probeSteps, 0)
     assert.equal(c.bot.entity.position.x, 8.5)
+})
+
+test('default side probes leave four main-tunnel blocks between successive branches', async () => {
+    const c = miningWorld()
+    c.probeSpacing = loadConfig().probeSpacing
+    for (let i = 0; i < 3; i++) {
+        await mineTunnel(c, 64)
+    }
+    const branches = [...new Set(c.dug.filter(p => p.z !== 0).map(p => p.x))]
+    assert.deepEqual(branches, [5, 10])
+    assert.equal(branches[1] - branches[0] - 1, 4)
+    assert.equal(c.dug.filter(p => p.z !== 0).length, 20)
 })
 
 test('tunneling yields for newly exposed diamond ore before advancing past it', async () => {

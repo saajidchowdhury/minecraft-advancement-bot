@@ -209,7 +209,8 @@ completion before expanding the planner again.
 
 ## G008 — Lower / measurements needed — Optimize mining and resource economics
 
-Finding F006: side probes work, but spacing eight is a starting value.
+Finding F006: side probes work. F087 sets the user-requested interval to five
+(four intervening blocks); its throughput has not been compared with alternatives.
 Compare a few intervals, including no probes, under comparable world/tool
 conditions. Record revision, sample size, elapsed time, ore yield, tool wear,
 travel and failures. Avoid claims from one lucky deposit. Also evaluate using

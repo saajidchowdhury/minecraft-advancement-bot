@@ -52,7 +52,7 @@ Minecraft-owning account for the bot.
 | `MC_OWNER` | If set, only this player can issue chat controls, and the bot sleeps only when this player sleeps; if empty, it sleeps when all other players sleep |
 | `MC_WORLD_ID` | Label for persistent world memory (below) |
 | `BOT_SEED` | Repeatable exploration choices; server timing, entities and world changes still affect gameplay |
-| `BOT_PROBE_SPACING` | Tunnel side-probe interval in blocks, `0` disables |
+| `BOT_PROBE_SPACING` | Main-tunnel interval between side branches; default `5` leaves four intervening blocks; `0` disables |
 | `BOT_LOG_LEVEL` | `debug` increases navigation detail |
 | `BOT_RECONNECT`, `BOT_RECONNECT_DELAY_MS`, `BOT_VIEW_DISTANCE` | Reconnection and view distance |
 

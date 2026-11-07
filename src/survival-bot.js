@@ -201,7 +201,7 @@ class SurvivalController {
         this.hostileNames = HOSTILES
         this.owner = options.owner || ''
         this.rng = createRng(options.seed ?? 1)
-        this.probeSpacing = options.probeSpacing ?? 8
+        this.probeSpacing = options.probeSpacing ?? 5
         this.onState = options.onState || (() => {})
         this.log = options.log || console
         this.memory = options.memory || {}

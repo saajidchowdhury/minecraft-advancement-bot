@@ -1655,3 +1655,12 @@ outputs/enderman-* and outputs/stage-enderman-test.js. Cleanup removed the
 arena and tagged mob, retained one supplied kit and returned the bot to its
 prior surface position. Natural encounters and departure after anger clears
 remain unverified. All 346 tests and syntax checks pass.
+
+## F087 — Four blocks between successive side branches [user direction + regression]
+
+The side-probe interval is now five main-tunnel steps, leaving four blocks
+between successive branch positions. Each side branch remains five blocks long.
+Defaults, the example configuration and local LAN configuration use five.
+The regression tunnels twelve blocks and verifies branch positions at steps
+five and ten, with twenty total side blocks mined. It failed with the former
+eight-step default. Existing explicit interval-eight coverage remains valid.
