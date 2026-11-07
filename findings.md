@@ -1763,3 +1763,76 @@ and filled a water bucket without commands. One candidate source had no walking
 path and was quarantined; the next search succeeded. The planner then moved on
 to smelting iron for additional buckets. The live night search and sunset
 interrupt remain unverified; automated day/night cases pass.
+
+
+## F090 — Leaves hid remaining trunks; level scans missed overhead logs
+
+The wood search used Mineflayer's collision-based canSeeBlock, so leaves were
+opaque to discovery and to the final harvesting check. Its search turns also
+kept pitch at zero, missing trunks directly overhead after lower logs were cut.
+Visual rays now ignore *_leaves while retaining solid-block intersections and
+the forward field of view. Wood search also scans upward at sixty degrees.
+Resource approach goals, harvesting, ore faces, entities and enderman gaze
+protection share the leaf-transparent rays; movement collision remains solid.
+
+The new ray helper uses the actual Prismarine World matcher contract, computes
+shape intersections and retains face/intersection data. Tests use the real
+world ray iterator and real block shapes. Review also found that Vec3.normalize
+mutates its vector: the entity sight check had measured the range afterward,
+limiting obstruction checks to one block. It now records distance first.
+Stone beyond the first block therefore still blocks entity sight.
+
+Five leaf-vision regressions cover layered leaves versus stone, overhead trunk
+search, ore faces, entity obstruction and direct harvesting. All fail on the
+pre-fix source. Natural wood gathering remains a live observation target.
+
+## F091 — Low-air work interruption and direct rescue swimming
+
+Run outputs/2026-11-06@23.52.04 recorded drowning at (124,58,37) at
+2026-11-07T04:54:34Z. After crafting and reclaiming a table near the furnace,
+the bot descended to Y=54 while retrieving a workstation drop. No breath event
+interrupted that action. Once air ran out, surface_for_air repeatedly selected
+(124,62,37) without securing breathable air. It even briefly chose craft_table
+at zero air. The precise head block during that brief false-negative was not
+recorded; a head-name check was an unnecessary prerequisite for low-air safety.
+
+A server breath event now pre-empts work at twelve of twenty air units, and
+low air outranks ordinary work independently of the head block name. Water,
+bubble columns, aquatic plants and waterlogged blocks are recognized in the
+head observation. Emergency surfacing stops pathfinding and directly holds
+swim controls, steering through a bounded search of two-block-clear water/air
+cells around obstacles. It continues until at least eighteen air units return
+or its six-second bound ends. Cancellation remains exclusive and controls are
+released in finally. Follow mode also yields to low air.
+
+Workstation pickup requires a safe dry landing and uses no-dig/no-bridge
+movement, instead of following a dropped block underwater. Reclamation also
+leaves the bot's supporting station intact and stops if equipping was canceled.
+Six regressions cover the authoritative-air policy, breath interruption,
+overhang swimming, wet pickup refusal, supporting blocks and cancellation.
+All fail on the pre-fix source. The earlier air-rescue test now checks sustained
+direct swimming rather than merely issuing a pathfinding goal.
+
+The original remaining drops were temporarily preserved with an external
+command while the repair was developed. A command-positioned trial in the
+original natural pond survived direct ascent from Y=54 to Y=62.2 and restored
+air, starting with low health and only three air units. That trial took no
+health damage during rescue. The setup then returned the bot to the shore and
+recovered seventeen remaining dropped item entities by command. These are
+staged safety/recovery conditions, not unaided inventory recovery. No terrain
+or player-owned structures were created or removed.
+
+
+Final F091 pond repeat: the server reported Air=300 before submersion, and work
+was interrupted at twelve air units. The direct swim reached at least eighteen
+air units and the water surface; outputs/natural-pond-rescue.json records the
+trial and matching final source hash. No commands ran during submersion/rescue.
+An earlier setup assumed Mineflayer always initializes oxygenLevel; its field
+can be undefined while air is at the protocol default. The corrected setup
+queries the server's actual Air value before starting.
+
+The interrupted holding-work phase was simulated as an unfinished craft action;
+server breath metadata, cancellation and the swim rescue used the real runtime.
+The initial low-health setup also exposed a separate startup limitation: a
+water-supported spawn can be mistaken for a raised platform before the normal
+loop starts. That startup path remains an observation/follow-up target.

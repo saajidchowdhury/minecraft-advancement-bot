@@ -2,6 +2,17 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F090/F091 pass 374 tests and syntax checks. Five new leaf-vision regressions
+use actual block shapes and the Prismarine ray iterator; six drowning/station
+regressions cover interruption, direct swimming and safe workstation handling.
+All eleven fail on the pre-fix sources. The old air-rescue fixture now verifies
+restored air with continuous swim control rather than a navigation request.
+A command-positioned natural-pond trial survived ascent from Y=54 to Y=62.2
+without rescue damage. A full-air repeat interrupted work at 12/20 air and
+restored at least 18/20; the server confirmed initial Air=300. Drops were
+preserved/recovered by external commands;
+this is staged safety evidence. Natural canopy harvesting remains pending.
+
 F089 passes 363 tests and syntax checks. Eight water-search regressions fail
 on the pre-fix source and pass now: falsely reported surface state, underground
 night search, blocked night search, lower surface, covered-path restrictions,

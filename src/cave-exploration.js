@@ -2,7 +2,7 @@
 
 const { Vec3 } = require('vec3')
 const { Movements, goals } = require('mineflayer-pathfinder')
-const { inView } = require('./vision')
+const { inView, sightRay } = require('./vision')
 
 const RAILS = new Set(['rail', 'powered_rail', 'detector_rail', 'activator_rail'])
 const AIR = new Set(['air', 'cave_air', 'void_air', 'torch', 'wall_torch', ...RAILS])
@@ -186,7 +186,8 @@ function exposedByDig(c, block) {
 // Glow lichen, vines and moss carpet cover cave ore faces without hiding them; a user saw iron
 // behind lichen that the bot skipped (17:23Z). Liquids stay opaque here.
 function seeThrough(block) {
-    return Boolean(block) && (AIR.has(block.name) || (block.boundingBox === 'empty' && !['water', 'lava', 'bubble_column'].includes(block.name)))
+    return Boolean(block) && (AIR.has(block.name) || block.name.endsWith('_leaves') ||
+        (block.boundingBox === 'empty' && !['water', 'lava', 'bubble_column'].includes(block.name)))
 }
 
 // Mineflayer's canSeeBlock aims only at the block centre; ore exposed on one face beside a
@@ -206,7 +207,7 @@ function oreSight(bot, block, range = 16, allowTurn = false) {
                     continue
                 }
                 const dir = point.minus(eye).scaled(1 / distance)
-                const hit = bot.world.raycast(eye, dir, distance + 0.1)
+                const hit = sightRay(bot, eye, dir, distance + 0.1)
                 if (hit?.intersect && hit.intersect.plus(dir.scaled(1e-3)).floored().equals(block.position)) {
                     return point
                 }

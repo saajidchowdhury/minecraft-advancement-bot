@@ -6,6 +6,11 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
+F090 makes leaves transparent to visual rays and adds upward wood scans.
+F091 interrupts work on low air and uses direct rescue swimming, with dry
+workstation pickup. Observe natural canopy harvesting and another ordinary
+water/furnace interaction after the staged pond safety trial.
+
 F089 fixes the water search's false surface detection and cave-entering scout.
 Daylight searches finish a real exit; nighttime searches stay underground.
 A natural daylight exit and water pickup passed. Observe nighttime underground

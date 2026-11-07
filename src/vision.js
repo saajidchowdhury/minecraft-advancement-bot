@@ -15,27 +15,60 @@ function inView(bot, eye, point) {
 
 function blockInView(bot, block, allowTurn = false) {
     const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
-    return (allowTurn || inView(bot, eye, block.position.offset(0.5, 0.5, 0.5))) && bot.canSeeBlock(block)
+    return (allowTurn || inView(bot, eye, block.position.offset(0.5, 0.5, 0.5))) && canSeeBlock(bot, block)
 }
 
-async function scanFor(c, find) {
+function sightRay(bot, from, direction, range, target = null) {
+    return bot.world.raycast(from, direction, range, (block, iter) => {
+        if (target?.equals(block.position)) {
+            return true
+        }
+        if (block.name.endsWith('_leaves')) {
+            return false
+        }
+        const hit = iter.intersect(block.shapes, block.position)
+        if (!hit) {
+            return false
+        }
+        block.face = hit.face
+        block.intersect = hit.pos
+        return true
+    })
+}
+
+function canSeeBlock(bot, block) {
+    if (bot.canSeeBlock(block)) {
+        return true
+    }
+    if (!bot.world?.raycast) {
+        return false
+    }
+    const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
+    const delta = block.position.offset(0.5, 0.5, 0.5).minus(eye)
+    const range = delta.norm()
+    return Boolean(sightRay(bot, eye, delta.normalize(), range + 0.01, block.position)?.position.equals(block.position))
+}
+
+async function scanFor(c, find, { lookUp = false } = {}) {
     const found = find()
     if (found) {
         return found
     }
     const { yaw, pitch } = c.bot.entity
-    for (const turn of [0, 1, -1, 2]) {
-        c.checkAction()
-        await c.bot.look(yaw + turn * Math.PI / 2, 0, true)
-        await c.bot.waitForTicks(1)
-        c.checkAction()
-        const target = find()
-        if (target) {
-            return target
+    for (const tilt of lookUp ? [0, Math.PI / 3] : [0]) {
+        for (const turn of [0, 1, -1, 2]) {
+            c.checkAction()
+            await c.bot.look(yaw + turn * Math.PI / 2, tilt, true)
+            await c.bot.waitForTicks(1)
+            c.checkAction()
+            const target = find()
+            if (target) {
+                return target
+            }
         }
     }
     await c.bot.look(yaw, pitch, true)
     return null
 }
 
-module.exports = { inView, blockInView, scanFor }
+module.exports = { inView, blockInView, canSeeBlock, sightRay, scanFor }

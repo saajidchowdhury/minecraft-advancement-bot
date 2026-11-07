@@ -60,7 +60,7 @@ function chooseAction (state) {
     if (state.suffocating) {
         return 'clear_head'
     }
-    if (state.headInWater && (state.oxygen ?? 20) <= 12) {
+    if ((state.oxygen ?? 20) <= 12) {
         return 'surface_for_air'
     }
     if (state.endermanDanger) {

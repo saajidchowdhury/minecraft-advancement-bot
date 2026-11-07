@@ -11,9 +11,9 @@ const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-
 const { prepareBed, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
 const { FOOD_VALUES, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
-const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight, dryMovements,
+const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight, dryMovements, safeFooting,
     rememberMiningExposure, exposedByDig } = require('./cave-exploration')
-const { inView, blockInView, scanFor } = require('./vision')
+const { inView, blockInView, canSeeBlock, sightRay, scanFor } = require('./vision')
 const { findNearbyLoot, lootChest } = require('./loot')
 const { discardableStack, inventoryReport } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
@@ -37,6 +37,7 @@ const PREY = new Set(['cow', 'pig', 'sheep', 'chicken', 'rabbit'])
 const LOG_SUFFIXES = ['_log', '_stem', '_wood', '_hyphae']
 const CREEPERS = new Set(['creeper'])
 const ARCHERS = new Set(['skeleton', 'stray', 'bogged', 'pillager'])
+const WATER_BLOCKS = new Set(['water', 'bubble_column', 'kelp', 'kelp_plant', 'seagrass', 'tall_seagrass'])
 const BUILDING_BLOCKS = ['cobblestone', 'cobbled_deepslate', 'dirt', 'netherrack']
 const SAFE_DESCENT_BLOCKS = new Set([
     'dirt', 'grass_block', 'coarse_dirt', 'rooted_dirt', 'podzol', 'mycelium',
@@ -421,6 +422,17 @@ class SurvivalController {
                 this.cancelCurrentTask('nightfall during surface water search')
             }
         })
+        this.bot.on('breath', () => {
+            if (!this.running || this.paused || this.bot.health <= 0 || !(this.bot.oxygenLevel <= 12) ||
+                ['surface_for_air', 'escape_lava', 'clear_head'].includes(this.activeAction) || this.actionAbort?.signal.aborted) {
+                return
+            }
+            if (this.busy) {
+                this.cancelCurrentTask('low air supply')
+            } else {
+                this.scheduleLoop(0)
+            }
+        })
         this.bot.on('chat', (username, message) => this.onChat(username, message))
     }
 
@@ -537,7 +549,7 @@ class SurvivalController {
             return
         }
 
-        if (this.followPlayer && !this.endermanDanger()) {
+        if (this.followPlayer && !this.endermanDanger() && (this.bot.oxygenLevel ?? 20) > 12) {
             const entity = this.bot.players[this.followPlayer]?.entity
             if (entity && !this.bot.pathfinder.isMoving()) {
                 this.bot.pathfinder.setGoal(new GoalFollow(entity, 2), true)
@@ -795,7 +807,8 @@ class SurvivalController {
         state.inLava = this.inLava()
         state.suffocating = Boolean(this.suffocatingBlock())
         state.oxygen = this.bot.oxygenLevel ?? 20
-        state.headInWater = this.bot.blockAt(this.bot.entity.position.offset(0, this.bot.entity.eyeHeight ?? 1.62, 0), false)?.name === 'water'
+        const headBlock = this.bot.blockAt(this.bot.entity.position.offset(0, this.bot.entity.eyeHeight ?? 1.62, 0), false)
+        state.headInWater = WATER_BLOCKS.has(headBlock?.name) || headBlock?.getProperties?.().waterlogged === true
         // Hostiles behind walls cannot reach a sealed pocket; only visible ones make a crowd.
         state.visibleHostiles = this.visibleThreatCount(12)
         state.closeHostiles = this.visibleThreatCount()
@@ -1328,7 +1341,7 @@ class SurvivalController {
 
     async gatherWood () {
         const block = await scanFor(this, () => this.findNearestBlock(name =>
-            LOG_SUFFIXES.some(suffix => name.endsWith(suffix)) && !name.includes('stripped_'), 48, { mining: true }))
+            LOG_SUFFIXES.some(suffix => name.endsWith(suffix)) && !name.includes('stripped_'), 48, { mining: true }), { lookUp: true })
         if (!block) {
             return this.scout(36)
         }
@@ -1530,8 +1543,9 @@ class SurvivalController {
                     continue
                 }
                 let sight = block.name.endsWith('_ore') && miningSight(this, block, 4.5)
-                if (!this.bot.canDigBlock(block) || (!sight && !this.bot.canSeeBlock(block))) {
-                    await this.gotoWithTimeout(new goals.GoalLookAtBlock(block.position, this.bot.world), 10000, 'resource approach')
+                if (!this.bot.canDigBlock(block) || (!sight && !canSeeBlock(this.bot, block))) {
+                    const view = { raycast: (from, direction, range) => sightRay(this.bot, from, direction, range) }
+                    await this.gotoWithTimeout(new goals.GoalLookAtBlock(block.position, view), 10000, 'resource approach')
                     sight = block.name.endsWith('_ore') && miningSight(this, block, 4.5)
                 }
                 if (signal?.aborted) {
@@ -1544,7 +1558,7 @@ class SurvivalController {
                 if (!this.movements.safeToBreak(block)) {
                     throw new Error(`unsafe block to mine: ${block.name}`)
                 }
-                if (!this.bot.canDigBlock(block) || (!sight && !this.bot.canSeeBlock(block))) {
+                if (!this.bot.canDigBlock(block) || (!sight && !canSeeBlock(this.bot, block))) {
                     throw new Error(`block is not visible or reachable: ${block.name}`)
                 }
                 await this.bot.tool.equipForBlock(block, { requireHarvest: true, getFromChest: false })
@@ -1900,7 +1914,7 @@ class SurvivalController {
                 const along = head.dot(direction)
                 const radius = Math.max(0.85, Math.sqrt(0.05 * distance) + 0.15)
                 return distance <= 64 && along > 0 && head.minus(direction.scaled(along)).norm() < radius &&
-                    !bot.world.raycast(eye, head.normalize(), distance)
+                    !sightRay(bot, eye, head.normalize(), distance)
             })
         }
         bot.look = async (yaw, pitch, force) => {
@@ -2036,7 +2050,8 @@ class SurvivalController {
         return [0.25, 0.75].some(fraction => {
             const target = entity.position.offset(0, (entity.height ?? 1.6) * fraction, 0)
             const ray = target.minus(eye)
-            return inView(this.bot, eye, target) && !this.bot.world.raycast(eye, ray.normalize(), ray.norm())
+            const range = ray.norm()
+            return inView(this.bot, eye, target) && !sightRay(this.bot, eye, ray.normalize(), range)
         })
     }
 
@@ -2179,32 +2194,54 @@ class SurvivalController {
             this.bot.entity.position.distanceTo(origin.position) < 1.2 && this.nearestEntity?.(MELEE, 2.5))
     }
 
-    // Nearest cell within six blocks whose head space is air; with none, swim straight up with jump held.
     async surfaceForAir () {
-        const feet = this.bot.entity.position.floored()
-        const open = p => this.bot.blockAt(p, false)?.boundingBox === 'empty'
-        let best = null
-        for (let dy = 6; dy >= -1; dy--) {
-            for (let dx = -6; dx <= 6; dx++) {
-                for (let dz = -6; dz <= 6; dz++) {
-                    const p = feet.offset(dx, dy, dz)
-                    if (open(p) && this.bot.blockAt(p.offset(0, 1, 0), false)?.name === 'air' &&
-                        (!best || feet.distanceTo(p) < feet.distanceTo(best))) {
-                        best = p
+        const bot = this.bot
+        const air = new Set(['air', 'cave_air', 'void_air'])
+        const passable = p => {
+            const block = bot.blockAt(p, false)
+            return block?.boundingBox === 'empty' && !['lava', 'fire', 'soul_fire', 'cobweb'].includes(block.name)
+        }
+        bot.pathfinder?.setGoal(null)
+        bot.clearControlStates?.()
+        this.log.warn(`Low air (${bot.oxygenLevel}/20); taking direct control to reach breathable space.`)
+        const deadline = Date.now() + 6000
+        let next = null
+        try {
+            for (let tick = 0; tick < 120 && Date.now() < deadline && (bot.oxygenLevel ?? 20) < 18; tick++) {
+                this.checkAction()
+                if (tick % 4 === 0) {
+                    const feet = bot.entity.position.floored()
+                    const queue = [{ p: feet, first: null }]
+                    const seen = new Set([feet.toString()])
+                    next = null
+                    for (let i = 0; i < queue.length && i < 2048; i++) {
+                        const { p, first } = queue[i]
+                        if (first && air.has(bot.blockAt(p.offset(0, 1, 0), false)?.name)) {
+                            next = first
+                            break
+                        }
+                        for (const [x, y, z] of [[0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, -1, 0]]) {
+                            const q = p.offset(x, y, z)
+                            if (seen.has(q.toString()) || Math.abs(q.x - feet.x) > 6 || Math.abs(q.z - feet.z) > 6 ||
+                                q.y < feet.y - 1 || q.y > feet.y + 12 || !passable(q) || !passable(q.offset(0, 1, 0))) {
+                                continue
+                            }
+                            seen.add(q.toString())
+                            queue.push({ p: q, first: first || q })
+                        }
                     }
                 }
-            }
-        }
-        this.log.warn(`Out of air (${this.bot.oxygenLevel}/20); ${best ? `swimming to ${best}` : 'swimming straight up'}.`)
-        this.bot.setControlState('jump', true)
-        try {
-            if (best) {
-                await this.gotoWithTimeout(new goals.GoalBlock(best.x, best.y, best.z), 6000, 'air pocket')
-            } else {
-                await sleep(1500)
+                const horizontal = next && Math.hypot(next.x + 0.5 - bot.entity.position.x, next.z + 0.5 - bot.entity.position.z) > 0.15
+                if (horizontal) {
+                    await bot.lookAt(new Vec3(next.x + 0.5, bot.entity.position.y + (bot.entity.eyeHeight ?? 1.62), next.z + 0.5), true)
+                }
+                bot.setControlState('forward', Boolean(horizontal))
+                bot.setControlState('jump', true)
+                await bot.waitForTicks(1)
             }
         } finally {
-            this.bot.setControlState('jump', false)
+            bot.setControlState('jump', false)
+            bot.setControlState('forward', false)
         }
     }
 
@@ -2642,7 +2679,15 @@ class SurvivalController {
         if (this.bot.entity.position.distanceTo(current.position.offset(0.5, 0.5, 0.5)) > 4) {
             await this.gotoWithTimeout(new GoalNear(current.position.x, current.position.y, current.position.z, 2), 8000, 'workstation approach')
         }
+        const feet = this.bot.entity.position.floored()
+        if (current.position.x === feet.x && current.position.z === feet.z && current.position.y < feet.y) {
+            this.log.info('Leaving the workstation supporting the bot intact.')
+            return
+        }
         await this.bot.tool?.equipForBlock?.(current, { requireHarvest: true, getFromChest: false }).catch(() => {})
+        if (this.actionAbort?.signal.aborted) {
+            throw new Error('station reclamation cancelled')
+        }
         if (current.material === 'mineable/axe') {
             this.log.debug?.(`Reclaiming ${current.name} with ${this.bot.heldItem?.name || 'bare hands'}.`)
         }
@@ -2651,7 +2696,17 @@ class SurvivalController {
         const [drop] = this.visibleDrops(current.position.offset(0.5, 0, 0.5), 3)
         if (drop) {
             const p = drop.position.floored()
-            await this.gotoWithTimeout(new GoalNear(p.x, p.y, p.z, 0), 4000, 'workstation pickup').catch(() => {})
+            if (safeFooting(this.bot, p)) {
+                const guarded = Boolean(this.movements && this.bot.pathfinder)
+                if (guarded) { this.bot.pathfinder.setMovements(dryMovements(this.bot)) }
+                try {
+                    await this.gotoWithTimeout(new GoalNear(p.x, p.y, p.z, 1), 4000, 'workstation pickup').catch(() => {})
+                } finally {
+                    if (guarded) { this.bot.pathfinder.setMovements(this.movements) }
+                }
+            } else {
+                this.log.info('Leaving workstation drop without a safe dry landing.')
+            }
         }
         this.memory.ownedStations.delete(key)
     }

@@ -126,7 +126,9 @@ local light level before placing a torch. A placement check enforces at least
 including ones behind the bot. It checks support, stops for threats, and avoids
 digging or bridging during the survey. It can loot visible chests and chest
 minecarts and remember whether each was emptied. Target discovery uses a
-100° horizontal by 70° vertical view and a clear ray from eye level.
+100° horizontal by 70° vertical view and a clear ray from eye level. Visual
+rays pass through leaves; solid blocks retain normal occlusion. Wood searches
+also look upward for remaining canopy logs.
 Resource searches can turn in place to look around. Buried ore coordinates
 do not steer the tunnel. With no visible iron, the fallback heads toward
 Y=16. Tunneling keeps a stable heading and a frontier scoped by dimension and
@@ -179,6 +181,11 @@ scout and bucket-approach paths cannot dig or bridge into another cave.
 At night it searches covered caves and tunnels at the current depth, preserving
 cover and interrupting any daytime water trip at nightfall. A visible spring
 already within bucket reach can still supply water without a surface detour.
+
+Low air interrupts work and follow mode at twelve of twenty air units.
+Emergency swimming takes direct control until breathing recovers, without
+pathfinding overriding its swim controls. Station reclamation keeps supporting
+blocks intact and avoids collecting workstation drops from unsafe wet cells.
 
 ## State and debugging
 

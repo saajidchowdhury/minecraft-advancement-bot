@@ -3,6 +3,7 @@
 const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { until } = require('./progression-skills')
+const { canSeeBlock } = require('./vision')
 
 // [hunger points, saturation] per item, vanilla Java values.
 const FOODS = {
@@ -254,7 +255,7 @@ async function pickGlowBerries(c) {
             return
         }
         try {
-            if (!c.bot.canDigBlock(vine) || !c.bot.canSeeBlock(vine)) {
+            if (!c.bot.canDigBlock(vine) || !canSeeBlock(c.bot, vine)) {
                 await c.gotoWithTimeout(new goals.GoalLookAtBlock(vine.position, c.bot.world), 10000, 'glow berry approach')
             }
             c.checkAction(signal)

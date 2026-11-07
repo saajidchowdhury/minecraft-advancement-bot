@@ -673,21 +673,26 @@ test('a bot out of air underwater swims to the nearest breathable cell before an
     const pocket = new Vec3(2, 53, 0)
     const c = Object.create(SurvivalController.prototype)
     const controls = []
-    let goal
+    c.running = true
+    c.paused = false
+    c.actionAbort = new AbortController()
     c.log = { warn() {} }
     c.bot = {
-        oxygenLevel: 3, entity: { position: new Vec3(0.5, 50, 0.5) },
+        health: 20, oxygenLevel: 3, entity: { position: new Vec3(0.5, 50, 0.5) },
         blockAt(p) {
             const name = p.equals(pocket.offset(0, 1, 0)) ? 'air' :
                 p.y >= 50 && p.y <= 53 && Math.abs(p.x) <= 2 && p.z === 0 ? 'water' : 'stone'
             return { name, boundingBox: name === 'stone' ? 'block' : 'empty' }
         },
-        setControlState(control, on) { controls.push(`${control}:${on}`) }
+        setControlState(control, on) { controls.push(`${control}:${on}`) },
+        lookAt: async () => {},
+        async waitForTicks() { c.bot.oxygenLevel = 20 }
     }
-    c.gotoWithTimeout = async g => { goal = g }
+    c.gotoWithTimeout = async () => assert.fail('navigation cannot own the swim controls')
     await c.surfaceForAir()
-    assert.deepEqual([goal.x, goal.y, goal.z], [2, 53, 0])
-    assert.deepEqual(controls, ['jump:true', 'jump:false'])
+    assert.equal(c.bot.oxygenLevel, 20)
+    assert.equal(controls.includes('jump:true'), true)
+    assert.deepEqual(controls.slice(-2), ['jump:false', 'forward:false'])
 })
 
 test('a survival block is placed against plain stone before a furnace, and sneaks when only a furnace supports it', async () => {

@@ -3,6 +3,7 @@
 const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { dryMovements } = require('./cave-exploration')
+const { canSeeBlock } = require('./vision')
 
 function chestRecord(c, target) {
     const dimension = c.bot.game.dimension
@@ -42,7 +43,7 @@ async function lootChest(c, target) {
     const cart = target.name === 'chest_minecart'
     const p = target.position.floored()
     const inReach = () => bot.entity.position.distanceTo(cart ? target.position : p.offset(0.5, 0.5, 0.5)) <= 4 &&
-        (cart ? target.isValid && c.canSee(target) : bot.blockAt(p)?.name === 'chest' && bot.canSeeBlock(bot.blockAt(p)))
+        (cart ? target.isValid && c.canSee(target) : bot.blockAt(p)?.name === 'chest' && canSeeBlock(bot, bot.blockAt(p)))
     let window
     record.retryAfter = Date.now() + 120000
     try {

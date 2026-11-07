@@ -5,7 +5,7 @@ const { goals } = require('mineflayer-pathfinder')
 const { discardableStacks, overflowStack } = require('./inventory')
 const { storeOverflowAtBase } = require('./base')
 const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight, minedPassage, exposedDiamond, findPriorityDiamond, findPriorityOre, IRON_ORES } = require('./cave-exploration')
-const { scanFor } = require('./vision')
+const { scanFor, canSeeBlock } = require('./vision')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
 
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
@@ -157,7 +157,7 @@ async function probeTunnelSides(c, direction) {
                     bot.setControlState('sneak', false)
                 }
             }
-            if (eye().distanceTo(face) > 4.5 || !bot.canDigBlock(block) || !bot.canSeeBlock(block)) {
+            if (eye().distanceTo(face) > 4.5 || !bot.canDigBlock(block) || !canSeeBlock(bot, block)) {
                 break
             }
             const tool = miningPickaxe(c, block)
@@ -743,7 +743,7 @@ async function fillWaterBucket(c) {
                 throw new Error('water source has no dry bank and is out of reach')
             }
             // The bucket's ray stops at rock; a hidden spring would only time out the 4 s scoop check.
-            if (bot.canSeeBlock && !bot.canSeeBlock(water)) {
+            if (bot.canSeeBlock && !canSeeBlock(bot, water)) {
                 throw new Error('water source has no dry bank and is not in line of sight')
             }
         } else if (!bot.entity.position.floored().equals(bank)) {
