@@ -4,6 +4,7 @@ const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { until } = require('./progression-skills')
 const { canSeeBlock } = require('./vision')
+const { dryMovements } = require('./cave-exploration')
 
 // [hunger points, saturation] per item, vanilla Java values.
 const FOODS = {
@@ -187,8 +188,48 @@ async function startCooking(c) {
 
 async function collectCooking(c, job) {
     const position = new Vec3(job.x, job.y, job.z)
+    const known = c.bot.blockAt(position)
+    if (known && known.name !== 'furnace') {
+        c.memory.cookJob = null
+        throw new Error(`cooking furnace at ${position} is gone`)
+    }
     if (c.bot.entity.position.distanceTo(position.offset(0.5, 0.5, 0.5)) > 4) {
-        await c.gotoWithTimeout(new goals.GoalNear(position.x, position.y, position.z, 2), 30000, 'cooking furnace return')
+        const goal = new goals.GoalLookAtBlock(position, c.bot.world, { reach: 4, entityHeight: c.bot.entity.eyeHeight ?? 1.62 })
+        c.bot.pathfinder.setMovements(dryMovements(c.bot))
+        try {
+            try {
+                await c.gotoWithTimeout(goal, 8000, 'cooking furnace return')
+                c.checkAction()
+                if (!goal.isEnd(c.bot.entity.position.floored())) {
+                    throw new Error('No path: cooking furnace approach not reached')
+                }
+            } catch (error) {
+                if (c.actionAbort?.signal.aborted || !/no path|timed out/i.test(error.message)) {
+                    throw error
+                }
+                c.bot.pathfinder.setGoal(null)
+                await c.bot.waitForTicks(2)
+                c.checkAction()
+                const here = c.bot.entity.position
+                const angle = Math.atan2(position.z - here.z, position.x - here.x) +
+                    ((job.returnDetours || 0) % 2 ? -Math.PI / 2 : Math.PI / 2)
+                job.returnDetours = (job.returnDetours || 0) + 1
+                const detour = new goals.GoalNearXZ(Math.floor(here.x + 6 * Math.cos(angle)), Math.floor(here.z + 6 * Math.sin(angle)), 1)
+                c.log.info(`Cooking furnace approach stalled; trying a supported lateral detour (${job.returnDetours}).`)
+                await c.gotoWithTimeout(detour, 4000, 'cooking furnace detour')
+                c.checkAction()
+                if (!detour.isEnd(c.bot.entity.position.floored())) {
+                    throw new Error('cooking furnace detour not reached')
+                }
+                await c.gotoWithTimeout(goal, 8000, 'cooking furnace return')
+                c.checkAction()
+                if (!goal.isEnd(c.bot.entity.position.floored())) {
+                    throw new Error('cooking furnace approach not reached after detour')
+                }
+            }
+        } finally {
+            c.bot.pathfinder.setMovements(c.movements)
+        }
     }
     const block = c.bot.blockAt(position)
     if (block?.name !== 'furnace') {

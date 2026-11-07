@@ -113,6 +113,10 @@ After a stone pick, an axe and shovel precede ordinary surface hunting,
 including after a death or tool loss. Hunting prefers axes and waits for
 charged swings; a stone axe charges for 1.25 seconds. Urgent survival actions
 still interrupt preparation and cooldowns.
+Cooking returns target visible interaction reach rather than adjacency. An
+eight-second failed approach immediately tries a short supported lateral
+detour and one retry; every waypoint requires actual arrival. Canceled
+approaches keep the job for later collection.
 Mining uses exposed targets and checked staircase steps, avoids removing
 its own support, and replaces broken tools. Charcoal provides furnace fuel when
 coal is unavailable. Every five horizontal tunnel blocks, the bot opens

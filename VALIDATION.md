@@ -2,6 +2,13 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F096 passes 399 tests and syntax checks. Five regressions fail on the old
+source: interaction from a hillside ledge, bounded first-failure detouring,
+movement restoration on cancellation, actual arrival despite the library's
+empty-noPath resolution, and refusing to route toward a known missing furnace.
+The empty-path case uses the real pinned pathfinder goto implementation.
+Original-site LAN evidence follows separately.
+
 F095 passes 394 tests and syntax checks. Four regressions fail on the old
 source: remembered iron progression skipping tools, routine hunting bypassing
 axe/shovel preparation, a sword preferred over an axe with uncharged swings,

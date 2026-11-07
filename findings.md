@@ -1980,3 +1980,31 @@ cooldown check ran before lookAt, so it postponed tracking for up to 1.25 s.
 A strengthened assertion fails on 3ed68c9 and requires aiming before the
 first swing while retaining the full charge. The aim update now precedes
 the cooldown wait. All 394 tests and syntax checks still pass.
+
+## F096 — Cooking return retried a stalled walking route for ninety seconds
+
+Run outputs/2026-11-07@01.22.50 attempted to return to the finished
+chicken furnace at (-27,74,194). Cooking furnace return timed out after
+30 seconds at 06:24:24Z, 06:24:56Z and 06:25:28Z. The bot was repeatedly
+near (-33,78,191). The third failure triggered supported scouting, and the
+next return collected the food at 06:25:39Z. Thus it did recover, as the
+user's follow-up suggested. The timeout was navigation, not a request waiting
+for a furnace response. An empty furnace input already completes collection
+without waiting for the estimated cooking finish time.
+
+The old goal required standing within two blocks of the furnace coordinates,
+although a hillside ledge farther away can be within interaction reach.
+Cooking returns now target visible interaction reach with a four-block safety
+margin and dry walking movements. Each approach has an eight-second limit.
+The first no-path/timeout immediately attempts a six-block lateral detour
+(four-second limit), then retries once. Subsequent detours alternate sides.
+Every goal is checked against the actual final position, covering the pinned
+pathfinder's empty-noPath result that resolves without reaching its goal.
+Canceled returns retain the job and do not start a detour or open a window;
+known missing furnaces are forgotten before walking toward them. Movement
+settings are restored in finally. No cooking-completion or inventory result
+is inferred from the estimated finish timestamp.
+
+Five regressions fail on the pre-fix source, including the real pathfinder
+goto implementation's empty-path behavior. All 399 tests and syntax checks
+pass. Staged original-site evidence follows separately.

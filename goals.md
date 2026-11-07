@@ -6,6 +6,10 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
+F096 fixes repeated thirty-second cooking-return attempts: interaction-reach
+goals, eight-second approaches and a bounded detour on the first failure.
+All 399 tests pass. Verify collection at the original hillside furnace site.
+
 F095 restores stone pick -> axe -> shovel preparation after a rebuild and
 before routine hunting. Prey attacks prefer axes and respect their cooldown.
 All 394 tests pass. Natural restart crafted the axe and shovel in order,

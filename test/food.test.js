@@ -38,6 +38,100 @@ function kitchen(items) {
     return { c, furnace }
 }
 
+function hillsideKitchen() {
+    const { c, furnace } = kitchen([])
+    const position = new Vec3(-27, 74, 194)
+    const block = c.bot.blockAt()
+    block.position = position
+    c.memory.cookJob = { dimension: 'overworld', ...position, input: 'chicken', count: 1, readyAt: Date.now() - 1 }
+    furnace.output = { name: 'cooked_chicken', count: 1 }
+    c.actionAbort = new AbortController()
+    c.bot.entity.position = new Vec3(-33.5, 78, 191.5)
+    c.bot.registry = require('minecraft-data')('26.1')
+    c.bot.world = { raycast: () => ({ position }) }
+    c.bot.waitForTicks = async () => {}
+    c.movements = { normal: true }
+    const movements = []
+    c.bot.pathfinder = { setGoal() {}, setMovements(m) { movements.push(m) } }
+    return { c, furnace, position, movements }
+}
+
+test('a finished cooking job can be collected from a reachable hillside ledge', async () => {
+    const { c, movements } = hillsideKitchen()
+    const ledge = new Vec3(-29, 76, 194)
+    c.gotoWithTimeout = async goal => {
+        assert.equal(goal.isEnd(ledge), true, 'a visible furnace within interaction reach must satisfy the return goal')
+        c.bot.entity.position = ledge.offset(0.5, 0, 0.5)
+    }
+    await cookFood(c)
+    assert.equal(c.countItems(['cooked_chicken']), 1)
+    assert.equal(c.memory.cookJob, null)
+    assert.equal(movements[0].canDig, false)
+    assert.deepEqual(movements[0].scafoldingBlocks, [])
+    assert.equal(movements.at(-1), c.movements)
+})
+
+test('the first failed furnace return immediately tries a short lateral detour and retries', async () => {
+    const { c, movements } = hillsideKitchen()
+    const calls = []
+    c.gotoWithTimeout = async (goal, timeoutMs, label) => {
+        calls.push({ goal, timeoutMs, label })
+        assert.ok(timeoutMs <= 8000, 'a local furnace return must not spend thirty seconds per attempt')
+        if (calls.length === 1) { throw new Error('cooking furnace return timed out') }
+        if (label === 'cooking furnace detour') {
+            assert.ok(timeoutMs <= 4000)
+            c.bot.entity.position = new Vec3(goal.x + 0.5, 78, goal.z + 0.5)
+        } else {
+            c.bot.entity.position = new Vec3(-28.5, 76, 194.5)
+        }
+    }
+    await cookFood(c)
+    assert.equal(calls.length, 3)
+    assert.equal(calls[1].label, 'cooking furnace detour')
+    assert.equal(c.memory.cookJob, null)
+    assert.equal(c.countItems(['cooked_chicken']), 1)
+    assert.equal(movements.at(-1), c.movements)
+})
+
+test('a canceled furnace approach retains the food job without detouring or opening a window', async () => {
+    const { c, furnace, movements } = hillsideKitchen()
+    let calls = 0
+    c.gotoWithTimeout = async () => { calls++; c.actionAbort.abort(); throw new Error('return canceled') }
+    c.bot.openFurnace = async () => assert.fail('opened furnace after cancellation')
+    await assert.rejects(cookFood(c), /canceled|cancelled/)
+    assert.equal(calls, 1)
+    assert.ok(c.memory.cookJob)
+    assert.equal(furnace.output.count, 1)
+    assert.equal(movements.at(-1), c.movements)
+})
+
+test('an empty no-path result cannot collect cooking output from an unreached furnace', async () => {
+    const { EventEmitter } = require('node:events')
+    const goto = require('mineflayer-pathfinder/lib/goto')
+    const { SurvivalController } = require('../src/survival-bot')
+    const { c, furnace } = hillsideKitchen()
+    c.bot = Object.assign(new EventEmitter(), c.bot)
+    c.bot.pathfinder.goto = goal => goto(c.bot, goal)
+    c.bot.pathfinder.setGoal = goal => {
+        c.bot.emit('goal_updated', goal)
+        if (goal) { c.bot.emit('path_update', { status: 'noPath', path: [] }) }
+    }
+    c.gotoWithTimeout = SurvivalController.prototype.gotoWithTimeout.bind(c)
+    c.bot.openFurnace = async () => assert.fail('opened an unreached furnace')
+    await assert.rejects(cookFood(c), /not reached|outside/)
+    assert.ok(c.memory.cookJob)
+    assert.equal(furnace.output.count, 1)
+    assert.equal(c.bot.listenerCount('path_update'), 0)
+})
+
+test('a known missing cooking furnace is forgotten before trying to walk toward it', async () => {
+    const { c } = hillsideKitchen()
+    c.bot.blockAt = () => ({ name: 'air' })
+    c.gotoWithTimeout = async () => assert.fail('walked toward a known missing furnace')
+    await assert.rejects(cookFood(c), /is gone/)
+    assert.equal(c.memory.cookJob, null)
+})
+
 test('the mining meal reserve is 16 average cooked land meats, counting raw food at its cooked value', () => {
     assert.ok(Math.abs(MIN_MINING_MEALS - 16 * 16.28) < 1e-9)
     assert.ok(Math.abs(mealReserve([{ name: 'beef', count: 2 }, { name: 'glow_berries', count: 10 }]) - (2 * 20.8 + 10 * 2.4)) < 1e-9)
