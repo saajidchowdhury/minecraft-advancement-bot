@@ -1754,3 +1754,12 @@ the full suite to 363 passing tests, plus syntax checks. Existing return-route
 fixtures now include actual roofs above underground starting cells, so an
 all-air mock is not incorrectly treated as an underground staircase.
 No new artificial world structures are used for this fix's validation.
+
+
+F089 natural daylight validation: outputs/2026-11-06@23.52.04, PID 33316,
+started at (116,66,50) with matching source hashes. Despite underground=false,
+water search continued climbing to (120,70,50), then reached an outdoor source
+and filled a water bucket without commands. One candidate source had no walking
+path and was quarantined; the next search succeeded. The planner then moved on
+to smelting iron for additional buckets. The live night search and sunset
+interrupt remain unverified; automated day/night cases pass.

@@ -7,8 +7,9 @@ on the pre-fix source and pass now: falsely reported surface state, underground
 night search, blocked night search, lower surface, covered-path restrictions,
 full-column sky checks, nightfall interruption and cancellation without
 quarantining a usable water source. A cave-route regression
-checks the supplied cover restriction. Natural day/night water runs remain
-observation targets. No new world structures were staged.
+checks the supplied cover restriction. A natural daylight run continued from Y=66 to a real exit at Y=70 and filled
+a water bucket without commands. Live nighttime searching and the sunset
+interrupt remain observation targets. No new world structures were staged.
 
 F088 passes 354 tests and syntax checks. Six routing regressions fail on the
 pre-fix source and pass after the stable-heading/frontier change; an additional
