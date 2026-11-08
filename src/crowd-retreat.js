@@ -240,7 +240,11 @@ function pillarSafe(c) {
 // Three blocks up, a zombie's attack box (no vertical reach, 1.95 tall) cannot touch us while zombies
 // crowding the base stay inside our reach; dig back down once none is near (user tactic, round 5).
 // c.pillarState keeps the pillar across actions so a later decision resumes the fight instead of leaving.
-async function pillarRefuge(c, height = 3, seconds = 45) {
+const WEAPONS = ['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword',
+    'netherite_axe', 'diamond_axe', 'iron_axe', 'stone_axe', 'golden_axe', 'wooden_axe']
+
+// Each stint ends inside the 30 s refuge action timeout; the next decision resumes on the pillar.
+async function pillarRefuge(c, height = 3, seconds = 25) {
     const bot = c.bot
     const signal = c.actionAbort?.signal
     bot.pathfinder.setGoal(null)
@@ -254,6 +258,11 @@ async function pillarRefuge(c, height = 3, seconds = 45) {
         c.log.info(`Pillar refuge ${height} blocks above ${state.base}; fighting from the top.`)
     }
     const { base, placed } = c.pillarState
+    // Towering leaves the scaffold in hand; punching with cobblestone was the user's live report.
+    const weapon = WEAPONS.map(n => bot.inventory.items().find(i => i.name === n)).find(Boolean)
+    if (weapon && bot.heldItem?.name !== weapon.name) {
+        await bot.equip(weapon, 'hand')
+    }
     const deadline = Date.now() + seconds * 1000
     let nextSwing = 0
     let leave = null

@@ -275,11 +275,13 @@ test('a pillar refuge towers three blocks, hits zombies at its base from above, 
     const w = oakWorld()
     const inventory = [{ name: 'cobblestone', count: 8 }, { name: 'stone_sword', count: 1 }]
     const bot = climbingBot(w, new Vec3(-20.5, 69, 194.5), inventory)
+    Object.defineProperty(bot, 'heldItem', { get: () => bot.held })
     const zombies = [[-19.6, 194.5], [-21.4, 194.5], [-20.5, 195.4]].map(([x, z], i) =>
         ({ id: i + 1, name: 'zombie', isValid: true, height: 1.95, hits: 0, position: new Vec3(x, 69, z) }))
     const hitFrom = []
     Object.assign(bot, { game: { dimension: 'overworld' }, entities: Object.fromEntries(zombies.map(z => [z.id, z])), pathfinder: { setGoal() {} }, clearControlStates() {},
         attack(z) {
+            assert.equal(bot.held?.name, 'stone_sword', `hit with ${bot.held?.name}`)
             hitFrom.push(bot.entity.position.y)
             if (++z.hits === 4) { z.isValid = false }
         } })
