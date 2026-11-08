@@ -52,8 +52,9 @@ conditions for focused live tests: time, supplies, position or mobs. This is
 explicitly authorized and useful for isolating untested behavior, reproducing
 failures and avoiding long prerequisite sequences before each trial.
 Keep command usage in external test setup code; it must not become an intrinsic
-feature of the bot. Record the setup explicitly, then let the bot live-test
-autonomously without subsequent commands. Distinguish staged-condition evidence
+feature of the bot. The user grants full freedom to issue Minecraft commands
+before, during and after a live test. Record every command, and note which
+behavior ran without command assistance. Distinguish staged-condition evidence
 and supplied items from survival-earned progression; do not present a staged
 survival test as an unaided playthrough.
 
@@ -61,6 +62,15 @@ The user authorizes iterative live testing in the supplied LAN world: run,
 observe, stop a misbehaving bot, diagnose, patch and rerun. Verify PID/process
 identity before stopping it; avoid duplicate bots. Use the latest supplied port.
 Use live runs primarily to validate behavior with little or no live evidence.
+
+Run live tests and bot restarts in a visible terminal window so the user can
+watch the logs in real time, while also teeing output to a log file under
+`outputs/` for the agent to read. Open one window for the first live test of a
+session and run every later test and restart in that same window; do not open
+a new window per test. On macOS, `osascript` Terminal `do script` opens it and
+`do script ... in selected tab of window id <N>` reuses it. Such a shell may
+lack `node` on PATH and may page `git` output: pass absolute paths and use
+`git --no-pager`.
 
 ## Work in parallel with live runs
 
