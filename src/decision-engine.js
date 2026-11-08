@@ -76,6 +76,10 @@ function chooseAction (state) {
     if (state.endermanDanger) {
         return 'avoid_enderman'
     }
+    // Standing on our own refuge pillar: stay and fight from it until it is clear (round 6 walked off).
+    if (state.onPillarRefuge) {
+        return Actions.REFUGE
+    }
     if (state.crowdRetreat || (state.visibleHostiles ?? state.hostileCount ?? 0) >= 3) {
         return Actions.REFUGE
     }

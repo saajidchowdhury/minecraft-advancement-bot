@@ -278,7 +278,7 @@ test('a pillar refuge towers three blocks, hits zombies at its base from above, 
     const zombies = [[-19.6, 194.5], [-21.4, 194.5], [-20.5, 195.4]].map(([x, z], i) =>
         ({ id: i + 1, name: 'zombie', isValid: true, height: 1.95, hits: 0, position: new Vec3(x, 69, z) }))
     const hitFrom = []
-    Object.assign(bot, { entities: Object.fromEntries(zombies.map(z => [z.id, z])), pathfinder: { setGoal() {} }, clearControlStates() {},
+    Object.assign(bot, { game: { dimension: 'overworld' }, entities: Object.fromEntries(zombies.map(z => [z.id, z])), pathfinder: { setGoal() {} }, clearControlStates() {},
         attack(z) {
             hitFrom.push(bot.entity.position.y)
             if (++z.hits === 4) { z.isValid = false }
@@ -291,4 +291,33 @@ test('a pillar refuge towers three blocks, hits zombies at its base from above, 
     assert.equal(bot.entity.position.y, 69)
     assert.equal(inventory.find(i => i.name === 'cobblestone').count, 8)
     assert.equal(c.crowdRetreat, null)
+})
+
+test('a skeleton anywhere within 32 blocks rules out the pillar refuge (user rule)', () => {
+    const { pillarSafe } = require('../src/crowd-retreat')
+    const w = oakWorld()
+    const bot = climbingBot(w, new Vec3(-20.5, 69, 194.5), [{ name: 'cobblestone', count: 8 }])
+    bot.entities = { 1: { id: 1, name: 'zombie', isValid: true, position: new Vec3(-17.5, 69, 194.5) },
+        2: { id: 2, name: 'skeleton', isValid: true, position: new Vec3(-20.5, 69, 222.5) } }
+    assert.equal(pillarSafe({ bot, hostileNames: new Set(['zombie', 'skeleton']) }), false)
+})
+
+test('a surrounded pillar refuge stays up for the next decision and an arriving archer brings it down', async () => {
+    const { pillarRefuge } = require('../src/crowd-retreat')
+    const w = oakWorld()
+    const inventory = [{ name: 'cobblestone', count: 8 }]
+    const bot = climbingBot(w, new Vec3(-20.5, 69, 194.5), inventory)
+    const far = { id: 1, name: 'zombie', isValid: true, height: 1.95, position: new Vec3(-24.5, 69, 194.5) }
+    Object.assign(bot, { game: { dimension: 'overworld' }, entities: { 1: far }, pathfinder: { setGoal() {} },
+        clearControlStates() {}, attack() {} })
+    const c = controller(bot)
+    await assert.rejects(pillarRefuge(c, 3, 1), /still surrounded/)
+    assert.ok(c.pillarState, 'the pillar must be remembered')
+    assert.equal(bot.entity.position.y, 72)
+    const placedBefore = bot.placed.length
+    bot.entities[2] = { id: 2, name: 'skeleton', isValid: true, position: new Vec3(-20.5, 69, 210.5) }
+    await assert.rejects(pillarRefuge(c, 3, 5), /archer appeared/)
+    assert.equal(bot.placed.length, placedBefore, 'resuming must not tower again')
+    assert.equal(bot.entity.position.y, 69)
+    assert.equal(c.pillarState, null)
 })

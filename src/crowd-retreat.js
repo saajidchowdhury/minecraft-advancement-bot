@@ -24,6 +24,15 @@ function updateCrowdRetreat(c, names) {
     if (!c.crowdRetreat && seen.length >= 3) {
         c.crowdRetreat = { dimension, threats: new Map() }
     }
+    // A latched retreat ends after 10 s with no hostile within 24 blocks (round 6: a stale latch sent a
+    // later hallway fight into the wall-refuge routine); briefly losing track keeps the latch.
+    const tracked = Object.values(c.bot.entities || {}).some(e => e.isValid && names.has(e.name) &&
+        e.position.distanceTo(c.bot.entity.position) <= 24)
+    if (c.crowdRetreat && (tracked || c.crowdRetreat.trackedAt === undefined)) {
+        c.crowdRetreat.trackedAt = Date.now()
+    } else if (c.crowdRetreat && Date.now() - c.crowdRetreat.trackedAt > 10000) {
+        c.crowdRetreat = null
+    }
     if (c.crowdRetreat) {
         for (const e of seen) {
             c.crowdRetreat.threats.set(e.id, e.position.clone())
@@ -211,6 +220,9 @@ async function mineFromRefuge(c, state) {
 
 // Mobs that can neither climb nor shoot; spiders climb a pillar and archers shoot its top.
 const PILLAR_SAFE = new Set(['zombie', 'husk', 'zombie_villager', 'zombified_piglin', 'vindicator'])
+const ARCHERS = new Set(['skeleton', 'stray', 'bogged', 'pillager', 'witch', 'blaze', 'ghast'])
+const archerNear = (c, range) => Object.values(c.bot.entities || {}).some(e => e.isValid && ARCHERS.has(e.name) &&
+    e.position.distanceTo(c.bot.entity.position) <= range)
 const SCAFFOLD = ['dirt', 'coarse_dirt', 'cobblestone', 'cobbled_deepslate', 'netherrack', 'andesite', 'diorite', 'granite', 'tuff']
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -221,52 +233,69 @@ function pillarSafe(c) {
     const scaffold = bot.inventory.items().reduce((n, i) => n + (SCAFFOLD.includes(i.name) ? i.count : 0), 0)
     const feet = here.floored()
     const headroom = [2, 3, 4, 5].every(dy => bot.blockAt(feet.offset(0, dy, 0), false)?.boundingBox === 'empty')
-    return near.length > 0 && near.every(e => PILLAR_SAFE.has(e.name)) && scaffold >= 3 && headroom
+    // Any archer in range makes a pillar top a target, so only pure zombie crowds qualify (user rule).
+    return near.length > 0 && near.every(e => PILLAR_SAFE.has(e.name)) && !archerNear(c, 32) && scaffold >= 3 && headroom
 }
 
 // Three blocks up, a zombie's attack box (no vertical reach, 1.95 tall) cannot touch us while zombies
 // crowding the base stay inside our reach; dig back down once none is near (user tactic, round 5).
+// c.pillarState keeps the pillar across actions so a later decision resumes the fight instead of leaving.
 async function pillarRefuge(c, height = 3, seconds = 45) {
     const bot = c.bot
     const signal = c.actionAbort?.signal
     bot.pathfinder.setGoal(null)
     bot.clearControlStates()
-    const base = bot.entity.position.floored()
-    const placed = []
-    let safe = false
-    try {
-        while (placed.length < height) {
-            placed.push(await towerStep(c, signal))
+    if (!c.pillarState) {
+        const state = { base: bot.entity.position.floored(), placed: [], dimension: bot.game.dimension }
+        c.pillarState = state
+        while (state.placed.length < height) {
+            state.placed.push(await towerStep(c, signal))
         }
-        c.log.info(`Pillar refuge ${height} blocks above ${base}; fighting from the top.`)
-        const deadline = Date.now() + seconds * 1000
-        let nextSwing = 0
-        while (Date.now() < deadline) {
-            c.checkAction(signal)
-            const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
-            const melee = Object.values(bot.entities || {}).filter(e => e.isValid && PILLAR_SAFE.has(e.name) &&
-                e.position.distanceTo(base) <= 8)
-            if (!melee.length) {
-                safe = true
-                break
-            }
-            const top = e => e.position.offset(0, e.height ?? 1.95, 0)
-            const target = melee.filter(e => eye.distanceTo(top(e)) <= 3).sort((a, b) => eye.distanceTo(top(a)) - eye.distanceTo(top(b)))[0]
-            if (target && Date.now() >= nextSwing) {
-                await bot.lookAt(top(target), true)
-                bot.attack(target)
-                nextSwing = Date.now() + 650
-            }
-            await sleep(100)
-        }
-    } finally {
-        if (!signal?.aborted && (safe || !placed.length)) {
-            await descendPillar(c, placed)
-            c.crowdRetreat = null
-        }
+        c.log.info(`Pillar refuge ${height} blocks above ${state.base}; fighting from the top.`)
     }
-    if (!safe) {
-        throw new Error('pillar refuge still surrounded')
+    const { base, placed } = c.pillarState
+    const deadline = Date.now() + seconds * 1000
+    let nextSwing = 0
+    let leave = null
+    while (Date.now() < deadline) {
+        c.checkAction(signal)
+        if (archerNear(c, 24)) {
+            leave = 'an archer appeared; leaving the exposed pillar'
+            break
+        }
+        const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
+        const melee = Object.values(bot.entities || {}).filter(e => e.isValid && PILLAR_SAFE.has(e.name) &&
+            e.position.distanceTo(base) <= 8)
+        if (!melee.length) {
+            leave = 'clear'
+            break
+        }
+        c.combatLiveAt = Date.now()
+        // Attack reach is measured to the nearest point of the 0.6 x 1.95 hitbox, as the server does.
+        const reach = e => {
+            const h = (e.height ?? 1.95)
+            const p = new Vec3(Math.max(e.position.x - 0.3, Math.min(eye.x, e.position.x + 0.3)),
+                Math.max(e.position.y, Math.min(eye.y, e.position.y + h)), Math.max(e.position.z - 0.3, Math.min(eye.z, e.position.z + 0.3)))
+            return { e, p, d: eye.distanceTo(p) }
+        }
+        const target = melee.map(reach).filter(t => t.d <= 3).sort((a, b) => a.d - b.d)[0]
+        if (target && Date.now() >= nextSwing) {
+            await bot.lookAt(target.p, true)
+            bot.attack(target.e)
+            nextSwing = Date.now() + 500
+        }
+        await sleep(100)
+    }
+    if (!leave) {
+        throw new Error('pillar refuge still surrounded; staying on the pillar')
+    }
+    if (!signal?.aborted) {
+        await descendPillar(c, placed)
+        c.pillarState = null
+        c.crowdRetreat = null
+    }
+    if (leave !== 'clear') {
+        throw new Error(leave)
     }
 }
 

@@ -1074,3 +1074,28 @@ test('a failed combat action under attack never starts the staircase unstick', a
     assert.equal(c.unstickCalls, 0, 'started the staircase unstick under attack')
     assert.equal(c.scoutCalls, 0, 'scouted away under attack')
 })
+
+test('a pillar fight held in place for 14 s is not cancelled by the movement watchdog', async t => {
+    // Round 6: "retreat_to_wall is stuck" cancelled a stationary pillar fight after 12 s.
+    t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] })
+    const c = Object.create(SurvivalController.prototype)
+    const cancels = []
+    Object.assign(c, { bot: { entity: { position: new Vec3(0.5, 67, 0.5) } }, actionAbort: new AbortController(),
+        cancelCurrentTask: reason => cancels.push(reason),
+        async perform() {
+            for (let i = 0; i < 28; i++) {
+                c.combatLiveAt = Date.now()
+                await new Promise(resolve => setTimeout(resolve, 500))
+            }
+        } })
+    const run = c.performWithTimeout(Actions.REFUGE, {})
+    for (let i = 0; i < 160; i++) { t.mock.timers.tick(100); await Promise.resolve(); await Promise.resolve() }
+    await run
+    assert.deepEqual(cancels, [])
+})
+
+test('a bot standing on its refuge pillar keeps fighting from it rather than choosing other work', () => {
+    const { chooseAction } = require('../src/decision-engine')
+    assert.equal(chooseAction({ health: 20, food: 20, onPillarRefuge: true, hostileDistance: Infinity, visibleHostiles: 0,
+        completedAdvancements: new Set() }), Actions.REFUGE)
+})

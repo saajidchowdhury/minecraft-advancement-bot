@@ -160,3 +160,16 @@ test('a cornered fight cannot attack after a crowd retreat has latched', async (
     assert.ok(c.crowdRetreat)
     assert.deepEqual(c.movements[0].scafoldingBlocks, [])
 })
+
+test('a crowd-retreat latch expires after ten seconds with no hostile within 24 blocks', t => {
+    // Round 6: a latch left over from a three-zombie room sent a later hallway fight to the wall refuge.
+    t.mock.timers.enable({ apis: ['Date'] })
+    const c = corridor()
+    assert.equal(updateCrowdRetreat(c, c.hostileNames), true)
+    c.bot.entities = {}
+    assert.equal(updateCrowdRetreat(c, c.hostileNames), true)
+    t.mock.timers.tick(9000)
+    assert.equal(updateCrowdRetreat(c, c.hostileNames), true)
+    t.mock.timers.tick(2000)
+    assert.equal(updateCrowdRetreat(c, c.hostileNames), false)
+})

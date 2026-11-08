@@ -875,6 +875,7 @@ class SurvivalController {
             this.corneredUntil = Date.now() + 6000
         }
         state.cornered = this.corneredUntil > Date.now() && (state.hostileDistance <= 3 || Boolean(this.closeMelee()))
+        state.onPillarRefuge = Boolean(this.pillarState && this.pillarState.dimension === this.bot.game.dimension)
         state.inLava = this.inLava()
         state.suffocating = Boolean(this.suffocatingBlock())
         state.oxygen = this.bot.oxygenLevel ?? 20
@@ -966,7 +967,7 @@ class SurvivalController {
                     }
                     throw error
                 })
-            case Actions.REFUGE: return pillarSafe(this) ? pillarRefuge(this) : retreatToWall(this)
+            case Actions.REFUGE: return this.pillarState || pillarSafe(this) ? pillarRefuge(this) : retreatToWall(this)
             case 'mine_from_refuge': return mineFromRefuge(this, state)
             case Actions.DESCEND: return this.descendSafely()
             case Actions.ASCEND: return this.escapeVerticalShaft()
@@ -1052,7 +1053,8 @@ class SurvivalController {
                         }
                         // Mining deliberately holds the bot in place. Treat an active dig
                         // as liveness so the movement watchdog does not abort useful work.
-                        if (this.bot.targetDigBlock) {
+                        // A pillar refuge or a fight in place holds still on purpose (round 6 cancelled one).
+                        if (this.bot.targetDigBlock || Date.now() - (this.combatLiveAt || 0) < 3000) {
                             lastMovementAt = Date.now()
                             return
                         }
@@ -2008,7 +2010,10 @@ class SurvivalController {
                     }
                     this.bot.attack(target)
                     lastSwing.set(target.id, Date.now())
-                    nextHuntAttackAt = Date.now() + (huntCooldownMs || 650)
+                    this.combatLiveAt = Date.now()
+                    // Mobs ignore hits for 10 ticks after one lands: swinging every 0.5 s keeps every
+                    // attacker knocked back (user: spam-clicking holds off a hallway of zombies).
+                    nextHuntAttackAt = Date.now() + (huntCooldownMs || 500)
                     await sleep(100)
                 }
             }
