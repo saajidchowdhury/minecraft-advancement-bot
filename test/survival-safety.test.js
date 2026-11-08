@@ -1157,3 +1157,24 @@ test('releasing kiting never clears movement keys that the pathfinder is holding
     assert.equal(controls.back, false)
     assert.equal(controls.forward, true)
 })
+
+test('a charge that cannot close on its target gives up after five seconds instead of freezing', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+    const skeleton = { name: 'skeleton', isValid: true, position: new Vec3(8, 64, 0), height: 1.99 }
+    const c = {
+        running: true, paused: false, actionAbort: new AbortController(), log: { warn() {} },
+        bestItem: () => ({ name: 'iron_sword' }), rememberBlockedTarget() {},
+        bot: { health: 20, entity: { position: new Vec3(0, 64, 0) }, entities: {}, inventory: { slots: [] },
+            equip: async () => {}, lookAt: async () => {}, attack() {}, pathfinder: { setGoal() {} } }
+    }
+    c.checkAction = SurvivalController.prototype.checkAction.bind(c)
+    c.visibleThreatCount = SurvivalController.prototype.visibleThreatCount.bind(c)
+    c.closeMelee = SurvivalController.prototype.closeMelee.bind(c)
+    let failure = null
+    const operation = SurvivalController.prototype.fight.call(c, skeleton).catch(error => { failure = error })
+    for (let i = 0; i < 70; i++) { t.mock.timers.tick(100); await Promise.resolve(); await Promise.resolve() }
+    c.actionAbort.abort()
+    for (let i = 0; i < 5; i++) { t.mock.timers.tick(400); await Promise.resolve(); await Promise.resolve() }
+    await operation
+    assert.match(failure?.message ?? '', /unreachable for 5s/)
+})

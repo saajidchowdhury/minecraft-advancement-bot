@@ -1979,6 +1979,10 @@ class SurvivalController {
                         const stalled = new Error('prey pursuit stalled for 8s')
                         this.rememberBlockedTarget(entity, 'prey', stalled)
                         throw stalled
+                    } else if (!hunt && Date.now() - chaseProgressAt >= 5000) {
+                        // A shelter block sealed the hallway between bot and skeleton; the dynamic follow
+                        // goal never reports no-path, so the charge froze until the watchdog (round 12).
+                        throw new Error('combat target unreachable for 5s')
                     }
                     if (!following) {
                         this.bot.pathfinder.setGoal(new GoalFollow(entity, 2), true)
