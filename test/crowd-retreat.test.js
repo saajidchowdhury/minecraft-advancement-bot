@@ -65,7 +65,9 @@ test('crowd retreat remembers observed pursuers after turning away and resets ac
 })
 
 test('a crowd moving into view interrupts cornered combat but hits do not cancel wall retreat', () => {
+    // An all-melee crowd is kited now; a skeleton among them still forces the wall refuge.
     const c = corridor()
+    c.bot.entities[3].name = 'skeleton'
     c.activeAction = 'fight'
     c.corneredUntil = Date.now() + 6000
     c.bindEvents()
@@ -174,4 +176,15 @@ test('a crowd-retreat latch expires after ten seconds with no hostile within 24 
     assert.equal(updateCrowdRetreat(c, c.hostileNames), true)
     t.mock.timers.tick(2000)
     assert.equal(updateCrowdRetreat(c, c.hostileNames), false)
+})
+
+test('an all-zombie crowd moving into view does not cancel a kiting fight', () => {
+    // Round 9: the crowd interrupt cancelled the kiting fight ten times in a few seconds.
+    const c = corridor()
+    c.bestItem = () => ({ name: 'stone_sword' })
+    c.activeAction = 'fight'
+    c.busy = true
+    c.bindEvents()
+    c.bot.emit('entityMoved', c.bot.entities[1])
+    assert.equal(c.actionAbort.signal.aborted, false)
 })

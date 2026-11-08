@@ -118,7 +118,8 @@ function chooseAction (state) {
     if (state.hostileDistance <= 3.5 && state.hasWeapon && state.health > 10 && !(state.creeperDistance <= 6)) {
         return Actions.FIGHT
     }
-    if (state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood) {
+    // Eating takes 1.6 s and cannot be cancelled cleanly: never with melee at arm's length (round 9).
+    if (state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood && !(state.meleeDistance <= 4)) {
         return Actions.EAT
     }
     if (state.armorUpgrade) {

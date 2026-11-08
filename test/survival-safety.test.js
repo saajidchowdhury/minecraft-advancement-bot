@@ -1094,3 +1094,13 @@ test('a pillar fight held in place for 14 s is not cancelled by the movement wat
     assert.deepEqual(cancels, [])
 })
 
+
+test('an attacker behind the bot makes it step forward away at once, before turning (user: move on the first hit)', () => {
+    const { kite } = require('../src/survival-bot')
+    const { bot, controls } = kitingBot()
+    const zombie = { name: 'zombie', isValid: true, position: new Vec3(0.5, 64, 2.0) }
+    const keys = kite({ bot }, [zombie])
+    assert.ok(keys?.includes('forward'), `expected a forward step, got ${keys}`)
+    assert.equal(controls.forward, true)
+    assert.equal(controls.back, false)
+})

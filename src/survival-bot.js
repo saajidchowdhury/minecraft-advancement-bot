@@ -35,6 +35,8 @@ const HOSTILES = new Set([
 ])
 
 const PREY = new Set(['cow', 'pig', 'sheep', 'chicken', 'rabbit'])
+const WEAPONS = ['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword',
+    'netherite_axe', 'diamond_axe', 'iron_axe', 'stone_axe', 'golden_axe', 'wooden_axe']
 
 const LOG_SUFFIXES = ['_log', '_stem', '_wood', '_hyphae']
 const CREEPERS = new Set(['creeper'])
@@ -156,8 +158,9 @@ function kite (c, threats) {
         const f = new Vec3(-Math.sin(yaw), 0, -Math.cos(yaw))
         const r = new Vec3(-f.z, 0, f.x)
         const feet = here.floored()
-        for (const keys of [['back'], ['back', 'left'], ['back', 'right'], ['left'], ['right']]) {
-            const dir = keys.reduce((v, k) => k === 'back' ? v.minus(f) : k === 'left' ? v.minus(r) : v.plus(r), new Vec3(0, 0, 0))
+        // Forward options cover an attacker behind us (the first hit lands before we turn; user).
+        for (const keys of [['back'], ['back', 'left'], ['back', 'right'], ['left'], ['right'], ['forward'], ['forward', 'left'], ['forward', 'right']]) {
+            const dir = keys.reduce((v, k) => k === 'back' ? v.minus(f) : k === 'forward' ? v.plus(f) : k === 'left' ? v.minus(r) : v.plus(r), new Vec3(0, 0, 0))
             const unit = dir.scaled(1 / Math.hypot(dir.x, dir.z))
             const score = unit.x * away.x + unit.z * away.z
             const cell = here.plus(unit).floored()
@@ -171,10 +174,20 @@ function kite (c, threats) {
             }
         }
     }
-    for (const key of ['back', 'left', 'right', 'jump']) {
+    for (const key of ['back', 'forward', 'left', 'right', 'jump']) {
         bot.setControlState?.(key, Boolean(best?.keys.includes(key)))
     }
     return best?.keys ?? null
+}
+
+// One rule for the decision interrupt and fight(): armed, above 10 HP, only melee mobs within 16
+// and at most four of them close (round 9: the crowd interrupt cancelled a kiting fight ten times).
+function kiteableCrowd (c) {
+    const here = c.bot.entity.position
+    const near = Object.values(c.bot.entities || {}).filter(e => e.isValid && HOSTILES.has(e.name) &&
+        here.distanceTo(e.position) <= 16)
+    return c.bot.health > 10 && Boolean(c.bestItem?.([...WEAPONS])) && near.every(e => MELEE.has(e.name)) &&
+        near.filter(e => here.distanceTo(e.position) <= 6).length <= 4
 }
 
 function pathfinderDropLimitForLanding (surfaceDrop) {
@@ -450,7 +463,7 @@ class SurvivalController {
         this.bot.on('entityMoved', entity => {
             if (this.running && !this.paused && this.bot.health > 0 && this.bot.entity && HOSTILES.has(entity.name) &&
                 ![Actions.REFUGE, 'avoid_enderman', 'escape_lava', 'surface_for_air', 'clear_head'].includes(this.activeAction) &&
-                updateCrowdRetreat(this, HOSTILES)) {
+                updateCrowdRetreat(this, HOSTILES) && !(this.activeAction === Actions.FIGHT && kiteableCrowd(this))) {
                 if (this.busy && !this.actionAbort?.signal.aborted) {
                     this.cancelCurrentTask('crowd of mobs; taking wall refuge')
                 } else if (!this.busy) {
@@ -799,6 +812,7 @@ class SurvivalController {
             food: this.bot.food,
             hostile,
             hostileDistance: hostile ? this.bot.entity.position.distanceTo(hostile.position) : Infinity,
+            meleeDistance: (() => { const m = this.closeMelee(4); return m ? this.bot.entity.position.distanceTo(m.position) : Infinity })(),
             creeper: creeperVisible ? creeper : null,
             creeperDistance: creeperVisible ? this.bot.entity.position.distanceTo(creeper.position) : Infinity,
             ranged: archerVisible ? archer : null,
@@ -1940,9 +1954,7 @@ class SurvivalController {
                     this.urgentReplan = true
                     throw new Error('combat health too low; replanning escape')
                 }
-                const meleeOnly = this.bot.health > 10 && !Object.values(this.bot.entities || {}).some(e => e.isValid &&
-                    ((ARCHERS.has(e.name) && this.bot.entity.position.distanceTo(e.position) <= 16) ||
-                        (CREEPERS.has(e.name) && this.bot.entity.position.distanceTo(e.position) <= 8)))
+                const meleeOnly = kiteableCrowd(this)
                 const crowd = updateCrowdRetreat(this, HOSTILES) && !meleeOnly
                 if (!hunt && (crowd || (!cornered && outnumbered(this.visibleThreatCount(), wornArmorPoints(this.bot), meleeOnly)))) {
                     this.urgentReplan = true
@@ -2050,9 +2062,9 @@ class SurvivalController {
 
     // Melee within three blocks is known without sight: it is hitting us, and zombies at arm's length sit
     // below the eye's view cone (staged 02:21Z: two "unseen" zombies killed a cornered bot).
-    closeMelee () {
+    closeMelee (range = 3) {
         const here = this.bot.entity.position
-        return Object.values(this.bot.entities || {}).filter(e => e.isValid && MELEE.has(e.name) && here.distanceTo(e.position) <= 3)
+        return Object.values(this.bot.entities || {}).filter(e => e.isValid && MELEE.has(e.name) && here.distanceTo(e.position) <= range)
             .sort((a, b) => here.distanceTo(a.position) - here.distanceTo(b.position))[0] || null
     }
 

@@ -493,3 +493,10 @@ test('a surface bot at night goes underground or shelters but never keeps surfac
     assert.equal(chooseAction({ ...geared, underground: true, health: 12 }), Actions.SHELTER)
     assert.equal(chooseAction({ ...geared, underground: true, health: 12, sheltered: true }), 'wait')
 })
+
+test('the bot never starts eating with a melee mob at arm\'s length', () => {
+    // Round 9: eat at 11 HP with three zombies within 3 blocks; the uncancellable eat cost 9 HP.
+    const hungry = state({ health: 11, food: 17, hasFood: true, hasWeapon: true, hostileDistance: 5, meleeDistance: 2.5 })
+    assert.notEqual(chooseAction(hungry), Actions.EAT)
+    assert.equal(chooseAction({ ...hungry, meleeDistance: Infinity, hostileDistance: Infinity }), Actions.EAT)
+})
