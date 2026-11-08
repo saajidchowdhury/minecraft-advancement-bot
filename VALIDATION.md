@@ -2,6 +2,18 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F097 passes 408 tests and syntax checks. Ten tree-climb regressions use real
+prismarine blocks, the real world raycast and a simple jump/gravity model:
+eye-reach approach versus the library goal, pillar planning, dirt/log/no-
+scaffold climbs with scaffold recovery, no cutting log scaffold from under the
+bot, gather_wood climbing instead of quarantining, refused-placement retry and
+bounded abandonment, and turning to ground drops. All fail on pre-fix source.
+Three staged LAN runs at the user's reported oak (-24,69,194): run 1 exposed
+server placement refusals, run 2 cut 12 high logs via a 3-block pillar but
+left ground drops, run 3 cut three restored logs from the ground and one via
+a 2-block pillar, then collected drops. Commands ran only during setup and
+cleanup. A natural (unstaged) high-tree pillar remains unverified.
+
 F096 passes 399 tests and syntax checks. Five regressions fail on the old
 source: interaction from a hillside ledge, bounded first-failure detouring,
 movement restoration on cancellation, actual arrival despite the library's

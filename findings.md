@@ -2059,3 +2059,51 @@ temporary structures and supplied items were removed, and only the bot was
 returned to its pre-test location. Keep staged evidence separate from unaided
 progression. Older leaf/drop, natural water/workstation and underground night
 fallback checks remain in goals.md; do not infer completion from unit tests.
+
+## F097 — High tree logs were "No path" because approach reach was measured from the feet
+
+Run outputs/2026-11-07@20.07.01 (01:07–01:11Z) blacklisted two nearby oaks
+seven times with "No path to the goal!", then unstuck and walked away. The
+user reported a tree base at (-24,69,194); its lower trunk was cut and logs
+remained at (-25,74..77,194) and nearby (-25..-23,74..77,192..198).
+Cause: mineflayer-pathfinder 2.4.5 GoalLookAtBlock.isEnd measures distance
+from the feet node to the block raised by entityHeight. For an overhead block
+that removes ~3.2 blocks of reach: an adjacent node accepted logs only up to
+feet+2, although eye-to-centre reach covers about feet+5.
+
+Fix (src/tree-climb.js): resource and glow-berry approaches use a subclass
+measuring eye to block centre (reach 4.5, eye 1.62). Logs beyond standing
+reach get a bounded pillar: a column within one block of the tree's highest
+log, solid footing, open (or leaf) cells up to the head, at most 5 blocks.
+Scaffold prefers dirt (descendSafely() can dig an interrupted dirt pillar),
+then stone types, then logs; with none held it digs nearby dirt. Logs are cut
+from the top, the pillar is dug back down (scaffold recovered), then the bot
+turns to each settled ground drop. Abort skips descent so threat handling
+owns the bot at once. Climbing requires no hostile within 16 blocks.
+
+Live staged evidence (setup commands only; outputs/tree-pillar-test-{1,2,3}.json):
+1. 04d3a0e: two pillar starts at the original tree were refused by the server
+   ("block is still air"), one after a successful first placement; the
+   abort path dug the placed block back down. Placement had been sent on the
+   first tick above y0+1.05. Fix 296f32f: look down first, place one tick
+   after y0+1.15 with forceLook ignore, retry a refusal up to 3 times. The
+   exact refusal cause (server-side position lag vs another check) is inferred,
+   not proven; the retry bounds it either way.
+2. 296f32f: 3-block pillar at (-24,69,196) cut all 12 remaining logs and
+   recovered its dirt in 24 s at 20 HP. Six ground drops were left: the
+   descent ends looking straight down and canSee() requires inView.
+   Fix 9b61429 turns to each ground drop; canopy-caught drops are skipped.
+3. 9b61429: the four original remnant logs (-25,74..77,194) were refilled
+   into air by command. The eye-reach goal cut Y=74, 75, 76 from the ground
+   (pre-fix "No path"); Y=77 took a 2-block pillar, then drop pickup raised
+   held logs 55 -> 60 (leftover run-2 drops included). 20 HP throughout.
+Cleanup returned only the bot to its pre-test mine cell (127.5,16,269.5)
+and set time back to night (16100); staging had set day, cleared weather
+and killed hostiles within 64 blocks. Two log drops stayed on canopy leaves.
+
+Discovery caveat: wood search only accepts logs inside the 35-degree vertical
+view; a distant visible tree wins over overhead logs at pitch 0 (run 2
+attempt 0). In the natural run the bot was already targeting these trees.
+Ten regressions (test/tree-climb.test.js) use real prismarine blocks, the
+real world raycast and a 0.42/0.08/0.98 jump model; all fail on pre-fix
+source. Full suite 408/408. Comment lines: tree-climb.js 18/317 (5.7%).

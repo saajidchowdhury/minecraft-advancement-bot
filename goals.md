@@ -8,11 +8,11 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
-Session handoff: the normal bot remains running on port 52171, PID 40090,
-from cf8876e in outputs/2026-11-07@01.35.47. Verify process identity and
-the latest log before stopping or launching anything; do not duplicate it.
-All runtime JavaScript hashes match the working tree. Automated baseline:
-399 passing tests and syntax checks. This handoff changes documentation only.
+Session handoff: the normal bot runs on port 49278, PID 4360, from 9b61429
+in outputs/2026-11-07@20.31.37, launched in a visible Terminal window (the
+user's preferred method for live runs). Verify process identity and the
+latest log before stopping or launching anything; do not duplicate it.
+Automated baseline: 408 passing tests and syntax checks.
 
 Next checks, in order:
 1. F094 / survival: observe a natural crowd retreat, including an obstructed
@@ -29,6 +29,15 @@ Next checks, in order:
 Two existing sections below share G015 (death cascades and stronghold work).
 Prioritize the survival section; stronghold work remains gated on a verified
 Nether entry/return. IDs are preserved rather than silently renumbered.
+
+F097 lets wood gathering reach high logs: eye-based approach reach (logs to
+about feet+5 from the ground) and a bounded dirt/stone/log pillar beyond
+that, dug back down with drops collected. Three staged runs at the user's
+reported oak validated it after two live fixes (placement timing, drop
+facing). Observe a natural high-tree pillar next; check that no "Tree pillar
+failed" or refused-placement loops appear and that an interrupted pillar is
+recovered. Consider widening overhead wood discovery if distant trees keep
+winning over a nearer cut trunk.
 
 F096 fixes repeated thirty-second cooking-return attempts: interaction-reach
 goals, eight-second approaches and a bounded detour on the first failure.
