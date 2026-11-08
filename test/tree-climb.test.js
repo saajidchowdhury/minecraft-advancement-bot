@@ -79,6 +79,7 @@ function climbingBot(w, start, inventory) {
             }
         },
         refusals: 0, clearControlStates() { bot.controls = {} }, async look(yaw, pitch) { Object.assign(bot.entity, { yaw, pitch }) },
+        async lookAt(p) { bot.lookedAt = p },
         async _placeBlockWithOptions(ref, face) {
             const p = ref.position.plus(face)
             const feetY = bot.entity.position.y
@@ -228,4 +229,25 @@ test('three refusals abandon the climb after digging back down what was placed',
     await assert.rejects(climbForLog(c, w.getBlock(new Vec3(-25, 74, 194))), /refused/)
     assert.equal(bot.entity.position.y, 69)
     assert.equal(bot.placed.length, 0)
+})
+
+test('after descending, the bot turns to each settled ground drop and leaves canopy-caught drops', async () => {
+    const w = oakWorld()
+    const inventory = [{ name: 'dirt', count: 4 }]
+    const bot = climbingBot(w, new Vec3(-20.5, 69, 194.5), inventory)
+    const drop = (id, x, y, z) => ({ id, name: 'item', isValid: true, position: new Vec3(x, y, z) })
+    bot.entities = { 1: drop(1, -26.4, 69, 197.2), 2: drop(2, -22.6, 69, 192.5), 3: drop(3, -24.5, 77.1, 196.5) }
+    const c = controller(bot)
+    const pickups = []
+    c.collectTarget = async ([entity]) => {
+        assert.equal(bot.lookedAt, entity.position, 'pickup before turning to the drop')
+        pickups.push(entity.id)
+        if (entity.id === 2) {
+            throw new Error('item pickup timed out after 8s')
+        }
+        entity.isValid = false
+    }
+    c.log.warn = () => {}
+    await climbForLog(c, w.getBlock(new Vec3(-25, 74, 194)))
+    assert.deepEqual(pickups.sort(), [1, 2])
 })

@@ -291,10 +291,24 @@ async function climbForLog (c, log, { maxPillar = MAX_PILLAR, approachMs = 10000
             await descendPillar(c, placed)
         }
     }
+    // Pickup needs the drop in view, and the descent ends looking straight down (live 01:27Z left
+    // six ground drops); turn to each settled ground drop. Drops caught on canopy leaves stay.
+    await bot.waitForTicks(20)
     const drops = Object.values(bot.entities).filter(e => e.name === 'item' && e.isValid &&
-        e.position.distanceTo(plan.base) <= 8)
-    if (drops.length) {
-        await c.collectTarget(drops, log, 'tree drops')
+        e.position.distanceTo(plan.base) <= 10 && e.position.y <= plan.base.y + 2)
+        .sort((a, b) => a.position.distanceTo(bot.entity.position) - b.position.distanceTo(bot.entity.position))
+    for (const drop of drops) {
+        if (!drop.isValid) {
+            continue
+        }
+        c.checkAction(signal)
+        await bot.lookAt(drop.position, true)
+        await c.collectTarget([drop], log, 'tree drops').catch(error => {
+            if (signal?.aborted) {
+                throw error
+            }
+            c.log.warn(`Tree drop pickup at ${drop.position.floored()} failed: ${error.message}`)
+        })
     }
     c.log.info(`Tree pillar cut ${dug} log${dug === 1 ? '' : 's'} and recovered its scaffold.`)
     return dug
