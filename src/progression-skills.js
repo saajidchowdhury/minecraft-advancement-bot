@@ -185,6 +185,21 @@ async function probeTunnelSides(c, direction) {
     return { dug, foundOre }
 }
 
+// probeAnchors := [dimension, x, y, z] of tunnel cells already probed; oldest dropped past 2048.
+function nearProbe(c, p) {
+    const dimension = c.bot.game.dimension
+    return (c.memory.probeAnchors || []).some(([d, x, y, z]) => d === dimension && Math.abs(y - p.y) <= 2 &&
+        Math.max(Math.abs(x - p.x), Math.abs(z - p.z)) < c.probeSpacing)
+}
+
+function rememberProbe(c, p) {
+    c.memory.probeAnchors ??= []
+    c.memory.probeAnchors.push([c.bot.game.dimension, p.x, p.y, p.z])
+    if (c.memory.probeAnchors.length > 2048) {
+        c.memory.probeAnchors.shift()
+    }
+}
+
 async function climbStep(c, target) {
     try {
         await c.gotoWithTimeout(new goals.GoalBlock(target.x, target.y, target.z), 4000, 'prepared stair step')
@@ -233,13 +248,15 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
         if (saved?.dimension === bot.game.dimension && saved.targetY === targetY) {
             c.memory.mineDirection = saved.direction
             const point = new Vec3(saved.x, saved.y, saved.z)
-            if (start.distanceTo(point) <= 24 && safeFooting(bot, point)) {
+            // 48 blocks: a furnace or crafting detour 29 blocks back restarted at the tunnel mouth (01:40Z).
+            if (start.distanceTo(point) <= 48 && safeFooting(bot, point)) {
                 frontier = saved
                 if (!start.equals(point)) {
                     c.log.info(`Returning to tunnel frontier at ${point} without digging.`)
                     bot.pathfinder.setMovements(dryMovements(bot))
                     try {
-                        await c.gotoWithTimeout(new goals.GoalBlock(point.x, point.y, point.z), 12000, 'tunnel frontier')
+                        await c.gotoWithTimeout(new goals.GoalBlock(point.x, point.y, point.z),
+                            Math.max(12000, 400 * start.distanceTo(point)), 'tunnel frontier')
                         check(c)
                         if (!bot.entity.position.floored().equals(point)) {
                             throw new Error('tunnel frontier was not reached')
@@ -274,7 +291,21 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
         // level tunnel, one step up or down) routes around the hazard (live 02.02.15, 02.29.19).
         const rise = Math.sign(targetY - feet.y)
         const slopes = rise ? (rise < 0 && frontier?.levelSteps >= 8 ? [rise] : [rise, 0]) : [0, 1, -1]
-        for (const [index, dy] of slopes.flatMap(dy => directionOrder.map(i => [i, dy]))) {
+        // Fresh rock ahead beside an old main tunnel running the same way would cut a parallel
+        // duplicate (live 01:42Z dug z=269 along z=270): step sideways into the old tunnel and walk it.
+        const [fx, fz] = DIRECTIONS[forward]
+        const ahead = feet.offset(fx, 0, fz)
+        const tunnelCell = p => c.memory.minedCells?.has(`${bot.game.dimension}:${p}`)
+        const freshAhead = [ahead, ahead.offset(0, 1, 0)].some(p => bot.blockAt(p, false)?.boundingBox !== 'empty')
+        const merge = !heading && rise === 0 && freshAhead
+            ? [[fz, fx], [-fz, -fx]].map(([sx, sz]) => feet.offset(sx, 0, sz))
+                .find(side => tunnelCell(side) && tunnelCell(side.offset(fx, 0, fz)) && !c.isBlockedTarget?.({ position: side }) &&
+                    safeTunnelStep(bot, feet, side, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt']))))
+            : null
+        if (merge) {
+            target = merge
+        }
+        for (const [index, dy] of merge ? [] : slopes.flatMap(dy => directionOrder.map(i => [i, dy]))) {
             const [dx, dz] = DIRECTIONS[index]
             const candidate = feet.offset(dx, dy, dz)
             if (undergroundOnly && openToSky(bot, candidate.offset(0, dy === 0 ? 2 : 3, 0))) {
@@ -303,6 +334,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
             await c.placeSurvivalBlock(target.offset(0, -1, 0))
             check(c)
         }
+        let dugFresh = false
         const cells = target.y < feet.y
             ? [target.offset(0, 2, 0), target.offset(0, 1, 0), target]
             : (target.y > feet.y ? [feet.offset(0, 3, 0), feet.offset(0, 2, 0), target.offset(0, 2, 0), target.offset(0, 1, 0), target] : [target.offset(0, 1, 0), target])
@@ -322,6 +354,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
                 }
                 await bot.equip(currentTool, 'hand')
                 await bot.dig(block, true)
+                dugFresh = true
                 if (c.findNearestBlock && exposedDiamond(c, p) && c.canPursueDiamond?.() !== false && findPriorityDiamond(c)) {
                     c.log.info('Tunnel dig exposed diamond ore; yielding to collect it.')
                     return
@@ -363,10 +396,12 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
             c.log.info('Priority ore came into view; leaving the tunnel segment to mine it.')
             return
         }
-        if (target.y === feet.y && Math.abs(targetY - target.y) <= 8 && c.probeSpacing > 0) {
+        // Walking an old tunnel digs nothing and must not re-probe beside earlier probes (01:40Z).
+        if (dugFresh && target.y === feet.y && Math.abs(targetY - target.y) <= 8 && c.probeSpacing > 0) {
             c.memory.probeSteps = (c.memory.probeSteps || 0) + 1
-            if (c.memory.probeSteps >= c.probeSpacing) {
+            if (c.memory.probeSteps >= c.probeSpacing && !nearProbe(c, target)) {
                 c.memory.probeSteps = 0
+                rememberProbe(c, target)
                 const result = await probeTunnelSides(c, c.memory.mineDirection)
                 if (result.foundOre) {
                     return

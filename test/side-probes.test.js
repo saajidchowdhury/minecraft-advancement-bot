@@ -127,7 +127,7 @@ test('default side probes leave four main-tunnel blocks between successive branc
     assert.equal(c.dug.filter(p => p.z !== 0).length, 20)
 })
 
-test('an old passage around a 6x7 area cannot make the tunnel spiral through its interior', async () => {
+test('an old passage around a 6x7 area is merged into and followed, never spiralled through or paralleled', async () => {
     const openings = new Map()
     const visited = new Set()
     for (let x = 0; x <= 7; x++) {
@@ -147,9 +147,9 @@ test('an old passage around a 6x7 area cannot make the tunnel spiral through its
     for (let i = 0; i < 10; i++) {
         await mineTunnel(c, 64)
     }
-    assert.equal(c.bot.entity.position.x, 41.5)
-    assert.equal(c.bot.entity.position.z, 1.5)
-    assert.equal(c.dug.every(p => p.z === 1), true)
+    assert.equal(c.bot.entity.position.x, 40.5)
+    assert.equal(c.bot.entity.position.z, 0.5)
+    assert.equal(c.dug.every(p => p.z === 0 && p.x >= 8), true)
 })
 
 test('a head-height probe opening does not turn the main tunnel', async () => {
@@ -352,4 +352,71 @@ test('pausing during a probe prevents subsequent digs', async () => {
     }
     await assert.rejects(probeTunnelSides(c, 0), /cancelled/)
     assert.equal(c.dug.length, 1)
+})
+
+test('walking back through an already-dug tunnel does not count toward or trigger side probes', async () => {
+    const open = new Map()
+    for (let x = 1; x <= 12; x++) {
+        open.set(new Vec3(x, 64, 0).toString(), 'air')
+        open.set(new Vec3(x, 65, 0).toString(), 'air')
+    }
+    const c = miningWorld(open)
+    c.probeSpacing = 5
+    c.memory.probeSteps = 4
+    await mineTunnel(c, 64)
+    await mineTunnel(c, 64)
+    assert.equal(c.bot.entity.position.x, 8.5)
+    assert.equal(c.dug.length, 0)
+    assert.equal(c.memory.probeSteps, 4)
+})
+
+test('a probe is skipped within the spacing of a remembered probe and resumes once clear of it', async () => {
+    const c = miningWorld()
+    c.probeSpacing = 5
+    c.memory.probeAnchors = [['overworld', 1, 64, 1]]
+    c.memory.probeSteps = 2
+    await mineTunnel(c, 64)
+    assert.equal(c.memory.probeMinedBlocks || 0, 0)
+    await mineTunnel(c, 64)
+    assert.equal(c.memory.probeMinedBlocks, 10)
+    assert.deepEqual(c.memory.probeAnchors.at(-1), ['overworld', 6, 64, 0])
+})
+
+test('a tunnel frontier 29 blocks back along the tunnel is resumed instead of restarting at the mouth', async () => {
+    const open = new Map([[new Vec3(29, 64, 0).toString(), 'air'], [new Vec3(29, 65, 0).toString(), 'air']])
+    const c = miningWorld(open)
+    c.memory.tunnelFrontier = { x: 29, y: 64, z: 0, dimension: 'overworld', targetY: 64, direction: 0 }
+    const timeouts = []
+    const goto = c.gotoWithTimeout
+    c.gotoWithTimeout = async (goal, ms, label) => {
+        timeouts.push([label, ms])
+        return goto(goal)
+    }
+    c.bot.pathfinder = { setMovements() {} }
+    c.bot.registry = mcData
+    c.movements = {}
+    await mineTunnel(c, 64)
+    assert.equal(timeouts[0][0], 'tunnel frontier')
+    assert.ok(timeouts[0][1] >= 11600)
+    assert.equal(c.bot.entity.position.x, 33.5)
+})
+
+test('fresh rock beside an old tunnel running the same way merges into it instead of digging a parallel tunnel', async () => {
+    // Live 01:42Z: restarted at the mouth on z=269 beside the finished z=270 tunnel.
+    const open = new Map()
+    const cells = new Set()
+    for (let x = 0; x <= 20; x++) {
+        const p = new Vec3(x, 64, 1)
+        open.set(p.toString(), 'air')
+        open.set(p.offset(0, 1, 0).toString(), 'air')
+        cells.add(`overworld:${p}`)
+    }
+    const c = miningWorld(open)
+    c.memory.minedCells = cells
+    c.probeSpacing = 5
+    await mineTunnel(c, 64)
+    await mineTunnel(c, 64)
+    assert.equal(c.bot.entity.position.z, 1.5)
+    assert.equal(c.bot.entity.position.x, 7.5)
+    assert.equal(c.dug.length, 0)
 })
