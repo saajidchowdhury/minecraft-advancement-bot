@@ -864,3 +864,46 @@ test('a lava escape that drives out directly skips the pathfinder, and lava canc
     c.cancelCurrentTask('burning in lava')
     assert.equal(c.urgentReplan, true)
 })
+
+test('an unseen skeleton shooting from eight blocks behind interrupts mining and is turned to and fought', async () => {
+    // Live 01:57Z: mine_iron kept digging through seven arrow hits from a skeleton 7-10 blocks behind.
+    const bot = new EventEmitter()
+    bot.entity = { position: new Vec3(0.5, 20, 0.5), yaw: 0, pitch: 0 }
+    bot.game = { dimension: 'overworld' }
+    bot.health = 20
+    bot.world = { raycast: () => null }
+    const skeleton = { isValid: true, name: 'skeleton', height: 1.99, position: new Vec3(0.5, 20, 8.5), heldItem: { name: 'bow' } }
+    bot.entities = { 1: skeleton }
+    bot.nearestEntity = predicate => predicate(skeleton) ? skeleton : null
+    const looks = []
+    bot.lookAt = async point => {
+        looks.push(point)
+        bot.entity.yaw = Math.PI
+    }
+    const c = Object.create(SurvivalController.prototype)
+    const actions = []
+    Object.assign(c, {
+        bot, running: true, busy: true, activeAction: 'mine_iron', actionAbort: new AbortController(),
+        memory: {}, failures: new Map(),
+        log: { info() {}, warn() {} }, isNight: () => false, onState() {}, inventorySummary: () => '',
+        scheduleLoop() {}, verifyActionProgress() {},
+        observe() {
+            const ranged = c.canSee(skeleton) ? skeleton : null
+            return {
+                health: bot.health, food: 20, hasFood: true, hasWeapon: true, armorPoints: 15, underground: true,
+                ranged, rangedDistance: ranged ? 8 : Infinity, hostile: ranged, hostileDistance: ranged ? 8 : Infinity,
+                visibleHostiles: ranged ? 1 : 0, completedAdvancements: new Set()
+            }
+        },
+        async performWithTimeout(action, state) { actions.push([action, state.ranged]) }
+    })
+    c.bindEvents()
+    assert.equal(c.canSee(skeleton), false)
+    bot.emit('entityHurt', bot.entity, skeleton)
+    assert.match(c.actionAbort.signal.reason, /attacked by skeleton holding bow/)
+    c.busy = false
+    c.activeAction = null
+    await c.tick()
+    assert.ok(looks[0]?.z > 8, 'did not turn toward the shooter')
+    assert.deepEqual(actions, [[Actions.FIGHT, skeleton]])
+})

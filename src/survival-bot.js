@@ -325,9 +325,11 @@ class SurvivalController {
                 }
                 return
             }
+            // damage_event names the shooter; an unseen skeleton 8 blocks behind shot the bot from 20 HP
+            // to death while it kept mining (live 01:57Z), so archers count to 24 blocks.
             if (!this.running || this.paused || this.followPlayer || !victim || victim !== this.bot.entity ||
                 this.bot.health <= 0 || !source?.isValid || !HOSTILES.has(source.name) ||
-                victim.position.distanceTo(source.position) > 4 ||
+                victim.position.distanceTo(source.position) > (ARCHERS.has(source.name) ? 24 : 4) ||
                 (this.busy && [Actions.FIGHT, Actions.ESCAPE, Actions.REFUGE, 'escape_lava', 'surface_for_air', 'clear_head'].includes(action))) {
                 return
             }
