@@ -342,7 +342,7 @@ test('an unarmored bot fights two melee-only attackers above 10 HP but withdraws
     const melee = state({ health: 12.7, hasWeapon: true, hostileDistance: 0.9, closeHostiles: 2, visibleHostiles: 2 })
     assert.equal(chooseAction(melee), Actions.FIGHT)
     assert.equal(chooseAction({ ...melee, health: 9 }), Actions.ESCAPE)
-    assert.equal(chooseAction({ ...melee, closeHostiles: 3, visibleHostiles: 2 }), Actions.ESCAPE)
+    assert.equal(chooseAction({ ...melee, closeHostiles: 5, visibleHostiles: 2 }), Actions.ESCAPE)
     assert.equal(chooseAction({ ...melee, rangedDistance: 10 }), Actions.ESCAPE)
     assert.equal(chooseAction({ ...melee, closeHostiles: 1 }), Actions.FIGHT)
     assert.equal(chooseAction({ ...melee, armorPoints: 12 }), Actions.FIGHT)
@@ -350,7 +350,18 @@ test('an unarmored bot fights two melee-only attackers above 10 HP but withdraws
 
 test('hostiles hidden behind a sealed pocket do not force the bot back out', () => {
     assert.equal(chooseAction(state({ health: 1.3, food: 20, hostileCount: 6, visibleHostiles: 0, hostileDistance: 13 })), 'wait')
-    assert.equal(chooseAction(state({ health: 18, hostileCount: 6, visibleHostiles: 4, hostileDistance: 3 })), Actions.REFUGE)
+    assert.equal(chooseAction(state({ health: 18, hostileCount: 6, visibleHostiles: 4, hostileDistance: 3, rangedDistance: 10 })), Actions.REFUGE)
+})
+
+test('a melee-only crowd of up to four is kited while healthy; more, an archer, or low health still refuges', () => {
+    // User: a skilled player backs up while hitting the closest zombie; the pillar trick does not generalize.
+    const crowd = state({ health: 18, hasWeapon: true, hostileDistance: 2, closeHostiles: 3, visibleHostiles: 3 })
+    assert.equal(chooseAction(crowd), Actions.FIGHT)
+    assert.equal(chooseAction({ ...crowd, closeHostiles: 4, visibleHostiles: 4 }), Actions.FIGHT)
+    assert.equal(chooseAction({ ...crowd, closeHostiles: 5, visibleHostiles: 5 }), Actions.REFUGE)
+    assert.equal(chooseAction({ ...crowd, rangedDistance: 12 }), Actions.REFUGE)
+    assert.equal(chooseAction({ ...crowd, health: 9 }), Actions.REFUGE)
+    assert.equal(chooseAction({ ...crowd, hasWeapon: false }), Actions.REFUGE)
 })
 
 test('an adjacent attacker is fought before eating when the bot is healthy and armed', () => {

@@ -46,10 +46,12 @@ function canSustainFight (health, armorPoints) {
     return health > (armorPoints >= 12 ? 4 : 8)
 }
 
-// Kiting with rotating swings makes one extra melee-only attacker fightable above 10 HP
-// (staged rounds 4-5: an unarmored stone-sword bot beat two zombies; fleeing them had no route).
+// Kiting with rotating swings holds off up to four melee-only attackers above 10 HP (staged rounds
+// 4-8; user: a skilled player backs up while hitting the closest zombie, so zombies cannot connect).
+const KITE_CROWD = 4
+
 function outnumbered (closeHostiles, armorPoints, meleeOnly = false) {
-    return closeHostiles > (armorPoints >= 12 ? 2 : 1) + (meleeOnly ? 1 : 0)
+    return closeHostiles > (meleeOnly ? Math.max(KITE_CROWD, armorPoints >= 12 ? 2 : 1) : armorPoints >= 12 ? 2 : 1)
 }
 
 function meleeOnlyFight (state) {
@@ -76,11 +78,12 @@ function chooseAction (state) {
     if (state.endermanDanger) {
         return 'avoid_enderman'
     }
-    // Standing on our own refuge pillar: stay and fight from it until it is clear (round 6 walked off).
-    if (state.onPillarRefuge) {
-        return Actions.REFUGE
-    }
-    if (state.crowdRetreat || (state.visibleHostiles ?? state.hostileCount ?? 0) >= 3) {
+    // Melee-only crowds are kited rather than refuged; a pillar refuge needs five blocks of headroom
+    // and one skeleton ruins it (user), and wall refuges failed to seal against close zombies (round 5).
+    // Surface nights keep the retreat: more zombies keep spawning there.
+    const kiteCrowd = state.hasWeapon && meleeOnlyFight(state) && !outnumbered(state.closeHostiles ?? 0, state.armorPoints, true) &&
+        (state.visibleHostiles ?? state.hostileCount ?? 0) <= KITE_CROWD && !(state.isNight && !state.underground)
+    if ((state.crowdRetreat || (state.visibleHostiles ?? state.hostileCount ?? 0) >= 3) && !kiteCrowd) {
         return Actions.REFUGE
     }
     // An escape pinned in place by adjacent melee mobs only absorbs hits; fight back (03.36.15).
@@ -103,7 +106,7 @@ function chooseAction (state) {
         return Actions.FIGHT
     }
     if (state.creeperDistance <= 6 || (state.hostileDistance <= 5 && state.health <= 10) || (state.hostileDistance <= 3.5 && !state.hasWeapon) ||
-        (state.rangedDistance <= 16 && state.health <= 10) || (state.visibleHostiles ?? state.hostileCount) >= 3 ||
+        (state.rangedDistance <= 16 && state.health <= 10) || ((state.visibleHostiles ?? state.hostileCount) >= 3 && !kiteCrowd) ||
         (state.isNight && !state.underground && !state.sheltered &&
             (state.overwhelmed || (state.retreatForNight && state.hostileDistance <= 6)))) {
         return Actions.ESCAPE

@@ -22,7 +22,7 @@ const { archeryState, shootArrow } = require('./archery')
 const { enchantingState, gatherLeather, enchantItem } = require('./enchanting')
 const { golemState, summonGolem } = require('./golem')
 const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
-const { updateCrowdRetreat, retreatToWall, mineFromRefuge, pillarSafe, pillarRefuge } = require('./crowd-retreat')
+const { updateCrowdRetreat, retreatToWall, mineFromRefuge } = require('./crowd-retreat')
 const { reachGoal, treePillar, climbForLog } = require('./tree-climb')
 
 const { GoalNear, GoalFollow } = goals
@@ -875,7 +875,6 @@ class SurvivalController {
             this.corneredUntil = Date.now() + 6000
         }
         state.cornered = this.corneredUntil > Date.now() && (state.hostileDistance <= 3 || Boolean(this.closeMelee()))
-        state.onPillarRefuge = Boolean(this.pillarState && this.pillarState.dimension === this.bot.game.dimension)
         state.inLava = this.inLava()
         state.suffocating = Boolean(this.suffocatingBlock())
         state.oxygen = this.bot.oxygenLevel ?? 20
@@ -967,7 +966,7 @@ class SurvivalController {
                     }
                     throw error
                 })
-            case Actions.REFUGE: return this.pillarState || pillarSafe(this) ? pillarRefuge(this) : retreatToWall(this)
+            case Actions.REFUGE: return retreatToWall(this)
             case 'mine_from_refuge': return mineFromRefuge(this, state)
             case Actions.DESCEND: return this.descendSafely()
             case Actions.ASCEND: return this.escapeVerticalShaft()
@@ -1944,7 +1943,8 @@ class SurvivalController {
                 const meleeOnly = this.bot.health > 10 && !Object.values(this.bot.entities || {}).some(e => e.isValid &&
                     ((ARCHERS.has(e.name) && this.bot.entity.position.distanceTo(e.position) <= 16) ||
                         (CREEPERS.has(e.name) && this.bot.entity.position.distanceTo(e.position) <= 8)))
-                if (!hunt && (updateCrowdRetreat(this, HOSTILES) || (!cornered && outnumbered(this.visibleThreatCount(), wornArmorPoints(this.bot), meleeOnly)))) {
+                const crowd = updateCrowdRetreat(this, HOSTILES) && !meleeOnly
+                if (!hunt && (crowd || (!cornered && outnumbered(this.visibleThreatCount(), wornArmorPoints(this.bot), meleeOnly)))) {
                     this.urgentReplan = true
                     throw new Error('outnumbered in combat; replanning escape')
                 }

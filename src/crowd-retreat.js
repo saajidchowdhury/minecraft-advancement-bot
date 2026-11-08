@@ -218,6 +218,8 @@ async function mineFromRefuge(c, state) {
     }
 }
 
+// Pillar refuge: reserved for baiting endermen onto a Nether pillar for pearls (user's tactic); overworld
+// zombie crowds are kited instead (caves lack headroom; one skeleton ruins a pillar). Not yet dispatched.
 // Mobs that can neither climb nor shoot; spiders climb a pillar and archers shoot its top.
 const PILLAR_SAFE = new Set(['zombie', 'husk', 'zombie_villager', 'zombified_piglin', 'vindicator'])
 const ARCHERS = new Set(['skeleton', 'stray', 'bogged', 'pillager', 'witch', 'blaze', 'ghast'])

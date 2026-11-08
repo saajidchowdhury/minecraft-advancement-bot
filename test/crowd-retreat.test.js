@@ -151,8 +151,10 @@ test('ordinary combat escape also disables digging, parkour and scaffold placeme
     assert.equal(c.moves[0].label, 'combat escape')
 })
 
-test('a cornered fight cannot attack after a crowd retreat has latched', async () => {
+test('a cornered fight cannot attack after a crowd with an archer has latched', async () => {
+    // All-melee crowds are kited now (user); a crowd containing a skeleton still refuses the fight.
     const c = corridor()
+    c.bot.entities[3].name = 'skeleton'
     let attacks = 0
     c.bot.attack = () => { attacks++ }
     await assert.rejects(c.fight(c.bot.entities[1], false, null, true), /outnumbered/)

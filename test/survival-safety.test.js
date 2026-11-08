@@ -1094,8 +1094,3 @@ test('a pillar fight held in place for 14 s is not cancelled by the movement wat
     assert.deepEqual(cancels, [])
 })
 
-test('a bot standing on its refuge pillar keeps fighting from it rather than choosing other work', () => {
-    const { chooseAction } = require('../src/decision-engine')
-    assert.equal(chooseAction({ health: 20, food: 20, onPillarRefuge: true, hostileDistance: Infinity, visibleHostiles: 0,
-        completedAdvancements: new Set() }), Actions.REFUGE)
-})
