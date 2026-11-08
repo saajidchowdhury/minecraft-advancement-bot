@@ -907,3 +907,38 @@ test('an unseen skeleton shooting from eight blocks behind interrupts mining and
     assert.ok(looks[0]?.z > 8, 'did not turn toward the shooter')
     assert.deepEqual(actions, [[Actions.FIGHT, skeleton]])
 })
+
+function nightSurfaceBot(activeAction) {
+    const bot = new EventEmitter()
+    bot.entity = { position: new Vec3(0.5, 70, 0.5), yaw: 0, pitch: 0 }
+    bot.game = { dimension: 'overworld' }
+    bot.time = { day: 3 }
+    bot.health = 20
+    bot.entities = {}
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, { bot, running: true, busy: true, activeAction, actionAbort: new AbortController(), memory: {},
+        home: { y: 64 }, failures: new Map(), log: { info() {}, warn() {} }, isNight: () => true, nearestEntity: () => null })
+    c.bindEvents()
+    return { bot, c }
+}
+
+test('night surface damage still ends ordinary work but no longer restarts an ongoing melee fight', () => {
+    // Staged 02:11Z: two zombies hit a stone-sword bot; every hit cancelled its fight as "night damage retreat".
+    for (const [action, cancelled] of [[Actions.FIGHT, false], [Actions.REFUGE, false], ['gather_wood', true]]) {
+        const { bot, c } = nightSurfaceBot(action)
+        bot.health = 16
+        bot.emit('health')
+        assert.equal(c.actionAbort.signal.aborted, cancelled, action)
+        assert.equal(c.memory.nightRetreat?.reason, 'surface damage or reduced health')
+    }
+})
+
+test('an escape with no route while a zombie is at arm\'s length marks the bot cornered so it fights next', async () => {
+    const zombie = { isValid: true, name: 'zombie', position: new Vec3(1.5, 64, 0.5) }
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, { bot: { entity: { position: new Vec3(0.5, 64, 0.5) } }, actionAbort: new AbortController(), memory: {},
+        escapeFrom: async () => { throw new Error('No path to the goal!') },
+        nearestEntity: (names, range) => names.has('zombie') && range >= 1 ? zombie : null })
+    await assert.rejects(c.perform(Actions.ESCAPE, { hostile: zombie, rangedDistance: Infinity, creeperDistance: Infinity }), /No path/)
+    assert.ok(c.corneredUntil > Date.now())
+})

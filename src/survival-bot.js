@@ -368,7 +368,9 @@ class SurvivalController {
                     this.bot.entity.position.y >= (this.home?.y || 64) - 3 &&
                     (previousHealth - this.bot.health >= 4 || this.bot.health <= 16)) {
                     retreatForNight(this, 'surface damage or reduced health')
-                    if (this.busy && ![Actions.ESCAPE, Actions.SHELTER].includes(action)) {
+                    // Restarting a melee fight on every hit let two zombies win (staged 02:11Z); the next
+                    // decision still weighs fight against escape.
+                    if (this.busy && ![Actions.ESCAPE, Actions.SHELTER, Actions.FIGHT, Actions.REFUGE].includes(action)) {
                         this.cancelCurrentTask('night damage retreat')
                     }
                 }
@@ -910,7 +912,16 @@ class SurvivalController {
                     // A creeper's fuse winds back down once its target is more than seven blocks away.
                     return this.takeCover(state.creeper, 8)
                 }
-                return state.rangedDistance <= 16 ? this.takeCover(state.ranged, 24) : this.escapeFrom(state.hostile)
+                if (state.rangedDistance <= 16) {
+                    return this.takeCover(state.ranged, 24)
+                }
+                // No route away with melee at arm's length is being cornered: fight next, not retry.
+                return this.escapeFrom(state.hostile).catch(error => {
+                    if (/no path/i.test(error.message) && this.nearestEntity(MELEE, 3)) {
+                        this.corneredUntil = Date.now() + 6000
+                    }
+                    throw error
+                })
             case Actions.REFUGE: return retreatToWall(this)
             case 'mine_from_refuge': return mineFromRefuge(this, state)
             case Actions.DESCEND: return this.descendSafely()
