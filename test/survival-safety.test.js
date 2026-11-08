@@ -614,6 +614,7 @@ test('charging an archer keeps the shield raised and lowers it only to strike', 
     }
     c.checkAction = SurvivalController.prototype.checkAction.bind(c)
     c.visibleThreatCount = SurvivalController.prototype.visibleThreatCount.bind(c)
+    c.closeMelee = SurvivalController.prototype.closeMelee.bind(c)
     await SurvivalController.prototype.fight.call(c, skeleton)
     assert.equal(events[0], 'raise at range')
     assert.ok(events.indexOf('lower') < events.indexOf('attack'))
@@ -945,4 +946,24 @@ test('an escape with no route while a zombie is at arm\'s length marks the bot c
     c.fight = async (target, hunt, guard, cornered) => fought.push([target, cornered])
     await c.perform(Actions.FIGHT, { hostile: null, rangedDistance: Infinity, cornered: true })
     assert.deepEqual(fought, [[zombie, true]])
+})
+
+test('a cornered bot alternates swings between two adjacent zombies and finishes the second without replanning', async t => {
+    // User report on staged 02:21Z: the bot fought one zombie while ignoring the other that was hitting it.
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+    const a = { id: 1, name: 'zombie', isValid: true, position: new Vec3(1.2, 64, 0.5), height: 1.95, hits: 0 }
+    const b = { id: 2, name: 'zombie', isValid: true, position: new Vec3(0.5, 64, 1.3), height: 1.95, hits: 0 }
+    const struck = []
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, { running: true, paused: false, actionAbort: new AbortController(), canSee: () => true,
+        bestItem: () => ({ name: 'stone_sword' }), visibleThreatCount: () => 2,
+        bot: { health: 18, entity: { position: new Vec3(0.5, 64, 0.5) }, entities: { 1: a, 2: b }, inventory: { slots: [] },
+            equip: async () => {}, lookAt: async () => {}, pathfinder: { setGoal() {} },
+            attack(z) { struck.push(z.id); if (++z.hits === 4) { z.isValid = false } } } })
+    const operation = c.fight(a, false, null, true)
+    for (let i = 0; i < 80; i++) { t.mock.timers.tick(100); await Promise.resolve(); await Promise.resolve() }
+    await operation
+    assert.deepEqual(struck.slice(0, 4), [1, 2, 1, 2])
+    assert.equal(a.isValid, false)
+    assert.equal(b.isValid, false)
 })

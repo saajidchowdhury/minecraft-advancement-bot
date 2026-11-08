@@ -1873,9 +1873,18 @@ class SurvivalController {
         let chaseProgressAt = Date.now()
         let following = false
         let shielding = false
+        // Defensive swings rotate over every attacker at arm's length: locking onto one zombie let the
+        // other hit freely, and a kill ended the action while the second kept attacking (staged 02:21Z).
+        const lastSwing = new Map()
         this.bot.pathfinder.setMovements?.(dryMovements(this.bot))
         try {
-            while (entity.isValid && Date.now() < deadline) {
+            while (Date.now() < deadline) {
+                if (!entity.isValid && !hunt) {
+                    entity = this.closeMelee() ?? entity
+                }
+                if (!entity.isValid) {
+                    break
+                }
                 this.checkAction(signal)
                 const reason = guard?.()
                 if (reason) {
@@ -1921,7 +1930,11 @@ class SurvivalController {
                     }
                     this.bot.pathfinder.setGoal(null)
                     following = false
-                    await this.bot.lookAt(entity.position.offset(0, Math.min(entity.height || 1, 1.4), 0), true)
+                    const here = this.bot.entity.position
+                    const target = hunt ? entity : [entity, ...Object.values(this.bot.entities || {}).filter(e => e !== entity &&
+                        e.isValid && MELEE.has(e.name) && here.distanceTo(e.position) <= 3.1)]
+                        .reduce((a, b) => (lastSwing.get(b.id) ?? 0) < (lastSwing.get(a.id) ?? 0) ? b : a)
+                    await this.bot.lookAt(target.position.offset(0, Math.min(target.height || 1, 1.4), 0), true)
                     this.checkAction(signal)
                     if (Date.now() < nextHuntAttackAt) {
                         await sleep(Math.min(100, nextHuntAttackAt - Date.now()))
@@ -1937,10 +1950,11 @@ class SurvivalController {
                             throw new Error(changed)
                         }
                     }
-                    if (!entity.isValid) {
-                        break
+                    if (!target.isValid) {
+                        continue
                     }
-                    this.bot.attack(entity)
+                    this.bot.attack(target)
+                    lastSwing.set(target.id, Date.now())
                     nextHuntAttackAt = Date.now() + huntCooldownMs
                     await sleep(huntCooldownMs ? 100 : 650)
                 }
