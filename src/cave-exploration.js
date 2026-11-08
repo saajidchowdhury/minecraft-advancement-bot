@@ -235,11 +235,18 @@ function exposedDiamond(c, opened) {
 
 // Diamonds (and iron below its reserve cap) outrank routine work once seen or exposed by a probe,
 // unless mining them could release liquid or remove the bot's own support.
+// An ore face our own dig opened is known even when the opening is out of sight from here
+// (live 01:54Z: vein faces in a diagonal pit behind stone); collectTarget walks to a view first.
+function knownExposure(c, block) {
+    const eye = c.bot.entity.position.offset(0, c.bot.entity.eyeHeight ?? 1.62, 0)
+    return eye.distanceTo(block.position.offset(0.5, 0.5, 0.5)) <= 6 && exposedByDig(c, block)
+}
+
 function findPriorityOre(c, ores, range = 16) {
     const bot = c.bot
     const feet = bot.entity.position.floored()
     return c.findNearestBlock(name => ores.includes(name), range, {
-        sight: b => miningSight(c, b, range),
+        sight: b => Boolean(miningSight(c, b, range)) || knownExposure(c, b),
         filter: b => !(b.position.x === feet.x && b.position.z === feet.z && b.position.y < feet.y) &&
             FACES.every(([x, y, z]) => !['water', 'lava', 'bubble_column'].includes(bot.blockAt(b.position.offset(x, y, z), false)?.name ?? 'water')) &&
             bot.inventory.items().some(item => item.name.endsWith('_pickaxe') && b.canHarvest(item.type))

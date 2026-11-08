@@ -116,7 +116,7 @@ test('a tree-drop pickup timeout does not quarantine reachable trunk blocks', as
     bot.dig = async () => {}
     const c = { bot, running: true, paused: false, actionAbort: new AbortController(), movements: { safeToBreak: () => true },
         log: { debug() {}, warn() {} },
-        visibleDrops: () => [{ name: 'item', isValid: true, position: new Vec3(1.5, 65, 0.5) }],
+        visibleDrops: () => [{ name: 'item', isValid: true, position: new Vec3(1.5, 65, 0.5) }], canSee: () => true,
         gotoWithTimeout: async () => { throw new Error('mined item pickup timed out') },
         rememberBlockedTarget: () => assert.fail('quarantined the tree because of a pickup timeout') }
     const operation = SurvivalController.prototype.collectTarget.call(c, bot.blockAt(p), bot.blockAt(p), 'tree')

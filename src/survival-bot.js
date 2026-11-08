@@ -1624,19 +1624,35 @@ class SurvivalController {
                 if (signal?.aborted) {
                     throw new Error('collection cancelled')
                 }
-                const drops = this.visibleDrops(block.position.offset(0.5, 0.5, 0.5), 3)
+                // Our own drop may land behind stone or in a pit out of view (live 01:54Z left raw iron);
+                // turn to it, follow it, then stand in its cell if the server has not collected it.
+                const drops = this.visibleDrops(block.position.offset(0.5, 0.5, 0.5), 3, false)
+                const collected = drop => waitUntil(() => !drop.isValid, 1000, 100).then(() => true, () => false)
                 for (const drop of drops) {
                     if (signal?.aborted) {
                         throw new Error('collection cancelled')
                     }
-                    if (drop.isValid) {
+                    if (!drop.isValid) {
+                        continue
+                    }
+                    if (!this.canSee(drop)) {
+                        await this.bot.lookAt(drop.position, true)
+                    }
+                    try {
                         await this.gotoWithTimeout(droppedItemGoal(drop), label === 'tree' ? 4000 : 8000, 'mined item pickup')
-                            .catch(error => {
-                                if (signal?.aborted || label !== 'tree') {
-                                    throw error
-                                }
-                                this.log.warn(`Skipping tree drop pickup: ${error.message}`)
-                            })
+                        if (!await collected(drop)) {
+                            const p = drop.position.floored()
+                            await this.gotoWithTimeout(new GoalNear(p.x, p.y, p.z, 0), 4000, 'mined item cell')
+                            await collected(drop)
+                        }
+                    } catch (error) {
+                        if (signal?.aborted) {
+                            throw error
+                        }
+                        this.log.warn(`Skipping ${label} drop pickup: ${error.message}`)
+                    }
+                    if (drop.isValid) {
+                        this.log.warn(`Left a mined ${drop.getDroppedItem?.()?.name ?? 'item'} at ${drop.position.floored()}.`)
                     }
                 }
                 await sleep(300)
@@ -2124,9 +2140,9 @@ class SurvivalController {
             position.distanceTo(entity.position) <= range && this.canSee(entity)).length
     }
 
-    visibleDrops (position, radius) {
+    visibleDrops (position, radius, requireSight = true) {
         return Object.values(this.bot.entities || {}).filter(entity => entity.isValid && entity.name === 'item' &&
-            entity.position.distanceTo(position) <= radius && this.canSee(entity))
+            entity.position.distanceTo(position) <= radius && (!requireSight || this.canSee(entity)))
     }
 
     // Creepers only swell and archers only shoot with line of sight, and outrunning either
