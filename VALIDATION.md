@@ -2,6 +2,24 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F101 final: 436 tests pass. Later regressions cover kiting melee-only crowds of up
+to four, the shared kiteable-crowd rule for the crowd interrupt, no eating with
+melee within 4, forward kiting from an attacker behind, pillar persistence, the
+watchdog liveness of fights in place and crowd-latch expiry. Staged round 10
+passed 7/7 at 20 HP (see findings F101).
+
+F101 passes 428 tests and syntax checks. New regressions (each fails on its
+pre-fix source): an unseen archer 8 blocks behind interrupts work and is
+turned to and fought; night damage no longer cancels fights; no-path escapes
+with melee within 3 (raw entities) mark the bot cornered and fight the
+unseen attacker; swings alternate over two adjacent zombies and continue
+after a kill; kiting backs/strafes/jumps only onto safe footing and swings
+while backing; two melee-only attackers are fought above 10 HP; failed
+combat actions never start the unstick staircase; pillar refuges accept only
+zombie-type crowds with scaffold and headroom, kill zombies at the base from
+the top with real jump physics and dig back down. Staged LAN rounds 1-6 are
+recorded in outputs/combat-practice-*.json (findings F101).
+
 F100 passes 417 tests and syntax checks. test/mined-ore-recovery.test.js
 rebuilds the inspected live pit geometry with real prismarine blocks and world
 raycasts: pit-hidden dig-exposed ore is targeted, a six-block bound holds, an

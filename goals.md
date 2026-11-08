@@ -12,7 +12,7 @@ Session handoff: the normal bot runs on port 49278, PID 8558, from 6b1a39c
 in outputs/2026-11-07@21.04.40, launched in a visible Terminal window (the
 user's preferred method for live runs). Verify process identity and the
 latest log before stopping or launching anything; do not duplicate it.
-Automated baseline: 417 passing tests and syntax checks.
+Automated baseline: 436 passing tests and syntax checks.
 
 Next checks, in order:
 1. F094 / survival: observe a natural crowd retreat, including an obstructed
@@ -30,9 +30,24 @@ Two existing sections below share G015 (death cascades and stronghold work).
 Prioritize the survival section; stronghold work remains gated on a verified
 Nether entry/return. IDs are preserved rather than silently renumbered.
 
-PRIORITY (F100 death): diagnose the 01:57-01:58Z skeleton death; mine_iron
-and then eat/wait continued in the open under seven hits with no fight, cover
-or retreat. Survival outranks progression work.
+F101 combat practice (staged harness outputs/combat-practice.js, viewer in a
+tinted-glass roof booth): the skeleton death is fixed (archer hits to 24
+blocks); fights alternate targets, kite (back/strafe/jump away from melee
+inside 2.5 blocks) and a zombie crowd gets a 3-block pillar refuge. Next:
+- Round 10 (84329a4) passed 7/7 at full health, including 3-4 zombie crowds and
+  armed skeletons. Next: uneven terrain and narrow-wall rooms, five+ zombies,
+  several armed skeletons, spiders in caves, and night-surface crowds.
+- User tactics not yet built: when walls are close, strafe sideways hugging
+  the wall while looking away from it instead of backing straight up; the
+  wall dent: dig a 2x1 dent first, lure the zombies away, come back and seal it.
+- Pillar refuge (crowd-retreat.js, tested, not dispatched): reuse it for the
+  user's Nether enderman tactic, baiting endermen to a pillar for pearls.
+- Skeletons are harder than zombies (user): build focused skeleton scenarios
+  (open room, tunnel, skeleton + zombies) before relying on charge-and-shield.
+- Natural (unstaged) evidence: an archer hit from out of view, a two-zombie
+  fight, a pillar refuge. Staged kills (including Monster Hunter) do not count
+  as survival progression.
+
 
 F100 recovers mined drops out of view and follows vein ore our dig exposed
 behind stone. Watch for "Left a mined" warnings and for pit-hidden vein ore.

@@ -2196,3 +2196,126 @@ eat/wait under "critical health". No fight, cover or retreat was attempted.
 Drops were abandoned at (428,20,278) because the threat remained. The iron
 pickaxe had broken at 01:55:17Z. Investigate why the skeleton never
 outranked mine_iron and why critical health chose wait in the open.
+
+## F101 — Skeleton death root cause and staged combat practice
+
+Death at 01:57-01:58Z (F100): a skeleton 7.7-10.4 blocks away hit the bot
+seven times while mine_iron, then eat/wait, continued. The server's
+damage_event names the shooter (mineflayer entityHurt source), but the
+handler ignored sources farther than four blocks, and the health handler
+only counted archers already in view. The skeleton was outside the view
+cone, so observe() also never reported it and no fight or cover was chosen.
+Fix 8f3548c: archer hits count to 24 blocks, cancel work, record the hit
+bearing; the next loop turns to the shooter, then fights or takes cover.
+
+Combat practice harness (outputs/combat-practice.js, not committed): builds a
+roofed stone arena in verified air at y=150 above the bot, supplies a kit
+(IRON: iron sword, shield, full iron armor; STONE: stone sword only), summons
+tagged NoAI mobs, enables their AI and then runs the bot's real decision loop
+with no further commands. keepInventory is on during trials; cleanup restores
+the bot's inventory, position and the gamerule and clears the arena. The
+viewer is moved into a tinted-glass roof enclosure (no sky light, so staged
+undead do not burn; blocks mob sight) with Resistance V, and returned after.
+Harness lessons: commands sent 450 ms apart were silently dropped (round 1 lost
+its final fill, tp and gives; the bot was later found falling from the sky
+and its inventory was restored from the record and verified). Commands now
+wait for a server reply with 800 ms spacing and one resend. The per-scenario
+air refill once dropped the bot 78 blocks; bot and viewer now move to a glass
+platform outside the rebuild volume first.
+
+Rounds 1-2 (staged, iron kit unless noted; PASS = alive and all mobs gone):
+death replica tunnel_skeleton_behind PASS x3 (killed in 9.5-10 s, 19-20 HP);
+stone-sword variant PASS; far skeleton PASS; two zombies (iron) PASS;
+zombie+skeleton PASS x2; spiders PASS; creeper survived at 17.3 HP (it
+exploded; not a kill); skeleton at 8 HP PASS. Stone sword vs two zombies:
+round 1 survived at 4.8 HP, round 2 died once (a second "death" was the
+harness fall). Causes found and fixed:
+- 80337a1: night surface damage cancelled ongoing fights ("night damage
+  retreat" on every hit); fights/refuge now continue with the flag set.
+- 80337a1 + c4723f8: two adjacent zombies make the unarmored bot escape;
+  with no route it retried under hits. Zombies within ~1 block sit below
+  the eye's view cone, so sight-gated checks missed them. A no-path escape
+  with melee within three blocks (raw entities) now marks cornered, and the
+  cornered fight targets that attacker even unseen.
+- 5650194: fight() locked onto one zombie while the other hit freely (user
+  observation), and a kill ended the action with the second still attacking.
+  Defensive swings now rotate to the in-reach melee attacker swung at least
+  recently, and the fight continues against a remaining attacker within 3.
+- e9a3c51: kiting (user advice). Zombie reach ~1.5 blocks vs ours 3 and a
+  walking player outpaces zombies, so defensive fights hold back/strafe
+  controls away from all melee inside 2.5 blocks (safe footing only: solid
+  floor, no liquids, at most a one-block step down), swing every 650 ms when
+  a target is within 3, and await approaching melee mobs within 6 instead of
+  walking into them. The shield is raised only when no retreat cell exists.
+Round 3 (c4723f8): stone vs two zombies PASS at 1.2 and 10 HP, one death;
+iron two zombies, zombie+skeleton PASS; it then disconnected: the harness
+force-cleared a running eat and the controller reconnected ("Cancelled task
+retained control"). Harness now waits for the action instead. Its gamerule
+command also used the pre-26.1 name: keepInventory is rejected on 26.1.2,
+the rule is keep_inventory; earlier rounds never enabled it (the world rule
+stayed false throughout). Cleanup restored the viewer, arena (0 blocks
+left), bot inventory (verified equal to the record) and position.
+Round 4 (5650194, alternation, no kiting yet): 8/8 PASS; stone vs two zombies
+ended at 12.2, 12.0, 2.0 and 20 HP. All rounds are staged evidence: Monster
+Hunter was earned on a staged skeleton kill, not in survival progression.
+Round 5 (e9a3c51, kiting): stone vs two zombies PASS x2 at 20 HP, one death;
+flanking pair died; 1-wide tunnel pair PASS (15.2 HP); three zombies died in
+wall-refuge attempts ("mobs prevent sealing"); iron pair and spiders PASS.
+Causes: fight() still aborted unarmored two-zombie fights as outnumbered, the
+no-route escape then reached unstick, whose rising staircase the user saw
+("not a good escape tactic"), and the wall refuge could not seal against three
+close zombies. Fix 7809452 (user guidance: fight, dig in, or tower 3+ up):
+one extra melee-only attacker is fightable above 10 HP (no archer within 16,
+no creeper within 8); unstick/scout never run with a hostile within 8;
+zombie-type crowds (cannot climb or shoot) get a 3-block pillar refuge built
+with the tree-pillar tower step: a zombie's attack box has no vertical reach,
+its 1.95-block height is below our feet, and zombies at the base are ~2.8
+blocks from our eye, so the bot hits them from the top and digs down when
+none remain. Spiders (climb) and archers (shoot) keep the wall refuge.
+Kiting also jumps onto a one-block rise behind when no level cell exists.
+Round 6 (7809452): stone vs two zombies PASS x3 (20, 13.7, 20 HP), flanking
+PASS x2 at 20 HP, zombie+skeleton PASS; three zombies x2 FAIL (pillar built,
+0 kills in 75 s); hallway pair died. Causes: the 12 s movement watchdog
+cancelled the stationary pillar fight ("retreat_to_wall is stuck"); the next
+REFUGE decision failed pillarSafe on the pillar top (roof in the headroom
+check) and fell back to retreatToWall, which cannot route off a pillar (user
+saw "retreating to wall while standing on a pillar"); reach was measured to
+the zombie's hitbox top rather than its nearest point; a crowd latch from the
+three-zombie trial survived into the hallway trial and chose the wall refuge.
+User rules: no pillar once any skeleton targets the bot (skeletons need their
+own testing); a hallway of zombies is held off by fast swings.
+Fix cfb2f92: combat swings and pillar fights mark watchdog liveness; the
+pillar persists in c.pillarState and a bot on it resumes the refuge fight
+(top decision priority) without towering again; any archer within 32 rules
+out a pillar and one within 24 while up brings the bot down; pillar attacks
+use nearest-point hitbox reach (3.0); crowd latches expire after 10 s with no
+hostile within 24; defensive swings every 0.5 s (10-tick hurt invulnerability).
+The harness now resets crowd/pillar/cornered state between trials.
+Rounds 7-8 (cfb2f92, 3e3ab31): three zombies PASS x3 via the pillar
+(17-50 s, 20 HP; the user saw it punch with cobblestone until 3e3ab31 equipped
+the sword); round 7's harness lost its socket (EPIPE, cause not logged; kick
+and socket errors are now recorded) and was cleaned up with the confirmed
+cleanup script. Round 8: hallway pair PASS once and once sheltered for the
+night (safe, timed out); stone two zombies PASS x2 (17.7, 18 HP).
+User decision: the pillar trick does not generalize (caves lack 5 blocks of
+headroom; one skeleton ruins it); keep it only for baiting Nether endermen
+for pearls. d38b407 kites melee-only crowds of up to four close attackers
+(armed, above 10 HP, no archer within 16, no creeper within 8, not a surface
+night) and no longer dispatches the pillar refuge.
+Harness caveat (user observation): /summon gave skeletons no bow, so every
+skeleton PASS before round 9 was against an unarmed skeleton and is not
+archer evidence. Summons now set equipment.mainhand to a bow and check it.
+Round 9 (d38b407, armed skeletons): disconnected in the first trial. The
+entityMoved crowd interrupt still cancelled the kiting fight against three
+zombies (ten restarts in seconds; the user saw the bot slow to move), and an
+eat at 11 HP beside three zombies could not be cancelled (9 HP lost, then the
+controller's cancelled-task reconnect). Fix 84329a4: the interrupt and fight()
+share one kiteable-crowd rule (armed, above 10 HP, only melee within 16, at
+most four within 6); no eating with melee within 4; kiting can step forward or
+diagonally forward so an attacker behind is escaped before turning.
+Round 10 (84329a4): 7/7 PASS, all at 20 HP: three zombies x2 (15.5, 21.1 s) and
+four zombies (23.2 s) with a stone sword and no armor in one continuous fight
+action; stone two zombies; armed-skeleton scenarios (bow verified by /data get)
+far skeleton, zombie+skeleton, and the death replica. Staged evidence only;
+natural fights remain unverified. Comment lines: survival-bot.js 3.4%,
+crowd-retreat.js and decision-engine.js under 10%.
