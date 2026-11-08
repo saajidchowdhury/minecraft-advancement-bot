@@ -1104,3 +1104,37 @@ test('an attacker behind the bot makes it step forward away at once, before turn
     assert.equal(controls.forward, true)
     assert.equal(controls.back, false)
 })
+
+test('charging an archer that keeps its distance alternates shield blocks with unshielded closing', async t => {
+    // User report: in a hallway the bot held its shield up, never closed on the retreating skeleton and only
+    // struck after an arrow got through.
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+    const events = []
+    const skeleton = { name: 'skeleton', isValid: true, position: new Vec3(6, 64, 0), height: 1.99 }
+    const c = {
+        running: true, paused: false, actionAbort: new AbortController(), log: { warn() {} },
+        bestItem: () => ({ name: 'iron_sword' }), rememberBlockedTarget() {}, collectTarget: async () => {},
+        bot: {
+            health: 20, entity: { position: new Vec3(0, 64, 0) }, entities: {},
+            inventory: { slots: Object.assign([], { 45: { name: 'shield' } }) },
+            equip: async () => {}, lookAt: async () => {},
+            activateItem: () => events.push(['raise', Date.now()]), deactivateItem: () => events.push(['lower', Date.now()]),
+            attack: () => { skeleton.isValid = false }, pathfinder: { setGoal() {} }
+        }
+    }
+    c.checkAction = SurvivalController.prototype.checkAction.bind(c)
+    c.visibleThreatCount = SurvivalController.prototype.visibleThreatCount.bind(c)
+    c.closeMelee = SurvivalController.prototype.closeMelee.bind(c)
+    const operation = SurvivalController.prototype.fight.call(c, skeleton)
+    for (let i = 0; i < 50; i++) { t.mock.timers.tick(100); await Promise.resolve(); await Promise.resolve() }
+    c.bot.entity.position = new Vec3(4, 64, 0)
+    for (let i = 0; i < 20; i++) { t.mock.timers.tick(100); await Promise.resolve(); await Promise.resolve() }
+    await operation
+    const raises = events.filter(([e]) => e === 'raise')
+    assert.ok(raises.length >= 3, `the shield must cycle while closing: ${JSON.stringify(events)}`)
+    for (let i = 0; i + 1 < events.length; i++) {
+        if (events[i][0] === 'raise' && events[i + 1][0] === 'lower') {
+            assert.ok(events[i + 1][1] - events[i][1] <= 800, 'shield held too long while out of reach')
+        }
+    }
+})

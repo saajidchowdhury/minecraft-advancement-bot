@@ -1932,6 +1932,7 @@ class SurvivalController {
         let chaseProgressAt = Date.now()
         let following = false
         let shielding = false
+        let shieldPhaseAt = 0
         // Defensive swings rotate over every attacker at arm's length: locking onto one zombie let the
         // other hit freely, and a kill ended the action while the second kept attacking (staged 02:21Z).
         const lastSwing = new Map()
@@ -1979,13 +1980,22 @@ class SurvivalController {
                         this.bot.pathfinder.setGoal(new GoalFollow(entity, 2), true)
                         following = true
                     }
-                    // Charging an archer, keep the shield up: the follow path faces it, so arrows
-                    // hit the shield (Not Today, Thank You) instead of the bot (F027, F031).
-                    if (ARCHERS.has(entity.name) && this.bot.inventory?.slots[45]?.name === 'shield' && !shielding) {
-                        this.bot.activateItem(true)
-                        shielding = true
+                    // Charging an archer, the follow path faces it so a raised shield takes the arrows
+                    // (Not Today, Thank You; F027, F031). A held shield slows us to sneaking speed and a
+                    // hallway skeleton backed off as fast (user report): raise 0.6 s, lower 0.9 s to close in.
+                    if (ARCHERS.has(entity.name) && this.bot.inventory?.slots[45]?.name === 'shield') {
+                        const phase = Date.now() - shieldPhaseAt
+                        if (!shielding && (shieldPhaseAt === 0 || phase >= 900)) {
+                            this.bot.activateItem(true)
+                            shielding = true
+                            shieldPhaseAt = Date.now()
+                        } else if (shielding && phase >= 600) {
+                            this.bot.deactivateItem()
+                            shielding = false
+                            shieldPhaseAt = Date.now()
+                        }
                     }
-                    await sleep(300)
+                    await sleep(150)
                 } else {
                     if (shielding) {
                         this.bot.deactivateItem()
