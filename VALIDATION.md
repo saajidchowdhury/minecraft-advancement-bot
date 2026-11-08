@@ -2,6 +2,12 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F099 passes 413 tests and syntax checks. The new dependency-patch regression
+drives the real Mineflayer entities plugin and fails unpatched (a zombie's
+air_supply set the bot's oxygenLevel to 4). The extended patch applies cleanly
+to a pristine mineflayer 4.39.0 tarball. Live absence of false alarms on the
+restarted bot is still being observed.
+
 F098 passes 412 tests and syntax checks. Five side-probe regressions fail on
 the old source: walking an old tunnel triggers no probes, a remembered anchor
 suppresses a nearby probe, a 29-block frontier is resumed, a parallel old

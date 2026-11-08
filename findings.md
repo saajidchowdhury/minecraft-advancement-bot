@@ -2134,3 +2134,27 @@ mouth area it returned to the frontier (231,16,269), merged into z=270 and
 resumed fresh digging beyond x=235. The first new probe at x=237 sat two
 blocks from the pre-fix x=235 probe, which predates anchor memory; later
 probes are spaced normally. Comment lines: progression-skills.js 41/1498.
+
+## F099 — False low-air alarms came from other entities' air supply
+
+Run outputs/2026-11-07@20.45.41 ran surface_for_air twice in a dry Y=16
+tunnel (01:47:45Z at x=272, 01:49:11Z at x=297), reporting air 12 -> 4 ->
+0 -> -1 at a vanilla drowning rate while HP stayed 20. The direct-control
+rescue swam/hopped between adjacent cells (user report: "dancing").
+Cause: mineflayer 4.39.0 lib/plugins/entities.js (mcDataHasEntityMetadata
+path) sets bot.oxygenLevel and emits 'breath' for the air_supply field of
+any entity's metadata. Every entity carries air_supply, so a nearby
+submerged mob's falling air was read as the bot's. The legacy breath.js path
+checked entityId; the merged path did not. Other runs since 2026-11-07 also
+logged 3-4 "Low air" lines; whether each was false is not recorded, and the
+F091 pond drowning was real (the bot was observed underwater).
+
+Fix c0e0888: the patch-package patch guards the update with
+entity === bot.entity; it applies cleanly to a pristine mineflayer 4.39.0
+tarball and reproduces the installed entities.js byte for byte. A regression
+drives the real entities plugin: a zombie's air_supply=60 set oxygenLevel to
+4 before the fix and is ignored after it. The F091 policy (server air
+outranks the head-block observation) is unchanged because the value is now
+the bot's own. Restarted as PID 6597 (outputs/2026-11-07@20.53.00).
+The patch's craft.js/inventory.js output differs from the installed files
+only in comment wording (pre-existing; behavior identical).
