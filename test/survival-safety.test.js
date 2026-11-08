@@ -936,9 +936,13 @@ test('night surface damage still ends ordinary work but no longer restarts an on
 test('an escape with no route while a zombie is at arm\'s length marks the bot cornered so it fights next', async () => {
     const zombie = { isValid: true, name: 'zombie', position: new Vec3(1.5, 64, 0.5) }
     const c = Object.create(SurvivalController.prototype)
-    Object.assign(c, { bot: { entity: { position: new Vec3(0.5, 64, 0.5) } }, actionAbort: new AbortController(), memory: {},
-        escapeFrom: async () => { throw new Error('No path to the goal!') },
-        nearestEntity: (names, range) => names.has('zombie') && range >= 1 ? zombie : null })
+    // Staged 02:21Z: the zombie at 0.5 blocks sat below the view cone, so sight-gated searches missed it.
+    Object.assign(c, { bot: { entity: { position: new Vec3(0.5, 64, 0.5) }, entities: { 1: zombie } }, actionAbort: new AbortController(), memory: {},
+        escapeFrom: async () => { throw new Error('No path to the goal!') }, nearestEntity: () => null })
     await assert.rejects(c.perform(Actions.ESCAPE, { hostile: zombie, rangedDistance: Infinity, creeperDistance: Infinity }), /No path/)
     assert.ok(c.corneredUntil > Date.now())
+    const fought = []
+    c.fight = async (target, hunt, guard, cornered) => fought.push([target, cornered])
+    await c.perform(Actions.FIGHT, { hostile: null, rangedDistance: Infinity, cornered: true })
+    assert.deepEqual(fought, [[zombie, true]])
 })

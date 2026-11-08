@@ -830,7 +830,7 @@ class SurvivalController {
         if (this.escapePinned?.()) {
             this.corneredUntil = Date.now() + 6000
         }
-        state.cornered = this.corneredUntil > Date.now() && state.hostileDistance <= 3
+        state.cornered = this.corneredUntil > Date.now() && (state.hostileDistance <= 3 || Boolean(this.closeMelee()))
         state.inLava = this.inLava()
         state.suffocating = Boolean(this.suffocatingBlock())
         state.oxygen = this.bot.oxygenLevel ?? 20
@@ -917,7 +917,7 @@ class SurvivalController {
                 }
                 // No route away with melee at arm's length is being cornered: fight next, not retry.
                 return this.escapeFrom(state.hostile).catch(error => {
-                    if (/no path/i.test(error.message) && this.nearestEntity(MELEE, 3)) {
+                    if (/no path/i.test(error.message) && this.closeMelee()) {
                         this.corneredUntil = Date.now() + 6000
                     }
                     throw error
@@ -927,7 +927,8 @@ class SurvivalController {
             case Actions.DESCEND: return this.descendSafely()
             case Actions.ASCEND: return this.escapeVerticalShaft()
             case Actions.RECOVER: return this.recoverItems()
-            case Actions.FIGHT: return this.fight(state.rangedDistance <= 12 ? state.ranged : state.hostile, false, null, state.cornered)
+            case Actions.FIGHT: return this.fight(state.rangedDistance <= 12 ? state.ranged : state.hostile ?? (state.cornered ? this.closeMelee() : null),
+                false, null, state.cornered)
             case Actions.EAT: return this.eat()
             case Actions.SHELTER: return this.makeNightSafe()
             case Actions.WOOD: return this.gatherWood()
@@ -1972,6 +1973,14 @@ class SurvivalController {
             this.bot.deactivateItem?.()
             this.bot.pathfinder.setMovements?.(this.movements)
         }
+    }
+
+    // Melee within three blocks is known without sight: it is hitting us, and zombies at arm's length sit
+    // below the eye's view cone (staged 02:21Z: two "unseen" zombies killed a cornered bot).
+    closeMelee () {
+        const here = this.bot.entity.position
+        return Object.values(this.bot.entities || {}).filter(e => e.isValid && MELEE.has(e.name) && here.distanceTo(e.position) <= 3)
+            .sort((a, b) => here.distanceTo(a.position) - here.distanceTo(b.position))[0] || null
     }
 
     async escapeFrom (entity) {
