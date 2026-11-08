@@ -2,6 +2,13 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F098 passes 412 tests and syntax checks. Five side-probe regressions fail on
+the old source: walking an old tunnel triggers no probes, a remembered anchor
+suppresses a nearby probe, a 29-block frontier is resumed, a parallel old
+tunnel is merged into, and the ring-passage case follows the ring edge.
+Live restart on d5fdd81 (no commands) returned to a 24-block frontier,
+merged into the parallel tunnel and resumed fresh digging.
+
 F097 passes 408 tests and syntax checks. Ten tree-climb regressions use real
 prismarine blocks, the real world raycast and a simple jump/gravity model:
 eye-reach approach versus the library goal, pillar planning, dirt/log/no-

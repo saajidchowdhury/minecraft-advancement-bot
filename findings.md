@@ -2107,3 +2107,30 @@ attempt 0). In the natural run the bot was already targeting these trees.
 Ten regressions (test/tree-climb.test.js) use real prismarine blocks, the
 real world raycast and a 0.42/0.08/0.98 jump model; all fail on pre-fix
 source. Full suite 408/408. Comment lines: tree-climb.js 18/317 (5.7%).
+
+## F098 — Detour returns re-probed and paralleled an existing tunnel
+
+Run outputs/2026-11-07@20.31.37: after crafting an iron pickaxe at the
+tunnel mouth (206,16,270) at 01:40:20Z, the saved frontier near x=235 was
+29 blocks away, beyond mineTunnel's 24-block return limit. The bot started a
+new frontier at the mouth and walked its own z=270 tunnel; every walked step
+counted toward the 5-step probe spacing, so it probed x=211, 216, 221, 226
+beside the earlier x=210, 215, 220, 225 probes (most mined a fresh 10
+blocks). At 01:41:19Z, restarting from (205,17,269), it dug a new tunnel at
+z=269 alongside the z=270 tunnel to x=231 before it was stopped (user report).
+
+Fix d5fdd81: frontier returns accept 48 blocks with a 400 ms/block timeout
+(12 s minimum); only tunnel steps that dig fresh rock count toward probe
+spacing; probe anchors are remembered (2048 cap) and a probe within the
+spacing of one is skipped; fresh rock ahead beside an old main tunnel running
+the same way (side cell and its forward neighbour both in minedCells) makes
+the bot step sideways into that tunnel and follow it. Requiring both cells
+keeps a perpendicular old passage from pulling the bot sideways.
+Five regressions fail on pre-fix source; the old anti-spiral ring test now
+expects the bot to follow the ring edge instead of digging beside it.
+
+Live restart (5852, outputs/2026-11-07@20.45.41, no commands): from the
+mouth area it returned to the frontier (231,16,269), merged into z=270 and
+resumed fresh digging beyond x=235. The first new probe at x=237 sat two
+blocks from the pre-fix x=235 probe, which predates anchor memory; later
+probes are spaced normally. Comment lines: progression-skills.js 41/1498.
