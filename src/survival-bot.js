@@ -23,6 +23,7 @@ const { enchantingState, gatherLeather, enchantItem } = require('./enchanting')
 const { golemState, summonGolem } = require('./golem')
 const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
 const { updateCrowdRetreat, retreatToWall, mineFromRefuge } = require('./crowd-retreat')
+const { reachGoal, treePillar, climbForLog } = require('./tree-climb')
 
 const { GoalNear, GoalFollow } = goals
 
@@ -1380,6 +1381,20 @@ class SurvivalController {
         try {
             await this.collectTarget(trunk.length > 0 ? trunk : block, block, 'tree')
         } catch (error) {
+            // Remaining logs above standing reach (live 01:07Z, oak at -24,69,194) need a short pillar.
+            if (!signal?.aborted && /no path|timed out|not visible or reachable/i.test(error.message) &&
+                !this.nearestEntity(HOSTILES, 16) && treePillar(this.bot, block)) {
+                try {
+                    if (await climbForLog(this, block) > 0) {
+                        return
+                    }
+                } catch (climbError) {
+                    if (signal?.aborted) {
+                        throw climbError
+                    }
+                    this.log.warn(`Tree pillar failed: ${climbError.message}`)
+                }
+            }
             // An unreachable log means an unreachable tree; skip its other logs too. The library's
             // vein search can revisit a log, so a wider bound covers diagonal acacia trunks.
             if (!signal?.aborted) {
@@ -1573,7 +1588,7 @@ class SurvivalController {
                 let sight = block.name.endsWith('_ore') && miningSight(this, block, 4.5)
                 if (!this.bot.canDigBlock(block) || (!sight && !canSeeBlock(this.bot, block))) {
                     const view = { raycast: (from, direction, range) => sightRay(this.bot, from, direction, range) }
-                    await this.gotoWithTimeout(new goals.GoalLookAtBlock(block.position, view), 10000, 'resource approach')
+                    await this.gotoWithTimeout(reachGoal(block.position, view), 10000, 'resource approach')
                     sight = block.name.endsWith('_ore') && miningSight(this, block, 4.5)
                 }
                 if (signal?.aborted) {

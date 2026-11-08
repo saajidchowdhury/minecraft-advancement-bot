@@ -142,7 +142,7 @@ test('a tree whose log cannot be reached is skipped as a whole trunk', async () 
     const c = Object.create(SurvivalController.prototype)
     Object.assign(c, {
         memory: { blockedTargets: new Map() }, actionAbort: new AbortController(),
-        bot: { entity: { position: new Vec3(-34.5, 72, -25.5) }, canSeeBlock: () => true,
+        bot: { entity: { position: new Vec3(-34.5, 72, -25.5) }, canSeeBlock: () => true, nearestEntity: () => null, blockAt: () => null,
             collectBlock: { findFromVein: (block, max) => max > 3 ? [...logs, ...branch] : logs } },
         findNearestBlock: () => logs[0],
         async collectTarget(target, anchor) {

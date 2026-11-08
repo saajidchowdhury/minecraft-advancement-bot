@@ -5,6 +5,7 @@ const { goals } = require('mineflayer-pathfinder')
 const { until } = require('./progression-skills')
 const { canSeeBlock } = require('./vision')
 const { dryMovements } = require('./cave-exploration')
+const { reachGoal } = require('./tree-climb')
 
 // [hunger points, saturation] per item, vanilla Java values.
 const FOODS = {
@@ -297,7 +298,7 @@ async function pickGlowBerries(c) {
         }
         try {
             if (!c.bot.canDigBlock(vine) || !canSeeBlock(c.bot, vine)) {
-                await c.gotoWithTimeout(new goals.GoalLookAtBlock(vine.position, c.bot.world), 10000, 'glow berry approach')
+                await c.gotoWithTimeout(reachGoal(vine.position, c.bot.world), 10000, 'glow berry approach')
             }
             c.checkAction(signal)
             await c.bot.activateBlock(vine)
