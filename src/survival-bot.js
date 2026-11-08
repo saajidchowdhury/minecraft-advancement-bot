@@ -22,7 +22,7 @@ const { archeryState, shootArrow } = require('./archery')
 const { enchantingState, gatherLeather, enchantItem } = require('./enchanting')
 const { golemState, summonGolem } = require('./golem')
 const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
-const { updateCrowdRetreat, retreatToWall, mineFromRefuge } = require('./crowd-retreat')
+const { updateCrowdRetreat, retreatToWall, mineFromRefuge, pillarSafe, pillarRefuge } = require('./crowd-retreat')
 const { reachGoal, treePillar, climbForLog } = require('./tree-climb')
 
 const { GoalNear, GoalFollow } = goals
@@ -161,13 +161,17 @@ function kite (c, threats) {
             const unit = dir.scaled(1 / Math.hypot(dir.x, dir.z))
             const score = unit.x * away.x + unit.z * away.z
             const cell = here.plus(unit).floored()
-            const safe = !cell.equals(feet) && (safeFooting(bot, cell) || safeFooting(bot, cell.offset(0, -1, 0)))
-            if (score > 0 && safe && (!best || score > best.score)) {
-                best = { keys, score }
+            const level = !cell.equals(feet) && (safeFooting(bot, cell) || safeFooting(bot, cell.offset(0, -1, 0)))
+            // Rising ground behind needs a jump; it is slower, so a level cell is preferred (user note).
+            const rise = !level && !cell.equals(feet) && safeFooting(bot, cell.offset(0, 1, 0)) &&
+                bot.blockAt(feet.offset(0, 2, 0), false)?.boundingBox === 'empty'
+            const value = rise ? score * 0.8 : score
+            if (value > 0 && (level || rise) && (!best || value > best.score)) {
+                best = { keys: rise ? [...keys, 'jump'] : keys, score: value }
             }
         }
     }
-    for (const key of ['back', 'left', 'right']) {
+    for (const key of ['back', 'left', 'right', 'jump']) {
         bot.setControlState?.(key, Boolean(best?.keys.includes(key)))
     }
     return best?.keys ?? null
@@ -721,6 +725,12 @@ class SurvivalController {
             // Unstick scouting accepts six-block drops, which only take a surfacing bot deeper (04.01.02).
             // Opportunistic targets are blocked one by one; a run of unreachable ores is not a stuck bot (17:14:26Z).
             const opportunistic = OPPORTUNISTIC.has(action)
+            // Unstick carves a rising staircase; under attack that only climbed into the mobs (staged round 5).
+            const threatNear = Object.values(this.bot.entities || {}).some(e => e.isValid && HOSTILES.has(e.name) &&
+                e.position.distanceTo(this.bot.entity.position) <= 8)
+            if (threatNear) {
+                return
+            }
             if (count >= 3 && action !== 'return_surface' && !opportunistic && (foodStalled || stalledInPlace || /no path to the goal/i.test(message))) {
                 await this.unstick().catch(unstickError => this.log.warn(`Unstick failed: ${unstickError.message}`))
             } else if (count >= 3 && !STATIONARY_ACTIONS.has(action) && !opportunistic) {
@@ -956,7 +966,7 @@ class SurvivalController {
                     }
                     throw error
                 })
-            case Actions.REFUGE: return retreatToWall(this)
+            case Actions.REFUGE: return pillarSafe(this) ? pillarRefuge(this) : retreatToWall(this)
             case 'mine_from_refuge': return mineFromRefuge(this, state)
             case Actions.DESCEND: return this.descendSafely()
             case Actions.ASCEND: return this.escapeVerticalShaft()
@@ -1929,7 +1939,10 @@ class SurvivalController {
                     this.urgentReplan = true
                     throw new Error('combat health too low; replanning escape')
                 }
-                if (!hunt && (updateCrowdRetreat(this, HOSTILES) || (!cornered && outnumbered(this.visibleThreatCount(), wornArmorPoints(this.bot))))) {
+                const meleeOnly = this.bot.health > 10 && !Object.values(this.bot.entities || {}).some(e => e.isValid &&
+                    ((ARCHERS.has(e.name) && this.bot.entity.position.distanceTo(e.position) <= 16) ||
+                        (CREEPERS.has(e.name) && this.bot.entity.position.distanceTo(e.position) <= 8)))
+                if (!hunt && (updateCrowdRetreat(this, HOSTILES) || (!cornered && outnumbered(this.visibleThreatCount(), wornArmorPoints(this.bot), meleeOnly)))) {
                     this.urgentReplan = true
                     throw new Error('outnumbered in combat; replanning escape')
                 }

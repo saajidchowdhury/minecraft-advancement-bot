@@ -622,9 +622,10 @@ test('charging an archer keeps the shield raised and lowers it only to strike', 
     assert.equal(events.at(-1), 'lower')
 })
 
-test('a second visible zombie ends an unarmored fight before the next attack', async () => {
+test('a visible archer joining ends an unarmored melee fight before the next attack', async () => {
+    // A second zombie alone is now fought with kiting (staged rounds 4-5); an archer still forces a withdrawal.
     const zombie = { name: 'zombie', isValid: true, position: new Vec3(1, 64, 0) }
-    const other = { name: 'zombie', isValid: true, position: new Vec3(4, 64, 0) }
+    const other = { name: 'skeleton', isValid: true, position: new Vec3(4, 64, 0) }
     let attacks = 0
     const c = {
         running: true, actionAbort: new AbortController(), canSee: () => true,
@@ -1028,4 +1029,48 @@ test('two zombies in front make the bot keep swinging while it backs away from b
     assert.equal(a.isValid || b.isValid, false)
     assert.ok(backing.length >= 8 && backing.every(Boolean), `swung without backing: ${backing}`)
     assert.equal(controls.back, false, 'controls must be released when the fight ends')
+})
+
+test('kiting jumps up a one-block rise behind instead of standing still (user terrain note)', () => {
+    const { kite } = require('../src/survival-bot')
+    const zombie = { name: 'zombie', isValid: true, position: new Vec3(0.3, 64, -1.5) }
+    const { bot, controls } = kitingBot(new Set(), () => 'stone')
+    const blockAt = bot.blockAt
+    // Every cell with z >= 1 is one block higher: floor at y=64, open at 65-66; the sides are walled.
+    bot.blockAt = p => {
+        if (p.z >= 1) {
+            return p.y <= 64 ? { name: 'stone', boundingBox: 'block' } : { name: 'air', boundingBox: 'empty' }
+        }
+        if (p.x !== 0 && p.y <= 65 && p.y >= 64) {
+            return { name: 'stone', boundingBox: 'block' }
+        }
+        return blockAt(p)
+    }
+    const keys = kite({ bot }, [zombie])
+    assert.ok(keys?.includes('jump') && keys.includes('back'), `expected a jumping back-step, got ${keys}`)
+    assert.equal(controls.jump, true)
+    kite({ bot }, [])
+    assert.equal(controls.jump, false)
+})
+
+test('a failed combat action under attack never starts the staircase unstick', async () => {
+    // Staged round 5: three failed escapes triggered unstick, which carved stairs up into the zombies.
+    const bot = new EventEmitter()
+    bot.entity = { position: new Vec3(0.5, 64, 0.5), yaw: 0, pitch: 0 }
+    bot.game = { dimension: 'overworld' }
+    bot.health = 18
+    bot.entities = { 1: { isValid: true, name: 'zombie', position: new Vec3(3, 64, 0.5) } }
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, { bot, running: true, busy: false, memory: {}, failures: new Map([[Actions.ESCAPE, 2]]),
+        log: { info() {}, warn() {} }, isNight: () => false, onState() {}, inventorySummary: () => '', scheduleLoop() {},
+        clearCurrentTask() {}, detectVerticalShaft: () => false, detectElevationTrap: () => null,
+        observe: () => ({ health: 18, food: 20, hostileDistance: 2.5, closeHostiles: 3, visibleHostiles: 1, completedAdvancements: new Set() }),
+        async performWithTimeout() { throw new Error('No path to the goal!') },
+        unstickCalls: 0, scoutCalls: 0,
+        async unstick() { this.unstickCalls++ },
+        async scout() { this.scoutCalls++ } })
+    await c.tick()
+    assert.equal(c.failures.get(Actions.ESCAPE), 3)
+    assert.equal(c.unstickCalls, 0, 'started the staircase unstick under attack')
+    assert.equal(c.scoutCalls, 0, 'scouted away under attack')
 })

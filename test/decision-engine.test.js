@@ -338,9 +338,12 @@ test('a sealed combat refuge mines inward instead of leaving for daylight or an 
     assert.equal(chooseAction({ ...miner, health: 5, food: 20 }), 'wait')
 })
 
-test('an unarmored bot withdraws when two hostiles close in', () => {
+test('an unarmored bot fights two melee-only attackers above 10 HP but withdraws when hurt or under fire', () => {
     const melee = state({ health: 12.7, hasWeapon: true, hostileDistance: 0.9, closeHostiles: 2, visibleHostiles: 2 })
-    assert.equal(chooseAction(melee), Actions.ESCAPE)
+    assert.equal(chooseAction(melee), Actions.FIGHT)
+    assert.equal(chooseAction({ ...melee, health: 9 }), Actions.ESCAPE)
+    assert.equal(chooseAction({ ...melee, closeHostiles: 3, visibleHostiles: 2 }), Actions.ESCAPE)
+    assert.equal(chooseAction({ ...melee, rangedDistance: 10 }), Actions.ESCAPE)
     assert.equal(chooseAction({ ...melee, closeHostiles: 1 }), Actions.FIGHT)
     assert.equal(chooseAction({ ...melee, armorPoints: 12 }), Actions.FIGHT)
 })

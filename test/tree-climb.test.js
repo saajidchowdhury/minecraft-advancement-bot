@@ -251,3 +251,44 @@ test('after descending, the bot turns to each settled ground drop and leaves can
     await climbForLog(c, w.getBlock(new Vec3(-25, 74, 194)))
     assert.deepEqual(pickups.sort(), [1, 2])
 })
+
+test('only zombie-type crowds qualify for a pillar refuge, and only with scaffold and headroom', () => {
+    const { pillarSafe } = require('../src/crowd-retreat')
+    const w = oakWorld()
+    const bot = climbingBot(w, new Vec3(-20.5, 69, 194.5), [{ name: 'cobblestone', count: 8 }])
+    const mob = (id, name) => ({ id, name, isValid: true, position: new Vec3(-17.5, 69, 194.5) })
+    const c = { bot, hostileNames: new Set(['zombie', 'husk', 'spider', 'skeleton']) }
+    bot.entities = { 1: mob(1, 'zombie'), 2: mob(2, 'husk') }
+    assert.equal(pillarSafe(c), true)
+    bot.entities[3] = mob(3, 'spider')
+    assert.equal(pillarSafe(c), false, 'spiders climb pillars')
+    bot.entities = { 1: mob(1, 'zombie'), 4: mob(4, 'skeleton') }
+    assert.equal(pillarSafe(c), false, 'archers shoot the top')
+    bot.entities = { 1: mob(1, 'zombie') }
+    const noScaffold = climbingBot(w, new Vec3(-20.5, 69, 194.5), [{ name: 'cobblestone', count: 2 }])
+    noScaffold.entities = bot.entities
+    assert.equal(pillarSafe({ bot: noScaffold, hostileNames: c.hostileNames }), false)
+})
+
+test('a pillar refuge towers three blocks, hits zombies at its base from above, then digs back down', async () => {
+    const { pillarRefuge } = require('../src/crowd-retreat')
+    const w = oakWorld()
+    const inventory = [{ name: 'cobblestone', count: 8 }, { name: 'stone_sword', count: 1 }]
+    const bot = climbingBot(w, new Vec3(-20.5, 69, 194.5), inventory)
+    const zombies = [[-19.6, 194.5], [-21.4, 194.5], [-20.5, 195.4]].map(([x, z], i) =>
+        ({ id: i + 1, name: 'zombie', isValid: true, height: 1.95, hits: 0, position: new Vec3(x, 69, z) }))
+    const hitFrom = []
+    Object.assign(bot, { entities: Object.fromEntries(zombies.map(z => [z.id, z])), pathfinder: { setGoal() {} }, clearControlStates() {},
+        attack(z) {
+            hitFrom.push(bot.entity.position.y)
+            if (++z.hits === 4) { z.isValid = false }
+        } })
+    const c = controller(bot)
+    c.crowdRetreat = { threats: new Map() }
+    await pillarRefuge(c)
+    assert.ok(zombies.every(z => !z.isValid), 'zombies at the base must be killed from the top')
+    assert.ok(hitFrom.every(y => y >= 72), `hit from below the top: ${hitFrom}`)
+    assert.equal(bot.entity.position.y, 69)
+    assert.equal(inventory.find(i => i.name === 'cobblestone').count, 8)
+    assert.equal(c.crowdRetreat, null)
+})

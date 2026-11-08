@@ -4,6 +4,7 @@ const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { dryMovements, safeFooting } = require('./cave-exploration')
 const { miningPickaxe, mineTunnel } = require('./progression-skills')
+const { towerStep, descendPillar } = require('./tree-climb')
 
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 const UNSAFE = new Set(['water', 'lava', 'sand', 'red_sand', 'gravel', 'magma_block',
@@ -208,4 +209,65 @@ async function mineFromRefuge(c, state) {
     }
 }
 
-module.exports = { updateCrowdRetreat, retreatToWall, mineFromRefuge, sealedRefuge }
+// Mobs that can neither climb nor shoot; spiders climb a pillar and archers shoot its top.
+const PILLAR_SAFE = new Set(['zombie', 'husk', 'zombie_villager', 'zombified_piglin', 'vindicator'])
+const SCAFFOLD = ['dirt', 'coarse_dirt', 'cobblestone', 'cobbled_deepslate', 'netherrack', 'andesite', 'diorite', 'granite', 'tuff']
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+function pillarSafe(c) {
+    const bot = c.bot
+    const here = bot.entity.position
+    const near = Object.values(bot.entities || {}).filter(e => e.isValid && c.hostileNames?.has(e.name) && e.position.distanceTo(here) <= 16)
+    const scaffold = bot.inventory.items().reduce((n, i) => n + (SCAFFOLD.includes(i.name) ? i.count : 0), 0)
+    const feet = here.floored()
+    const headroom = [2, 3, 4, 5].every(dy => bot.blockAt(feet.offset(0, dy, 0), false)?.boundingBox === 'empty')
+    return near.length > 0 && near.every(e => PILLAR_SAFE.has(e.name)) && scaffold >= 3 && headroom
+}
+
+// Three blocks up, a zombie's attack box (no vertical reach, 1.95 tall) cannot touch us while zombies
+// crowding the base stay inside our reach; dig back down once none is near (user tactic, round 5).
+async function pillarRefuge(c, height = 3, seconds = 45) {
+    const bot = c.bot
+    const signal = c.actionAbort?.signal
+    bot.pathfinder.setGoal(null)
+    bot.clearControlStates()
+    const base = bot.entity.position.floored()
+    const placed = []
+    let safe = false
+    try {
+        while (placed.length < height) {
+            placed.push(await towerStep(c, signal))
+        }
+        c.log.info(`Pillar refuge ${height} blocks above ${base}; fighting from the top.`)
+        const deadline = Date.now() + seconds * 1000
+        let nextSwing = 0
+        while (Date.now() < deadline) {
+            c.checkAction(signal)
+            const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
+            const melee = Object.values(bot.entities || {}).filter(e => e.isValid && PILLAR_SAFE.has(e.name) &&
+                e.position.distanceTo(base) <= 8)
+            if (!melee.length) {
+                safe = true
+                break
+            }
+            const top = e => e.position.offset(0, e.height ?? 1.95, 0)
+            const target = melee.filter(e => eye.distanceTo(top(e)) <= 3).sort((a, b) => eye.distanceTo(top(a)) - eye.distanceTo(top(b)))[0]
+            if (target && Date.now() >= nextSwing) {
+                await bot.lookAt(top(target), true)
+                bot.attack(target)
+                nextSwing = Date.now() + 650
+            }
+            await sleep(100)
+        }
+    } finally {
+        if (!signal?.aborted && (safe || !placed.length)) {
+            await descendPillar(c, placed)
+            c.crowdRetreat = null
+        }
+    }
+    if (!safe) {
+        throw new Error('pillar refuge still surrounded')
+    }
+}
+
+module.exports = { updateCrowdRetreat, retreatToWall, mineFromRefuge, sealedRefuge, pillarSafe, pillarRefuge, PILLAR_SAFE }

@@ -46,8 +46,14 @@ function canSustainFight (health, armorPoints) {
     return health > (armorPoints >= 12 ? 4 : 8)
 }
 
-function outnumbered (closeHostiles, armorPoints) {
-    return closeHostiles > (armorPoints >= 12 ? 2 : 1)
+// Kiting with rotating swings makes one extra melee-only attacker fightable above 10 HP
+// (staged rounds 4-5: an unarmored stone-sword bot beat two zombies; fleeing them had no route).
+function outnumbered (closeHostiles, armorPoints, meleeOnly = false) {
+    return closeHostiles > (armorPoints >= 12 ? 2 : 1) + (meleeOnly ? 1 : 0)
+}
+
+function meleeOnlyFight (state) {
+    return state.health > 10 && !(state.rangedDistance <= 16) && !(state.creeperDistance <= 8)
 }
 
 function hasMiningWood (state) {
@@ -77,7 +83,7 @@ function chooseAction (state) {
     if (state.cornered && state.hasWeapon && !(state.creeperDistance <= 6)) {
         return Actions.FIGHT
     }
-    if (outnumbered(state.closeHostiles, state.armorPoints)) {
+    if (outnumbered(state.closeHostiles, state.armorPoints, meleeOnlyFight(state))) {
         return Actions.ESCAPE
     }
     // Running from an archer at arm's length only invites more arrows; melee it while able.
