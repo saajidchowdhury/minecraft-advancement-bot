@@ -8,11 +8,11 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
-Session handoff: the normal bot runs on port 49278, PID 8558, from 6b1a39c
-in outputs/2026-11-07@21.04.40, launched in a visible Terminal window (the
+Session handoff: the normal bot runs on port 49278, PID 19883, from 6528d10
+in outputs/2026-11-07@22.58.42, launched in a visible Terminal window (the
 user's preferred method for live runs). Verify process identity and the
 latest log before stopping or launching anything; do not duplicate it.
-Automated baseline: 436 passing tests and syntax checks.
+Automated baseline: 439 passing tests and syntax checks.
 
 Next checks, in order:
 1. F094 / survival: observe a natural crowd retreat, including an obstructed
@@ -42,6 +42,12 @@ inside 2.5 blocks) and a zombie crowd gets a 3-block pillar refuge. Next:
   wall dent: dig a 2x1 dent first, lure the zombies away, come back and seal it.
 - Pillar refuge (crowd-retreat.js, tested, not dispatched): reuse it for the
   user's Nether enderman tactic, baiting endermen to a pillar for pearls.
+- Skeleton shield rhythm (user): block until the arrow hits the shield, then
+  lower, advance and strike, then block for the next shot; replace the fixed
+  0.6/0.9 s cycle with blocked-arrow detection. Also diagnose the perpendicular
+  tunnelling seen in the rugged stone-kit hallway skeleton trial.
+- Rugged terrain round 13 passed 12/13 with no deaths (see F101); rerun it with the
+  shield-rhythm change, then add narrow-wall rooms and 5+ zombie crowds.
 - Skeletons are harder than zombies (user): build focused skeleton scenarios
   (open room, tunnel, skeleton + zombies) before relying on charge-and-shield.
 - Natural (unstaged) evidence: an archer hit from out of view, a two-zombie

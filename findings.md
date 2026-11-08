@@ -2319,3 +2319,31 @@ action; stone two zombies; armed-skeleton scenarios (bow verified by /data get)
 far skeleton, zombie+skeleton, and the death replica. Staged evidence only;
 natural fights remain unverified. Comment lines: survival-bot.js 3.4%,
 crowd-retreat.js and decision-engine.js under 10%.
+Shield and hallway fixes after round 10: fbc3238 cycles the shield 0.6 s up /
+0.9 s down while an archer is out of reach (a held shield slows to sneaking
+speed and a hallway skeleton backed off as fast; user report); edd81c2 makes
+kiting release only the keys it set (kite(null) on every chase tick had been
+clearing the pathfinder's forward key, freezing a charge at 3.4 blocks; user
+saw the shield cycling in place for ~25 s); 6528d10 ends a defensive charge
+after 5 s without progress (a night shelter block had sealed the hallway).
+Round 12: hallway skeleton killed in 10.4 s with 2 hits; 5/6 PASS. Round 11
+also exposed a harness fall: the start-of-round teleport into open sky killed
+the bot; the harness now places its glass platform first.
+Round 13, rugged terrain (6528d10; seeded raised patches 1-2 high and 1-deep
+pits in rooms, a 3-high hallway with steps and dips; daytime set per trial):
+11 of 13 reported at time of writing: 10 PASS (hallway skeleton with shield at
+15.5 HP; far skeleton, iron and stone zombie pairs, zombie+skeleton, creeper,
+spiders, low-health skeleton, three zombies, flanking pair all at 17-20 HP).
+The stone-kit hallway skeleton was not killed in 60 s (bot unharmed; it
+tunnelled perpendicular out of the hallway, user observation); the user judged
+survival a pass. Final two: rugged hallway zombie pair and four zombies PASS at 20 HP. Round 13
+total: 12/13 PASS, no deaths; cleanup restored inventory, position, viewer,
+Resistance and keep_inventory (false).
+User notes for the next session (not implemented):
+- Shield timing vs skeletons: hold the block until an arrow hits the shield,
+  then lower and advance (and strike when in reach), then block again for the
+  next shot. The fixed 0.6/0.9 s cycle does not match the skeleton's draw
+  rhythm. Detect the blocked arrow (shield-block sound/status or the arrow
+  entity hitting us) rather than timing it.
+- During a hallway skeleton fight the bot tunnelled perpendicular instead of
+  advancing along the hallway (stone kit, no shield); diagnose which action dug.
