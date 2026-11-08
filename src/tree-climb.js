@@ -121,7 +121,9 @@ async function clearHead (c, feet) {
 }
 
 // Jump and place one scaffold block into the vacated feet cell; returns the placed position.
-async function towerStep (c, signal) {
+// use_item_on goes out at once but the position packet only at the next physics tick, so place one
+// tick after passing y0+1.15 (peak 1.25) || the server still sees the bot inside the cell (live 01:22Z).
+async function towerStep (c, signal, attempts = 3) {
     const bot = c.bot
     const feet = bot.entity.position.floored()
     await clearHead(c, feet)
@@ -130,21 +132,35 @@ async function towerStep (c, signal) {
         throw new Error('no scaffold blocks left for the tree pillar')
     }
     await bot.equip(item, 'hand')
-    c.checkAction(signal)
-    const y0 = bot.entity.position.y
-    bot.setControlState('jump', true)
-    try {
-        if (!await ticksUntil(bot, () => bot.entity.position.y > y0 + 1.05, 12)) {
-            throw new Error('pillar jump did not clear the placement cell')
+    bot.clearControlStates?.()
+    await bot.look(bot.entity.yaw, -Math.PI / 2, true)
+    await bot.waitForTicks(2)
+    for (let attempt = 1; ; attempt++) {
+        c.checkAction(signal)
+        const y0 = bot.entity.position.y
+        let error = null
+        bot.setControlState('jump', true)
+        try {
+            if (!await ticksUntil(bot, () => bot.entity.position.y > y0 + 1.15, 12)) {
+                throw new Error('pillar jump did not clear the placement cell')
+            }
+            await bot.waitForTicks(1)
+            await bot._placeBlockWithOptions(bot.blockAt(feet.offset(0, -1, 0)), new Vec3(0, 1, 0), { forceLook: 'ignore', swingArm: 'right' })
+        } catch (e) {
+            error = e
+        } finally {
+            bot.setControlState('jump', false)
         }
-        await bot.placeBlock(bot.blockAt(feet.offset(0, -1, 0)), new Vec3(0, 1, 0))
-    } finally {
-        bot.setControlState('jump', false)
+        const placed = bot.blockAt(feet)?.boundingBox === 'block'
+        await ticksUntil(bot, () => bot.entity.onGround && bot.entity.position.y >= (placed ? y0 + 0.9 : y0 - 0.1), 30)
+        if (placed && bot.entity.position.y >= y0 + 0.9) {
+            return feet
+        }
+        if (placed || attempt >= attempts || !/refused|did not answer/.test(error?.message ?? '')) {
+            throw error || new Error('did not land on the placed pillar block')
+        }
+        c.log.warn(`Pillar placement at ${feet} refused (try ${attempt}); retrying.`)
     }
-    if (!await ticksUntil(bot, () => bot.entity.onGround && bot.entity.position.y >= y0 + 0.9, 30)) {
-        throw new Error('did not land on the placed pillar block')
-    }
-    return feet
 }
 
 // Dig our own pillar from the top down; each dug block drops into the cell the bot falls into.

@@ -78,10 +78,15 @@ function climbingBot(w, start, inventory) {
                 }
             }
         },
-        async placeBlock(ref, face) {
+        refusals: 0, clearControlStates() { bot.controls = {} }, async look(yaw, pitch) { Object.assign(bot.entity, { yaw, pitch }) },
+        async _placeBlockWithOptions(ref, face) {
             const p = ref.position.plus(face)
             const feetY = bot.entity.position.y
-            assert.ok(feetY >= p.y + 1, `placed ${p} inside the bot at y=${feetY}`)
+            assert.ok(feetY >= p.y + 1.15, `placed ${p} before the jump peak at y=${feetY}`)
+            if (bot.refusals > 0) {
+                bot.refusals -= 1
+                throw new Error(`Server refused to place ${bot.held.name} at ${p}: the block is still air`)
+            }
             assert.ok(bot.held?.count > 0, 'no held scaffold')
             bot.held.count -= 1
             w.set(p, bot.held.name)
@@ -197,4 +202,30 @@ test('gather_wood climbs instead of quarantining a tree whose remaining logs are
     await c.gatherWood()
     assert.equal(c.isBlockedTarget(log), false)
     assert.equal(w.getBlock(new Vec3(-25, 77, 194)).name, 'air')
+})
+
+test('a refused pillar placement lands, retries the jump and still finishes the climb', async () => {
+    const w = oakWorld()
+    const inventory = [{ name: 'dirt', count: 4 }]
+    const bot = climbingBot(w, new Vec3(-20.5, 69, 194.5), inventory)
+    bot.refusals = 2
+    const warnings = []
+    const c = controller(bot)
+    c.log.warn = m => warnings.push(m)
+    assert.equal(await climbForLog(c, w.getBlock(new Vec3(-25, 74, 194))), 4)
+    assert.equal(warnings.filter(m => /refused/.test(m)).length, 2)
+    assert.equal(bot.entity.position.y, 69)
+    assert.equal(inventory.find(i => i.name === 'dirt').count, 4)
+})
+
+test('three refusals abandon the climb after digging back down what was placed', async () => {
+    const w = oakWorld()
+    const inventory = [{ name: 'dirt', count: 4 }]
+    const bot = climbingBot(w, new Vec3(-20.5, 69, 194.5), inventory)
+    bot.refusals = 3
+    const c = controller(bot)
+    c.log.warn = () => {}
+    await assert.rejects(climbForLog(c, w.getBlock(new Vec3(-25, 74, 194))), /refused/)
+    assert.equal(bot.entity.position.y, 69)
+    assert.equal(bot.placed.length, 0)
 })
