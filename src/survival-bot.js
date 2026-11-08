@@ -139,6 +139,40 @@ function droppedItemGoal (entity) {
     return goal
 }
 
+// Steer away from melee inside 2.5 blocks using back/strafe controls relative to the facing set by
+// lookAt, choosing the safest-footed direction most opposed to the threats; null releases controls.
+function kite (c, threats) {
+    const bot = c.bot
+    const here = bot.entity.position
+    const close = (threats || []).filter(e => here.distanceTo(e.position) < 2.5)
+    let best = null
+    if (close.length) {
+        const away = close.reduce((v, e) => {
+            const d = here.minus(e.position)
+            const n = Math.max(Math.hypot(d.x, d.z), 0.1)
+            return v.offset(d.x / (n * n), 0, d.z / (n * n))
+        }, new Vec3(0, 0, 0))
+        const yaw = bot.entity.yaw ?? 0
+        const f = new Vec3(-Math.sin(yaw), 0, -Math.cos(yaw))
+        const r = new Vec3(-f.z, 0, f.x)
+        const feet = here.floored()
+        for (const keys of [['back'], ['back', 'left'], ['back', 'right'], ['left'], ['right']]) {
+            const dir = keys.reduce((v, k) => k === 'back' ? v.minus(f) : k === 'left' ? v.minus(r) : v.plus(r), new Vec3(0, 0, 0))
+            const unit = dir.scaled(1 / Math.hypot(dir.x, dir.z))
+            const score = unit.x * away.x + unit.z * away.z
+            const cell = here.plus(unit).floored()
+            const safe = !cell.equals(feet) && (safeFooting(bot, cell) || safeFooting(bot, cell.offset(0, -1, 0)))
+            if (score > 0 && safe && (!best || score > best.score)) {
+                best = { keys, score }
+            }
+        }
+    }
+    for (const key of ['back', 'left', 'right']) {
+        bot.setControlState?.(key, Boolean(best?.keys.includes(key)))
+    }
+    return best?.keys ?? null
+}
+
 function pathfinderDropLimitForLanding (surfaceDrop) {
     return Math.min(4, surfaceDrop + 1)
 }
@@ -1903,7 +1937,9 @@ class SurvivalController {
                 if (hunt && !this.canSee(entity)) {
                     throw new Error('prey went out of view')
                 }
-                if (distance > 3.1) {
+                // An approaching zombie is awaited at reach, not walked into (we back off to stay out of its reach).
+                if (distance > 3.1 && (hunt || !MELEE.has(entity.name) || distance > 6)) {
+                    kite(this, null)
                     if (!following || this.bot.targetDigBlock || chasePosition.distanceTo(this.bot.entity.position) >= 0.75) {
                         chasePosition = this.bot.entity.position.clone()
                         chaseProgressAt = Date.now()
@@ -1936,11 +1972,15 @@ class SurvivalController {
                         .reduce((a, b) => (lastSwing.get(b.id) ?? 0) < (lastSwing.get(a.id) ?? 0) ? b : a)
                     await this.bot.lookAt(target.position.offset(0, Math.min(target.height || 1, 1.4), 0), true)
                     this.checkAction(signal)
-                    if (Date.now() < nextHuntAttackAt) {
-                        await sleep(Math.min(100, nextHuntAttackAt - Date.now()))
+                    // A zombie's reach (~1.5 blocks) is half ours and it is slower than a walking player:
+                    // back off whenever melee is inside 2.5 blocks while swinging at 3 (user kiting advice).
+                    const moving = hunt ? null : kite(this, Object.values(this.bot.entities || {}).filter(e =>
+                        e.isValid && MELEE.has(e.name) && here.distanceTo(e.position) <= 4))
+                    if (Date.now() < nextHuntAttackAt || here.distanceTo(target.position) > 3) {
+                        await sleep(Math.max(20, Math.min(100, nextHuntAttackAt - Date.now())))
                         continue
                     }
-                    if (this.bot.inventory?.slots[45]?.name === 'shield' && (!hunt || guard)) {
+                    if (this.bot.inventory?.slots[45]?.name === 'shield' && (!hunt || guard) && !moving) {
                         this.bot.activateItem(true)
                         await sleep(350)
                         this.bot.deactivateItem()
@@ -1955,8 +1995,8 @@ class SurvivalController {
                     }
                     this.bot.attack(target)
                     lastSwing.set(target.id, Date.now())
-                    nextHuntAttackAt = Date.now() + huntCooldownMs
-                    await sleep(huntCooldownMs ? 100 : 650)
+                    nextHuntAttackAt = Date.now() + (huntCooldownMs || 650)
+                    await sleep(100)
                 }
             }
             this.checkAction(signal)
@@ -1980,6 +2020,7 @@ class SurvivalController {
                 }
             }
         } finally {
+            kite(this, null)
             if (shielding) {
                 this.bot.deactivateItem()
             }
@@ -3175,6 +3216,6 @@ class SurvivalController {
 module.exports = {
     SurvivalController, HOSTILES, PREY, FOOD_VALUES, actionMadeProgress, smeltJobState, updateHome,
     shouldRelocateAfterStationFailure, mobilityRecoveryKind,
-    pathfinderDropLimitForLanding, SAFE_PATHFINDER_DROP,
+    pathfinderDropLimitForLanding, SAFE_PATHFINDER_DROP, kite,
     heapPressureExceeded, PATH_SEARCH_RADIUS, HEAP_GUARD_BYTES, coveredAbove
 }

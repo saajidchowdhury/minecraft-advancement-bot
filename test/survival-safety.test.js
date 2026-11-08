@@ -631,6 +631,7 @@ test('a second visible zombie ends an unarmored fight before the next attack', a
         bestItem: () => ({ name: 'wooden_sword' }),
         bot: {
             health: 17, entity: { position: new Vec3(0, 64, 0) }, entities: { 1: zombie }, inventory: { slots: [] },
+            blockAt: p => ({ name: p.y < 64 ? 'stone' : 'air', boundingBox: p.y < 64 ? 'block' : 'empty' }),
             equip: async () => {}, lookAt: async () => {}, pathfinder: { setGoal() {} },
             attack() {
                 attacks++
@@ -958,6 +959,7 @@ test('a cornered bot alternates swings between two adjacent zombies and finishes
     Object.assign(c, { running: true, paused: false, actionAbort: new AbortController(), canSee: () => true,
         bestItem: () => ({ name: 'stone_sword' }), visibleThreatCount: () => 2,
         bot: { health: 18, entity: { position: new Vec3(0.5, 64, 0.5) }, entities: { 1: a, 2: b }, inventory: { slots: [] },
+            blockAt: p => ({ name: p.y < 64 ? 'stone' : 'air', boundingBox: p.y < 64 ? 'block' : 'empty' }),
             equip: async () => {}, lookAt: async () => {}, pathfinder: { setGoal() {} },
             attack(z) { struck.push(z.id); if (++z.hits === 4) { z.isValid = false } } } })
     const operation = c.fight(a, false, null, true)
@@ -966,4 +968,64 @@ test('a cornered bot alternates swings between two adjacent zombies and finishes
     assert.deepEqual(struck.slice(0, 4), [1, 2, 1, 2])
     assert.equal(a.isValid, false)
     assert.equal(b.isValid, false)
+})
+
+function kitingBot(walls = new Set(), floorAt = () => 'stone') {
+    const controls = {}
+    const bot = { entity: { position: new Vec3(0.5, 64, 0.5), yaw: 0, pitch: 0 }, controls,
+        setControlState(key, on) { controls[key] = on },
+        blockAt(p) {
+            const name = p.y === 63 ? floorAt(p) : walls.has(`${p.x},${p.z}`) && p.y <= 65 ? 'stone' : p.y < 63 ? 'stone' : 'air'
+            return { name, boundingBox: ['air', 'lava', 'water'].includes(name) ? 'empty' : 'block' }
+        } }
+    return { bot, controls }
+}
+
+test('melee inside 2.5 blocks makes the bot back away while it keeps facing the attacker', () => {
+    // User advice: zombies are slower than a walking player and reach half as far; back up while hitting.
+    const { kite } = require('../src/survival-bot')
+    const { bot, controls } = kitingBot()
+    const zombie = { name: 'zombie', isValid: true, position: new Vec3(0.5, 64, -1.5) }
+    assert.deepEqual(kite({ bot }, [zombie]), ['back'])
+    assert.equal(controls.back, true)
+    zombie.position = new Vec3(0.5, 64, -3.2)
+    assert.equal(kite({ bot }, [zombie]), null)
+    assert.equal(controls.back, false)
+})
+
+test('kiting strafes around a wall behind and never steps back into lava or off a ledge', () => {
+    const { kite } = require('../src/survival-bot')
+    const zombie = { name: 'zombie', isValid: true, position: new Vec3(0.3, 64, -1.5) }
+    const walled = kitingBot(new Set(['0,1']))
+    const keys = kite({ bot: walled.bot }, [zombie])
+    assert.ok(keys && keys.join() !== 'back', `walked into the wall behind: ${keys}`)
+    const boxed = kitingBot(new Set(['0,1', '1,1', '-1,1']))
+    assert.ok(['left', 'right'].includes(kite({ bot: boxed.bot }, [zombie])?.join()), 'a wall row behind leaves only a strafe')
+    const lava = kitingBot(new Set(), p => p.z >= 1 ? 'lava' : 'stone')
+    assert.ok(!kite({ bot: lava.bot }, [zombie])?.some(k => k === 'back'))
+    const ledge = kitingBot(new Set(), p => p.z >= 1 ? 'air' : 'stone')
+    const ledgeBot = ledge.bot
+    const deepBlockAt = ledgeBot.blockAt
+    ledgeBot.blockAt = p => p.z >= 1 && p.y < 64 ? { name: 'air', boundingBox: 'empty' } : deepBlockAt(p)
+    assert.ok(!kite({ bot: ledgeBot }, [zombie])?.some(k => k === 'back'))
+})
+
+test('two zombies in front make the bot keep swinging while it backs away from both', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+    const a = { id: 1, name: 'zombie', isValid: true, position: new Vec3(0.0, 64, -1.4), height: 1.95, hits: 0 }
+    const b = { id: 2, name: 'zombie', isValid: true, position: new Vec3(1.1, 64, -1.6), height: 1.95, hits: 0 }
+    const { bot, controls } = kitingBot()
+    const backing = []
+    Object.assign(bot, { health: 18, entities: { 1: a, 2: b }, inventory: { slots: [] }, equip: async () => {},
+        lookAt: async () => {}, pathfinder: { setGoal() {} },
+        attack(z) { backing.push(Boolean(controls.back)); if (++z.hits === 4) { z.isValid = false } } })
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, { running: true, paused: false, actionAbort: new AbortController(), canSee: () => true,
+        bestItem: () => ({ name: 'stone_sword' }), visibleThreatCount: () => 2, bot })
+    const operation = c.fight(a, false, null, true)
+    for (let i = 0; i < 80; i++) { t.mock.timers.tick(100); await Promise.resolve(); await Promise.resolve() }
+    await operation
+    assert.equal(a.isValid || b.isValid, false)
+    assert.ok(backing.length >= 8 && backing.every(Boolean), `swung without backing: ${backing}`)
+    assert.equal(controls.back, false, 'controls must be released when the fight ends')
 })
