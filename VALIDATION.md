@@ -2,6 +2,12 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F100 passes 417 tests and syntax checks. test/mined-ore-recovery.test.js
+rebuilds the inspected live pit geometry with real prismarine blocks and world
+raycasts: pit-hidden dig-exposed ore is targeted, a six-block bound holds, an
+out-of-view drop is turned to, followed and stood on, and an unreachable drop
+is reported without aborting. Three fail on pre-fix source. Live pending.
+
 F099 passes 413 tests and syntax checks. The new dependency-patch regression
 drives the real Mineflayer entities plugin and fails unpatched (a zombie's
 air_supply set the bot's oxygenLevel to 4). The extended patch applies cleanly

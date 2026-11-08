@@ -8,11 +8,11 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
-Session handoff: the normal bot runs on port 49278, PID 6597, from c0e0888
-in outputs/2026-11-07@20.53.00, launched in a visible Terminal window (the
+Session handoff: the normal bot runs on port 49278, PID 8558, from 6b1a39c
+in outputs/2026-11-07@21.04.40, launched in a visible Terminal window (the
 user's preferred method for live runs). Verify process identity and the
 latest log before stopping or launching anything; do not duplicate it.
-Automated baseline: 413 passing tests and syntax checks.
+Automated baseline: 417 passing tests and syntax checks.
 
 Next checks, in order:
 1. F094 / survival: observe a natural crowd retreat, including an obstructed
@@ -29,6 +29,13 @@ Next checks, in order:
 Two existing sections below share G015 (death cascades and stronghold work).
 Prioritize the survival section; stronghold work remains gated on a verified
 Nether entry/return. IDs are preserved rather than silently renumbered.
+
+PRIORITY (F100 death): diagnose the 01:57-01:58Z skeleton death; mine_iron
+and then eat/wait continued in the open under seven hits with no fight, cover
+or retreat. Survival outranks progression work.
+
+F100 recovers mined drops out of view and follows vein ore our dig exposed
+behind stone. Watch for "Left a mined" warnings and for pit-hidden vein ore.
 
 F099 fixes false low-air alarms (mineflayer read every entity's air_supply as
 the bot's). Watch that no "Low air" appears in dry tunnels and that a real

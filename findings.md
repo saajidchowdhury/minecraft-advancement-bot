@@ -2158,3 +2158,41 @@ outranks the head-block observation) is unchanged because the value is now
 the bot's own. Restarted as PID 6597 (outputs/2026-11-07@20.53.00).
 The patch's craft.js/inventory.js output differs from the installed files
 only in comment wording (pre-existing; behavior identical).
+
+## F100 — Mined iron left behind: out-of-view drops and pit-hidden vein faces
+
+Run outputs/2026-11-07@20.53.00: a side probe from (371,16,274) exposed iron;
+mine_iron dug (372,17,269) and (372,16,269) from (371,17,270), standing in the
+1-high y=17 probe corridor (head cells cleared above). raw_iron stayed at 2
+across both actions and no failure was logged. A spectator inspection by a
+separate "Inspector" player (commands: /gamemode spectator, /tp; no world
+changes; outputs/inspect-iron-371.json, 01:59:32Z) found one raw_iron
+entity at (371.52,17,269.60) and the vein continuing at (372,16,270) (-z face
+open), (373,16,269) (-x face open), (373,16,270), (374,16,270), (373,15,270).
+Causes, reproduced on the inspected geometry with the real code:
+1. findPriorityOre required a visible face. Both faces opened into the
+   diagonal pit and every eye ray from (371.5,18.62,270.5) hit stone at
+   (372,18,269), even with turning allowed, so the vein was dropped although
+   exposedByDig() was true.
+2. Post-dig pickup considered only drops passing canSee (in view, clear
+   ray). Drops in or beside the pit were skipped silently, and a goal reached
+   one cell away was never checked for actual pickup. Which of the two digs
+   produced the surviving drop, and whether the other dropped or despawned
+   in the unloaded chunk, is uncertain.
+Fix 6b1a39c: ore our own dig exposed within six blocks of the eye remains a
+priority target; collectTarget then approaches a position with a visible
+face (no blind digging). Drops within 3 blocks of a mined block are turned
+to, followed, confirmed collected (1 s), then the bot stands in the drop's
+cell if needed; a drop still left is logged ("Left a mined ...") and no longer
+aborts the collection. Three regressions fail on pre-fix source (the
+six-block bound test guards over-reach). Live validation pending; the bot
+died before restart (see the death below), so this restart (PID 8558,
+outputs/2026-11-07@21.04.40) begins a new life.
+
+Death in the same run, not yet diagnosed: at 01:57:45Z mine_iron targeted
+(432,22,277) from (428,20,278); a skeleton 7-10 blocks away hit the bot
+seven times from 20 HP to 0 by 01:58:21Z while it kept mining, then chose
+eat/wait under "critical health". No fight, cover or retreat was attempted.
+Drops were abandoned at (428,20,278) because the threat remained. The iron
+pickaxe had broken at 01:55:17Z. Investigate why the skeleton never
+outranked mine_iron and why critical health chose wait in the open.
