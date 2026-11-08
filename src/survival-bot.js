@@ -174,9 +174,13 @@ function kite (c, threats) {
             }
         }
     }
-    for (const key of ['back', 'forward', 'left', 'right', 'jump']) {
-        bot.setControlState?.(key, Boolean(best?.keys.includes(key)))
+    // Release only keys kiting set: clearing forward/jump every tick froze a pathfinder-driven charge at a
+    // hallway skeleton (round 11), since the pathfinder walks with the same controls.
+    const keys = new Set(best?.keys ?? [])
+    for (const key of new Set([...(c.kiteKeys ?? []), ...keys])) {
+        bot.setControlState?.(key, keys.has(key))
     }
+    c.kiteKeys = keys
     return best?.keys ?? null
 }
 

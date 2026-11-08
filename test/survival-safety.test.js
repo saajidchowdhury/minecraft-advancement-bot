@@ -986,11 +986,12 @@ test('melee inside 2.5 blocks makes the bot back away while it keeps facing the 
     // User advice: zombies are slower than a walking player and reach half as far; back up while hitting.
     const { kite } = require('../src/survival-bot')
     const { bot, controls } = kitingBot()
+    const c = { bot }
     const zombie = { name: 'zombie', isValid: true, position: new Vec3(0.5, 64, -1.5) }
-    assert.deepEqual(kite({ bot }, [zombie]), ['back'])
+    assert.deepEqual(kite(c, [zombie]), ['back'])
     assert.equal(controls.back, true)
     zombie.position = new Vec3(0.5, 64, -3.2)
-    assert.equal(kite({ bot }, [zombie]), null)
+    assert.equal(kite(c, [zombie]), null)
     assert.equal(controls.back, false)
 })
 
@@ -1046,10 +1047,11 @@ test('kiting jumps up a one-block rise behind instead of standing still (user te
         }
         return blockAt(p)
     }
-    const keys = kite({ bot }, [zombie])
+    const c = { bot }
+    const keys = kite(c, [zombie])
     assert.ok(keys?.includes('jump') && keys.includes('back'), `expected a jumping back-step, got ${keys}`)
     assert.equal(controls.jump, true)
-    kite({ bot }, [])
+    kite(c, [])
     assert.equal(controls.jump, false)
 })
 
@@ -1102,7 +1104,7 @@ test('an attacker behind the bot makes it step forward away at once, before turn
     const keys = kite({ bot }, [zombie])
     assert.ok(keys?.includes('forward'), `expected a forward step, got ${keys}`)
     assert.equal(controls.forward, true)
-    assert.equal(controls.back, false)
+    assert.ok(!controls.back)
 })
 
 test('charging an archer that keeps its distance alternates shield blocks with unshielded closing', async t => {
@@ -1137,4 +1139,21 @@ test('charging an archer that keeps its distance alternates shield blocks with u
             assert.ok(events[i + 1][1] - events[i][1] <= 800, 'shield held too long while out of reach')
         }
     }
+})
+
+test('releasing kiting never clears movement keys that the pathfinder is holding', () => {
+    // Round 11: kite(null) on every chase tick cleared the pathfinder's forward key, freezing the charge.
+    const { kite } = require('../src/survival-bot')
+    const { bot, controls } = kitingBot()
+    const c = { bot }
+    controls.forward = true
+    controls.jump = true
+    kite(c, null)
+    assert.equal(controls.forward, true)
+    assert.equal(controls.jump, true)
+    kite(c, [{ name: 'zombie', isValid: true, position: new Vec3(0.5, 64, -1.5) }])
+    assert.equal(controls.back, true)
+    kite(c, null)
+    assert.equal(controls.back, false)
+    assert.equal(controls.forward, true)
 })
