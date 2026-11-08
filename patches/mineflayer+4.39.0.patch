@@ -35,6 +35,21 @@ index fb2766a..2a7d7c2 100644
    async function craftOnce (recipe, craftingTable) {
      if (craftingTable) {
        if (!windowCraftingTable) {
+diff --git a/node_modules/mineflayer/lib/plugins/entities.js b/node_modules/mineflayer/lib/plugins/entities.js
+index 0000000..0000000 100644
+--- a/node_modules/mineflayer/lib/plugins/entities.js
++++ b/node_modules/mineflayer/lib/plugins/entities.js
+@@ -494,8 +494,8 @@
+         }
+       }
+ 
+-      // Breathing (formerly in breath.js)
+-      if (metas.air_supply != null) {
++      // Breathing (formerly in breath.js); every entity carries air_supply, so only the bot's counts
++      if (metas.air_supply != null && entity === bot.entity) {
+         bot.oxygenLevel = Math.round(metas.air_supply / 15)
+         bot.emit('breath')
+       }
 diff --git a/node_modules/mineflayer/lib/plugins/inventory.js b/node_modules/mineflayer/lib/plugins/inventory.js
 index bab0eef..39d4a79 100644
 --- a/node_modules/mineflayer/lib/plugins/inventory.js

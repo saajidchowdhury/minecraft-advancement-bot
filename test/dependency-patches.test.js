@@ -65,3 +65,27 @@ test('a server close releases the furnace and stale closes leave the next window
     await second.close()
     assert.equal(client.listenerCount('craft_progress_bar'), 0)
 })
+
+test('only the bot entity air_supply metadata sets oxygenLevel, not a nearby drowning mob', () => {
+    // Live 01:47Z: a mob's falling air supply read as the bot's (12 -> 4 -> 0 -> -1 in a dry tunnel).
+    const injectEntities = require('mineflayer/lib/plugins/entities')
+    const bot = new EventEmitter()
+    bot.version = '26.1'
+    bot.registry = require('prismarine-registry')(bot.version)
+    bot.supportFeature = bot.registry.supportFeature
+    bot._client = new EventEmitter()
+    bot._client.username = 'AdvancementBot'
+    injectEntities(bot, {})
+    bot._client.emit('login', { entityId: 7, dimension: 'overworld', worldState: { dimension: 'overworld' } })
+    const zombie = bot.registry.entitiesByName.zombie
+    bot.entities[9] = Object.assign(new (require('prismarine-entity')(bot.version))(9), { name: 'zombie', type: 'hostile', entityType: zombie.id })
+    const breaths = []
+    bot.on('breath', () => breaths.push(bot.oxygenLevel))
+    const airKey = bot.registry.entitiesByName.zombie.metadataKeys.indexOf('air_supply')
+    bot._client.emit('entity_metadata', { entityId: 9, metadata: [{ key: airKey, type: 'int', value: 60 }] })
+    assert.equal(bot.oxygenLevel, undefined)
+    assert.deepEqual(breaths, [])
+    bot._client.emit('entity_metadata', { entityId: 7, metadata: [{ key: 1, type: 'int', value: 180 }] })
+    assert.equal(bot.oxygenLevel, 12)
+    assert.deepEqual(breaths, [12])
+})
