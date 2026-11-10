@@ -5,6 +5,7 @@ const assert = require('node:assert/strict')
 const { EventEmitter } = require('node:events')
 const { Vec3 } = require('vec3')
 const { SurvivalController } = require('../src/survival-bot')
+const { isUnderFeet } = require('../src/under-feet')
 const { Actions } = require('../src/decision-engine')
 
 test('disconnect before Mineflayer injects its plugins stops the controller cleanly', () => {
@@ -56,7 +57,7 @@ test('a failed wall placement cannot produce a complete shelter', async () => {
     const c = shelterWorld()
     const place = c.placeSurvivalBlock
     c.placeSurvivalBlock = async p => {
-        if (p.equals(new Vec3(1, 65, 0))) {
+        if (p.equals(new Vec3(2, 65, 0))) {
             throw new Error('simulated placement failure')
         }
         await place(p)
@@ -84,8 +85,31 @@ test('completed shelter geometry can be checked again after a wall is destroyed'
     await SurvivalController.prototype.makeNightSafe.call(c)
     assert.equal(c.sheltered, true)
     assert.equal(c.hasEnclosedShelter(c.shelterCenter), true)
-    c.blocks.set(new Vec3(1, 65, 0).toString(), 'air')
+    c.blocks.set(new Vec3(2, 65, 0).toString(), 'air')
     assert.equal(c.hasEnclosedShelter(c.shelterCenter), false)
+})
+
+test('the surface shelter encloses two floor cells with 20 walls, one roof seat and two roofs', async () => {
+    const c = shelterWorld()
+    await SurvivalController.prototype.makeNightSafe.call(c)
+    assert.deepEqual(c.shelterSide, [1, 0])
+    assert.deepEqual(c.memory.shelter.side, [1, 0])
+    assert.equal(c.placed.length, 23)
+    for (const cell of [new Vec3(0, 64, 0), new Vec3(1, 64, 0)]) {
+        assert.equal([0, 1].every(dy => c.bot.blockAt(cell.offset(0, dy, 0)).name === 'air'), true)
+        assert.equal(c.bot.blockAt(cell.offset(0, 2, 0)).name, 'cobblestone')
+    }
+    c.bot.entity.position = new Vec3(1.5, 64, 0.5)
+    assert.equal(c.hasEnclosedShelter(c.shelterCenter), true)
+})
+
+test('without an open neighbouring cell the surface shelter falls back to burrowing', async () => {
+    const c = shelterWorld()
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        c.blocks.set(new Vec3(dx, 65, dz).toString(), 'stone')
+    }
+    await assert.rejects(SurvivalController.prototype.makeNightSafe.call(c), /no open neighbouring cell.*burrow fallback failed/)
+    assert.equal(c.placed.length, 0)
 })
 
 test('cancellation during equipping prevents the subsequent placement packet', async () => {
@@ -357,9 +381,10 @@ function burrowWorld(overrides = {}) {
     let dirt = 0
     const c = {
         memory: {}, running: true, paused: false, sheltered: false, actionAbort: new AbortController(), log: { info() {}, warn() {} },
-        countItems: () => dirt, positionText: () => String(c.bot.entity.position.floored()),
+        countItems: () => dirt, positionText: () => String(c.bot.entity.position.floored()), movements: { maxDropDown: 3 },
         bot: {
             registry: {}, game: { dimension: 'overworld' }, health: 20, entity: { position: new Vec3(0.5, 64, 0.5) },
+            pathfinder: { setMovements() {} }, controls: {}, look: null,
             blockAt(p) {
                 const name = blocks.get(p.toString()) || (p.y < 64 ? 'dirt' : 'air')
                 return { name, position: p, diggable: name !== 'air', boundingBox: name === 'air' || name === 'water' ? 'empty' : 'block',
@@ -367,34 +392,53 @@ function burrowWorld(overrides = {}) {
             },
             digTime: () => 750,
             async dig(block) {
+                // Mirrors the controller's dig guard: no block under the hitbox may be removed.
+                assert.equal(isUnderFeet(c.bot, block.position), false, `dug ${block.position} under the bot`)
                 blocks.set(block.position.toString(), 'air')
                 dirt++
-                c.bot.entity.position = block.position.offset(0.5, 0, 0.5)
             },
-            waitForTicks: async () => {}
+            async lookAt(p) { c.bot.look = p },
+            setControlState(name, on) { c.bot.controls[name] = on },
+            async waitForTicks() {
+                const p = c.bot.entity.position
+                if (c.bot.controls.forward && c.bot.look) {
+                    const d = new Vec3(c.bot.look.x - p.x, 0, c.bot.look.z - p.z)
+                    const n = d.norm()
+                    c.bot.entity.position = n < 0.065 ? new Vec3(c.bot.look.x, p.y, c.bot.look.z) : p.plus(d.scaled(0.065 / n))
+                }
+            }
         },
+        async gotoWithTimeout(goal) { c.drops.push(c.movements.maxDropDown); c.bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5) },
         async placeSurvivalBlock(p) { blocks.set(p.toString(), 'dirt'); dirt-- },
-        blocks
+        blocks, drops: []
     }
-    for (const name of ['isEmptyPlacementBlock', 'checkAction', 'hasEnclosedShelter']) {
+    for (const name of ['isEmptyPlacementBlock', 'checkAction', 'hasEnclosedShelter', 'gotoWithDrop']) {
         c[name] = SurvivalController.prototype[name].bind(c)
     }
     return c
 }
 
-test('an empty-handed bot burrows three blocks down and plugs the top before night threats arrive', async () => {
+test('an empty-handed bot burrows a sealed two-cell room three blocks down without digging under itself', async () => {
     const c = burrowWorld()
     await SurvivalController.prototype.burrow.call(c)
-    assert.deepEqual(c.bot.entity.position.floored(), new Vec3(0, 61, 0))
-    assert.equal(c.blocks.get(new Vec3(0, 63, 0).toString()), 'dirt')
+    assert.deepEqual(c.bot.entity.position.floored(), new Vec3(1, 61, 0))
+    assert.equal(c.blocks.get(new Vec3(1, 63, 0).toString()), 'dirt')
+    assert.equal(c.bot.blockAt(new Vec3(0, 63, 0)).name, 'dirt')
+    assert.equal([61, 62].every(y => [0, 1].every(x => c.bot.blockAt(new Vec3(x, y, 0)).name === 'air')), true)
+    assert.deepEqual(c.drops, [4])
+    assert.equal(c.movements.maxDropDown, 3)
     assert.equal(c.sheltered, true)
-    assert.deepEqual(c.shelterCenter, new Vec3(0, 61, 0))
+    assert.deepEqual(c.shelterCenter, new Vec3(1, 61, 0))
+    assert.deepEqual(c.memory.shelter.side, [-1, 0])
+    c.bot.entity.position = new Vec3(0.5, 61, 0.5)
+    assert.equal(c.hasEnclosedShelter(c.shelterCenter), true)
 })
 
 test('burrowing is refused over water, falling blocks or an open cave below', async () => {
-    for (const hazard of [{ [new Vec3(1, 62, 0)]: 'water' }, { [new Vec3(0, 62, 0)]: 'gravel' }, { [new Vec3(0, 60, 0)]: 'air' }, { [new Vec3(1, 61, 1)]: 'air' }]) {
+    for (const hazard of [{ [new Vec3(0, 62, 0)]: 'water' }, { [new Vec3(0, 62, 0)]: 'gravel' }, { [new Vec3(0, 60, 0)]: 'air' },
+        { [new Vec3(1, 61, 1)]: 'air' }, { [new Vec3(0, 63, 0)]: 'sand' }]) {
         const c = burrowWorld(hazard)
-        await assert.rejects(SurvivalController.prototype.burrow.call(c), /no hand-diggable enclosed column/)
+        await assert.rejects(SurvivalController.prototype.burrow.call(c), /no hand-diggable enclosed room/)
         assert.equal(c.bot.entity.position.y, 64)
     }
 })
@@ -404,6 +448,14 @@ test('a refused burrow names the open wall, floor or column cell that blocked it
         [{ [new Vec3(0, 60, 0)]: 'air' }, /floor \(0, 60, 0\) is air/], [{ [new Vec3(0, 62, 0)]: 'gravel' }, /column cell \(0, 62, 0\) is gravel/]]) {
         await assert.rejects(SurvivalController.prototype.burrow.call(burrowWorld(hazard)), reason)
     }
+})
+
+test('a burrow from inside a two-cell shelter uses the open neighbour and digs its entry only when needed', async () => {
+    const c = burrowWorld({ [new Vec3(1, 64, 0)]: 'dirt', [new Vec3(1, 65, 0)]: 'dirt', [new Vec3(-1, 64, 0)]: 'dirt',
+        [new Vec3(0, 64, 1)]: 'dirt', [new Vec3(0, 64, -1)]: 'dirt', [new Vec3(-1, 65, 0)]: 'dirt', [new Vec3(0, 65, 1)]: 'dirt' })
+    await SurvivalController.prototype.burrow.call(c)
+    assert.deepEqual(c.shelterCenter, new Vec3(0, 61, -1))
+    assert.equal(c.bot.blockAt(new Vec3(1, 64, 0)).name, 'dirt')
 })
 
 test('a refused mining descent leaves an intact shelter closed and disables retries there', async () => {
@@ -424,13 +476,14 @@ test('the shelter roof is seated on a wall-top block, and a failed shell falls b
     const c = shelterWorld()
     await SurvivalController.prototype.makeNightSafe.call(c)
     const order = c.placed.map(String)
-    assert.ok(order.indexOf(String(new Vec3(1, 66, 0))) < order.indexOf(String(new Vec3(0, 66, 0))))
+    assert.ok(order.indexOf(String(new Vec3(-1, 66, 0))) < order.indexOf(String(new Vec3(0, 66, 0))))
+    assert.ok(order.indexOf(String(new Vec3(0, 66, 0))) < order.indexOf(String(new Vec3(1, 66, 0))))
     const failing = shelterWorld()
     let burrowed = false
     failing.burrow = async () => { burrowed = true }
     const place = failing.placeSurvivalBlock
     failing.placeSurvivalBlock = async p => {
-        if (p.equals(new Vec3(1, 65, 0))) {
+        if (p.equals(new Vec3(2, 65, 0))) {
             throw new Error('simulated placement failure')
         }
         await place(p)
@@ -441,16 +494,16 @@ test('the shelter roof is seated on a wall-top block, and a failed shell falls b
 
 test('the shelter uses another wall when a non-solid block obstructs the first roof support', async () => {
     const c = shelterWorld()
-    const east = new Vec3(1, 66, 0)
     const west = new Vec3(-1, 66, 0)
+    const south = new Vec3(0, 66, 1)
     const blockAt = c.bot.blockAt
-    c.bot.blockAt = p => p.equals(east) ? { name: 'vine', position: p, boundingBox: 'empty', shapes: [] } : blockAt(p)
+    c.bot.blockAt = p => p.equals(west) ? { name: 'vine', position: p, boundingBox: 'empty', shapes: [] } : blockAt(p)
     c.bestItem = () => ({ name: 'cobblestone' })
     c.bot.equip = async () => {}
     c.bot.placeBlock = async (ref, face) => { c.blocks.set(ref.position.plus(face).toString(), 'cobblestone') }
     c.placeSurvivalBlock = SurvivalController.prototype.placeSurvivalBlock.bind(c)
     await SurvivalController.prototype.makeNightSafe.call(c)
-    assert.equal(c.blocks.get(west.toString()), 'cobblestone')
+    assert.equal(c.blocks.get(south.toString()), 'cobblestone')
     assert.equal(c.sheltered, true)
 })
 
@@ -555,19 +608,11 @@ test('threat cancellations replan within 100 ms instead of the routine 1.5 s', a
     assert.deepEqual(delays, [100, 250])
 })
 
-test('an off-centre burrow steps into its own hole instead of failing the descent', async () => {
+test('an off-centre bot is centred before burrowing so the neighbouring column is not under its hitbox', async () => {
     const c = burrowWorld()
     c.bot.entity.position = new Vec3(0.95, 64, 0.5)
-    const dig = c.bot.dig
-    // The bot only drops when its 0.6-wide box is over the dug cell, not resting on a neighbour.
-    c.bot.dig = async block => {
-        const before = c.bot.entity.position
-        await dig(block)
-        c.bot.entity.position = Math.abs(before.x - 0.5) < 0.2 ? block.position.offset(0.5, 0, 0.5) : before
-    }
-    c.gotoWithTimeout = async goal => { c.bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5) }
     await SurvivalController.prototype.burrow.call(c)
-    assert.deepEqual(c.bot.entity.position.floored(), new Vec3(0, 61, 0))
+    assert.deepEqual(c.bot.entity.position.floored(), new Vec3(1, 61, 0))
     assert.equal(c.sheltered, true)
 })
 

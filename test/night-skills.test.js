@@ -154,6 +154,32 @@ test('daylight shelter exit opens a checked doorway and clears only the shelter 
     assert.equal(c.bot.entity.position.x, 1.5)
 })
 
+test('a two-cell shelter exits from either cell but never digs into its own second cell', async () => {
+    const { c, blocks } = restWorld()
+    c.sheltered = true
+    c.shelterCenter = new Vec3(0, 64, 0)
+    c.shelterSide = [1, 0]
+    c.hasEnclosedShelter = () => true
+    // Only the far wall of the second cell has footing beyond it.
+    for (let x = -2; x <= 3; x++) {
+        for (const z of [-2, -1, 0, 1, 2]) {
+            if (!(x === 3 && z === 0)) {
+                blocks.set(new Vec3(x, 63, z).toString(), 'air')
+            }
+        }
+    }
+    const dug = []
+    c.movements.safeToBreak = () => true
+    const blockAt = c.bot.blockAt
+    c.bot.blockAt = p => ({ ...blockAt(p), diggable: true })
+    c.bot.tool = { equipForBlock: async () => {} }
+    c.bot.dig = async b => { dug.push(b.position.toString()); blocks.set(b.position.toString(), 'air') }
+    c.gotoWithTimeout = async goal => { c.bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5) }
+    await leaveShelter(c)
+    assert.deepEqual(dug, [new Vec3(2, 65, 0), new Vec3(2, 64, 0)].map(String))
+    assert.equal(c.bot.entity.position.x, 2.5)
+})
+
 test('ordinary ground vegetation is cleared before bed placement instead of preventing sleep', async () => {
     const { c, state, blocks } = restWorld()
     for (let x = -4; x <= 4; x++) {

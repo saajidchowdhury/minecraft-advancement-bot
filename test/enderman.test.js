@@ -187,10 +187,13 @@ test('an enderman blocking the shaft roof triggers a sealed two-high side refuge
     c.makeNightSafe = async () => assert.fail('built a cage in the occupied shaft')
     c.bestItem = c.bestFood = () => null
     c.endermanDanger = () => false
+    c.bot.setControlState = () => {}
     await c.avoidEnderman()
-    assert.equal(dug.length, 4)
+    assert.equal(dug.length, 6)
     assert.equal(dug.every(p => p.y === 61 || p.y === 62), true)
     assert.equal(c.hasEnclosedShelter(c.shelterCenter), true)
-    assert.equal(c.bot.entity.position.distanceTo(new Vec3(0.5, 61, 0.5)), 2)
+    assert.equal(c.bot.entity.position.distanceTo(new Vec3(0.5, 61, 0.5)), 3)
+    assert.equal(c.bot.blockAt(new Vec3(1, 61, 0)).name, 'cobblestone')
+    assert.equal(c.bot.blockAt(new Vec3(2, 61, 0)).name, 'air')
     assert.equal(c.bot.blockAt(new Vec3(1, 63, 0)).name, 'stone')
 })

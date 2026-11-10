@@ -153,9 +153,13 @@ async function leaveShelter(c) {
         delete c.memory.shelter
         return
     }
-    for (const [dx, dz] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
-        const target = center.offset(dx, 0, dz)
-        const beyond = center.offset(2 * dx, 0, 2 * dz)
+    const side = c.shelterSide
+    const room = side ? [center, center.offset(side[0], 0, side[1])] : [center]
+    const exits = room.flatMap(cell => [[1, 0], [0, 1], [-1, 0], [0, -1]].map(([dx, dz]) => ({ cell, dx, dz })))
+        .filter(({ cell, dx, dz }) => !room.some(other => other.equals(cell.offset(dx, 0, dz))))
+    for (const { cell, dx, dz } of exits) {
+        const target = cell.offset(dx, 0, dz)
+        const beyond = cell.offset(2 * dx, 0, 2 * dz)
         const blocks = [target.offset(0, 1, 0), target].map(p => c.bot.blockAt(p))
         if (!safeFooting(c.bot, beyond) || blocks.some(b => !b || !b.diggable || !c.movements.safeToBreak(b))) {
             continue

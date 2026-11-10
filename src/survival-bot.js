@@ -24,6 +24,7 @@ const { golemState, summonGolem } = require('./golem')
 const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
 const { updateCrowdRetreat, retreatToWall, mineFromRefuge } = require('./crowd-retreat')
 const { reachGoal, treePillar, climbForLog } = require('./tree-climb')
+const { isUnderFeet, rememberPlacement, forgetPlacement, placedOnSupport, stepOffCells, centerIn } = require('./under-feet')
 
 const { GoalNear, GoalFollow } = goals
 
@@ -43,6 +44,9 @@ const CREEPERS = new Set(['creeper'])
 const ARCHERS = new Set(['skeleton', 'stray', 'bogged', 'pillager'])
 const WATER_BLOCKS = new Set(['water', 'bubble_column', 'kelp', 'kelp_plant', 'seagrass', 'tall_seagrass'])
 const BUILDING_BLOCKS = ['cobblestone', 'cobbled_deepslate', 'dirt', 'netherrack']
+// Two-cell surface shelter: 20 ring walls, one roof seat and two roof blocks.
+const SHELTER_BLOCKS = 23
+const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]]
 const SAFE_DESCENT_BLOCKS = new Set([
     'dirt', 'grass_block', 'coarse_dirt', 'rooted_dirt', 'podzol', 'mycelium',
     'mud', 'clay', 'sand', 'red_sand', 'gravel', 'snow_block'
@@ -198,6 +202,28 @@ function pathfinderDropLimitForLanding (surfaceDrop) {
     return Math.min(4, surfaceDrop + 1)
 }
 
+function shelterRoom (center, side) {
+    return side ? [center, center.offset(side[0], 0, side[1])] : [center]
+}
+
+// Body- and head-level cells of the 3x3 neighbourhoods around the room cells, the room excluded.
+function shelterRing (room) {
+    const inside = new Set(room.map(String))
+    const ring = new Map()
+    for (const cell of room) {
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dz = -1; dz <= 1; dz++) {
+                const base = cell.offset(dx, 0, dz)
+                if (!inside.has(String(base))) {
+                    ring.set(String(base), base)
+                    ring.set(String(base.offset(0, 1, 0)), base.offset(0, 1, 0))
+                }
+            }
+        }
+    }
+    return [...ring.values()]
+}
+
 function heapPressureExceeded (heapUsed, limit = HEAP_GUARD_BYTES) {
     return heapUsed >= limit
 }
@@ -301,6 +327,7 @@ class SurvivalController {
         this.busy = false
         this.sheltered = false
         this.shelterCenter = null
+        this.shelterSide = null
         this.activeAction = null
         this.home = null
         this.lastAction = 'starting'
@@ -534,11 +561,72 @@ class SurvivalController {
                 this.log.debug?.(`Breaking ${block.name} with ${tool?.name || 'bare hands'}.`)
             }
             const dimension = this.bot.game.dimension
+            if (block?.boundingBox === 'block' && isUnderFeet(this.bot, block.position) &&
+                !placedOnSupport(this.memory, dimension, this.bot, block)) {
+                await this.stepOffBlock(block)
+            }
             await dig(block, ...args)
             if (block && this.bot.game.dimension === dimension) {
+                forgetPlacement(this.memory, dimension, block.position)
                 rememberMiningExposure(this, block)
             }
         }
+        // Record own placements so pillar and tower blocks stay minable from on top of them.
+        for (const name of ['placeBlock', '_placeBlockWithOptions']) {
+            const place = this.bot[name]?.bind(this.bot)
+            if (!place) {
+                continue
+            }
+            this.bot[name] = async (reference, face, ...args) => {
+                const target = reference?.position?.plus(face)
+                const dimension = this.bot.game.dimension
+                const before = target && this.bot.blockAt(target, false)
+                const record = () => {
+                    const after = target && this.bot.blockAt(target, false)
+                    if (after?.boundingBox !== 'block' || before?.boundingBox === 'block' || this.bot.game.dimension !== dimension) {
+                        return false
+                    }
+                    rememberPlacement(this.memory, dimension, after, this.bot.blockAt(target.offset(0, -1, 0), false))
+                    return true
+                }
+                try {
+                    return await place(reference, face, ...args)
+                } finally {
+                    // A placement reported as unanswered can still land a moment later (tree pillars).
+                    if (target && !record() && this.bot.once) {
+                        const event = `blockUpdate:${target}`
+                        const listener = () => record()
+                        this.bot.once(event, listener)
+                        setTimeout(() => this.bot.removeListener(event, listener), 2000).unref?.()
+                    }
+                }
+            }
+        }
+    }
+
+    // Natural ground under the bot may hide a cave below (live 05:04Z fall through a stalactite),
+    // so step to an adjacent standing cell, centred, before mining it.
+    async stepOffBlock (block) {
+        if (this.bot.pathfinder?.goal) {
+            throw new Error(`refusing to mine the ${block.name} under the bot while pathing`)
+        }
+        const signal = this.actionAbort?.signal
+        for (const cell of stepOffCells(this.bot, block.position).slice(0, 3)) {
+            try {
+                await this.gotoWithTimeout(new goals.GoalBlock(cell.x, cell.y, cell.z), 3000, 'step off dig target')
+                await centerIn(this.bot, cell)
+            } catch (error) {
+                if (signal?.aborted) {
+                    throw new Error('action cancelled')
+                }
+                this.log.warn(`Step off ${block.name} toward ${cell} failed: ${error.message}`)
+            }
+            if (!isUnderFeet(this.bot, block.position)) {
+                this.log.info(`Stepped off ${block.name} at ${block.position} to ${cell} before mining it.`)
+                return
+            }
+        }
+        throw new Error(`refusing to mine the ${block.name} under the bot: no adjacent safe standing cell`)
     }
 
     async onSpawn () {
@@ -579,8 +667,9 @@ class SurvivalController {
         const savedShelter = this.memory.shelter
         if (savedShelter?.dimension === this.bot.game.dimension) {
             const center = new Vec3(savedShelter.x, savedShelter.y, savedShelter.z)
-            if (this.hasEnclosedShelter(center)) {
+            if (this.hasEnclosedShelter(center, savedShelter.side)) {
                 this.shelterCenter = center
+                this.shelterSide = savedShelter.side
                 this.sheltered = true
             }
         }
@@ -986,7 +1075,7 @@ class SurvivalController {
                 })
             case Actions.REFUGE: return retreatToWall(this)
             case 'mine_from_refuge': return mineFromRefuge(this, state)
-            case Actions.DESCEND: return this.descendSafely()
+            case Actions.DESCEND: return this.recoverMobility()
             case Actions.ASCEND: return this.escapeVerticalShaft()
             case Actions.RECOVER: return this.recoverItems()
             case Actions.FIGHT: return this.fight(state.rangedDistance <= 12 ? state.ranged : state.hostile ?? (state.cornered ? this.closeMelee() : null),
@@ -1417,7 +1506,14 @@ class SurvivalController {
     }
 
     async recoverMobility () {
-        const minedLevels = await this.descendSafely()
+        // Only own pillar blocks may be mined from on top; a natural pillar needs a landing instead.
+        const minedLevels = await this.descendSafely().catch(error => {
+            if (!/under the bot/.test(error.message)) {
+                throw error
+            }
+            this.log.warn(`Pillar descent refused: ${error.message}`)
+            return 0
+        })
         if (minedLevels > 0) {
             return
         }
@@ -1430,20 +1526,8 @@ class SurvivalController {
             throw new Error('path movements are not initialized')
         }
 
-        const previousDrop = this.movements.maxDropDown
         this.log.info(`Trying controlled ${landing.drop}-block descent toward ${landing.x},${landing.y},${landing.z}.`)
-        try {
-            this.movements.maxDropDown = pathfinderDropLimitForLanding(landing.drop)
-            this.bot.pathfinder.setMovements(this.movements)
-            await this.gotoWithTimeout(
-                new GoalNear(landing.x, landing.y, landing.z, 1),
-                15000,
-                'controlled descent'
-            )
-        } finally {
-            this.movements.maxDropDown = previousDrop
-            this.bot.pathfinder.setMovements(this.movements)
-        }
+        await this.gotoWithDrop(new GoalNear(landing.x, landing.y, landing.z, 1), landing.drop, 15000, 'controlled descent')
     }
 
     async gatherWood () {
@@ -1670,10 +1754,6 @@ class SurvivalController {
                 }
                 if (signal?.aborted) {
                     throw new Error('collection cancelled')
-                }
-                const feet = this.bot.entity.position.floored()
-                if (block.position.x === feet.x && block.position.z === feet.z && block.position.y < feet.y) {
-                    throw new Error('refusing to mine the support block under the bot')
                 }
                 if (!this.movements.safeToBreak(block)) {
                     throw new Error(`unsafe block to mine: ${block.name}`)
@@ -2213,18 +2293,21 @@ class SurvivalController {
         }
     }
 
+    // Dig a two-high passage three cells into a wall, stand at its end and seal its first cell,
+    // leaving a 1x2 room endermen (three tall) cannot enter.
     async endermanSideRefuge () {
         const origin = this.bot.entity.position.floored()
         const at = p => this.bot.blockAt(p, false)
         const solid = p => at(p)?.boundingBox === 'block' && !['magma_block', 'cactus', 'powder_snow'].includes(at(p).name)
-        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-            const cells = [1, 2].flatMap(n => [1, 0].map(dy => origin.offset(n * dx, dy, n * dz)))
-            const center = origin.offset(2 * dx, 0, 2 * dz)
+        for (const [dx, dz] of SIDES) {
+            const cells = [1, 2, 3].flatMap(n => [1, 0].map(dy => origin.offset(n * dx, dy, n * dz)))
+            const center = origin.offset(3 * dx, 0, 3 * dz)
+            const back = [0 - dx, 0 - dz]
             if (!cells.every(p => solid(p) && at(p).diggable && !PROTECTED_CONTAINERS.has(at(p).name) &&
                 !['sand', 'red_sand', 'gravel'].includes(at(p).name) &&
                 (at(p).material !== 'mineable/pickaxe' || miningPickaxe(this, at(p)))) ||
-                ![1, 2].every(n => solid(origin.offset(n * dx, -1, n * dz)) && solid(origin.offset(n * dx, 2, n * dz))) ||
-                ![-1, 0, 1].every(x => [-1, 0, 1].every(z => [0, 1].every(y => solid(center.offset(x, y, z)))))) {
+                ![1, 2, 3].every(n => solid(origin.offset(n * dx, -1, n * dz)) && solid(origin.offset(n * dx, 2, n * dz))) ||
+                !shelterRing(shelterRoom(center, back)).every(solid)) {
                 continue
             }
             for (const cell of cells) {
@@ -2234,15 +2317,17 @@ class SurvivalController {
                 await this.bot.dig(at(cell), true)
             }
             await this.gotoWithTimeout(new goals.GoalBlock(center.x, center.y, center.z), 3000, 'low enderman refuge')
+            await centerIn(this.bot, center)
             for (const dy of [0, 1]) {
                 await this.placeSurvivalBlock(origin.offset(dx, dy, dz))
             }
             this.checkAction()
-            if (!this.hasEnclosedShelter(center)) {
+            if (!this.hasEnclosedShelter(center, back)) {
                 throw new Error('side refuge enclosure incomplete')
             }
             this.shelterCenter = center.clone()
-            this.memory.shelter = { x: center.x, y: center.y, z: center.z, dimension: this.bot.game.dimension, burrowed: true }
+            this.shelterSide = back
+            this.memory.shelter = { x: center.x, y: center.y, z: center.z, dimension: this.bot.game.dimension, burrowed: true, side: back }
             this.sheltered = true
             return
         }
@@ -2472,8 +2557,14 @@ class SurvivalController {
         }
     }
 
-    hasEnclosedShelter (center) {
-        if (!center || !this.bot.entity.position.floored().equals(center)) {
+    // A shelter is a 1x2 room: center plus center+side ([dx, dz]); an old single cell has no side.
+    hasEnclosedShelter (center, side = this.shelterSide) {
+        if (!center) {
+            return false
+        }
+        const room = shelterRoom(center, side)
+        const feet = this.bot.entity.position.floored()
+        if (!room.some(cell => cell.equals(feet))) {
             return false
         }
         const solid = position => {
@@ -2481,28 +2572,15 @@ class SurvivalController {
             return block?.boundingBox === 'block' && !['magma_block', 'cactus', 'powder_snow'].includes(block.name) &&
                 block.shapes.some(shape => shape.length === 6 && shape.every((x, i) => x === (i < 3 ? 0 : 1)))
         }
-        if (!this.isEmptyPlacementBlock(this.bot.blockAt(center, false)) ||
-            !this.isEmptyPlacementBlock(this.bot.blockAt(center.offset(0, 1, 0), false)) ||
-            !solid(center.offset(0, -1, 0)) || !solid(center.offset(0, 2, 0))) {
-            return false
-        }
-        for (let dx = -1; dx <= 1; dx++) {
-            for (let dz = -1; dz <= 1; dz++) {
-                if (dx === 0 && dz === 0) {
-                    continue
-                }
-                if (!solid(center.offset(dx, 0, dz)) || !solid(center.offset(dx, 1, dz))) {
-                    return false
-                }
-            }
-        }
-        return true
+        return room.every(cell => this.isEmptyPlacementBlock(this.bot.blockAt(cell, false)) &&
+            this.isEmptyPlacementBlock(this.bot.blockAt(cell.offset(0, 1, 0), false)) &&
+            solid(cell.offset(0, -1, 0)) && solid(cell.offset(0, 2, 0))) && shelterRing(room).every(solid)
     }
 
     async makeNightSafe () {
         const signal = this.actionAbort?.signal
         this.checkAction(signal)
-        if (this.countItems(BUILDING_BLOCKS) < 17) {
+        if (this.countItems(BUILDING_BLOCKS) < SHELTER_BLOCKS) {
             const burrowed = await this.burrow().then(() => true, error => {
                 this.log.warn(`Emergency burrow unavailable: ${error.message}`)
                 return false
@@ -2521,35 +2599,48 @@ class SurvivalController {
             return
         }
         const center = this.bot.entity.position.floored()
+        const at = p => this.bot.blockAt(p, false)
+        const passable = p => at(p)?.boundingBox === 'empty' && !['water', 'lava', 'fire', 'soul_fire', 'powder_snow'].includes(at(p).name)
         const failures = []
-        for (let level = 0; level <= 1; level++) {
-            for (let dx = -1; dx <= 1; dx++) {
-                for (let dz = -1; dz <= 1; dz++) {
-                    if (dx === 0 && dz === 0) {
+        const side = SIDES.find(([dx, dz]) => [0, 1].every(dy => passable(center.offset(dx, dy, dz))) &&
+            at(center.offset(dx, -1, dz))?.boundingBox === 'block')
+        const room = side ? shelterRoom(center, side) : []
+        if (side) {
+            await clearPlants(this, [0, 1].map(dy => room[1].offset(0, dy, 0)))
+            this.checkAction(signal)
+            // Ring columns come bottom cell first, so each head-level wall sits on its body-level one.
+            for (const p of shelterRing(room)) {
+                this.checkAction(signal)
+                await this.placeSurvivalBlock(p).catch(error => failures.push(error.message))
+                this.checkAction(signal)
+            }
+        } else {
+            failures.push('no open neighbouring cell for a two-cell shelter')
+        }
+        // Obstructions can make any one wall unusable as a seat for a roof; the second roof
+        // cell seats on the first.
+        for (const cell of room) {
+            const roof = cell.offset(0, 2, 0)
+            const seated = () => SIDES.some(([dx, dz]) => at(roof.offset(dx, 0, dz))?.boundingBox === 'block')
+            for (const [dx, dz] of SIDES) {
+                if (!this.isEmptyPlacementBlock(at(roof))) {
+                    break
+                }
+                const support = roof.offset(dx, 0, dz)
+                if (!seated()) {
+                    if (room.some(other => other.offset(0, 2, 0).equals(support))) {
                         continue
                     }
+                    await this.placeSurvivalBlock(support).catch(error => failures.push(error.message))
                     this.checkAction(signal)
-                    await this.placeSurvivalBlock(center.offset(dx, level, dz))
-                        .catch(error => failures.push(error.message))
+                }
+                if (seated()) {
+                    await this.placeSurvivalBlock(roof).catch(error => failures.push(error.message))
                     this.checkAction(signal)
                 }
             }
         }
-        const roof = center.offset(0, 2, 0)
-        // Obstructions can make any one wall unusable as a seat for the roof.
-        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-            if (!this.isEmptyPlacementBlock(this.bot.blockAt(roof, false))) {
-                break
-            }
-            const support = roof.offset(dx, 0, dz)
-            await this.placeSurvivalBlock(support).catch(error => failures.push(error.message))
-            this.checkAction(signal)
-            if (this.bot.blockAt(support, false)?.boundingBox === 'block') {
-                await this.placeSurvivalBlock(roof).catch(error => failures.push(error.message))
-                this.checkAction(signal)
-            }
-        }
-        if (!this.hasEnclosedShelter(center)) {
+        if (!side || !this.hasEnclosedShelter(center, side)) {
             this.sheltered = false
             this.shelterCenter = null
             const reason = `shelter enclosure incomplete; ${failures.length} placement errors${failures.length ? `: ${failures.at(-1)}` : ''}`
@@ -2559,7 +2650,8 @@ class SurvivalController {
             return
         }
         this.shelterCenter = center.clone()
-        this.memory.shelter = { x: center.x, y: center.y, z: center.z, dimension: this.bot.game.dimension }
+        this.shelterSide = side
+        this.memory.shelter = { x: center.x, y: center.y, z: center.z, dimension: this.bot.game.dimension, side }
         this.sheltered = true
         this.log.info('Emergency shelter enclosure verified; waiting for daylight.')
         await sleep(1000)
@@ -2589,32 +2681,60 @@ class SurvivalController {
         }
     }
 
+    // A sealed 1x2 room three blocks down that never digs under the bot: from the centred top cell
+    // A dig the neighbouring column B (entry, then three below), drop into B's bottom (a damage-free
+    // three-block fall), open A's lower two cells from beside them, then plug B's top; A's original
+    // support stays as A's roof.
     async burrow (forMining = false) {
         const signal = this.actionAbort?.signal
         const top = this.bot.entity.position.floored()
-        const center = top.offset(0, -3, 0)
         const at = p => this.bot.blockAt(p, false)
         const solid = p => at(p)?.boundingBox === 'block' && !['lava', 'magma_block'].includes(at(p).name)
-        const column = [1, 2, 3].map(dy => top.offset(0, -dy, 0))
-        const undiggable = column.find(p => {
+        const FALLING = ['sand', 'red_sand', 'gravel', 'suspicious_sand', 'suspicious_gravel']
+        const diggable = p => {
             const block = at(p)
-            return !(block?.boundingBox === 'block' && block.diggable && !PROTECTED_CONTAINERS.has(block.name) &&
-                (block.material !== 'mineable/pickaxe' || miningPickaxe(this, block)) &&
-                !['sand', 'red_sand', 'gravel', 'suspicious_sand', 'suspicious_gravel'].includes(block.name) &&
+            return block?.boundingBox === 'block' && block.diggable && !PROTECTED_CONTAINERS.has(block.name) &&
+                (block.material !== 'mineable/pickaxe' || miningPickaxe(this, block)) && !FALLING.includes(block.name) &&
                 (this.bot.digTime?.(block) ?? 0) <= 8000 &&
-                [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]].every(([x, y, z]) => !['water', 'lava'].includes(at(p.offset(x, y, z))?.name)))
-        })
-        const openWall = [0, 1].flatMap(level => [-1, 0, 1].flatMap(dx => [-1, 0, 1].map(dz => center.offset(dx, level, dz))))
-            .find(p => !p.equals(center) && !p.equals(center.offset(0, 1, 0)) && !solid(p))
-        const floor = center.offset(0, -1, 0)
-        const problem = undiggable ? `column cell ${undiggable} is ${at(undiggable)?.name ?? 'unloaded'}` :
-            openWall ? `wall cell ${openWall} is ${at(openWall)?.name ?? 'unloaded'}` :
-                !solid(floor) ? `floor ${floor} is ${at(floor)?.name ?? 'unloaded'}` : !this.bot.registry ? 'no registry' : null
-        if (problem) {
-            throw new Error(`no hand-diggable enclosed column below: ${problem}`)
+                SIDES.every(([x, z]) => !['water', 'lava'].includes(at(p.offset(x, 0, z))?.name))
         }
-        for (const p of column) {
+        const plans = SIDES.map(side => {
+            const entry = top.offset(side[0], 0, side[1])
+            const center = entry.offset(0, -3, 0)
+            const back = [0 - side[0], 0 - side[1]]
+            const room = shelterRoom(center, back)
+            const opening = [1, 0].map(dy => entry.offset(0, dy, 0)).filter(p => !this.isEmptyPlacementBlock(at(p)))
+            const column = [...opening, ...[1, 2, 3].map(dy => entry.offset(0, -dy, 0)), top.offset(0, -2, 0), top.offset(0, -3, 0)]
+            const undiggable = column.find(p => !diggable(p))
+            const roof = top.offset(0, -1, 0)
+            const cap = opening.length ? opening[0].offset(0, 1, 0) : null
+            const openWall = shelterRing(room).find(p => !solid(p))
+            const floor = room.map(p => p.offset(0, -1, 0)).find(p => !solid(p))
+            const problem = undiggable ? `column cell ${undiggable} is ${at(undiggable)?.name ?? 'unloaded'}` :
+                !solid(roof) || FALLING.includes(at(roof).name) ? `roof ${roof} is ${at(roof)?.name ?? 'unloaded'}` :
+                    cap && FALLING.includes(at(cap)?.name) ? `entry cap ${cap} is ${at(cap).name}` :
+                        openWall ? `wall cell ${openWall} is ${at(openWall)?.name ?? 'unloaded'}` :
+                            floor ? `floor ${floor} is ${at(floor)?.name ?? 'unloaded'}` : !this.bot.registry ? 'no registry' : null
+            return { entry, center, back, column, opening, problem }
+        })
+        // Inside a two-cell shelter the open neighbour needs no entry digging.
+        const plan = plans.filter(p => !p.problem).sort((a, b) => a.opening.length - b.opening.length)[0]
+        if (!plan) {
+            throw new Error(`no hand-diggable enclosed room below: ${plans[0].problem}`)
+        }
+        const { entry, center, back } = plan
+        await centerIn(this.bot, top)
+        this.checkAction(signal)
+        for (const p of plan.column) {
             this.checkAction(signal)
+            if (p.equals(top.offset(0, -2, 0))) {
+                await this.gotoWithDrop(new goals.GoalBlock(center.x, center.y, center.z), 3, 4000, 'burrow drop')
+                this.checkAction(signal)
+                await this.bot.waitForTicks(4)
+                if (!this.bot.entity.position.floored().equals(center)) {
+                    throw new Error(`burrow drop ended at ${this.positionText()}`)
+                }
+            }
             const block = at(p)
             if (['mineable/pickaxe', 'mineable/shovel'].includes(block.material)) {
                 await this.equipStoneDigTool(block)
@@ -2622,30 +2742,40 @@ class SurvivalController {
             }
             await this.bot.dig(block, true)
             await this.bot.waitForTicks(8)
-            // An off-centre bot keeps standing on the neighbouring block's edge; step into the hole.
-            if (this.bot.entity.position.y > p.y + 0.5) {
-                await this.gotoWithTimeout(new goals.GoalBlock(p.x, p.y, p.z), 3000, 'burrow step')
-                await this.bot.waitForTicks(4)
-            }
         }
         this.checkAction(signal)
         if (!this.bot.entity.position.floored().equals(center)) {
             throw new Error(`burrow descent ended at ${this.positionText()}`)
         }
         await waitUntil(() => this.countItems(BUILDING_BLOCKS) > 0, 2000, 100).catch(() => {})
-        await this.placeSurvivalBlock(center.offset(0, 2, 0))
+        await this.placeSurvivalBlock(entry.offset(0, -1, 0))
         this.checkAction(signal)
-        if ([0, 1].some(dy => at(center.offset(0, dy, 0))?.name === 'water')) {
-            await until(this, () => [0, 1].every(dy => this.isEmptyPlacementBlock(at(center.offset(0, dy, 0)))), 5000)
+        const room = shelterRoom(center, back)
+        if (room.some(cell => [0, 1].some(dy => at(cell.offset(0, dy, 0))?.name === 'water'))) {
+            await until(this, () => room.every(cell => [0, 1].every(dy => this.isEmptyPlacementBlock(at(cell.offset(0, dy, 0))))), 5000)
             this.checkAction(signal)
         }
-        if (!this.hasEnclosedShelter(center)) {
+        if (!this.hasEnclosedShelter(center, back)) {
             throw new Error('burrow enclosure incomplete')
         }
         this.shelterCenter = center.clone()
-        this.memory.shelter = { x: center.x, y: center.y, z: center.z, dimension: this.bot.game.dimension, burrowed: true }
+        this.shelterSide = back
+        this.memory.shelter = { x: center.x, y: center.y, z: center.z, dimension: this.bot.game.dimension, burrowed: true, side: back }
         this.sheltered = true
-        this.log.info(`Burrow enclosure verified at ${center}; ${forMining ? 'continuing underground' : 'replanning protection'}.`)
+        this.log.info(`Burrow enclosure verified at ${center} beside ${room[1]}; ${forMining ? 'continuing underground' : 'replanning protection'}.`)
+    }
+
+    // Path with a temporarily raised fall limit; pathfinder counts drop to the landing block, so +1.
+    async gotoWithDrop (goal, drop, timeoutMs, label) {
+        const previous = this.movements.maxDropDown
+        try {
+            this.movements.maxDropDown = pathfinderDropLimitForLanding(drop)
+            this.bot.pathfinder.setMovements(this.movements)
+            await this.gotoWithTimeout(goal, timeoutMs, label)
+        } finally {
+            this.movements.maxDropDown = previous
+            this.bot.pathfinder.setMovements(this.movements)
+        }
     }
 
     async placeSurvivalBlock (target) {
@@ -3127,6 +3257,11 @@ class SurvivalController {
         // walk down adjacent steps, but vertical support removal is reserved for
         // descendSafely(), which verifies every landing before digging.
         movements.getMoveDown = () => {}
+        // A stalactite is no floor: it falls once the block above goes (live 05:04Z death).
+        const dripstone = movements.bot.registry.blocksByName.pointed_dripstone
+        if (dripstone) {
+            movements.fences.add(dripstone.id)
+        }
         // Prefer walking around water. Water remains traversable for emergencies,
         // but ordinary scouting will not select an open-ocean destination.
         movements.liquidCost = 50

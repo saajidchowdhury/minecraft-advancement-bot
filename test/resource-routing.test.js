@@ -63,8 +63,10 @@ test('approaching a resource cannot make the bot mine its own support block', as
         running: true,
         paused: false,
         actionAbort: new AbortController(),
+        memory: {}, log: { info() {}, warn() {} },
         bot: {
-            entity: { position: new Vec3(0, 10, 0) }, entities: {}, heldItem: { type: 1 }, world: {},
+            entity: { position: new Vec3(0.5, 10, 0.5) }, entities: {}, heldItem: { type: 1 }, world: {},
+            game: { dimension: 'overworld' }, registry: { blocksByName: {} }, pathfinder: { goal: null },
             blockAt: () => block, canDigBlock: () => true, canSeeBlock: () => true,
             tool: { equipForBlock: async () => {} },
             dig: async () => { dug = true }
@@ -73,7 +75,10 @@ test('approaching a resource cannot make the bot mine its own support block', as
         gotoWithTimeout: async () => {},
         rememberBlockedTarget: () => {}
     }
-    await assert.rejects(SurvivalController.prototype.collectTarget.call(controller, block), /support/)
+    controller.stepOffBlock = SurvivalController.prototype.stepOffBlock.bind(controller)
+    SurvivalController.prototype.configureDigging.call(controller)
+    // Enclosed in stone there is no cell to step to, so the dig guard refuses the support block.
+    await assert.rejects(SurvivalController.prototype.collectTarget.call(controller, block), /under the bot/)
     assert.equal(dug, false)
 })
 
