@@ -644,3 +644,17 @@ patched and restarted on `cecbf1d`; the night-restock and cave-shelter rules are
 
 Session end 2026-11-06 09:07:55Z: bot stopped on `cecbf1d`; 15 server-confirmed advancements on this world,
 seven deaths. Automated baseline: 303 tests passing, syntax checks passing.
+
+## Dig guard and two-cell shelters (port 50876, 2026-11-10)
+
+Automated (450 tests, f40371e): test/under-feet.test.js covers the hitbox
+footprint (edge over a neighbouring column, snow layers), stepping off natural
+support, refusal with no standing cell or mid-path, own tower blocks on sound
+versus stalactite support, late-landing placements, and dripstone as no floor.
+Burrow, surface shelter, enderman refuge and shelter-exit tests now use 1x2
+rooms, and the burrow fake asserts no dig is under the bot. Each new or changed
+test fails on the pre-fix controller.
+Staged live (outputs/dig-guard-practice.js, commands only in setup/cleanup):
+ore over a stalactite (centred and hitbox-edge), dirt burrow, surface shelter
+with exit, and own pillar descent, 5/5 PASS with no damage (F102). Natural
+night shelters and mineFromShelter from a 2-cell shelter are unverified live.

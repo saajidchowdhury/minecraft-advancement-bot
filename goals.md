@@ -8,11 +8,18 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
-Session handoff: the normal bot runs on port 49278, PID 19883, from 6528d10
-in outputs/2026-11-07@22.58.42, launched in a visible Terminal window (the
-user's preferred method for live runs). Verify process identity and the
-latest log before stopping or launching anything; do not duplicate it.
-Automated baseline: 439 passing tests and syntax checks.
+Session handoff (2026-11-10): no bot is running. The latest LAN port is 50876
+(staged F102 practice only). Launch live runs in a visible Terminal window (the
+user's preferred method). Verify process identity and the latest log before
+stopping or launching anything; do not duplicate it.
+Automated baseline: 450 passing tests and syntax checks (f40371e).
+
+F102 (2026-11-10, f40371e): the bot never mines a natural block under its
+hitbox (steps off first) and emergency shelters are 1x2 rooms; staged practice
+on port 50876 passed 5/5. Watch natural runs for "Stepped off" and "refusing to
+mine" lines, a natural night burrow/enclosure and mineFromShelter from a 2-cell
+shelter. Staged supplies earned Getting an Upgrade and Stone Age on the
+50876 world (command-assisted).
 
 Next checks, in order:
 1. F094 / survival: observe a natural crowd retreat, including an obstructed

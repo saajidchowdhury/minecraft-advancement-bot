@@ -2347,3 +2347,51 @@ User notes for the next session (not implemented):
   entity hitting us) rather than timing it.
 - During a hallway skeleton fight the bot tunnelled perpendicular instead of
   advancing along the hallway (stone kit, no shield); diagnose which action dug.
+
+## F102 — Fall through a stalactite under mined iron; no digging under the feet
+
+Death at 05:04:47Z (2026-11-09, outputs/2026-11-08@23.29.37): mine_iron at
+(-54,16,204) mined iron_ore (-55,15,204) diagonally below. Its raw iron fell to
+Y=-45, so a tall cave lay under it; ~12 s later the bot died at -56,-44,203
+with no threats (20 -> 0 HP) during the drop pickup. User diagnosis: a
+pointed-dripstone stalactite hung under the ore. Likely mechanisms (not
+separated by the info log): the 0.6-wide hitbox rested over the ore column
+while the floored cell was the neighbour (collectTarget only refused the
+floored column), and/or the pickup path stepped down into the ore cell onto
+the stalactite, which pathfinder counted as a floor; a stalactite falls once
+the block above goes.
+Fix f40371e (src/under-feet.js + the dig wrapper):
+- "Under the feet" = any cell below the hitbox footprint, from the feet level
+  down to the first full block (snow layers and mid-jump air included).
+- Such a collision block is mined only if the bot placed it and a sound full,
+  non-falling block is (or, when unloaded, was at placement) right below it.
+  Natural blocks never qualify. Otherwise the bot steps to an adjacent
+  standable, in-reach cell, sneaks to its centre and mines from there; with no
+  cell it refuses. A pathfinder-issued dig is refused, not redirected.
+- Own placements: placeBlock and _placeBlockWithOptions record
+  memory.placedBlocks (per dimension, last 1024), also when an unanswered
+  placement lands within 2 s (tree pillars); a dig forgets the record.
+- Pathfinder treats pointed_dripstone as no floor (Movements.fences).
+- Natural isolated pillars: descendSafely is refused by the guard and
+  recoverMobility/DESCEND fall back to the controlled-landing route.
+Emergency shelters are now 1x2 rooms (user): the surface enclosure (20 ring
+walls, a roof seat, two roofs; 23 blocks), the burrow (dig neighbour column B
+from centred top cell A, a damage-free 3-block drop into B, open A's lower two
+cells from the side, plug B's top; A's original support is A's roof; 1 block)
+and the enderman side refuge (three cells in, seal the first). Shelter state
+is shelterCenter + shelterSide ([dx, dz], also in memory.shelter.side);
+leaveShelter opens exits from either cell.
+Staged live practice (outputs/dig-guard-practice.js, port 50876, f40371e
+clean; sky arena at y=160 with a glass catch floor 8 below; each trial calls
+one skill with no trial commands; 72 setup/cleanup commands recorded):
+5/5 PASS, no damage. ore_centred: stepped off to (-4,160,2), mined, left the
+raw iron that fell down the 7-deep hole. ore_edge (hitbox edge over the ore,
+floored cell east of it): stepped to (-2,160,1); the raw iron stayed in the ore
+cell on the stalactite and pickup was "No path" instead of stepping onto it,
+the suspected 05:04Z move. burrow_dirt: 2-cell room verified in 6.3 s, no
+step-off needed. surface_shelter: side [1,0] verified, exit opened (13.7 s).
+own_pillar: three tower steps then descendPillar back to the floor (6.0 s).
+Staged supplies earned story/upgrade_tools (given stone pickaxe) and
+story/mine_stone (given cobblestone) on this world; they are command-assisted,
+not survival progression. Unverified: natural night burrow/enclosure, the
+mineFromShelter descent from a 2-cell shelter, a natural pillar spawn.
