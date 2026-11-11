@@ -71,6 +71,19 @@ test('a finished cooking job can be collected from a reachable hillside ledge', 
     assert.equal(movements.at(-1), c.movements)
 })
 
+test('a furnace return 200 blocks away gets a walking timeout of 400 ms per block, not 8 s', async () => {
+    const { c } = hillsideKitchen()
+    c.bot.entity.position = new Vec3(-27.5, 74, -6)
+    const timeouts = []
+    c.gotoWithTimeout = async (goal, timeoutMs) => {
+        timeouts.push(timeoutMs)
+        c.bot.entity.position = new Vec3(-28.5, 76, 194.5)
+    }
+    await cookFood(c)
+    assert.ok(timeouts[0] >= 400 * 199, `timeout ${timeouts[0]} ms`)
+    assert.equal(c.memory.cookJob, null)
+})
+
 test('the first failed furnace return immediately tries a short lateral detour and retries', async () => {
     const { c, movements } = hillsideKitchen()
     const calls = []

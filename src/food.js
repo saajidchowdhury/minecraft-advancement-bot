@@ -233,10 +233,12 @@ async function collectCooking(c, job) {
     }
     if (c.bot.entity.position.distanceTo(position.offset(0.5, 0.5, 0.5)) > 4) {
         const goal = new goals.GoalLookAtBlock(position, c.bot.world, { reach: 4, entityHeight: c.bot.entity.eyeHeight ?? 1.62 })
+        // 400 ms a block: a fixed 8 s, set when jobs lay within 64 blocks, looped 21 detours 210 blocks out (07:53Z).
+        const walkMs = Math.max(8000, 400 * c.bot.entity.position.distanceTo(position))
         c.bot.pathfinder.setMovements(dryMovements(c.bot))
         try {
             try {
-                await c.gotoWithTimeout(goal, 8000, 'cooking furnace return')
+                await c.gotoWithTimeout(goal, walkMs, 'cooking furnace return')
                 c.checkAction()
                 if (!goal.isEnd(c.bot.entity.position.floored())) {
                     throw new Error('No path: cooking furnace approach not reached')
@@ -259,7 +261,7 @@ async function collectCooking(c, job) {
                 if (!detour.isEnd(c.bot.entity.position.floored())) {
                     throw new Error('cooking furnace detour not reached')
                 }
-                await c.gotoWithTimeout(goal, 8000, 'cooking furnace return')
+                await c.gotoWithTimeout(goal, walkMs, 'cooking furnace return')
                 c.checkAction()
                 if (!goal.isEnd(c.bot.entity.position.floored())) {
                     throw new Error('cooking furnace approach not reached after detour')
