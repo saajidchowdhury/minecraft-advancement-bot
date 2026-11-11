@@ -160,13 +160,19 @@ function enchanterStep(state) {
 
 function nextAdvancement(state) {
     const detour = state.diamondDetour
+    const fresh = planAdvancement(state)
+    // A detour defers diamond armor, not the pick and sword: five diamonds rode a lava search on an
+    // iron pick (user, 07:40Z), and the sword follows the pick at once (user, 17:30Z).
+    if (['diamond_pickaxe', 'diamond_sword'].includes(fresh.item)) {
+        return fresh
+    }
     if (detour && state.diamonds > detour.diamonds && !detour.item?.startsWith('diamond_')) {
         const original = planAdvancement({ ...state, diamonds: detour.diamonds })
         if (original.id === detour.id && original.item === detour.item) {
             return original
         }
     }
-    return planAdvancement(state)
+    return fresh
 }
 
 function planAdvancement(state) {

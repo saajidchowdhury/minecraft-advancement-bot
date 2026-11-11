@@ -110,6 +110,17 @@ test('a diamond detour resumes obsidian work before a newly affordable armor upg
     assert.equal(nextAdvancement({ ...pick, diamonds: 3, diamondDetour: { ...pickGoal, diamonds: 2 } }).action, 'craft_progression')
 })
 
+test('a diamond detour from the lava bucket goal still crafts the diamond pickaxe and sword at once', () => {
+    const lava = { ...established, hasDiamondPickaxe: false, diamonds: 0, hasBucket: true, completedAdvancements: new Set() }
+    const goal = nextAdvancement(lava)
+    assert.equal(goal.action, 'fill_lava_bucket')
+    const detour = { id: goal.id, item: goal.item, diamonds: 0 }
+    assert.equal(nextAdvancement({ ...lava, diamonds: 5, diamondDetour: detour }).item, 'diamond_pickaxe')
+    const picked = { ...lava, hasDiamondPickaxe: true, diamonds: 2, diamondDetour: detour }
+    assert.equal(nextAdvancement(picked).item, 'diamond_sword')
+    assert.equal(nextAdvancement({ ...picked, gear: diamondSword, diamonds: 4 }).action, 'fill_lava_bucket')
+})
+
 test('portal needs ignition and provisions; partial frame is resumed instead of remined', () => {
     const state = { ...established, hasDiamondPickaxe: true, gear: diamondSword, obsidian: 10, ironIngots: 1, flint: 1 }
     assert.equal(nextAdvancement(state).item, 'flint_and_steel')

@@ -2470,6 +2470,11 @@ beside the earlier y=-54 staircase on z=-351 from x=-126 to -135. The
 parallel-tunnel merge covered only level tunnels, and the saved frontier
 (48-block reuse) ended ~60 blocks away. Fix: descents also step sideways
 into an adjacent mined staircase that continues one step forward and down.
+User report (07:40Z): five diamonds mined on a lava-bucket search, no diamond
+pickaxe crafted. memory.diamondDetour {lava_bucket, diamonds: 0} made
+nextAdvancement plan as if the bot held 0 diamonds, so the craft rule (3+
+diamonds, no pick) never fired and the detour never cleared. Fix: a fresh
+plan for the diamond pickaxe or sword always wins; armor is still deferred.
 User direction (same day): cook only after food is fully gathered or night
 stops the hunt. The planner had started cook_food whenever any raw meat, a
 furnace (or 8 cobblestone) and fuel were held; it now also requires
