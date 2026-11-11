@@ -2526,3 +2526,7 @@ stone tools before hunting. Respawned at 5-10 HP, it had hunted bare-handed: "he
 and "food <= 16, no food" both sent it to gather_food. Now, until it holds a stone pickaxe and an
 axe, only food <= 6 starts a hunt. The low-health rule also needs food < 18, since a full bar
 regenerates on its own. Death-drop recovery is still decided first.
+User direction (08:07Z): night work from a shelter continues at exactly 12 HP. ae79e95 sat out a
+night underground at 12 HP, hunger 17 (no regen) with only a raw chicken and no furnace, because both
+night rules waited at health <= 12. Underground-night waiting is now health < 12 and surface
+mine_from_shelter is now >= 12; the shaft-descent, carve-down and surface-retreat thresholds stay.

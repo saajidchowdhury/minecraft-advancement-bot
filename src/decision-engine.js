@@ -150,8 +150,8 @@ function chooseAction (state) {
         state.hostileDistance > 3.5 && state.hostileDistance <= 16) {
         return Actions.SHELTER
     }
-    // Underground night work continues without food until health drops to 12 HP.
-    if (state.isNight && state.underground && state.health <= 12) {
+    // Underground night work continues without food down to 12 HP (user, 08:07Z: 12 HP mines too).
+    if (state.isNight && state.underground && state.health < 12) {
         return state.sheltered ? 'wait' : Actions.SHELTER
     }
     const progression = nextAdvancement(state)
@@ -167,7 +167,7 @@ function chooseAction (state) {
         if (state.canSleep) {
             return 'leave_shelter'
         }
-        return state.canMineFromShelter && state.hasWoodenPickaxe && state.health > 12 ? 'mine_from_shelter' : 'wait'
+        return state.canMineFromShelter && state.hasWoodenPickaxe && state.health >= 12 ? 'mine_from_shelter' : 'wait'
     }
     if (state.needsShelterExit) {
         return 'leave_shelter'
