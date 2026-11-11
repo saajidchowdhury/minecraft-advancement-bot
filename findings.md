@@ -2451,6 +2451,9 @@ the planks. Live 72c84cf: the bot returned 84 blocks and the job resumed
 jobs, are abandoned only beyond 300 blocks (was 48 + 4 per raw iron, from
 death #5). Jobs over 48 blocks away still count as ready, so a far job pulls
 the bot back from up to 300 blocks; watch that against death #5's long walk.
+Live 88681ef (07:23Z): 50 s into a 100 s smelt the bot walked back from 51
+blocks and found "input still smelting". The early-ready distance (48) only
+guarded the old abandonment radius; it is now 250, so unfinished jobs wait.
 User direction (same day): cook only after food is fully gathered or night
 stops the hunt. The planner had started cook_food whenever any raw meat, a
 furnace (or 8 cobblestone) and fuel were held; it now also requires

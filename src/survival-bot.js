@@ -274,8 +274,7 @@ function woodFuels (c, items) {
     return wood.reduce((n, i) => n + i.count * (i.name.endsWith('_log') ? 4 : 1), 0) >= Math.ceil(items / 1.5)
 }
 
-// A running job is ready once its time has passed, or at once if the bot has strayed far
-// enough that the furnace might be left behind.
+// A running job is ready once its time has passed, or at once near the abandonment radius.
 function smeltJobState (c) {
     let job = c.memory.smeltJob
     // User direction (2026-11-11): like cooking, a smelt job is given up only beyond 300 blocks. The
@@ -291,7 +290,8 @@ function smeltJobState (c) {
     if (job.needsFuel) {
         return { smeltRunning: false, smeltReady: c.hasAnyItem(['coal', 'charcoal']) || woodFuels(c, job.count), smeltNeedsFuel: true }
     }
-    const far = c.bot.entity.position.distanceTo(new Vec3(job.x, job.y, job.z)) > 48
+    // An early return guards only the 300-block abandonment: at 48 blocks it fetched unfinished iron (07:23Z).
+    const far = c.bot.entity.position.distanceTo(new Vec3(job.x, job.y, job.z)) > 250
     const ready = Date.now() >= job.readyAt || far
     return { smeltRunning: !ready, smeltReady: ready }
 }
