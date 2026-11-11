@@ -291,15 +291,16 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
         // level tunnel, one step up or down) routes around the hazard (live 02.02.15, 02.29.19).
         const rise = Math.sign(targetY - feet.y)
         const slopes = rise ? (rise < 0 && frontier?.levelSteps >= 8 ? [rise] : [rise, 0]) : [0, 1, -1]
-        // Fresh rock ahead beside an old main tunnel running the same way would cut a parallel
-        // duplicate (live 01:42Z dug z=269 along z=270): step sideways into the old tunnel and walk it.
+        // Fresh rock ahead beside an old tunnel or staircase running the same way would cut a parallel
+        // duplicate (live 01:42Z dug z=269 along z=270; 07:37Z a lava descent beside the y=-54 stairs):
+        // step sideways into the old passage and walk it.
         const [fx, fz] = DIRECTIONS[forward]
-        const ahead = feet.offset(fx, 0, fz)
+        const ahead = feet.offset(fx, Math.min(rise, 0), fz)
         const tunnelCell = p => c.memory.minedCells?.has(`${bot.game.dimension}:${p}`)
-        const freshAhead = [ahead, ahead.offset(0, 1, 0)].some(p => bot.blockAt(p, false)?.boundingBox !== 'empty')
-        const merge = !heading && rise === 0 && freshAhead
+        const freshAhead = [0, 1, ...(rise < 0 ? [2] : [])].some(dy => bot.blockAt(ahead.offset(0, dy, 0), false)?.boundingBox !== 'empty')
+        const merge = !heading && rise <= 0 && freshAhead
             ? [[fz, fx], [-fz, -fx]].map(([sx, sz]) => feet.offset(sx, 0, sz))
-                .find(side => tunnelCell(side) && tunnelCell(side.offset(fx, 0, fz)) && !c.isBlockedTarget?.({ position: side }) &&
+                .find(side => tunnelCell(side) && tunnelCell(side.offset(fx, rise, fz)) && !c.isBlockedTarget?.({ position: side }) &&
                     safeTunnelStep(bot, feet, side, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt']))))
             : null
         if (merge) {

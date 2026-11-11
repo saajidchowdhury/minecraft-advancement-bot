@@ -2462,7 +2462,14 @@ burning item, cook progress) plus fuel-slot burn ticks (coal 1600, wood 300)
 and stores readyAtTick in world age; jobDue compares bot.time.age. mineflayer
 can derive a 0 fuel fraction when property 0 precedes property 1, so it waits
 two ticks first. Unverified live; a furnace in an unloaded chunk stops while
-world age advances, so such a visit comes early, not late.
+world age advances, so such a visit comes early, not late. Live ed90991
+(07:35:08Z): a 4-iron job far away for minutes was still smelting (furnace
+idle in an unloaded chunk); the refuel check rescheduled it by readyAtTick.
+User report (07:37Z): stairs dug beside stairs. A lava descent on z=-352 ran
+beside the earlier y=-54 staircase on z=-351 from x=-126 to -135. The
+parallel-tunnel merge covered only level tunnels, and the saved frontier
+(48-block reuse) ended ~60 blocks away. Fix: descents also step sideways
+into an adjacent mined staircase that continues one step forward and down.
 User direction (same day): cook only after food is fully gathered or night
 stops the hunt. The planner had started cook_food whenever any raw meat, a
 furnace (or 8 cobblestone) and fuel were held; it now also requires

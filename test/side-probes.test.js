@@ -420,3 +420,22 @@ test('fresh rock beside an old tunnel running the same way merges into it instea
     assert.equal(c.bot.entity.position.x, 7.5)
     assert.equal(c.dug.length, 0)
 })
+
+test('a descent beside an old staircase running the same way steps into it instead of cutting a parallel one', async () => {
+    // Live 07:37Z: a lava descent on z=-352 paralleled the earlier y=-54 staircase on z=-351.
+    const open = new Map()
+    const cells = new Set()
+    for (let x = 0; x <= 12; x++) {
+        const p = new Vec3(x, 64 - x, 1)
+        for (const dy of [0, 1, 2]) {
+            open.set(p.offset(0, dy, 0).toString(), 'air')
+        }
+        cells.add(`overworld:${p}`)
+    }
+    const c = miningWorld(open)
+    c.memory.minedCells = cells
+    await mineTunnel(c, 50)
+    await mineTunnel(c, 50)
+    assert.equal(c.dug.length, 0)
+    assert.deepEqual(c.bot.entity.position.floored(), new Vec3(7, 57, 1))
+})
