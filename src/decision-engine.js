@@ -119,7 +119,15 @@ function chooseAction (state) {
         return Actions.FIGHT
     }
     // Eating takes 1.6 s and cannot be cancelled cleanly: never with melee at arm's length (round 9).
-    if (state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood && !(state.meleeDistance <= 4)) {
+    // User direction (2026-11-11): cook what is about to be eaten. Raw mutton eaten mid-hunt restored
+    // 3.2 of the 15.6 meal points cooking gives (06:52Z); raw is a fallback when no furnace serves in time.
+    const wantsMeal = state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood && !(state.meleeDistance <= 4)
+    const rawOnly = state.hasReadyFood === false
+    if (wantsMeal && rawOnly && (state.canCook || state.cookJob?.ready)) {
+        return 'cook_food'
+    }
+    const urgent = state.cookJob ? state.food <= 6 || state.health <= 6 : state.food <= 14 || state.health <= 10
+    if (wantsMeal && (!rawOnly || urgent)) {
         return Actions.EAT
     }
     if (state.armorUpgrade) {

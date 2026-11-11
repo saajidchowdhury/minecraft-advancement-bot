@@ -2409,6 +2409,13 @@ live error. Live rerun (98bd572, 06:49:50-06:50:13Z) still failed three
 hunts "out of view" from a y=86 hilltop: prey is chosen up to 48 blocks away
 and the grazing sight ray flickered, one attempt 0.2 s after selection. Fix:
 abort only after 3 s of continuous occlusion; hunts now log target and range.
+Rerun on faed260 (06:52-06:54Z): hunts reached sheep and cows and killed
+them, but the eat rule (health < 20) ate each raw mutton at food 17, so
+mealPoints stayed 0. User direction: cook anything about to be eaten. The
+planner now sends a raw-only meal to cook_food (start, or collect a ready
+job); raw is eaten only when no furnace serves in time (food <= 14 or health
+<= 10 without a job; food or health <= 6 while one cooks). Open risk: a
+cooking job more than 64 blocks behind a wandering hunt is abandoned.
 User direction (same day): cook only after food is fully gathered or night
 stops the hunt. The planner had started cook_food whenever any raw meat, a
 furnace (or 8 cobblestone) and fuel were held; it now also requires

@@ -10,7 +10,7 @@ const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
 const { prepareBed, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
-const { FOOD_VALUES, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
+const { FOOD_VALUES, COOKED, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
 const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight, dryMovements, safeFooting,
     rememberMiningExposure, exposedByDig } = require('./cave-exploration')
 const { inView, blockInView, canSeeBlock, sightRay, scanFor } = require('./vision')
@@ -912,6 +912,7 @@ class SurvivalController {
             rangedDistance: archerVisible ? this.bot.entity.position.distanceTo(archer.position) : Infinity,
             hasWeapon: Boolean(this.bestItem(['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword', ...WOODCUTTING_AXES, 'golden_axe', 'wooden_axe'])),
             hasFood: Boolean(this.bestFood()),
+            hasReadyFood: this.bot.inventory.items().some(item => FOOD_VALUES[item.name] && !COOKED[item.name]),
             isNight: this.isNight(),
             sheltered: this.sheltered,
             canMineFromShelter: this.sheltered && !this.memory.shelter?.descentFailed,
