@@ -2520,3 +2520,9 @@ per block. It still failed with an immediate "No path" (41 detours): the dry no-
 plan to a furnace beyond loaded chunks. Now a furnace over 24 blocks away is first reached with
 normal movements, and eight failed detours pause the job (retryAfter, 5 min; foodState treats it as
 out of reach) instead of looping.
+
+User direction (08:05Z): with an empty inventory (and no drops to recover) the bot builds wood and
+stone tools before hunting. Respawned at 5-10 HP, it had hunted bare-handed: "health <= 10, no food"
+and "food <= 16, no food" both sent it to gather_food. Now, until it holds a stone pickaxe and an
+axe, only food <= 6 starts a hunt. The low-health rule also needs food < 18, since a full bar
+regenerates on its own. Death-drop recovery is still decided first.

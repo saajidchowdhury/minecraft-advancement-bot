@@ -202,13 +202,15 @@ function chooseAction (state) {
         ['stone_axe', 'stone_shovel'].includes(progression.item)) {
         return progression.action
     }
-    if (state.health <= 10 && !state.hasFood && !nightUnderground) {
+    const earlyTools = !state.hasStonePickaxe || state.hasWoodcuttingAxe === false
+    const hungerLimit = earlyTools ? 6 : 16
+    if (state.health <= 10 && state.food < 18 && (!earlyTools || state.food <= hungerLimit) && !state.hasFood && !nightUnderground) {
         return state.underground ? 'return_surface' : Actions.FOOD
     }
     if (state.hostileDistance <= 3.5 && state.hasWeapon && state.health > 10) {
         return Actions.FIGHT
     }
-    if (state.food <= 16 && !state.hasFood && !nightUnderground) {
+    if (state.food <= hungerLimit && !state.hasFood && !nightUnderground) {
         return state.underground ? 'return_surface' : Actions.FOOD
     }
     if (mustFreeSlot) {

@@ -152,7 +152,7 @@ test('a stone pick prepares an axe and shovel before ordinary hunger or a food o
     assert.equal(chooseAction({ ...hunter, hasWoodcuttingAxe: true }), 'craft_stone_shovel')
     assert.equal(chooseAction({ ...hunter, hasWoodcuttingAxe: true, hasDiggingShovel: true }), Actions.FOOD)
     assert.equal(chooseAction({ ...hunter, food: 20, foodOpportunity: { action: 'hunt_fish' } }), 'craft_stone_axe')
-    assert.equal(chooseAction({ ...hunter, health: 5 }), Actions.FOOD)
+    assert.equal(chooseAction({ ...hunter, health: 5 }), 'craft_stone_axe', 'the axe hunts faster, so it comes first')
     assert.equal(chooseAction({ ...hunter, food: 4 }), Actions.FOOD)
     assert.equal(chooseAction({ ...hunter, creeperDistance: 4 }), Actions.ESCAPE)
 })
@@ -176,8 +176,16 @@ test('shovel crafting outranks optional work while danger, hunger and inventory 
     assert.equal(chooseAction({ ...ready, inventoryFull: true }), 'clear_inventory')
 })
 
-test('critically injured bot seeks food instead of continuing progression', () => {
-    assert.equal(chooseAction(state({ health: 4, food: 17 })), Actions.FOOD)
+test('an empty-handed bot builds wood and stone tools before hunting unless truly hungry (user, 08:05Z)', () => {
+    assert.equal(chooseAction(state({ health: 4, food: 17 })), Actions.WOOD)
+    assert.equal(chooseAction(state({ health: 10, food: 12 })), Actions.WOOD)
+    assert.equal(chooseAction(state({ health: 4, food: 6 })), Actions.FOOD)
+    assert.equal(chooseAction(state({ food: 6 })), Actions.FOOD)
+    const tooled = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasStonePickaxe: true, hasWoodcuttingAxe: true,
+        hasDiggingShovel: true, cobblestone: 8, sticks: 2, logs: 32 })
+    assert.equal(chooseAction({ ...tooled, health: 4, food: 17 }), Actions.FOOD, 'critically injured with stone tools seeks food')
+    assert.notEqual(chooseAction({ ...tooled, health: 4, food: 18 }), Actions.FOOD, 'full hunger regenerates without food')
+    assert.equal(chooseAction({ ...state({ health: 4, food: 17 }), recoveryAvailable: true }), 'recover_items')
 })
 
 test('progresses through the popular early advancement path', () => {
