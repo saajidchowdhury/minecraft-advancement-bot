@@ -2896,16 +2896,19 @@ class SurvivalController {
         return this.getStation('crafting_table')
     }
 
-    async getFurnace () {
-        return this.getStation('furnace')
+    // Smelting skips furnaces holding food: charcoal took back a cooking job's beef and looped (07:06Z).
+    async getFurnace (cooking = false) {
+        const key = p => `${p.x},${p.y},${p.z}`
+        const food = new Set([this.memory.cookJob, ...(this.memory.parkedCookJobs || [])].filter(Boolean).map(key))
+        return this.getStation('furnace', cooking ? null : block => !food.has(key(block.position)))
     }
 
-    findStation (name, maxDistance = 4) {
-        return this.mcData ? this.findNearestBlock(candidate => candidate === name, maxDistance) : null
+    findStation (name, maxDistance = 4, filter = null) {
+        return this.mcData ? this.findNearestBlock(candidate => candidate === name, maxDistance, { filter }) : null
     }
 
-    async getStation (name) {
-        let station = await scanFor(this, () => this.findStation(name, 4))
+    async getStation (name, filter = null) {
+        let station = await scanFor(this, () => this.findStation(name, 4, filter))
         if (station) {
             return station
         }
@@ -2921,7 +2924,7 @@ class SurvivalController {
                     await this.bot.pathfinder.goto(new GoalNear(candidate.target.x, candidate.target.y, candidate.target.z, 3))
                 }
 
-                station = this.findStation(name, 4)
+                station = this.findStation(name, 4, filter)
                 if (station) {
                     return station
                 }

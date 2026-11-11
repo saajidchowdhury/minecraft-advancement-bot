@@ -164,7 +164,7 @@ async function startCooking(c, state) {
         await c.ensureItem('furnace', 1, true)
         c.checkAction(signal)
     }
-    const block = await c.getFurnace()
+    const block = await c.getFurnace(true)
     const furnace = await c.bot.openFurnace(block)
     try {
         // Leftover output (charcoal, ingots) is the bot's own and is collected; foreign input blocks.

@@ -2435,6 +2435,12 @@ raw meal points sat in the pack. Fix: an out-of-reach job parks
 back when in reach (daylight surface, 300 blocks). Jobs record whether their
 furnace is underground; those keep a 64-block reach at night. A surface job
 starts only if it finishes before tick 12500 (200 ticks per item).
+Live 9bf8421 (07:06-07:08Z): the surface job parked and 5 beef started
+cooking underground at (-81,19,-342), but smelt_charcoal opened that same
+furnace, failed "unrelated input" and its cleanup took the beef back; the
+next cook check saw an empty furnace, called it complete and reclaimed it,
+looping four times. Fix: charcoal only takes back its own log, and iron and
+charcoal smelting skip furnaces holding cooking jobs (getFurnace(cooking)).
 User direction (same day): cook only after food is fully gathered or night
 stops the hunt. The planner had started cook_food whenever any raw meat, a
 furnace (or 8 cobblestone) and fuel were held; it now also requires

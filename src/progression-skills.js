@@ -679,7 +679,7 @@ async function smeltCharcoal(c) {
         await furnace.takeOutput()
         complete = true
     } finally {
-        if (!complete && !c.actionAbort?.signal.aborted && furnace.inputItem()) {
+        if (!complete && !c.actionAbort?.signal.aborted && furnace.inputItem()?.name.endsWith('_log')) {
             await furnace.takeInput().catch(() => {})
         }
         await c.bot.closeWindow(furnace).catch(() => {})
