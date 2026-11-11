@@ -2454,6 +2454,15 @@ the bot back from up to 300 blocks; watch that against death #5's long walk.
 Live 88681ef (07:23Z): 50 s into a 100 s smelt the bot walked back from 51
 blocks and found "input still smelting". The early-ready distance (48) only
 guarded the old abandonment radius; it is now 250, so unfinished jobs wait.
+User direction: a furnace job is due when its fuel runs out; then the bot
+refuels for input it still wants, else collects the output. Due times had
+been 10 s per input item regardless of fuel (21 iron "due in 210 s" with fuel
+for 8). furnaceDue now reads the window's tick properties (ticks left in the
+burning item, cook progress) plus fuel-slot burn ticks (coal 1600, wood 300)
+and stores readyAtTick in world age; jobDue compares bot.time.age. mineflayer
+can derive a 0 fuel fraction when property 0 precedes property 1, so it waits
+two ticks first. Unverified live; a furnace in an unloaded chunk stops while
+world age advances, so such a visit comes early, not late.
 User direction (same day): cook only after food is fully gathered or night
 stops the hunt. The planner had started cook_food whenever any raw meat, a
 furnace (or 8 cobblestone) and fuel were held; it now also requires

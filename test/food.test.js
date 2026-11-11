@@ -3,7 +3,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { Vec3 } = require('vec3')
-const { MIN_MINING_MEALS, mealReserve, foodState, cookFood, pickGlowBerries, huntFish, waitForFish } = require('../src/food')
+const { MIN_MINING_MEALS, mealReserve, foodState, cookFood, furnaceDue, jobDue, pickGlowBerries, huntFish, waitForFish } = require('../src/food')
 
 function kitchen(items) {
     const furnace = { input: null, output: null, fuel: null }
@@ -205,6 +205,20 @@ test('a surface cooking job is not started when it would still be cooking at nig
     assert.equal(foodState(c, { ...base, underground: true }).canCook, true)
     c.bot.time = { timeOfDay: 6000 }
     assert.equal(foodState(c, { ...base }).canCook, true)
+})
+
+test('a furnace job is due when its fuel runs out, counted in world ticks including the burning item', async () => {
+    const bot = { time: { age: 1000 }, waitForTicks: async () => {} }
+    const coal = { fuelItem: () => ({ name: 'coal', count: 1 }) }
+    assert.equal((await furnaceDue(bot, coal, 21)).readyAtTick, 1000 + 1600 + 20, 'one coal covers 8 of 21 iron')
+    assert.equal((await furnaceDue(bot, coal, 3)).readyAtTick, 1000 + 600 + 20, 'three items finish before the coal')
+    const burning = { fuelItem: () => null, totalFuel: 300, fuel: 0.5, progress: 0.25, totalProgress: 200 }
+    assert.equal((await furnaceDue(bot, burning, 13)).readyAtTick, 1000 + 150 + 20, 'half a plank left burning')
+    const job = { readyAtTick: 2620, readyAt: Date.now() + 1e9 }
+    assert.equal(jobDue(bot, job), false)
+    bot.time.age = 2620
+    assert.equal(jobDue(bot, job), true, 'world ticks decide, not the wall clock')
+    assert.equal(jobDue({}, { readyAt: Date.now() - 1 }), true, 'jobs recorded before tick tracking still resolve')
 })
 
 test('cooking collects leftover charcoal output instead of treating the furnace as busy', async () => {

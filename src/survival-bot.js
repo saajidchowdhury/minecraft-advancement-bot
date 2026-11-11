@@ -10,7 +10,7 @@ const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
 const { prepareBed, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
-const { FOOD_VALUES, COOKED, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
+const { FOOD_VALUES, COOKED, furnaceDue, jobDue, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
 const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight, dryMovements, safeFooting,
     rememberMiningExposure, exposedByDig } = require('./cave-exploration')
 const { inView, blockInView, canSeeBlock, sightRay, scanFor } = require('./vision')
@@ -292,7 +292,7 @@ function smeltJobState (c) {
     }
     // An early return guards only the 300-block abandonment: at 48 blocks it fetched unfinished iron (07:23Z).
     const far = c.bot.entity.position.distanceTo(new Vec3(job.x, job.y, job.z)) > 250
-    const ready = Date.now() >= job.readyAt || far
+    const ready = jobDue(c.bot, job) || far
     return { smeltRunning: !ready, smeltReady: ready }
 }
 
@@ -1917,7 +1917,8 @@ class SurvivalController {
                         .catch(error => this.log.warn(`Could not add fuel: ${error.message}`))
                 }
             }
-            this.log.info(`Smelting ${total} raw iron at ${p}; continuing work until about ${Math.ceil(total * 10)} s from now.`)
+            Object.assign(this.memory.smeltJob, await furnaceDue(this.bot, furnace, total))
+            this.log.info(`Smelting ${total} raw iron at ${p}; due in about ${Math.round((this.memory.smeltJob.readyAt - Date.now()) / 1000)} s.`)
         } finally {
             await this.bot.closeWindow(furnace).catch(() => {})
         }
@@ -1986,7 +1987,7 @@ class SurvivalController {
                         job.needsFuel = false
                     }
                 }
-                job.readyAt = Date.now() + left * 10000 + 1000
+                Object.assign(job, await furnaceDue(this.bot, furnace, left))
             }
         } finally {
             await this.bot.closeWindow(furnace).catch(() => {})

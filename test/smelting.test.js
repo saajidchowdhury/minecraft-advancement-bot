@@ -55,6 +55,15 @@ test('starting a smelt loads all raw iron with enough fuel, records a job and re
     assert.equal(c.reclaimed, 0)
 })
 
+test('a smelt fuelled for 8 of 21 iron is due when the coal runs out, not after all 21', async () => {
+    const { c } = smelter(21, 1)
+    c.bot.time = { age: 5000 }
+    const started = Date.now()
+    await SurvivalController.prototype.smeltIron.call(c)
+    assert.equal(c.memory.smeltJob.readyAtTick, 5000 + 1600 + 20)
+    assert.ok(c.memory.smeltJob.readyAt < started + 90000)
+})
+
 test('the first pickaxe smelts only its missing ingots when more raw iron is available', async () => {
     const { c, inv, furnaceState } = smelter(11, 5)
     await SurvivalController.prototype.perform.call(c, 'smelt_iron', { ironIngots: 2, hasIronPickaxe: false })

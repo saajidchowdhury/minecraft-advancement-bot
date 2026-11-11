@@ -42,6 +42,27 @@ function mealReserve(items) {
     }, 0)
 }
 
+// Vanilla burn ticks per fuel item; a furnace takes 200 ticks per item. Nether wood does not burn.
+const BURN_TICKS = { coal: 1600, charcoal: 1600, coal_block: 16000, blaze_rod: 2400, lava_bucket: 20000, stick: 100 }
+const burnTicks = name => BURN_TICKS[name] ?? 300
+
+// User direction (2026-11-11): a furnace job is due when its fuel runs out or its input is done, by world
+// ticks: those left in the burning item plus the fuel slot's burn time. mineflayer can report a burning
+// furnace's first fuel property before its total, so the window settles two ticks first.
+async function furnaceDue(bot, furnace, count) {
+    await bot.waitForTicks?.(2)
+    const burning = furnace.totalFuel ? Math.round((furnace.fuel || 0) * furnace.totalFuel) : 0
+    const slot = furnace.fuelItem()
+    const fuel = burning + (slot ? slot.count * burnTicks(slot.name) : 0)
+    const input = count * 200 - Math.round((furnace.progress || 0) * (furnace.totalProgress || 200))
+    const ticks = Math.max(0, Math.min(fuel, input)) + 20
+    return { readyAtTick: bot.time?.age != null ? bot.time.age + ticks : null, readyAt: Date.now() + ticks * 50 }
+}
+
+function jobDue(bot, job) {
+    return job.readyAtTick != null && bot.time?.age != null ? bot.time.age >= job.readyAtTick : Date.now() >= job.readyAt
+}
+
 function cookFuel(c, count) {
     const coal = c.bestItem(['coal', 'charcoal'])
     if (coal) {
@@ -75,7 +96,7 @@ function foodState(c, state) {
     c.memory.parkedCookJobs = jobs.filter(j => j !== job)
     // Food in our furnaces is reserve: uncounted, 15 mutton set cooking sent the hunt scouting away (06:55Z).
     state.mealReserve += mealReserve(jobs.filter(j => distance(j) < Infinity).map(j => ({ name: j.input, count: j.count })))
-    state.cookJob = job && distance(job) <= reach(job) ? { ready: Date.now() >= job.readyAt } : null
+    state.cookJob = job && distance(job) <= reach(job) ? { ready: jobDue(c.bot, job) } : null
     // A surface job must finish by nightfall (tick 12500, 200 ticks an item): one started at 12356 left
     // porkchop above a night miner (07:00Z), so dusk cooking waits for the underground furnace.
     const time = c.bot.time?.timeOfDay ?? 0
@@ -196,7 +217,8 @@ async function startCooking(c, state) {
         if (!furnace.fuelItem()) {
             await furnace.putFuel(fuel.item.type, null, Math.min(fuel.count, c.countItems([fuel.item.name])))
         }
-        c.log.info(`Cooking ${count} ${raw.name} at ${p}; ready in about ${count * SECONDS_PER_ITEM} s.`)
+        Object.assign(c.memory.cookJob, await furnaceDue(c.bot, furnace, count))
+        c.log.info(`Cooking ${count} ${raw.name} at ${p}; due in about ${Math.round((c.memory.cookJob.readyAt - Date.now()) / 1000)} s.`)
     } finally {
         await c.bot.closeWindow(furnace).catch(() => {})
     }
@@ -279,7 +301,7 @@ async function collectCooking(c, job) {
                 finished = true
                 c.memory.cookJob = null
             } else {
-                Object.assign(job, { count: left, readyAt: Date.now() + left * SECONDS_PER_ITEM * 1000 + 1000 })
+                Object.assign(job, { count: left, ...await furnaceDue(c.bot, furnace, left) })
             }
         }
     } finally {
@@ -337,4 +359,4 @@ async function pickGlowBerries(c) {
     }
 }
 
-module.exports = { FOODS, FOOD_VALUES, COOKED, MIN_MINING_MEALS, mealReserve, foodState, cookFood, pickGlowBerries, huntFish, waitForFish, foodOpportunity }
+module.exports = { FOODS, FOOD_VALUES, COOKED, MIN_MINING_MEALS, mealReserve, foodState, cookFood, furnaceDue, jobDue, pickGlowBerries, huntFish, waitForFish, foodOpportunity }
