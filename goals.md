@@ -1,14 +1,36 @@
 # Prioritized development goals
 
-Updated 2026-11-07 (America/New_York). Next: validate natural survival and
-recovery on the current build before expanding the advancement route.
+Updated 2026-11-11 (America/New_York). Next: validate the new warden caution and
+food/furnace policy in natural play before expanding the advancement route.
 This is a working queue, not a rigid script.
 Reorder it when new evidence or user instructions warrant. Keep IDs stable and
 record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
-Session handoff (2026-11-10): no bot is running. The latest LAN port is 50876
+Session handoff (2026-11-11): no bot is running; it was stopped cleanly on 499cba0
+at 08:12:46Z, underground at about (-91,64,-224) with stone tools and a cooked meal.
+The latest LAN port is 54138 (world lan-49871). This world's run has been
+command-assisted since 07:45:54Z (warden recovery, F104), and the staged sculk
+practice moved the clock to tick 1000. Every bot run and staged script goes in the
+user's visible Terminal window; staged scripts should teleport the owner to a
+vantage point. Automated baseline: 472 passing tests (a5442ae).
+
+Next checks, in order (2026-11-11; F103, F104):
+1. Warden caution in natural play: a real deep-dark alarm, a sneaking flee through
+   caves rather than the flat staged floor, and later mining that avoids the stored
+   zone. Decide whether to run instead of sneak once a warden is already chasing.
+2. Food and furnaces: a completed two-stage trip to a far cooking furnace, a
+   parked surface job collected the next day, and a dusk-deferred job cooked
+   underground. Check fuel-tick due times against actual furnace finish times.
+3. Descent merge into an old staircase (unit-tested only), and the far-smelt pull
+   from up to 300 blocks against death #5's long-walk risk.
+4. Explain the post-recovery inventory loss (F104): test whether mineflayer
+   tossStack on 26.1 throws more than the chosen stack before relying on it.
+5. The unexplained 16 HP hit at (-86,73,-129) at 07:59:04Z with no logged threat:
+   log explosions and attacker entities on damage.
+
+Earlier handoff (2026-11-10): no bot is running. The latest LAN port is 50876
 (staged F102 practice only). Launch live runs in a visible Terminal window (the
 user's preferred method). Verify process identity and the latest log before
 stopping or launching anything; do not duplicate it.

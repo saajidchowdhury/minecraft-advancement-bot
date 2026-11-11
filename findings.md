@@ -2532,3 +2532,20 @@ night rules waited at health <= 12. Underground-night waiting is now health < 12
 mine_from_shelter is now >= 12; the shaft-descent, carve-down and surface-retreat thresholds stay.
 736e44c still waited: the log's hp=12.0 (toFixed) was just under 12 after fractional damage, so
 499cba0 compares against 11.5 (12 HP as displayed); the bot then switched to gather_stone at once.
+
+## Session handoff — 2026-11-11, America/New_York
+
+Port 54138, world lan-49871; 24 commits fa41fe3..a5442ae plus this handoff. The bot was stopped
+on 499cba0 at 08:12:46Z. Evidence for each change is in F103 (hunting, cooking, furnaces, smelting,
+tunnels, diamond detour, empty-handed start, night 12 HP) and F104 (warden death, recovery commands,
+sculk caution and its staged 3/3 practice). The user's directions this session:
+- Cook after gathering or at nightfall, and cook what is about to be eaten.
+- Abandon a furnace only beyond several hundred blocks (300), for smelting too.
+- A job is due when its fuel runs out, from tick data.
+- Craft the diamond pick at once.
+- On sculk or warden signs, sneak away and mine elsewhere.
+- Build tools before hunting when empty-handed.
+- 12 HP still mines from a night shelter.
+- Run staged scripts in the visible Terminal window and teleport the owner to watch.
+Biggest open risks: a real deep-dark flee through caves; the unexplained inventory loss after the
+recovery passes; and the unexplained 16 HP hit at 07:59:04Z.

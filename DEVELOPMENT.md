@@ -109,14 +109,31 @@ Food, danger, recoverable death drops and night protection can interrupt the
 route. Carried armor upgrades and shields equip before tool progression or
 night waiting. Shelters permit local replacement-pick crafting and safe work
 with a wooden backup pick, restricted to coal and stone until tools improve.
+An empty-handed bot (no drops to recover) builds wood and stone tools before
+hunting: until it holds a stone pickaxe and an axe only food <= 6 starts a hunt,
+and low health hunts only below 18 food, since a full bar regenerates.
 After a stone pick, an axe and shovel precede ordinary surface hunting,
 including after a death or tool loss. Hunting prefers axes and waits for
-charged swings; a stone axe charges for 1.25 seconds. Urgent survival actions
-still interrupt preparation and cooldowns.
-Cooking returns target visible interaction reach rather than adjacency. An
-eight-second failed approach immediately tries a short supported lateral
-detour and one retry; every waypoint requires actual arrival. Canceled
-approaches keep the job for later collection.
+charged swings; a stone axe charges for 1.25 seconds. Prey is lost only after
+3 s of terrain occlusion without closing 2 blocks (the view cone is ignored;
+the bot turns before swinging). Urgent survival actions still interrupt
+preparation and cooldowns.
+Cooking starts once the meal reserve is gathered, at night or deep below the
+departure surface, and always for raw food the bot is about to eat; raw meat is
+eaten only when no furnace serves in time. A surface job starts only if it
+finishes before nightfall. Food in the bot's furnaces counts toward the reserve.
+A furnace job is due when its fuel or input runs out, by world ticks from the
+furnace window (burning ticks plus fuel-slot burn time; 200 ticks an item).
+Cooking jobs are visited within 300 blocks by day on the surface, 64 underground
+or for a furnace placed underground, and 8 at night; an out-of-reach job parks
+so raw food can cook where the bot is, and only beyond 300 blocks is a job
+abandoned. Returns target visible interaction reach: a furnace over 24 blocks
+away is first reached with normal movements, the dry approach gets 400 ms per
+block, and a failed approach tries a short lateral detour; eight consecutive
+failed detours pause the job for five minutes. Canceled approaches keep the job.
+Iron and charcoal smelting never use a furnace holding a cooking job. A
+fuel-starved iron job is refuelled with planks made from carried logs; iron jobs
+are also kept to 300 blocks and fetched early only beyond 250.
 Mining uses exposed targets and checked staircase steps, avoids removing
 its own support, and replaces broken tools. Charcoal provides furnace fuel when
 coal is unavailable. Every five horizontal tunnel blocks, the bot opens
@@ -133,10 +150,13 @@ blocks. A blocked seal triggers another run before retrying. Once enclosed,
 the bot mines inward and abandons the dangerous old tunnel frontier. Turning
 away from the mob group does not end the retreat. Descending tunnels permit
 eight level detour steps before reporting a blocked descent; side probes wait
-until within eight blocks of the target layer.
+until within eight blocks of the target layer. Level tunnels and descents beside
+an old mined passage running the same way step into it instead of digging a
+parallel one.
 
 Newly exposed diamonds can interrupt another mining objective when safe. After
-collecting the drop, the bot returns to the interrupted objective. Visible iron
+collecting the drop, the bot returns to the interrupted objective, except that a
+newly affordable diamond pickaxe and then sword are crafted at once. Visible iron
 interrupts the same way while raw iron plus ingots are below 16 plus the ingots
 for missing iron gear (pickaxe, shield, sword, four armor pieces, three buckets).
 It also gathers other nearby ores up to reserve caps (coal and charcoal: 32). A supplied and protected
@@ -172,7 +192,7 @@ or not: cod and salmon near the water surface, ripe glow berries, mushroom stew 
 four) and tropical fish, and it waits at a remembered fish shore before scouting. At
 night it never works or hunts on the surface: it takes a known shaft down, carves
 down when protected, or shelters; underground it keeps mining regardless of
-carried food and waits enclosed once health falls to 12 or less. A full natural cave survey and return still needs live
+carried food and waits enclosed once health falls below 12 as displayed (11.5). A full natural cave survey and return still needs live
 validation. See [cave-opportunities.md](cave-opportunities.md).
 
 Food gathering can turn nearby red and brown mushrooms, including drops from
@@ -194,6 +214,15 @@ Staged trials confirmed Sweet Dreams and a since-removed spider hunt. The bot al
 Not Today, Thank You in a later LAN run. Reliable natural combat, cooperative
 sleep and shelter exits still need live validation. See
 [night-opportunities.md](night-opportunities.md).
+
+Warden caution (`src/sculk-caution.js`): a sculk-family block within 16 blocks,
+a heard sculk-sensor click, shriek or warden sound within 32, Darkness, or a
+warden within 32 records a 48-block zone (`memory.sculkZones`) and cancels work.
+`flee_sculk` (ahead of combat and shelter, which a sonic boom ignores) sneaks out
+with no drops and no parkour, since sneaking stops at ledges, and never breaks
+sensors or shriekers. Sneak is reasserted every physics tick until there is no
+sculk within 24 blocks, the bot is outside every zone, and 30 s pass without an
+alarm. Targets and tunnel steps inside a zone are refused, so mining moves elsewhere.
 
 Path searches and actions have limits; an operation that refuses cancellation
 triggers reconnection before another action starts.

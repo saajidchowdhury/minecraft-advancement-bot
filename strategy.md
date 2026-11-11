@@ -22,8 +22,13 @@ when new evidence changes a ranking; goals.md carries the actionable queue.
    it holds spares; next add a bed at the base so respawn is beside it, and keep a
    spare iron kit stored. Survival fixes (F025–F035) cut the death rate itself.
 2. **Fire-and-forget smelting.** Load all raw iron with enough fuel, leave the
-   furnace, keep mining, and collect when the expected time has passed or when
-   ingots are needed. Saves ~5 min per rebuild and most of the 29 min/day of idling.
+   furnace, keep mining, and collect when the fuel or input runs out (world ticks
+   from the furnace window, 2026-11-11) or when ingots are needed. Saves ~5 min per
+   rebuild and most of the 29 min/day of idling. Jobs persist to 300 blocks and
+   cooking runs where the bot is at night, so a furnace is rarely abandoned.
+2b. **Deep-dark deaths.** A shrieker-summoned warden killed a diamond-geared bot in
+   10 s (F104). Sculk caution now flees and marks a 48-block no-mining zone; a
+   natural deep-dark flee is the next validation, since one warden death erases a kit.
 3. **Loop latency.** Replan 250 ms after a successful action instead of 1.5 s; keep
    1.5 s only after failures (to avoid fast failure loops) and 100 ms after threats.
 4. **Route to the Nether.** Fix the natural-site obsidian retry loop (F055)

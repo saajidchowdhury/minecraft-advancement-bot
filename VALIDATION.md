@@ -658,3 +658,44 @@ Staged live (outputs/dig-guard-practice.js, commands only in setup/cleanup):
 ore over a stalactite (centred and hitbox-edge), dirt burrow, surface shelter
 with exit, and own pillar descent, 5/5 PASS with no damage (F102). Natural
 night shelters and mineFromShelter from a 2-cell shelter are unverified live.
+
+## Food, furnaces and warden caution (port 54138, 2026-11-11)
+
+Automated (472 tests and syntax checks, a5442ae): each new regression fails on
+its pre-fix source.
+- Hunting: an adjacent cow outside the view cone is hit, prey hidden under 3 s
+  is still hunted, and closing distance while hidden counts as progress.
+- Cooking: it waits for a gathered reserve or night, cooks food about to be eaten,
+  and eats raw only when no furnace serves. Furnace contents count as reserve.
+  Jobs are kept, visited, parked and abandoned by the 300/64/8-block rules, with
+  dusk starts deferred, far returns made in two stages with distance-scaled
+  timeouts, and a pause after eight consecutive failed detours.
+- Furnaces: due times come from window tick properties. Smelting and charcoal
+  skip cooking furnaces, a fuel-starved smelt takes plank refuel, and smelt jobs
+  are kept to 300 blocks and fetched early only beyond 250.
+- Planner: a descent merges into an adjacent old staircase, the diamond pick and
+  sword are crafted during a detour, an empty-handed bot builds tools before
+  hunting, and night mining continues at 12 HP as displayed.
+- Sculk caution (test/sculk-caution.test.js): alarms from blocks, sounds and
+  Darkness; sneak reasserted every tick; the clear rule; flee before combat;
+  zone targets refused; a drop-free flee path.
+
+Staged live (outputs/sculk-caution-practice.js, setup commands only; results in
+outputs/sculk-caution-practice.json): a sculk patch and sensor, a played shriek,
+and Darkness, 3/3 PASS. Each raised caution, the planner chose flee_sculk, and
+the bot sneaked out of the zone (98% of ticks, no drop) before clearing (F104).
+
+Live, unassisted until 07:45:54Z:
+- Hunts on sheep, cows and pigs succeeded.
+- The reserve filled before cooking started; underground night cooking took a
+  surface job's slot by parking it; the parked porkchop job returned by day.
+- A plank-refuelled 13-iron smelt completed; the diamond pick and sword were
+  crafted 3 s apart.
+- After the 12 HP change: stone, a furnace and a cooked chicken eaten underground
+  at night, in under a minute.
+
+Command-assisted from 07:45:54Z: warden kill and item recovery after the deep-dark
+death (F104).
+
+Unverified live: a natural deep-dark flee and later zone avoidance, a descent
+merge, and a completed two-stage far cooking trip.
