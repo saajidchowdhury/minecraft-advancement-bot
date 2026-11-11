@@ -267,6 +267,13 @@ function actionMadeProgress (action, before, after, moved) {
 }
 
 
+// Planks burn 1.5 items and a log makes four; nether wood does not burn. A fuel-starved job with
+// 25 logs carried went coal hunting 72 blocks off, near its 100-block abandonment (07:17Z).
+function woodFuels (c, items) {
+    const wood = (c.bot.inventory?.items() ?? []).filter(i => /_(planks|log)$/.test(i.name) && !/^(crimson|warped)_/.test(i.name))
+    return wood.reduce((n, i) => n + i.count * (i.name.endsWith('_log') ? 4 : 1), 0) >= Math.ceil(items / 1.5)
+}
+
 // A running job is ready once its time has passed, or at once if the bot has strayed far
 // enough that the furnace might be left behind.
 function smeltJobState (c) {
@@ -282,7 +289,7 @@ function smeltJobState (c) {
         return { smeltRunning: false, smeltReady: false }
     }
     if (job.needsFuel) {
-        return { smeltRunning: false, smeltReady: c.hasAnyItem(['coal', 'charcoal']), smeltNeedsFuel: true }
+        return { smeltRunning: false, smeltReady: c.hasAnyItem(['coal', 'charcoal']) || woodFuels(c, job.count), smeltNeedsFuel: true }
     }
     const far = c.bot.entity.position.distanceTo(new Vec3(job.x, job.y, job.z)) > 48
     const ready = Date.now() >= job.readyAt || far
@@ -1946,6 +1953,9 @@ class SurvivalController {
             this.memory.smeltJob = null
             throw new Error(`smelting furnace at ${position} is gone`)
         }
+        if (job.needsFuel && !this.hasAnyItem(['coal', 'charcoal']) && woodFuels(this, job.count)) {
+            await this.ensurePlanks(Math.ceil(job.count / 1.5))
+        }
         const furnace = await this.bot.openFurnace(block)
         const burning = () => furnace.fuel > 0 || this.bot.blockAt(position)?.getProperties?.().lit === true
         let finished = false
@@ -1968,9 +1978,11 @@ class SurvivalController {
                 job.count = left
                 job.needsFuel = !furnace.fuelItem() && !burning()
                 if (job.needsFuel) {
-                    const fuel = this.bestItem(['coal', 'charcoal'])
+                    const fuel = this.bestItem(['coal', 'charcoal']) || this.bot.inventory.items()
+                        .filter(i => i.name.endsWith('_planks') && !/^(crimson|warped)_/.test(i.name)).sort((a, b) => b.count - a.count)[0]
                     if (fuel) {
-                        await furnace.putFuel(fuel.type, fuel.metadata, Math.min(Math.ceil(left / 8), this.countItems([fuel.name])))
+                        const per = fuel.name.endsWith('_planks') ? 1.5 : 8
+                        await furnace.putFuel(fuel.type, fuel.metadata, Math.min(Math.ceil(left / per), this.countItems([fuel.name])))
                         job.needsFuel = false
                     }
                 }

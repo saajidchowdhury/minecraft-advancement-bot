@@ -32,8 +32,10 @@ function smelter(raw = 11, coal = 5) {
         async reclaimStation() { c.reclaimed++ },
         bestItem: names => names.map(n => inv[n] > 0 ? { name: n, type: 1, count: inv[n] } : null).find(Boolean) || null,
         countItems: names => names.reduce((n, name) => n + (inv[name] || 0), 0),
-        hasItem: name => inv[name] > 0, gotoWithTimeout: async () => {}
+        hasItem: name => inv[name] > 0, gotoWithTimeout: async () => {},
+        hasAnyItem: names => names.some(name => inv[name] > 0)
     }
+    c.bot.inventory = { items: () => Object.entries(inv).filter(([, n]) => n > 0).map(([name, count]) => ({ name, count, type: 1 })) }
     c.checkAction = SurvivalController.prototype.checkAction.bind(c)
     c.smeltIron = SurvivalController.prototype.smeltIron.bind(c)
     c.collectSmelt = SurvivalController.prototype.collectSmelt.bind(c)
@@ -162,6 +164,23 @@ test('a fuel-starved job keeps its input and is marked for fuel after collecting
     await SurvivalController.prototype.smeltIron.call(c)
     assert.equal(furnaceState.fuel.count, 3)
     assert.equal(c.memory.smeltJob.needsFuel, false)
+})
+
+test('a fuel-starved job is refuelled with planks from carried logs instead of waiting for coal', async () => {
+    const { c, inv, furnaceState } = smelter(0, 0)
+    inv.oak_log = 25
+    c.memory.smeltJob = { dimension: 'overworld', x: 3, y: 64, z: 0, count: 13, readyAt: Date.now() - 1, needsFuel: true }
+    furnaceState.input = { name: 'raw_iron', count: 13 }
+    const { smeltJobState } = require('../src/survival-bot')
+    assert.equal(smeltJobState(c).smeltReady, true)
+    c.ensurePlanks = async n => { inv.oak_log -= Math.ceil(n / 4); inv.oak_planks = (inv.oak_planks || 0) + 4 * Math.ceil(n / 4) }
+    const furnace = await c.bot.openFurnace()
+    let added = 0
+    furnace.putFuel = async (type, meta, count) => { added = count; furnaceState.fuel = { name: 'oak_planks', count } }
+    await SurvivalController.prototype.smeltIron.call(c)
+    assert.equal(added, 9)
+    assert.equal(c.memory.smeltJob.needsFuel, false)
+    assert.equal(inv.oak_log, 22)
 })
 
 test('the first-iron goal gathers coal for a stalled job even if the furnace was left behind', () => {

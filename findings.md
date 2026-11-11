@@ -2441,6 +2441,12 @@ furnace, failed "unrelated input" and its cleanup took the beef back; the
 next cook check saw an empty furnace, called it complete and reclaimed it,
 looping four times. Fix: charcoal only takes back its own log, and iron and
 charcoal smelting skip furnaces holding cooking jobs (getFurnace(cooking)).
+User report (07:17Z): 13 raw iron sat fuel-less at (-80,16,-344). A
+fuel-starved job counted as ready only with coal or charcoal, so the bot
+went coal hunting with 25 logs carried and reached 72 of its 100-block
+abandonment radius (48 + 4 per raw iron). Fix: such a job is ready when
+carried wood covers ceil(count/1.5) planks; collectSmelt crafts and adds
+the planks.
 User direction (same day): cook only after food is fully gathered or night
 stops the hunt. The planner had started cook_food whenever any raw meat, a
 furnace (or 8 cobblestone) and fuel were held; it now also requires
