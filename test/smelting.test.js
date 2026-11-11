@@ -213,7 +213,7 @@ test('an unreachable smelt furnace is tunneled toward, then forgotten after twel
     assert.equal(c.memory.smeltJob, null)
 })
 
-test('a distant smelt job is abandoned unless its iron justifies the trip', () => {
+test('a smelt job is kept to 300 blocks and abandoned beyond', () => {
     const { SurvivalController } = require('../src/survival-bot')
     const c = Object.create(SurvivalController.prototype)
     c.bot = { game: { dimension: 'overworld' }, entity: { position: new Vec3(47.5, 8, -72.5) } }
@@ -222,9 +222,9 @@ test('a distant smelt job is abandoned unless its iron justifies the trip', () =
     c.memory = { smeltJob: { dimension: 'overworld', x: 233, y: -54, z: -155, count: 3, readyAt: 0 } }
     const { smeltJobState } = require('../src/survival-bot')
     assert.equal(typeof smeltJobState, 'function')
+    assert.equal(smeltJobState(c).smeltReady, true, 'a 3-iron job 212 blocks off is kept')
+    assert.notEqual(c.memory.smeltJob, null)
+    c.memory = { smeltJob: { dimension: 'overworld', x: 360, y: 8, z: -72, count: 32, readyAt: 0 } }
     assert.deepEqual(smeltJobState(c), { smeltRunning: false, smeltReady: false })
     assert.equal(c.memory.smeltJob, null)
-    c.memory = { smeltJob: { dimension: 'overworld', x: 100, y: 8, z: -72, count: 32, readyAt: 0 } }
-    assert.equal(smeltJobState(c).smeltReady, true)
-    assert.notEqual(c.memory.smeltJob, null)
 })

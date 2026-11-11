@@ -278,10 +278,10 @@ function woodFuels (c, items) {
 // enough that the furnace might be left behind.
 function smeltJobState (c) {
     let job = c.memory.smeltJob
-    // A job's pull scales with its iron: death #5 (03.50.23) walked a bare respawn ~250 blocks
-    // through a skeleton cave toward a 3-iron furnace.
+    // User direction (2026-11-11): like cooking, a smelt job is given up only beyond 300 blocks. The
+    // older 48 + 4/iron radius followed death #5 (a bare respawn walked ~250 blocks to a 3-iron furnace).
     if (job && job.dimension === c.bot.game?.dimension &&
-        c.bot.entity.position.distanceTo(new Vec3(job.x, job.y, job.z)) > 48 + 4 * (job.count || 0)) {
+        c.bot.entity.position.distanceTo(new Vec3(job.x, job.y, job.z)) > 300) {
         c.log?.warn?.(`Abandoning the distant smelt job at ${job.x},${job.y},${job.z} (${job.count} raw iron).`)
         c.memory.smeltJob = job = null
     }

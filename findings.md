@@ -2446,7 +2446,11 @@ fuel-starved job counted as ready only with coal or charcoal, so the bot
 went coal hunting with 25 logs carried and reached 72 of its 100-block
 abandonment radius (48 + 4 per raw iron). Fix: such a job is ready when
 carried wood covers ceil(count/1.5) planks; collectSmelt crafts and adds
-the planks.
+the planks. Live 72c84cf: the bot returned 84 blocks and the job resumed
+("input still smelting", 07:19:32Z). User direction: smelt jobs, like cooking
+jobs, are abandoned only beyond 300 blocks (was 48 + 4 per raw iron, from
+death #5). Jobs over 48 blocks away still count as ready, so a far job pulls
+the bot back from up to 300 blocks; watch that against death #5's long walk.
 User direction (same day): cook only after food is fully gathered or night
 stops the hunt. The planner had started cook_food whenever any raw meat, a
 furnace (or 8 cobblestone) and fuel were held; it now also requires
