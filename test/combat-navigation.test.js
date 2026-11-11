@@ -43,6 +43,22 @@ test('prey attacks prefer a stone axe over a carried sword and wait for charged 
     assert.ok(hits[1] - hits[0] >= 1250)
 })
 
+test('an adjacent cow outside the view cone is turned to and hit, not abandoned as out of view', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+    const { c, target, hits } = axeHunter()
+    delete c.canSee
+    Object.assign(c.bot.entity, { yaw: 0, pitch: 0 })
+    c.bot.world = { raycast: () => null }
+    const operation = c.fight(target, true)
+    for (let i = 0; i < 40; i++) {
+        t.mock.timers.tick(100)
+        await Promise.resolve()
+        await Promise.resolve()
+    }
+    await operation
+    assert.equal(hits.length, 2)
+})
+
 test('the prey guard can interrupt an axe cooldown before the first attack', async t => {
     t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
     const { c, target, hits } = axeHunter()

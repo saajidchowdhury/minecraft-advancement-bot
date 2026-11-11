@@ -2046,7 +2046,9 @@ class SurvivalController {
                     throw new Error('outnumbered in combat; replanning escape')
                 }
                 const distance = this.bot.entity.position.distanceTo(entity.position)
-                if (hunt && !this.canSee(entity)) {
+                // Occlusion only: the bot turns to its prey just before swinging, so a cow beside or behind
+                // it failed the view-cone test three times while adjacent (live 2026-11-11 06:37Z).
+                if (hunt && !this.canSee(entity, true)) {
                     throw new Error('prey went out of view')
                 }
                 // An approaching zombie is awaited at reach, not walked into (we back off to stay out of its reach).
@@ -2334,13 +2336,13 @@ class SurvivalController {
         throw new Error('no enclosed two-high side passage')
     }
 
-    canSee (entity) {
+    canSee (entity, allowTurn = false) {
         const eye = this.bot.entity.position.offset(0, this.bot.entity.eyeHeight ?? 1.62, 0)
         return [0.25, 0.75].some(fraction => {
             const target = entity.position.offset(0, (entity.height ?? 1.6) * fraction, 0)
             const ray = target.minus(eye)
             const range = ray.norm()
-            return inView(this.bot, eye, target) && !sightRay(this.bot, eye, ray.normalize(), range)
+            return (allowTurn || inView(this.bot, eye, target)) && !sightRay(this.bot, eye, ray.normalize(), range)
         })
     }
 
