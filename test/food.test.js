@@ -151,6 +151,7 @@ test('raw food starts a fire-and-forget cooking job that is collected and the fu
     assert.equal(c.memory.cookJob.count, 12)
     foodState(c, state)
     assert.deepEqual([state.canCook, state.cookJob.ready], [false, false])
+    assert.ok(Math.abs(state.mealReserve - 12 * 20.8) < 1e-9, 'beef in the furnace still counts toward the reserve')
     c.memory.cookJob.readyAt = Date.now() - 1
     furnace.input = null
     furnace.output = { name: 'cooked_beef', count: 12 }
@@ -159,6 +160,22 @@ test('raw food starts a fire-and-forget cooking job that is collected and the fu
     assert.equal(c.memory.cookJob, null)
     assert.equal(c.countItems(['cooked_beef']), 12)
     assert.equal(c.reclaimed, true)
+})
+
+test('a cooking job is kept to 300 blocks, revisited by day on the surface and only at hand by night', () => {
+    const { c } = kitchen([])
+    c.bot.entity.position = new Vec3(0, 64, 0)
+    const job = { dimension: 'overworld', x: 120, y: 70, z: 0, input: 'mutton', count: 15, readyAt: Date.now() - 1 }
+    const at = extra => (c.memory.cookJob = { ...job, ...extra }, foodState(c, { dimension: 'overworld', hostileDistance: Infinity,
+        freeInventorySlots: 10, hasFurnace: true, ...extra.state }))
+    assert.deepEqual(at({}).cookJob, { ready: true })
+    assert.ok(Math.abs(at({}).mealReserve - 15 * 15.6) < 1e-9)
+    assert.equal(at({ state: { isNight: true } }).cookJob, null)
+    assert.ok(c.memory.cookJob, 'a night away from the furnace keeps the job for the next surface visit')
+    assert.equal(at({ state: { underground: true } }).cookJob, null)
+    assert.equal(at({ x: 40, state: { underground: true } }).cookJob.ready, true)
+    assert.equal(at({ x: 350 }).cookJob, null)
+    assert.equal(c.memory.cookJob, null)
 })
 
 test('cooking collects leftover charcoal output instead of treating the furnace as busy', async () => {

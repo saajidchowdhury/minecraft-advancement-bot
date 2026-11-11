@@ -59,13 +59,21 @@ function foodState(c, state) {
     state.rawFood = c.countItems(Object.keys(COOKED))
     let job = c.memory.cookJob
     const position = job && new Vec3(job.x, job.y, job.z)
-    if (job && job.dimension === state.dimension && c.bot.entity.position.distanceTo(position) > 64) {
+    const distance = job && job.dimension === state.dimension ? c.bot.entity.position.distanceTo(position) : Infinity
+    // User direction (2026-11-11): only a furnace several hundred blocks away is given up; a 64-block
+    // cap dropped 15 mutton 24 s into a hunt (06:55Z).
+    if (distance > 300 && distance < Infinity) {
         c.log.warn(`Abandoning the distant cooking job at ${position} (${job.count} ${job.input}).`)
         c.memory.cookJob = job = null
     }
-    // A furnace left on the surface at nightfall waits for daylight; one beside an underground miner does not.
-    state.cookJob = job && job.dimension === state.dimension && (!state.isNight || c.bot.entity.position.distanceTo(position) <= 8)
-        ? { ready: Date.now() >= job.readyAt } : null
+    // Food in our furnace is reserve: uncounted, 15 mutton set cooking sent the hunt scouting away (06:55Z).
+    if (job && distance < Infinity) {
+        state.mealReserve += mealReserve([{ name: job.input, count: job.count }])
+    }
+    // At night only a furnace at hand is visited; the job waits for the next daylight surface visit.
+    // An underground miner walks back only from the old 64-block range.
+    const reach = state.isNight ? 8 : state.underground ? 64 : 300
+    state.cookJob = job && distance <= reach ? { ready: Date.now() >= job.readyAt } : null
     const smelting = Boolean(c.memory.smeltJob)
     state.canCook = state.rawFood > 0 && !job && !smelting && state.hostileDistance > 12 &&
         !(c.memory.cookBlockedUntil > Date.now()) && state.freeInventorySlots >= 1 &&

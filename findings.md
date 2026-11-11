@@ -2414,8 +2414,13 @@ them, but the eat rule (health < 20) ate each raw mutton at food 17, so
 mealPoints stayed 0. User direction: cook anything about to be eaten. The
 planner now sends a raw-only meal to cook_food (start, or collect a ready
 job); raw is eaten only when no furnace serves in time (food <= 14 or health
-<= 10 without a job; food or health <= 6 while one cooks). Open risk: a
-cooking job more than 64 blocks behind a wandering hunt is abandoned.
+<= 10 without a job; food or health <= 6 while one cooks). Rerun on 6b01805
+(06:55Z): reserve 275.6 started cooking 15 mutton at (-201,99,-336), but
+furnace contents left mealReserve, so the hunt resumed and the job was
+abandoned at 64 blocks 24 s later (15 mutton lost). The 64-block cap
+(ce24690) had no recorded reason. Fix: the job's input counts toward
+mealReserve; per user direction a job is abandoned only beyond 300 blocks,
+revisited within 300 by day on the surface, 64 underground, 8 at night.
 User direction (same day): cook only after food is fully gathered or night
 stops the hunt. The planner had started cook_food whenever any raw meat, a
 furnace (or 8 cobblestone) and fuel were held; it now also requires
