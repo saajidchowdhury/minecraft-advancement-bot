@@ -2507,3 +2507,13 @@ of combat and shelter) walks out with no drops and no parkour, since sneaking st
 never breaks sensors or shriekers. Sneak is reasserted every physics tick until there is no sculk
 within 24 blocks, the bot is outside every zone, and 30 s pass without an alarm. Open question: once
 a warden is chasing, sneaking at 0.3x speed may be worse than running.
+Staged practice (`outputs/sculk-caution-practice.js`, cdb34da + e682544, 07:55-07:57Z; 121x121
+stone floor at y=160; setup commands only, recorded in `outputs/sculk-caution-practice.json`):
+3/3 PASS. A sculk patch plus sensor 10 blocks away, a played shriek 10 blocks away, and Darkness
+each raised caution within 1 s, the planner chose flee_sculk, and fleeSculk walked about 52 blocks
+in 30-38 s with sneak held on 98% of ticks (brief gaps when the pathfinder cleared controls), no
+drop, ending outside the zone; caution cleared as the walk ended (30 s quiet). Unverified:
+a real deep-dark flee through caves, and tunnels and targets avoiding a stored zone live.
+Live (07:52-07:54Z): a parked porkchop job 210 blocks away looped 30 lateral detours, because
+collectCooking gave each walk 8 s (set when jobs lay within 64 blocks); e682544 gives it 400 ms
+per block.
