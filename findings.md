@@ -2482,3 +2482,28 @@ furnace (or 8 cobblestone) and fuel were held; it now also requires
 the departure surface. Raw food already counts at its cooked value in
 mealReserve, so the reserve target is unchanged. A surface bot at nightfall
 still shelters first and cooks once sheltered or underground.
+
+## F104 — Warden death in the deep dark; sculk caution [live + staged recovery]
+
+Run `outputs/2026-11-11@02.42.09` (`dc53974`), 07:44:12–07:44:23Z, (-242,-54,-351) under mountains.
+The user's own player triggered a shrieker (Darkness on their screen). The warden hit the bot
+20 -> 10, 17.5 -> 7.5, then killed it through its emergency shelter: `warden` was only a generic
+hostile, so the planner chose shelter, which a sonic boom ignores. Drops: diamond pickaxe and
+sword (crafted 2 min earlier), iron armor, 4 diamonds, food.
+Command-assisted from here (user approved; this run is no longer unaided). Commands, all
+recorded in `outputs/warden-recovery*.json`: `/kill @e[type=warden,...,distance=..64]` (killed
+one), `/tp` to the death cell, `/tp @e[type=item,...,distance=..12] @s` (58 entities; inventory
+filled before the armor), a second pass that tossed junk stacks and pulled leggings and boots,
+and a third pass. After pass 2 the inventory read only leggings and boots, and after pass 3 it
+was empty. Cause unexplained; suspects are mineflayer `tossStack` on 26.1 throwing more than
+the chosen stack, or deaths between passes (HP read 13.5 between them). The user said not to
+pursue the inventory.
+User direction: on hearing a detector or seeing warden blocks, hold sneak, leave the area and
+mine somewhere completely different. `src/sculk-caution.js`: alarms are a sculk-family block
+within 16 blocks, a heard sculk-sensor click, shriek or warden sound within 32, Darkness, or a
+warden within 32. Each records a 48-block zone (`memory.sculkZones`) that `isBlockedTarget`
+refuses, and drops a tunnel frontier inside it. `flee_sculk` (after enderman in the planner, ahead
+of combat and shelter) walks out with no drops and no parkour, since sneaking stops at ledges, and
+never breaks sensors or shriekers. Sneak is reasserted every physics tick until there is no sculk
+within 24 blocks, the bot is outside every zone, and 30 s pass without an alarm. Open question: once
+a warden is chasing, sneaking at 0.3x speed may be worse than running.

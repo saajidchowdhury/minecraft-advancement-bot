@@ -10,6 +10,7 @@ const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
 const { prepareBed, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
+const { installSculkCaution, sculkZoneAt, fleeSculk } = require('./sculk-caution')
 const { FOOD_VALUES, COOKED, furnaceDue, jobDue, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
 const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight, dryMovements, safeFooting,
     rememberMiningExposure, exposedByDig } = require('./cave-exploration')
@@ -404,7 +405,7 @@ class SurvivalController {
                 this.endermanThreat = { id: source.id, dimension: this.bot.game.dimension, at: Date.now(), hit: true }
                 this.lastHitBearing = null
                 if (this.running && !this.paused && this.bot.health > 0 &&
-                    !['avoid_enderman', 'escape_lava', 'surface_for_air', 'clear_head'].includes(action)) {
+                    !['avoid_enderman', 'flee_sculk', 'escape_lava', 'surface_for_air', 'clear_head'].includes(action)) {
                     this.urgentReplan = true
                     if (this.busy) {
                         this.cancelCurrentTask('enderman attack; taking refuge')
@@ -493,14 +494,14 @@ class SurvivalController {
                 }
             }
             previousHealth = this.bot.health
-            if (this.bot.health <= 6 && this.busy && ![Actions.ESCAPE, Actions.REFUGE, 'avoid_enderman', 'escape_lava', 'surface_for_air', 'clear_head'].includes(action) &&
+            if (this.bot.health <= 6 && this.busy && ![Actions.ESCAPE, Actions.REFUGE, 'avoid_enderman', 'flee_sculk', 'escape_lava', 'surface_for_air', 'clear_head'].includes(action) &&
                 (tookDamage || ![Actions.EAT, Actions.SHELTER].includes(action)) && !this.actionAbort?.signal.aborted) {
                 this.cancelCurrentTask('critical health')
             }
         })
         this.bot.on('entityMoved', entity => {
             if (this.running && !this.paused && this.bot.health > 0 && this.bot.entity && HOSTILES.has(entity.name) &&
-                ![Actions.REFUGE, 'avoid_enderman', 'escape_lava', 'surface_for_air', 'clear_head'].includes(this.activeAction) &&
+                ![Actions.REFUGE, 'avoid_enderman', 'flee_sculk', 'escape_lava', 'surface_for_air', 'clear_head'].includes(this.activeAction) &&
                 updateCrowdRetreat(this, HOSTILES) && !(this.activeAction === Actions.FIGHT && kiteableCrowd(this))) {
                 if (this.busy && !this.actionAbort?.signal.aborted) {
                     this.cancelCurrentTask('crowd of mobs; taking wall refuge')
@@ -518,7 +519,7 @@ class SurvivalController {
         })
         const endermanAlert = entity => {
             if (entity.name !== 'enderman' || !this.running || this.paused || this.bot.health <= 0 ||
-                !this.endermanDanger() || ['avoid_enderman', 'escape_lava', 'surface_for_air', 'clear_head'].includes(this.activeAction) ||
+                !this.endermanDanger() || ['avoid_enderman', 'flee_sculk', 'escape_lava', 'surface_for_air', 'clear_head'].includes(this.activeAction) ||
                 this.actionAbort?.signal.aborted) {
                 return
             }
@@ -531,6 +532,7 @@ class SurvivalController {
         }
         this.bot.on('entityUpdate', endermanAlert)
         this.bot.on('entityMoved', endermanAlert)
+        installSculkCaution(this)
         this.bot.on('time', () => {
             if (this.running && this.busy && this.activeAction === 'fill_water_bucket' && this.waterDaytimeSearch &&
                 this.isNight() && !this.actionAbort?.signal.aborted) {
@@ -908,6 +910,7 @@ class SurvivalController {
             shaft.cells.at(-1).y <= feet.y - 6
         const state = {
             endermanDanger: this.endermanDanger(),
+            sculkCaution: Boolean(this.sculkCaution), inSculkZone: Boolean(sculkZoneAt(this, this.bot.entity.position)),
             health: this.bot.health,
             food: this.bot.food,
             hostile,
@@ -1028,6 +1031,7 @@ class SurvivalController {
     async perform (action, state) {
         switch (action) {
             case 'avoid_enderman': return this.avoidEnderman()
+            case 'flee_sculk': return fleeSculk(this)
             case 'mine_diamond': {
                 if (!this.memory.diamondDetour) {
                     const goal = nextAdvancement(state)
@@ -1855,6 +1859,9 @@ class SurvivalController {
     isBlockedTarget (block) {
         if (!block || !block.position) {
             return false
+        }
+        if (sculkZoneAt(this, block.position)) {
+            return true
         }
         const key = this.targetKey(block)
         const expires = this.memory.blockedTargets.get(key)

@@ -78,6 +78,9 @@ function chooseAction (state) {
     if (state.endermanDanger) {
         return 'avoid_enderman'
     }
+    if (state.sculkCaution && state.inSculkZone) {
+        return 'flee_sculk'
+    }
     // Melee-only crowds are kited rather than refuged; a pillar refuge needs five blocks of headroom
     // and one skeleton ruins it (user), and wall refuges failed to seal against close zombies (round 5).
     // Surface nights keep the retreat: more zombies keep spawning there.
