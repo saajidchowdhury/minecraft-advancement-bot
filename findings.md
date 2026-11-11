@@ -2421,6 +2421,12 @@ abandoned at 64 blocks 24 s later (15 mutton lost). The 64-block cap
 (ce24690) had no recorded reason. Fix: the job's input counts toward
 mealReserve; per user direction a job is abandoned only beyond 300 blocks,
 revisited within 300 by day on the surface, 64 underground, 8 at night.
+Rerun on 13e5fb4 (06:58-07:01Z): two pig hunts ended "out of view" after 3 s
+while the bot closed 45.8 -> 19.4 blocks up toward a crest; closing 2 blocks
+now also resets the occlusion timer (the 8 s stall and 20 s caps remain).
+First full policy cycle: reserve 274.2 started cooking 5 porkchop (fuel: one
+plank, 1.5 items), the reserve stayed 274.2 so no hunt pulled the bot away,
+and nightfall sent it to shelter-mine beside the furnace with the job kept.
 User direction (same day): cook only after food is fully gathered or night
 stops the hunt. The planner had started cook_food whenever any raw meat, a
 furnace (or 8 cobblestone) and fuel were held; it now also requires

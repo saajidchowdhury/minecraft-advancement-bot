@@ -79,6 +79,30 @@ test('prey hidden by terrain for under 3 s is still hunted; hidden for 3 s ends 
     }
 })
 
+test('a hidden prey the bot keeps closing on is still pursued past the 3 s occlusion limit', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+    const { c, target } = axeHunter()
+    delete c.canSee
+    target.position = new Vec3(30, 64, 0)
+    c.bot.world = { raycast: () => ({ position: new Vec3(1, 65, 0) }) }
+    let error = null
+    const operation = c.fight(target, true).catch(e => { error = e })
+    for (let i = 0; i < 60; i++) {
+        c.bot.entity.position = new Vec3(i * 0.4, 64, 0)
+        t.mock.timers.tick(100)
+        await Promise.resolve()
+        await Promise.resolve()
+    }
+    assert.equal(error, null, 'closing 24 blocks in 6 s must not count as losing the prey')
+    target.isValid = false
+    for (let i = 0; i < 12; i++) {
+        t.mock.timers.tick(100)
+        await Promise.resolve()
+        await Promise.resolve()
+    }
+    await operation
+})
+
 test('the prey guard can interrupt an axe cooldown before the first attack', async t => {
     t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
     const { c, target, hits } = axeHunter()

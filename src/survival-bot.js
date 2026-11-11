@@ -2015,6 +2015,7 @@ class SurvivalController {
         const huntCooldownMs = hunt ? HUNT_AXE_COOLDOWN_MS[weapon?.name] || 0 : 0
         let nextHuntAttackAt = Date.now() + huntCooldownMs
         let preySeenAt = Date.now()
+        let preySeenDistance = Infinity
         let chasePosition = this.bot.entity.position.clone()
         let chaseProgressAt = Date.now()
         let following = false
@@ -2049,10 +2050,12 @@ class SurvivalController {
                     throw new Error('outnumbered in combat; replanning escape')
                 }
                 const distance = this.bot.entity.position.distanceTo(entity.position)
-                // Occlusion only, held 3 s: the bot turns to its prey just before swinging (an adjacent cow
-                // failed the view cone, 06:37Z), and hilltop rays to prey 40+ blocks off flicker (06:49Z).
-                if (hunt && this.canSee(entity, true)) {
+                // Occlusion only, held 3 s without closing 2 blocks: the bot turns to its prey just before
+                // swinging (an adjacent cow failed the view cone, 06:37Z), hilltop rays to prey 40+ blocks off
+                // flicker (06:49Z), and a pig over a crest was lost while the bot closed 26 blocks (06:58Z).
+                if (hunt && (this.canSee(entity, true) || distance < preySeenDistance - 2)) {
                     preySeenAt = Date.now()
+                    preySeenDistance = distance
                 } else if (hunt && Date.now() - preySeenAt >= 3000) {
                     throw new Error('prey went out of view')
                 }
