@@ -2427,6 +2427,14 @@ now also resets the occlusion timer (the 8 s stall and 20 s caps remain).
 First full policy cycle: reserve 274.2 started cooking 5 porkchop (fuel: one
 plank, 1.5 items), the reserve stayed 274.2 so no hunt pulled the bot away,
 and nightfall sent it to shelter-mine beside the furnace with the job kept.
+User report (07:03Z): the bot did not return to that surface furnace and
+should have cooked underground after nightfall. Cause: one cookJob slot; the
+surface job (night reach 8 blocks, bot at y~23) blocked canCook while ~191
+raw meal points sat in the pack. Fix: an out-of-reach job parks
+(memory.parkedCookJobs) so raw food cooks where the bot is; parked jobs come
+back when in reach (daylight surface, 300 blocks). Jobs record whether their
+furnace is underground; those keep a 64-block reach at night. A surface job
+starts only if it finishes before tick 12500 (200 ticks per item).
 User direction (same day): cook only after food is fully gathered or night
 stops the hunt. The planner had started cook_food whenever any raw meat, a
 furnace (or 8 cobblestone) and fuel were held; it now also requires

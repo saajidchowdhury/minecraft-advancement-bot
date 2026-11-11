@@ -466,6 +466,15 @@ test('visible iron below its reserve cap is mined like a seen diamond, but not i
     assert.equal(chooseAction(state({ ...busy, health: 10 })), 'return_surface')
 })
 
+test('a night miner cooks its raw food underground and returns to the finished furnace', () => {
+    const miner = state({ isNight: true, underground: true, y: 23, surfaceY: 72, hasCraftingTable: true, hasWoodenPickaxe: true,
+        hasStonePickaxe: true, hasWoodcuttingAxe: true, hasDiggingShovel: true, hasFurnace: true, sticks: 2, logs: 31,
+        cobblestone: 137, mealReserve: 274, hasFood: true, hasReadyFood: false, food: 18 })
+    assert.equal(chooseAction({ ...miner, canCook: true }), 'cook_food')
+    assert.equal(chooseAction({ ...miner, cookJob: { ready: true } }), 'cook_food')
+    assert.notEqual(chooseAction({ ...miner, cookJob: { ready: false } }), 'cook_food')
+})
+
 test('raw meat about to be eaten is cooked first; raw is eaten only when no furnace serves in time', () => {
     const hunter = state({ food: 17, health: 15, hasFood: true, hasReadyFood: false })
     assert.equal(chooseAction({ ...hunter, canCook: true }), 'cook_food')

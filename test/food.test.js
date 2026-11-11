@@ -178,6 +178,35 @@ test('a cooking job is kept to 300 blocks, revisited by day on the surface and o
     assert.equal(c.memory.cookJob, null)
 })
 
+test('a surface job out of reach at night parks so raw food cooks underground, and returns by day', () => {
+    const items = [{ name: 'mutton', count: 10 }, { name: 'coal', count: 2 }]
+    const { c } = kitchen(items)
+    c.bot.entity.position = new Vec3(0, 23, 0)
+    const surface = { dimension: 'overworld', x: 0, y: 88, z: -20, input: 'porkchop', count: 4, readyAt: Date.now() - 1 }
+    c.memory.cookJob = surface
+    const base = { dimension: 'overworld', hostileDistance: Infinity, freeInventorySlots: 10, hasFurnace: true }
+    const night = foodState(c, { ...base, isNight: true, underground: true })
+    assert.deepEqual([c.memory.cookJob, c.memory.parkedCookJobs, night.cookJob, night.canCook], [null, [surface], null, true])
+    assert.ok(Math.abs(night.mealReserve - (10 * 15.6 + 4 * 20.8)) < 1e-9)
+    c.memory.cookJob = { ...surface, x: 40, y: 23, z: 0, input: 'mutton', count: 10, underground: true }
+    items.splice(0, 1)
+    assert.equal(foodState(c, { ...base, isNight: true, underground: true }).cookJob.ready, true)
+    c.memory.cookJob = null
+    c.bot.entity.position = new Vec3(0, 88, 0)
+    const day = foodState(c, { ...base })
+    assert.deepEqual([c.memory.cookJob, c.memory.parkedCookJobs, day.cookJob], [surface, [], { ready: true }])
+})
+
+test('a surface cooking job is not started when it would still be cooking at nightfall', () => {
+    const { c } = kitchen([{ name: 'mutton', count: 15 }, { name: 'coal', count: 2 }])
+    const base = { dimension: 'overworld', hostileDistance: Infinity, freeInventorySlots: 10, hasFurnace: true }
+    c.bot.time = { timeOfDay: 12000 }
+    assert.equal(foodState(c, { ...base }).canCook, false)
+    assert.equal(foodState(c, { ...base, underground: true }).canCook, true)
+    c.bot.time = { timeOfDay: 6000 }
+    assert.equal(foodState(c, { ...base }).canCook, true)
+})
+
 test('cooking collects leftover charcoal output instead of treating the furnace as busy', async () => {
     const items = [{ name: 'mutton', count: 2 }, { name: 'coal', count: 1 }]
     const { c, furnace } = kitchen(items)

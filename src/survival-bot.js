@@ -1029,7 +1029,7 @@ class SurvivalController {
                 return performProgression(this, action, state)
             }
             case 'loot_chest': return lootChest(this, state.lootTarget)
-            case 'cook_food': return cookFood(this)
+            case 'cook_food': return cookFood(this, state)
             case 'pick_glow_berries': return pickGlowBerries(this)
             case 'hunt_fish': return huntFish(this, state.foodOpportunity?.target)
             case 'gather_mushroom_stew': return this.gatherMushroomStew(state)

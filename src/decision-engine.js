@@ -118,9 +118,8 @@ function chooseAction (state) {
     if (state.hostileDistance <= 3.5 && state.hasWeapon && state.health > 10 && !(state.creeperDistance <= 6)) {
         return Actions.FIGHT
     }
-    // Eating takes 1.6 s and cannot be cancelled cleanly: never with melee at arm's length (round 9).
-    // User direction (2026-11-11): cook what is about to be eaten. Raw mutton eaten mid-hunt restored
-    // 3.2 of the 15.6 meal points cooking gives (06:52Z); raw is a fallback when no furnace serves in time.
+    // Eating (1.6 s, not cleanly cancellable) never runs with melee at arm's length (round 9). User 2026-11-11:
+    // cook what is about to be eaten (raw mutton gave 3.2 of 15.6 meal points, 06:52Z); raw is the fallback.
     const wantsMeal = state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood && !(state.meleeDistance <= 4)
     const rawOnly = state.hasReadyFood === false
     if (wantsMeal && rawOnly && (state.canCook || state.cookJob?.ready)) {
@@ -212,8 +211,7 @@ function chooseAction (state) {
     if (mustFreeSlot) {
         return 'clear_inventory'
     }
-    // Use nearby open terrain for shallow mine entrances below a high spawn.
-    // Exposed ravine floors far below sea level still count as part of the mine.
+    // Shallow mine entrances below a high spawn use nearby open terrain; deep exposed ravine floors are mine.
     const nearSurface = state.underground
         ? state.y >= (state.departureSurfaceY ?? state.surfaceY) - 8
         : !(state.y < Math.min(state.surfaceY, 63) - 16)
@@ -249,8 +247,7 @@ function chooseAction (state) {
     const preparingTool = recoveringPick || preparingIronPick || ['stone_axe', 'stone_shovel'].includes(progression.item)
     const action = priorityOre || (preparingTool ? progression.action : state.sideGoal?.action || progression.action)
     const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'gather_leather', 'enter_nether', 'build_redstone'].includes(action)
-    // One furnace serves both jobs: collect cooked food before iron smelting needs it. User direction
-    // (2026-11-11): start cooking only once the reserve is gathered or night stops the hunt.
+    // One furnace serves food before iron; cooking starts once the reserve is gathered or night falls (user).
     if (state.cookJob?.ready || (state.cookJob && action === Actions.SMELT_IRON) ||
         (state.canCook && !needsDepartureWood && !needsDepartureFood)) {
         return 'cook_food'

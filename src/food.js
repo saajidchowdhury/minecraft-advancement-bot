@@ -57,25 +57,32 @@ function foodState(c, state) {
     const items = c.bot.inventory.items()
     state.mealReserve = mealReserve(items)
     state.rawFood = c.countItems(Object.keys(COOKED))
-    let job = c.memory.cookJob
-    const position = job && new Vec3(job.x, job.y, job.z)
-    const distance = job && job.dimension === state.dimension ? c.bot.entity.position.distanceTo(position) : Infinity
-    // User direction (2026-11-11): only a furnace several hundred blocks away is given up; a 64-block
-    // cap dropped 15 mutton 24 s into a hunt (06:55Z).
-    if (distance > 300 && distance < Infinity) {
-        c.log.warn(`Abandoning the distant cooking job at ${position} (${job.count} ${job.input}).`)
-        c.memory.cookJob = job = null
+    const distance = j => j.dimension === state.dimension ? c.bot.entity.position.distanceTo(new Vec3(j.x, j.y, j.z)) : Infinity
+    // Reach by furnace: an underground one serves the night miner beside it; a surface one is visited by
+    // day (300 blocks on the surface, 64 from below) and at night only at hand (user direction 2026-11-11).
+    const reach = j => j.underground ? 64 : state.isNight ? 8 : state.underground ? 64 : 300
+    // memory.cookJob is the active job; out-of-reach jobs park so raw food can cook where the bot is.
+    let jobs = [c.memory.cookJob, ...(c.memory.parkedCookJobs || [])].filter(Boolean)
+    for (const j of jobs.filter(j => distance(j) > 300 && distance(j) < Infinity)) {
+        c.log.warn(`Abandoning the distant cooking job at ${j.x},${j.y},${j.z} (${j.count} ${j.input}).`)
     }
-    // Food in our furnace is reserve: uncounted, 15 mutton set cooking sent the hunt scouting away (06:55Z).
-    if (job && distance < Infinity) {
-        state.mealReserve += mealReserve([{ name: job.input, count: job.count }])
+    jobs = jobs.filter(j => !(distance(j) > 300 && distance(j) < Infinity))
+    let job = jobs.find(j => j === c.memory.cookJob) || jobs.find(j => distance(j) <= reach(j)) || null
+    if (job && distance(job) > reach(job) && state.rawFood > 0) {
+        job = null
     }
-    // At night only a furnace at hand is visited; the job waits for the next daylight surface visit.
-    // An underground miner walks back only from the old 64-block range.
-    const reach = state.isNight ? 8 : state.underground ? 64 : 300
-    state.cookJob = job && distance <= reach ? { ready: Date.now() >= job.readyAt } : null
+    c.memory.cookJob = job
+    c.memory.parkedCookJobs = jobs.filter(j => j !== job)
+    // Food in our furnaces is reserve: uncounted, 15 mutton set cooking sent the hunt scouting away (06:55Z).
+    state.mealReserve += mealReserve(jobs.filter(j => distance(j) < Infinity).map(j => ({ name: j.input, count: j.count })))
+    state.cookJob = job && distance(job) <= reach(job) ? { ready: Date.now() >= job.readyAt } : null
+    // A surface job must finish by nightfall (tick 12500, 200 ticks an item): one started at 12356 left
+    // porkchop above a night miner (07:00Z), so dusk cooking waits for the underground furnace.
+    const time = c.bot.time?.timeOfDay ?? 0
+    const batch = Math.min(64, Math.max(0, ...c.bot.inventory.items().filter(i => COOKED[i.name]).map(i => c.countItems([i.name]))))
+    const dusk = !state.underground && time < 12500 && time + 200 * (batch + 1) > 12500
     const smelting = Boolean(c.memory.smeltJob)
-    state.canCook = state.rawFood > 0 && !job && !smelting && state.hostileDistance > 12 &&
+    state.canCook = state.rawFood > 0 && !job && !smelting && !dusk && state.hostileDistance > 12 &&
         !(c.memory.cookBlockedUntil > Date.now()) && state.freeInventorySlots >= 1 &&
         (state.hasFurnace || state.cobblestone >= 8) && Boolean(cookFuel(c, 1))
     state.foodOpportunity = state.mealReserve < MIN_MINING_MEALS && state.health >= 12 && state.hostileDistance > 12 &&
@@ -151,7 +158,7 @@ async function waitForFish(c) {
 }
 
 // Fire-and-forget like iron smelting: load one raw type with fuel, record the job, keep working.
-async function startCooking(c) {
+async function startCooking(c, state) {
     const signal = c.actionAbort?.signal
     if (!c.hasItem('furnace') && !c.findStation('furnace', 4)) {
         await c.ensureItem('furnace', 1, true)
@@ -185,7 +192,7 @@ async function startCooking(c) {
         }
         const p = block.position
         c.memory.cookJob = { dimension: c.bot.game.dimension, x: p.x, y: p.y, z: p.z, input: raw.name, count,
-            readyAt: Date.now() + count * SECONDS_PER_ITEM * 1000 + 1000 }
+            underground: Boolean(state?.underground), readyAt: Date.now() + count * SECONDS_PER_ITEM * 1000 + 1000 }
         if (!furnace.fuelItem()) {
             await furnace.putFuel(fuel.item.type, null, Math.min(fuel.count, c.countItems([fuel.item.name])))
         }
@@ -284,9 +291,9 @@ async function collectCooking(c, job) {
     }
 }
 
-async function cookFood(c) {
+async function cookFood(c, state) {
     const job = c.memory.cookJob
-    return job && job.dimension === c.bot.game.dimension ? collectCooking(c, job) : startCooking(c)
+    return job && job.dimension === c.bot.game.dimension ? collectCooking(c, job) : startCooking(c, state)
 }
 
 // Ripe cave vines pop one berry on use and keep growing; pick a local cluster per action.
