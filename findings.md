@@ -2530,3 +2530,5 @@ User direction (08:07Z): night work from a shelter continues at exactly 12 HP. a
 night underground at 12 HP, hunger 17 (no regen) with only a raw chicken and no furnace, because both
 night rules waited at health <= 12. Underground-night waiting is now health < 12 and surface
 mine_from_shelter is now >= 12; the shaft-descent, carve-down and surface-retreat thresholds stay.
+736e44c still waited: the log's hp=12.0 (toFixed) was just under 12 after fractional damage, so
+499cba0 compares against 11.5 (12 HP as displayed); the bot then switched to gather_stone at once.
