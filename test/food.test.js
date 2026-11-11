@@ -95,9 +95,14 @@ test('a far furnace is travelled to with normal movements first; eight failed de
     await cookFood(c)
     assert.equal(labels[0].label, 'cooking furnace trip')
     assert.equal(labels[0].movements, 0, 'the trip uses the normal movements, set before any dry ones')
+    const { c: stale } = hillsideKitchen()
+    stale.memory.cookJob.returnDetours = 41
+    stale.gotoWithTimeout = async () => { stale.bot.entity.position = new Vec3(-28.5, 76, 194.5) }
+    await cookFood(stale)
+    assert.equal(stale.memory.cookJob, null, 'old detours do not pause a job the bot can now reach')
     const { c: stuck } = hillsideKitchen()
-    stuck.bot.entity.position = new Vec3(-27.5, 74, -6)
     stuck.memory.cookJob.returnDetours = 8
+    stuck.gotoWithTimeout = async () => { throw new Error('No path to the goal!') }
     await assert.rejects(cookFood(stuck), /retrying in five minutes/)
     assert.ok(stuck.memory.cookJob.retryAfter > Date.now())
     const state = foodState(stuck, { dimension: 'overworld', hostileDistance: Infinity, freeInventorySlots: 10, hasFurnace: true })

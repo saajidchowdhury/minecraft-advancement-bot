@@ -236,11 +236,7 @@ async function collectCooking(c, job) {
         // 400 ms a block: a fixed 8 s, set when jobs lay within 64 blocks, looped 21 detours 210 blocks out (07:53Z).
         const walkMs = Math.max(8000, 400 * c.bot.entity.position.distanceTo(position))
         // A furnace beyond loaded chunks has no dry path ("No path" 38 times, 07:58Z): travel near it with
-        // normal movements first; a job failing eight detours waits five minutes instead of looping.
-        if ((job.returnDetours || 0) >= 8) {
-            Object.assign(job, { returnDetours: 0, retryAfter: Date.now() + 300000 })
-            throw new Error(`cooking furnace at ${position} unreachable; retrying in five minutes`)
-        }
+        // normal movements first; a job failing eight detours in a row waits five minutes instead of looping.
         if (c.bot.entity.position.distanceTo(position) > 24) {
             await c.gotoWithTimeout(new goals.GoalNear(position.x, position.y, position.z, 6), walkMs, 'cooking furnace trip')
             c.checkAction()
@@ -264,6 +260,10 @@ async function collectCooking(c, job) {
                 const angle = Math.atan2(position.z - here.z, position.x - here.x) +
                     ((job.returnDetours || 0) % 2 ? -Math.PI / 2 : Math.PI / 2)
                 job.returnDetours = (job.returnDetours || 0) + 1
+                if (job.returnDetours > 8) {
+                    Object.assign(job, { returnDetours: 0, retryAfter: Date.now() + 300000 })
+                    throw new Error(`cooking furnace at ${position} unreachable; retrying in five minutes`)
+                }
                 const detour = new goals.GoalNearXZ(Math.floor(here.x + 6 * Math.cos(angle)), Math.floor(here.z + 6 * Math.sin(angle)), 1)
                 c.log.info(`Cooking furnace approach stalled; trying a supported lateral detour (${job.returnDetours}).`)
                 await c.gotoWithTimeout(detour, 4000, 'cooking furnace detour')
@@ -280,6 +280,7 @@ async function collectCooking(c, job) {
         } finally {
             c.bot.pathfinder.setMovements(c.movements)
         }
+        job.returnDetours = 0
     }
     const block = c.bot.blockAt(position)
     if (block?.name !== 'furnace') {
