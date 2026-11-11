@@ -2395,3 +2395,21 @@ Staged supplies earned story/upgrade_tools (given stone pickaxe) and
 story/mine_stone (given cobblestone) on this world; they are command-assisted,
 not survival progression. Unverified: natural night burrow/enclosure, the
 mineFromShelter descent from a 2-cell shelter, a natural pillar spawn.
+
+## F103 — Hunt abandoned an adjacent cow; cooking interrupted gathering
+
+Live 2026-11-11 06:37:00-06:37:07Z (outputs/2026-11-11@01.29.23, no commands):
+gather_food failed three times with "prey went out of view" at (-75,72,-26)
+while the user saw the bot stand beside a cow. fight(hunt) tested canSee(),
+which includes the 100x70 degree view cone, at the top of each loop before the
+melee branch turned the bot toward its prey, so a cow beside or behind the bot
+always failed. Fix fa41fe3: the hunt check tests occlusion only
+(canSee(entity, true)). Regression test fails on the pre-fix source with the
+live error. Not yet live-verified.
+User direction (same day): cook only after food is fully gathered or night
+stops the hunt. The planner had started cook_food whenever any raw meat, a
+furnace (or 8 cobblestone) and fuel were held; it now also requires
+!needsDepartureFood, i.e. reserve >= MIN_MINING_MEALS, night, or deep below
+the departure surface. Raw food already counts at its cooked value in
+mealReserve, so the reserve target is unchanged. A surface bot at nightfall
+still shelters first and cooks once sheltered or underground.

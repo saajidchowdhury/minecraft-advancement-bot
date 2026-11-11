@@ -241,8 +241,10 @@ function chooseAction (state) {
     const preparingTool = recoveringPick || preparingIronPick || ['stone_axe', 'stone_shovel'].includes(progression.item)
     const action = priorityOre || (preparingTool ? progression.action : state.sideGoal?.action || progression.action)
     const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'gather_leather', 'enter_nether', 'build_redstone'].includes(action)
-    // One furnace serves both jobs: collect cooked food before iron smelting needs it.
-    if (state.cookJob?.ready || (state.cookJob && action === Actions.SMELT_IRON) || (state.canCook && !needsDepartureWood)) {
+    // One furnace serves both jobs: collect cooked food before iron smelting needs it. User direction
+    // (2026-11-11): start cooking only once the reserve is gathered or night stops the hunt.
+    if (state.cookJob?.ready || (state.cookJob && action === Actions.SMELT_IRON) ||
+        (state.canCook && !needsDepartureWood && !needsDepartureFood)) {
         return 'cook_food'
     }
     if (!recoveringPick && state.baseMigrate) {
