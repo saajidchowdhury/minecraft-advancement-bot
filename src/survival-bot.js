@@ -1627,6 +1627,7 @@ class SurvivalController {
             return
         }
         if (target) {
+            this.log.info(`Hunting ${target.name} ${this.bot.entity.position.distanceTo(target.position).toFixed(1)} blocks away at ${target.position.floored()}.`)
             return this.fight(target, true)
         }
         if (state.foodOpportunity) {
@@ -2012,6 +2013,7 @@ class SurvivalController {
         const deadline = Date.now() + 20000
         const huntCooldownMs = hunt ? HUNT_AXE_COOLDOWN_MS[weapon?.name] || 0 : 0
         let nextHuntAttackAt = Date.now() + huntCooldownMs
+        let preySeenAt = Date.now()
         let chasePosition = this.bot.entity.position.clone()
         let chaseProgressAt = Date.now()
         let following = false
@@ -2046,9 +2048,11 @@ class SurvivalController {
                     throw new Error('outnumbered in combat; replanning escape')
                 }
                 const distance = this.bot.entity.position.distanceTo(entity.position)
-                // Occlusion only: the bot turns to its prey just before swinging, so a cow beside or behind
-                // it failed the view-cone test three times while adjacent (live 2026-11-11 06:37Z).
-                if (hunt && !this.canSee(entity, true)) {
+                // Occlusion only, held 3 s: the bot turns to its prey just before swinging (an adjacent cow
+                // failed the view cone, 06:37Z), and hilltop rays to prey 40+ blocks off flicker (06:49Z).
+                if (hunt && this.canSee(entity, true)) {
+                    preySeenAt = Date.now()
+                } else if (hunt && Date.now() - preySeenAt >= 3000) {
                     throw new Error('prey went out of view')
                 }
                 // An approaching zombie is awaited at reach, not walked into (we back off to stay out of its reach).

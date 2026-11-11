@@ -2405,7 +2405,10 @@ which includes the 100x70 degree view cone, at the top of each loop before the
 melee branch turned the bot toward its prey, so a cow beside or behind the bot
 always failed. Fix fa41fe3: the hunt check tests occlusion only
 (canSee(entity, true)). Regression test fails on the pre-fix source with the
-live error. Not yet live-verified.
+live error. Live rerun (98bd572, 06:49:50-06:50:13Z) still failed three
+hunts "out of view" from a y=86 hilltop: prey is chosen up to 48 blocks away
+and the grazing sight ray flickered, one attempt 0.2 s after selection. Fix:
+abort only after 3 s of continuous occlusion; hunts now log target and range.
 User direction (same day): cook only after food is fully gathered or night
 stops the hunt. The planner had started cook_food whenever any raw meat, a
 furnace (or 8 cobblestone) and fuel were held; it now also requires

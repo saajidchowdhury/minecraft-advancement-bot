@@ -59,6 +59,26 @@ test('an adjacent cow outside the view cone is turned to and hit, not abandoned 
     assert.equal(hits.length, 2)
 })
 
+test('prey hidden by terrain for under 3 s is still hunted; hidden for 3 s ends the hunt', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+    for (const [hiddenTicks, outcome] of [[20, 'hit'], [40, 'lost']]) {
+        const { c, target, hits } = axeHunter()
+        delete c.canSee
+        target.position = new Vec3(outcome === 'hit' ? 2 : 10, 64, 0)
+        let ticks = 0
+        c.bot.world = { raycast: () => ticks < hiddenTicks ? { position: new Vec3(1, 65, 0) } : null }
+        const operation = c.fight(target, true).then(() => 'hit', error => error.message)
+        for (let i = 0; i < 80; i++) {
+            ticks++
+            t.mock.timers.tick(100)
+            await Promise.resolve()
+            await Promise.resolve()
+        }
+        assert.equal(await operation, outcome === 'hit' ? 'hit' : 'prey went out of view')
+        assert.equal(hits.length, outcome === 'hit' ? 2 : 0)
+    }
+})
+
 test('the prey guard can interrupt an axe cooldown before the first attack', async t => {
     t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
     const { c, target, hits } = axeHunter()
