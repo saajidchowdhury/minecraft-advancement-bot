@@ -84,6 +84,26 @@ test('a furnace return 200 blocks away gets a walking timeout of 400 ms per bloc
     assert.equal(c.memory.cookJob, null)
 })
 
+test('a far furnace is travelled to with normal movements first; eight failed detours pause the job', async () => {
+    const { c, movements } = hillsideKitchen()
+    c.bot.entity.position = new Vec3(-27.5, 74, -6)
+    const labels = []
+    c.gotoWithTimeout = async (goal, timeoutMs, label) => {
+        labels.push({ label, movements: movements.length })
+        if (label === 'cooking furnace trip') { c.bot.entity.position = new Vec3(-28.5, 76, 194.5) }
+    }
+    await cookFood(c)
+    assert.equal(labels[0].label, 'cooking furnace trip')
+    assert.equal(labels[0].movements, 0, 'the trip uses the normal movements, set before any dry ones')
+    const { c: stuck } = hillsideKitchen()
+    stuck.bot.entity.position = new Vec3(-27.5, 74, -6)
+    stuck.memory.cookJob.returnDetours = 8
+    await assert.rejects(cookFood(stuck), /retrying in five minutes/)
+    assert.ok(stuck.memory.cookJob.retryAfter > Date.now())
+    const state = foodState(stuck, { dimension: 'overworld', hostileDistance: Infinity, freeInventorySlots: 10, hasFurnace: true })
+    assert.equal(state.cookJob, null, 'a paused job is not visited')
+})
+
 test('the first failed furnace return immediately tries a short lateral detour and retries', async () => {
     const { c, movements } = hillsideKitchen()
     const calls = []

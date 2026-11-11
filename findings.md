@@ -2516,4 +2516,7 @@ drop, ending outside the zone; caution cleared as the walk ended (30 s quiet). U
 a real deep-dark flee through caves, and tunnels and targets avoiding a stored zone live.
 Live (07:52-07:54Z): a parked porkchop job 210 blocks away looped 30 lateral detours, because
 collectCooking gave each walk 8 s (set when jobs lay within 64 blocks); e682544 gives it 400 ms
-per block.
+per block. It still failed with an immediate "No path" (41 detours): the dry no-dig approach cannot
+plan to a furnace beyond loaded chunks. Now a furnace over 24 blocks away is first reached with
+normal movements, and eight failed detours pause the job (retryAfter, 5 min; foodState treats it as
+out of reach) instead of looping.

@@ -81,7 +81,7 @@ function foodState(c, state) {
     const distance = j => j.dimension === state.dimension ? c.bot.entity.position.distanceTo(new Vec3(j.x, j.y, j.z)) : Infinity
     // Reach by furnace: an underground one serves the night miner beside it; a surface one is visited by
     // day (300 blocks on the surface, 64 from below) and at night only at hand (user direction 2026-11-11).
-    const reach = j => j.underground ? 64 : state.isNight ? 8 : state.underground ? 64 : 300
+    const reach = j => j.retryAfter > Date.now() ? -1 : j.underground ? 64 : state.isNight ? 8 : state.underground ? 64 : 300
     // memory.cookJob is the active job; out-of-reach jobs park so raw food can cook where the bot is.
     let jobs = [c.memory.cookJob, ...(c.memory.parkedCookJobs || [])].filter(Boolean)
     for (const j of jobs.filter(j => distance(j) > 300 && distance(j) < Infinity)) {
@@ -235,6 +235,16 @@ async function collectCooking(c, job) {
         const goal = new goals.GoalLookAtBlock(position, c.bot.world, { reach: 4, entityHeight: c.bot.entity.eyeHeight ?? 1.62 })
         // 400 ms a block: a fixed 8 s, set when jobs lay within 64 blocks, looped 21 detours 210 blocks out (07:53Z).
         const walkMs = Math.max(8000, 400 * c.bot.entity.position.distanceTo(position))
+        // A furnace beyond loaded chunks has no dry path ("No path" 38 times, 07:58Z): travel near it with
+        // normal movements first; a job failing eight detours waits five minutes instead of looping.
+        if ((job.returnDetours || 0) >= 8) {
+            Object.assign(job, { returnDetours: 0, retryAfter: Date.now() + 300000 })
+            throw new Error(`cooking furnace at ${position} unreachable; retrying in five minutes`)
+        }
+        if (c.bot.entity.position.distanceTo(position) > 24) {
+            await c.gotoWithTimeout(new goals.GoalNear(position.x, position.y, position.z, 6), walkMs, 'cooking furnace trip')
+            c.checkAction()
+        }
         c.bot.pathfinder.setMovements(dryMovements(c.bot))
         try {
             try {
