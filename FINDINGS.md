@@ -19,7 +19,7 @@ port 49910, source `8bd5fab` (`outputs/2026-11-12@02.03.36/`, Terminal log
 waiting out a water-search deferral at (310,-3,-97) (F113–F116). Before each start,
 `outputs/owner-kit.js` checks and tops up the owner's kit (`outputs/owner-kit.json`).
 The LAN port changes each time the world is opened. Verify the process,
-connection and newest snapshot before live work. Baseline: 497 tests pass.
+connection and newest snapshot before live work. Baseline: 498 tests pass.
 
 ## Stable facts and process lessons
 
@@ -199,6 +199,8 @@ Navigation and recovery
 - Rising tunnel steps may cross old excavations sideways; level and falling steps
   may not. Three in-place `fill_water_bucket` failures defer the water and portal
   route for 5 min (`WATER_DEFER_MS`), since that action has no other recovery (F113).
+  While deferred, a bot with nothing else to do mines for diamonds until it holds
+  16 (`DEFERRED_DIAMONDS`, F116).
 
 ## Open problems and unverified behavior
 

@@ -2757,3 +2757,8 @@ Restart 07:03:36Z on `8bd5fab` (the owner kit check gave nothing). With full dia
 crafted at 06:56–06:59Z and the water route deferred, the planner had only `wait` left. The
 bot idled until the deferral expired, so the fallback when the water route is deferred is
 idle time.
+
+Follow-up `3d436d7` (user direction): when the water route is deferred and the bot holds a
+diamond pickaxe and fewer than 16 diamonds, the planner chooses `gather_diamonds` instead of
+`wait`. That banks diamonds for the enchanting table and collects capped gold, lapis, redstone
+and iron on the way. The regression fails on the previous source. 498 tests pass.

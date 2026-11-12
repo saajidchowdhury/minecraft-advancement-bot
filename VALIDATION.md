@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-497 tests and `npm run check` pass at `8bd5fab`.
+498 tests and `npm run check` pass at `3d436d7`.
 Run them with the prepared runtime:
 
 ```sh
