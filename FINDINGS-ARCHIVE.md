@@ -2777,5 +2777,5 @@ surface rules in `chooseAction`: shelter, carve down or descend a shaft, and no 
 trips at night. `fill_water_bucket` then searches as in daylight, and nightfall no longer
 cancels its surface search. A night retreat (crowd, low health or food, sudden surface
 damage; night-policy) still shelters the bot, and kiting stays disabled on a surface night.
-Three regressions fail on the previous source. 500 tests pass. Restarted at about 07:16Z
+Three regressions fail on the previous source. 500 tests pass. Restarted at 07:13:11Z (timeOfDay 22327)
 with dawn near, so a ready night on the surface is not yet observed.
