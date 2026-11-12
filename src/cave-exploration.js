@@ -2,7 +2,7 @@
 
 const { Vec3 } = require('vec3')
 const { Movements, goals } = require('mineflayer-pathfinder')
-const { inView, sightRay } = require('./vision')
+const { sightRay } = require('./vision')
 const { ironStock, ironReserveCap } = require('./advancement-plan')
 
 const RAILS = new Set(['rail', 'powered_rail', 'detector_rail', 'activator_rail'])
@@ -214,18 +214,18 @@ function seeThrough(block) {
 
 // Mineflayer's canSeeBlock aims only at the block centre; ore exposed on one face beside a
 // probe hole fails it although a player sees that face. Ray-cast to each air-exposed face.
-function oreSight(bot, block, range = 16, allowTurn = false) {
+function oreSight(bot, block, range = 16) {
     const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
     for (const [x, y, z] of FACES) {
         if (!seeThrough(bot.blockAt(block.position.offset(x, y, z), false))) {
             continue
         }
-        for (const u of [0.5, 0.2, 0.8]) {
-            for (const v of [0.5, 0.2, 0.8]) {
+        for (const u of [0.5, 0.2, 0.8, 0.02, 0.98]) {
+            for (const v of [0.5, 0.2, 0.8, 0.02, 0.98]) {
                 const point = block.position.offset(x ? 0.5 + 0.49 * x : u,
                     y ? 0.5 + 0.49 * y : x ? u : v, z ? 0.5 + 0.49 * z : v)
                 const distance = eye.distanceTo(point)
-                if (distance > range || (!allowTurn && !inView(bot, eye, point))) {
+                if (distance > range) {
                     continue
                 }
                 const dir = point.minus(eye).scaled(1 / distance)
@@ -243,8 +243,8 @@ function oreSeen(bot, block, range) {
     return Boolean(oreSight(bot, block, range))
 }
 
-function miningSight(c, block, range, allowTurn = false) {
-    return oreSight(c.bot, block, range, allowTurn || exposedByDig(c, block))
+function miningSight(c, block, range) {
+    return oreSight(c.bot, block, range)
 }
 
 function exposedDiamond(c, opened) {

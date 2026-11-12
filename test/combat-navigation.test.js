@@ -105,7 +105,7 @@ test('an adjacent cow outside the view cone is turned to and hit, not abandoned 
     assert.equal(hits.length, 2)
 })
 
-test('a hunt turns to an out-of-view drop and steps into its cell if following misses pickup', async t => {
+test('a hunt follows a hidden drop without turning and steps into its cell if following misses pickup', async t => {
     t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
     const { c, target, aims } = axeHunter()
     delete c.visibleDrops
@@ -128,7 +128,7 @@ test('a hunt turns to an out-of-view drop and steps into its cell if following m
         await Promise.resolve()
     }
     await operation
-    assert.ok(aims.includes(drop.position))
+    assert.ok(!aims.includes(drop.position), 'no turn toward the drop (F116)')
     assert.deepEqual(goals, ['hunted item pickup', 'hunted item cell'])
     assert.equal(drop.isValid, false)
 })

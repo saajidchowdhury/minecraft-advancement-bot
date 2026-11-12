@@ -231,7 +231,7 @@ test('three refusals abandon the climb after digging back down what was placed',
     assert.equal(bot.placed.length, 0)
 })
 
-test('after descending, the bot turns to each settled ground drop and leaves canopy-caught drops', async () => {
+test('after descending, the bot collects each settled ground drop without turning and leaves canopy-caught drops', async () => {
     const w = oakWorld()
     const inventory = [{ name: 'dirt', count: 4 }]
     const bot = climbingBot(w, new Vec3(-20.5, 69, 194.5), inventory)
@@ -240,7 +240,7 @@ test('after descending, the bot turns to each settled ground drop and leaves can
     const c = controller(bot)
     const pickups = []
     c.collectTarget = async ([entity]) => {
-        assert.equal(bot.lookedAt, entity.position, 'pickup before turning to the drop')
+        assert.notEqual(bot.lookedAt, entity.position, 'turned toward the drop (F116)')
         pickups.push(entity.id)
         if (entity.id === 2) {
             throw new Error('item pickup timed out after 8s')

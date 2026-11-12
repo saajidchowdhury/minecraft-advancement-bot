@@ -16,7 +16,7 @@ const { FOOD_VALUES, COOKED, furnaceDue, jobDue, MIN_MINING_MEALS, mealReserve, 
 const { plankFuelPlan, isFuelPlank } = require('./furnace-fuel')
 const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight, dryMovements, safeFooting,
     rememberMiningExposure, exposedByDig, visibleMiningHazard } = require('./cave-exploration')
-const { inView, blockInView, canSeeBlock, sightRay, scanFor } = require('./vision')
+const { blockInView, canSeeBlock, sightRay, scanFor } = require('./vision')
 const { findNearbyLoot, lootChest } = require('./loot')
 const { discardableStack, needsCleanup, inventoryReport } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
@@ -266,9 +266,6 @@ async function pickUpKnownDrops (c, drops, source, label, signal) {
         if (!drop.isValid) {
             continue
         }
-        if (!c.canSee(drop)) {
-            await c.bot.lookAt(drop.position, true)
-        }
         try {
             await c.gotoWithTimeout(droppedItemGoal(drop), label === 'tree' ? 4000 : 8000, `${source} item pickup`)
             if (!await collected(drop)) {
@@ -414,7 +411,6 @@ class SurvivalController {
             })
         })
         this.bot.on('death', () => {
-            this.lastHitBearing = null
             const endermanDeath = Boolean(this.endermanThreat && this.endermanThreat.dimension === this.bot.game?.dimension)
             this.endermanThreat = null
             const position = this.bot.entity && this.bot.entity.position
@@ -451,7 +447,6 @@ class SurvivalController {
             const action = this.activeAction || this.lastAction
             if (victim === this.bot.entity && source?.isValid && source.name === 'enderman') {
                 this.endermanThreat = { id: source.id, dimension: this.bot.game.dimension, at: Date.now(), hit: true }
-                this.lastHitBearing = null
                 if (this.running && !this.paused && this.bot.health > 0 &&
                     !['avoid_enderman', 'flee_sculk', 'escape_lava', 'surface_for_air', 'clear_head'].includes(action)) {
                     this.urgentReplan = true
@@ -471,11 +466,6 @@ class SurvivalController {
                 (this.busy && ([Actions.FIGHT, Actions.ESCAPE, Actions.REFUGE, 'escape_lava', 'surface_for_air', 'clear_head'].includes(action) ||
                     source === this.creeperFightTarget))) {
                 return
-            }
-            this.lastHitBearing = {
-                point: source.position.offset(0, 0.75 * (source.height ?? 1.6), 0),
-                dimension: this.bot.game.dimension,
-                at: Date.now()
             }
             if (!this.busy) {
                 this.scheduleLoop(0)
@@ -838,11 +828,6 @@ class SurvivalController {
         try {
             let state
             try {
-                const hit = this.lastHitBearing
-                this.lastHitBearing = null
-                if (hit && hit.dimension === this.bot.game.dimension && Date.now() - hit.at <= 1500) {
-                    await this.bot.lookAt(hit.point, true)
-                }
                 state = this.observe()
                 action = chooseAction(state)
             } catch (error) {
@@ -1876,7 +1861,7 @@ class SurvivalController {
                     continue
                 }
                 const ore = block.name.endsWith('_ore')
-                const aim = () => ore && miningSight(this, block, 4.5, true)
+                const aim = () => ore && miningSight(this, block, 4.5)
                 let sight = aim()
                 if (!this.bot.canDigBlock(block) || (!sight && !canSeeBlock(this.bot, block))) {
                     const view = { raycast: (from, direction, range) => sightRay(this.bot, from, direction, range) }
@@ -1918,11 +1903,7 @@ class SurvivalController {
                 if (block.material === 'mineable/axe') {
                     this.log.debug?.(`Breaking ${block.name} with ${this.bot.heldItem?.name || 'bare hands'}.`)
                 }
-                if (sight) {
-                    await this.bot.lookAt(sight, true)
-                    await this.bot.waitForTicks(1)
-                    this.checkAction(signal)
-                }
+                // Line of sight is enough to dig (F116); turning to the face first paused every ore.
                 await this.bot.dig(block, sight ? 'ignore' : true)
                 await sleep(600)
                 if (signal?.aborted) {
@@ -2590,13 +2571,17 @@ class SurvivalController {
         throw new Error('no enclosed two-high side passage')
     }
 
-    canSee (entity, allowTurn = false) {
+    // Line of sight to the body axis or any hitbox corner, whichever way the head points (F116).
+    canSee (entity) {
         const eye = this.bot.entity.position.offset(0, this.bot.entity.eyeHeight ?? 1.62, 0)
-        return [0.25, 0.75].some(fraction => {
-            const target = entity.position.offset(0, (entity.height ?? 1.6) * fraction, 0)
-            const ray = target.minus(eye)
+        const h = entity.height ?? 1.6
+        const r = (entity.width ?? 0.6) / 2 - 0.02
+        const points = [[0, 0.25 * h, 0], [0, 0.75 * h, 0],
+            ...[0.02, h - 0.02].flatMap(y => [[-r, y, -r], [-r, y, r], [r, y, -r], [r, y, r]])]
+        return points.some(([x, y, z]) => {
+            const ray = entity.position.offset(x, y, z).minus(eye)
             const range = ray.norm()
-            return (allowTurn || inView(this.bot, eye, target)) && !sightRay(this.bot, eye, ray.normalize(), range)
+            return !sightRay(this.bot, eye, ray.normalize(), range)
         })
     }
 

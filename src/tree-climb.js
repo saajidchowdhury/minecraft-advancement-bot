@@ -302,7 +302,6 @@ async function climbForLog (c, log, { maxPillar = MAX_PILLAR, approachMs = 10000
             continue
         }
         c.checkAction(signal)
-        await bot.lookAt(drop.position, true)
         await c.collectTarget([drop], log, 'tree drops').catch(error => {
             if (signal?.aborted) {
                 throw error

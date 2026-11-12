@@ -274,11 +274,11 @@ test('tunneling yields for newly exposed diamond ore before advancing past it', 
     assert.equal(c.bot.entity.position.x, 0.5)
 })
 
-test('mining one diamond reveals its face-adjacent vein even while the bot faces away', async t => {
+test('mining one diamond reveals its face-adjacent vein through the opening, whichever way the bot faces', async t => {
     t.mock.timers.enable({ apis: ['setTimeout'] })
     const first = new Vec3(1, 65, 0)
     const next = new Vec3(1, 65, 1)
-    const unrelated = new Vec3(0, 65, -1)
+    const unrelated = new Vec3(0, 65, -2)
     const c = miningWorld(new Map([first, next, unrelated].map(p => [p.toString(), 'deepslate_diamond_ore'])))
     c.mcData = mcData
     c.bot.registry = mcData
@@ -310,8 +310,9 @@ test('mining one diamond reveals its face-adjacent vein even while the bot faces
     sealed = true
     assert.equal(findPriorityDiamond(c), null)
     sealed = false
+    // Through the opening the next face is in plain line of sight, so no dig memory is needed (F116).
     c.bot.game.dimension = 'the_nether'
-    assert.equal(findPriorityDiamond(c), null)
+    assert.deepEqual(findPriorityDiamond(c)?.position, next)
     c.bot.game.dimension = 'overworld'
     const target = findPriorityDiamond(c)
     assert.deepEqual(target?.position, next)

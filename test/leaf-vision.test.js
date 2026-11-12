@@ -123,3 +123,16 @@ test('a tree-drop pickup timeout does not quarantine reachable trunk blocks', as
     for (let i = 0; i < 20; i++) { await Promise.resolve(); t.mock.timers.tick(1000) }
     await operation
 })
+
+test('an entity is seen when only a hitbox corner clears a wall, and a block is seen through glass (F116)', () => {
+    const wall = [64, 65].flatMap(y => [-1, 0, 1].map(z => [new Vec3(2, y, z), 'stone']))
+    const { bot } = leafWorld(wall)
+    const zombie = { position: new Vec3(4.5, 65, 0.5), height: 1.95, width: 0.6 }
+    assert.equal(SurvivalController.prototype.canSee.call({ bot }, zombie), true)
+    const behind = leafWorld([...wall, [new Vec3(2, 66, -1), 'stone'], [new Vec3(2, 66, 0), 'stone'], [new Vec3(2, 66, 1), 'stone']])
+    assert.equal(SurvivalController.prototype.canSee.call({ bot: behind.bot }, zombie), false)
+    const glass = leafWorld([[new Vec3(1, 65, 0), 'glass'], [new Vec3(2, 65, 0), 'white_stained_glass'], [new Vec3(3, 65, 0), 'oak_log']])
+    assert.equal(blockInView(glass.bot, glass.bot.blockAt(new Vec3(3, 65, 0))), true)
+    const { canSeeBlock } = require('../src/vision')
+    assert.equal(canSeeBlock(glass.bot, glass.bot.blockAt(new Vec3(3, 65, 0))), true)
+})

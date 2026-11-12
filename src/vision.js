@@ -15,9 +15,16 @@ function inView(bot, eye, point) {
     return forward > 0 && Math.abs(right) <= forward * HORIZONTAL_SLOPE && Math.abs(up) <= forward * VERTICAL_SLOPE
 }
 
-function blockInView(bot, block, allowTurn = false) {
-    const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
-    return (allowTurn || inView(bot, eye, block.position.offset(0.5, 0.5, 0.5))) && canSeeBlock(bot, block)
+// Line of sight, not field of view (user direction 2026-11-12, F116): a thing may be used when a line
+// from the eye reaches any point of it, whichever way the head points. The view cone (inView) is kept
+// only for code that models where the bot is actually looking.
+function blockInView(bot, block) {
+    return canSeeBlock(bot, block)
+}
+
+// See-through blocks a player can look past: leaves and glass of every kind.
+function seeThroughBlock(block) {
+    return block.name.endsWith('_leaves') || block.name.includes('glass')
 }
 
 function sightRay(bot, from, direction, range, target = null) {
@@ -25,7 +32,7 @@ function sightRay(bot, from, direction, range, target = null) {
         if (target?.equals(block.position)) {
             return true
         }
-        if (block.name.endsWith('_leaves')) {
+        if (seeThroughBlock(block)) {
             return false
         }
         const hit = iter.intersect(block.shapes, block.position)
@@ -38,22 +45,28 @@ function sightRay(bot, from, direction, range, target = null) {
     })
 }
 
+// Sample points of a block: centre, six face centres and eight corners, each inset 0.02.
+const BLOCK_POINTS = [[0.5, 0.5, 0.5], [0.02, 0.5, 0.5], [0.98, 0.5, 0.5], [0.5, 0.02, 0.5], [0.5, 0.98, 0.5],
+    [0.5, 0.5, 0.02], [0.5, 0.5, 0.98], ...[0.02, 0.98].flatMap(x => [0.02, 0.98].flatMap(y => [0.02, 0.98].map(z => [x, y, z])))]
+
 function canSeeBlock(bot, block) {
-    if (bot.canSeeBlock(block)) {
+    if (bot.canSeeBlock?.(block)) {
         return true
     }
     if (!bot.world?.raycast) {
         return false
     }
     const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
-    const delta = block.position.offset(0.5, 0.5, 0.5).minus(eye)
-    const range = delta.norm()
-    return Boolean(sightRay(bot, eye, delta.normalize(), range + 0.01, block.position)?.position.equals(block.position))
+    return BLOCK_POINTS.some(([x, y, z]) => {
+        const delta = block.position.offset(x, y, z).minus(eye)
+        const range = delta.norm()
+        return Boolean(sightRay(bot, eye, delta.normalize(), range + 0.01, block.position)?.position.equals(block.position))
+    })
 }
 
 function opaqueCell(bot, cell) {
     const block = bot.blockAt(cell, false)
-    return !block || (block.boundingBox === 'block' && !block.name.endsWith('_leaves'))
+    return !block || (block.boundingBox === 'block' && !seeThroughBlock(block))
 }
 
 // Amanatides–Woo voxel walk from `from` to `to`; clear when no opaque cell other than `target` lies
@@ -99,26 +112,9 @@ function cellVisible(bot, p, range = 16) {
         .some(([x, y, z]) => clearSegment(bot, eye, centre.offset(x, y, z), p))
 }
 
-async function scanFor(c, find, { lookUp = false } = {}) {
-    const found = find()
-    if (found) {
-        return found
-    }
-    const { yaw, pitch } = c.bot.entity
-    for (const tilt of lookUp ? [0, Math.PI / 3] : [0]) {
-        for (const turn of [0, 1, -1, 2]) {
-            c.checkAction()
-            await c.bot.look(yaw + turn * Math.PI / 2, tilt, true)
-            await c.bot.waitForTicks(1)
-            c.checkAction()
-            const target = find()
-            if (target) {
-                return target
-            }
-        }
-    }
-    await c.bot.look(yaw, pitch, true)
-    return null
+// Searches no longer turn the head: without a view cone, turning reveals nothing new (F116).
+async function scanFor(c, find) {
+    return find()
 }
 
 module.exports = { inView, blockInView, canSeeBlock, sightRay, scanFor, cellVisible }

@@ -227,7 +227,7 @@ test('a creeper in open terrain is fled rather than walled with many blocks', as
     assert.equal(c.fled, creeper)
 })
 
-test('a zombie behind the bot interrupts mining before a hit if it could be seen by turning', () => {
+test('a zombie behind the bot interrupts mining before a hit once a line of sight exists (F116)', () => {
     const reasons = []
     const bot = new EventEmitter()
     bot.entity = { position: new Vec3(0, 64, 0), yaw: 0, pitch: 0 }
@@ -243,8 +243,7 @@ test('a zombie behind the bot interrupts mining before a hit if it could be seen
     occluded = false
     bot.emit('entityMoved', { ...zombie, position: new Vec3(0, 64, 6.5) })
     assert.deepEqual(reasons, [])
-    assert.equal(c.canSee(zombie), false)
-    assert.equal(c.canSee(zombie, true), true)
+    assert.equal(c.canSee(zombie), true, 'facing away does not hide it')
     bot.emit('entityMoved', zombie)
     assert.match(reasons[0] ?? '', /nearby hostile.*zombie/)
     assert.equal(reasons.length, 1)
@@ -346,7 +345,7 @@ test('daytime melee damage interrupts work so the bot fights or escapes before c
     assert.equal(cancels.length, 1)
 })
 
-test('a confirmed hit from behind interrupts digging and turns an armored bot to fight', async () => {
+test('a confirmed hit from behind interrupts digging and an armored bot fights without a turn-first pause', async () => {
     const bot = new EventEmitter()
     bot.entity = { position: new Vec3(0.5, 64, 0.5), yaw: 0, pitch: 0 }
     bot.game = { dimension: 'overworld' }
@@ -355,10 +354,7 @@ test('a confirmed hit from behind interrupts digging and turns an armored bot to
     const zombie = { isValid: true, name: 'zombie', height: 1.9, position: new Vec3(0.5, 64, 2) }
     bot.entities = { 1: zombie }
     bot.nearestEntity = predicate => predicate(zombie) ? zombie : null
-    bot.lookAt = async point => {
-        assert.ok(point.z > bot.entity.position.z)
-        bot.entity.yaw = Math.PI
-    }
+    bot.lookAt = async () => assert.fail('turned before deciding')
     const c = Object.create(SurvivalController.prototype)
     const actions = []
     Object.assign(c, {
@@ -377,7 +373,7 @@ test('a confirmed hit from behind interrupts digging and turns an armored bot to
         async performWithTimeout(action, state) { actions.push([action, state.hostile]) }
     })
     c.bindEvents()
-    assert.equal(c.canSee(zombie), false)
+    assert.equal(c.canSee(zombie), true)
     bot.emit('entityHurt', bot.entity)
     bot.emit('entityHurt', { position: bot.entity.position }, zombie)
     assert.equal(c.actionAbort.signal.aborted, false)
@@ -385,7 +381,6 @@ test('a confirmed hit from behind interrupts digging and turns an armored bot to
     bot.health = 17.62
     bot.emit('health')
     assert.equal(c.actionAbort.signal.reason, 'attacked by zombie')
-    assert.equal(c.canSee(zombie), false)
     c.busy = false
     c.activeAction = null
     await c.tick()
@@ -947,7 +942,7 @@ test('a lava escape that drives out directly skips the pathfinder, and lava canc
     assert.equal(c.urgentReplan, true)
 })
 
-test('an unseen skeleton shooting from eight blocks behind interrupts mining and is turned to and fought', async () => {
+test('a skeleton shooting from eight blocks behind interrupts mining and is fought without turning first', async () => {
     // Live 01:57Z: mine_iron kept digging through seven arrow hits from a skeleton 7-10 blocks behind.
     const bot = new EventEmitter()
     bot.entity = { position: new Vec3(0.5, 20, 0.5), yaw: 0, pitch: 0 }
@@ -980,13 +975,13 @@ test('an unseen skeleton shooting from eight blocks behind interrupts mining and
         async performWithTimeout(action, state) { actions.push([action, state.ranged]) }
     })
     c.bindEvents()
-    assert.equal(c.canSee(skeleton), false)
+    assert.equal(c.canSee(skeleton), true, 'behind the bot but in line of sight')
     bot.emit('entityHurt', bot.entity, skeleton)
     assert.match(c.actionAbort.signal.reason, /attacked by skeleton holding bow/)
     c.busy = false
     c.activeAction = null
     await c.tick()
-    assert.ok(looks[0]?.z > 8, 'did not turn toward the shooter')
+    assert.deepEqual(looks, [], 'no turn before deciding')
     assert.deepEqual(actions, [[Actions.FIGHT, skeleton]])
 })
 

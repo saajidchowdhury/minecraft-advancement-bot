@@ -22,7 +22,7 @@ test('entity searches ignore unnamed packet placeholders without deprecation tra
     assert.equal(trace.mock.callCount(), 0)
 })
 
-test('block searches reject occluded targets and turn to discover a target behind the bot', async () => {
+test('block searches reject occluded targets and find one behind the bot without turning (F116)', async () => {
     const hidden = { position: new Vec3(0, 65, -3), name: 'stone' }
     const target = { position: new Vec3(0, 65, 3), name: 'stone' }
     const controller = Object.create(SurvivalController.prototype)
@@ -39,9 +39,9 @@ test('block searches reject occluded targets and turn to discover a target behin
         }
     }
     const find = () => controller.findNearestBlock(name => name === 'stone', 12)
-    assert.equal(find(), null)
+    assert.equal(find(), target)
     assert.equal(await scanFor(controller, find), target)
-    assert.equal(controller.bot.entity.yaw, Math.PI)
+    assert.equal(controller.bot.entity.yaw, 0, 'no head turn')
 })
 
 test('a mining staircase with a walkable step behind is not treated as a vertical trap', () => {

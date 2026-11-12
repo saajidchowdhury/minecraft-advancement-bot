@@ -421,11 +421,11 @@ test('a cached diamond behind stone stays hidden and concealed water does not ru
     assert.ok(findPriorityDiamond(wet.c))
 })
 
-test('a clear diamond is outside the view when the bot faces away', () => {
+test('a clear diamond in line of sight is found whichever way the bot faces (F116)', () => {
     const { c, bot } = diamondWorld()
     assert.ok(findPriorityDiamond(c))
     bot.entity.yaw += Math.PI
-    assert.equal(findPriorityDiamond(c), null)
+    assert.ok(findPriorityDiamond(c))
 })
 
 test('an ore face covered by glow lichen is still in view', () => {

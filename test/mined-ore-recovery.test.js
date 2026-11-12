@@ -167,7 +167,7 @@ function dropCollector(t, drop, goto) {
     return { bot, warnings, run }
 }
 
-test('a mined drop out of view is turned to, followed, and stood on when the follow misses it', async t => {
+test('a hidden mined drop is followed without turning and stood on when the follow misses it', async t => {
     const drop = { name: 'item', isValid: true, position: new Vec3(371.52, 17, 269.6), getDroppedItem: () => ({ name: 'raw_iron' }) }
     const labels = []
     const { bot, warnings, run } = dropCollector(t, drop, async (goal, ms, label) => {
@@ -179,7 +179,7 @@ test('a mined drop out of view is turned to, followed, and stood on when the fol
     })
     await run()
     assert.deepEqual(labels, ['mined item pickup', 'mined item cell'])
-    assert.ok(bot.looks.some(p => p === drop.position), 'did not turn toward the hidden drop')
+    assert.ok(!bot.looks.some(p => p === drop.position), 'turned toward the drop (F116)')
     assert.equal(drop.isValid, false)
     assert.deepEqual(warnings, [])
 })
