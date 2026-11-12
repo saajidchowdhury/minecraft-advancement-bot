@@ -48,13 +48,14 @@ test('nighttime water search stays underground instead of continuing the surface
     assert.equal(c.memory.surfaceByStaircase, true)
 })
 
-test('a blocked nighttime water search waits underground instead of invoking land scouting', async () => {
+test('a blocked nighttime water search fails in place, without land scouting, so the stall rule can defer it', async () => {
     const c = waterWorld(true)
     const at = c.bot.blockAt
     c.bot.blockAt = p => p.y === 60 && Math.abs(p.x - 108) + Math.abs(p.z - 65) === 1
         ? { ...at(p), name: 'bedrock', diggable: false } : at(p)
     const start = c.bot.entity.position.clone()
-    await performProgression(c, 'fill_water_bucket', {})
+    c.scout = async () => assert.fail('a night water search must not scout the surface')
+    await assert.rejects(performProgression(c, 'fill_water_bucket', {}), /no covered water-search route underground \(no supported dry tunnel step/)
     assert.deepEqual(c.bot.entity.position, start)
 })
 

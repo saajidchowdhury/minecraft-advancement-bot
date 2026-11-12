@@ -850,10 +850,9 @@ async function fillWaterBucket(c) {
                 if (!/no supported dry tunnel step/.test(error.message)) {
                     throw error
                 }
-                c.log.info('No covered water-search route; waiting underground.')
-                await bot.waitForTicks(20)
-                check(c)
-                return
+                // Reported as a failure so three in place defer the water route (F113); returning
+                // success here looped every 1.7 s for six minutes (live 06:45:58Z).
+                throw new Error(`no covered water-search route underground (${error.message})`)
             }
         }
         if (!outside) {
