@@ -8,7 +8,7 @@
 > **Combat update 2026-11-12:** visible threats can interrupt work before a hit,
 > including from behind the bot. The isolated creeper duel passed in a staged
 > cave at full health. Reinforcements during a retreat remain an open problem.
-> See [F109–F112](findings.md#f109--pre-hit-mob-detection-and-a-shorter-creeper-retreat).
+> See [F109–F112](findings-archive.md#f109--pre-hit-mob-detection-and-a-shorter-creeper-retreat).
 
 
 Checked 2026-11-05 against Java 26.1.2. The installed game JAR was read directly:

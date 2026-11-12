@@ -3,6 +3,38 @@
 Technical details moved out of the player-facing `README.md`. See also
 `findings.md`, `goals.md`, `strategy.md` and `VALIDATION.md`.
 
+## Code map
+
+`npm run outline -- <file...>` prints every function, method, test or heading
+with its line number and length. Use it, then read only the ranges you need.
+It works on `.js` and `.md` files.
+
+- `src/index.js`, `config.js`, `memory.js`: launch, `.env` parsing, world memory.
+- `src/decision-engine.js`: `chooseAction`, which maps an observed state to one
+  action. Priorities and alert ranges live here.
+- `src/advancement-plan.js`: route, recipes, `nextAdvancement`, iron reserve cap.
+- `src/advancement-tracker.js`: server advancement packets.
+- `src/survival-bot.js`, class `SurvivalController`, about 3300 lines:
+  `bindEvents` (damage, hurt and breath events), `tick`, `observe` (state for
+  the planner) and `perform` (action dispatch). Further groups are gathering
+  (`gatherWood`, `collectTarget`), furnaces (`smeltIron`, `collectSmelt`),
+  combat (`fight`, `fightCreeper`, `takeCover`, `escapeFrom`), endermen,
+  reflexes (`escapeLava`, `surfaceForAir`, `clearHead`), shelter
+  (`makeNightSafe`, `burrow`), stations, and recovery (`unstick`, `scout`,
+  `recoverMobility`).
+- `src/progression-skills.js`: tunnels (`mineTunnel`, `probeTunnelSides`),
+  shafts (`followShaft`, `returnSurface`), buckets and obsidian, the Nether
+  portal, disposal (`clearInventory`, `disposalPit`), redstone.
+- Other skills, one module each: `food.js` (cooking jobs, meal reserve),
+  `furnace-fuel.js`, `cave-exploration.js` (surveys, ore sight),
+  `crowd-retreat.js`, `night-policy.js`, `night-skills.js`, `base.js`,
+  `tree-climb.js`, `under-feet.js`, `sculk-caution.js`, `vision.js`,
+  `inventory.js`, `farming.js`, `archery.js`, `enchanting.js`, `golem.js`,
+  `loot.js`, `terrain-scout.js`.
+- Tests mirror modules: `test/<module>.test.js`. Controller-level cases are in
+  `survival-safety`, `decision-engine` and `progression-skills`. The table in
+  `VALIDATION.md` maps each file to the behavior it covers.
+
 ## Runtime and launch
 
 The bot is a Mineflayer client for a **Java Edition survival world opened to

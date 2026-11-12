@@ -85,11 +85,15 @@ implementation work.
 
 ## Read first
 
-- `findings.md`: accumulated lessons, evidence, pitfalls and current limitations.
+- `findings.md`: current handoff, lessons, policies in force, open problems and
+  a one-line index; full evidence per ID is in `findings-archive.md` (search it
+  by ID, do not read it whole).
 - `goals.md`: specific next steps, in priority order, with completion criteria.
 - `strategy.md`: higher-level throughput analysis and ranked levers behind the goals.
-- `README.md`: player setup; `DEVELOPMENT.md`: configuration, controls and
-  architecture; `VALIDATION.md`: test coverage.
+- `README.md`: player setup; `DEVELOPMENT.md`: configuration, controls,
+  architecture and code map; `VALIDATION.md`: test coverage and live status.
+- `npm run outline -- <file>` lists functions, methods, tests or headings with
+  line numbers; use it to read large files by range.
 
 Findings and goals provide informed direction, not rigid rules. Recheck
 changeable facts and adjust priorities to new evidence and user instructions.
@@ -116,10 +120,15 @@ logs, dependencies, tools or the preserved `minecraft-iris` reference directory.
 
 ## Session handoff
 
-Near the end of a session, update `findings.md` with important discoveries and
-corrections, including evidence and uncertainty. Update `goals.md` with completed
-work, reordered priorities and concrete next actions. Refresh `VALIDATION.md`
-when coverage changes. Keep this general instruction file relatively steady.
+Near the end of a session, record important discoveries and corrections,
+including evidence and uncertainty: append each full finding to
+`findings-archive.md`, add its index line to `findings.md` and edit the digest
+it changes. Replace the current handoff rather than appending another. Update
+`goals.md` with completed work, reordered priorities and concrete next actions;
+collapse finished goals to one line. Update `VALIDATION.md` rows in place when
+coverage changes. Keep `findings.md` above its index under ~200 lines and
+`goals.md` and `VALIDATION.md` under ~150 lines each. Keep this general
+instruction file relatively steady.
 
 `AGENTS.md` and `CLAUDE.md` must contain the same complete instructions and remain
 byte-for-byte identical. Update both together and verify equality.
