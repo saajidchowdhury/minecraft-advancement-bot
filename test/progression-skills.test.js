@@ -607,6 +607,79 @@ test('a level tunnel blocked by liquid on every side climbs one step around it',
     await assert.rejects(mineTunnel(c, 64), error => !/no supported dry tunnel step/.test(error.message))
 })
 
+// Saved blocks around the 2026-11-12 06:19Z stall at (305,10,-106): a water body two blocks north,
+// gravel to the south, and the bot's own stair (west) and disposal pit (east) as excavated cells.
+const STALL_AIR = new Set((
+    '303,7,-105 303,7,-104 303,7,-103 303,7,-102 303,8,-105 303,8,-104 303,8,-103 303,9,-105 ' +
+    '303,9,-104 303,10,-105 304,7,-104 304,8,-105 304,9,-106 304,9,-105 304,10,-106 304,10,-105 ' +
+    '304,11,-106 304,11,-105 304,12,-106 305,7,-104 305,10,-106 305,11,-106 305,12,-106 306,11,-106 ' +
+    '307,10,-106 307,11,-106 ').trim().split(' '))
+const STALL_GRAVEL = new Set((
+    '305,12,-104 305,12,-103 305,12,-102 305,13,-104 305,13,-103 305,13,-102 306,11,-103 306,11,-102 ' +
+    '306,11,-101 306,12,-104 306,12,-103 306,12,-102 306,12,-101 306,13,-104 306,13,-103 306,13,-102 ' +
+    '306,13,-101 306,14,-103 306,14,-102 306,14,-101 307,11,-103 307,11,-102 307,11,-101 307,12,-104 ' +
+    '307,12,-103 307,12,-102 307,12,-101 307,13,-104 307,13,-103 307,13,-102 307,13,-101 307,14,-103 ' +
+    '307,14,-102 307,14,-101 308,11,-103 308,11,-102 308,11,-101 308,12,-103 308,12,-102 308,12,-101 ' +
+    '308,13,-103 308,13,-102 308,13,-101 308,14,-103 308,14,-102 308,14,-101 309,11,-102 309,11,-101 ' +
+    '309,12,-103 309,12,-102 309,12,-101 309,13,-103 309,13,-102 309,13,-101 309,14,-102 309,14,-101 ').trim().split(' '))
+function stallWater(x, y, z) {
+    return (z <= -109 && y >= 7 && y <= 16) || (z === -108 && (y <= 12 || (y === 13 && x <= 307) ||
+        (y === 14 && x <= 305) || (y === 15 && x <= 304))) || (z === -107 && y === 8 && x <= 303)
+}
+
+test('a rising staircase blocked by water ahead climbs sideways through its own excavations (live 06:19Z)', async () => {
+    const { mineTunnel } = require('../src/progression-skills')
+    const air = new Set(STALL_AIR)
+    const bot = {
+        health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(305.5, 10, -105.5) },
+        blockAt(p) {
+            const key = `${p.x},${p.y},${p.z}`
+            const name = air.has(key) ? 'air' : stallWater(p.x, p.y, p.z) ? 'water' : STALL_GRAVEL.has(key) ? 'gravel' : 'stone'
+            return { name, position: p, boundingBox: name === 'stone' || name === 'gravel' ? 'block' : 'empty', diggable: true,
+                canHarvest: () => true }
+        },
+        equip: async () => {}, canDigBlock: () => true,
+        async dig(block) { air.add(`${block.position.x},${block.position.y},${block.position.z}`); throw new Error(`dug ${block.position}`) }
+    }
+    const excavatedCells = new Set([...STALL_AIR].map(key => `overworld:(${key.split(',').join(', ')})`))
+    const c = {
+        bot, running: true, paused: false, actionAbort: new AbortController(), log: { info() {}, warn() {} },
+        memory: { excavatedCells, minedCells: new Set(), mineDirection: 3,
+            tunnelFrontier: { x: 305, y: 10, z: -106, dimension: 'overworld', targetY: 75, direction: 3, levelSteps: 64 } },
+        bestItem: names => names.includes('iron_pickaxe') ? { name: 'iron_pickaxe' } : null,
+        async gotoWithTimeout(goal) { throw new Error(`moved to ${goal.x},${goal.y},${goal.z}`) },
+        rememberBlockedTarget() {}
+    }
+    await assert.rejects(mineTunnel(c, 75), error => {
+        assert.doesNotMatch(error.message, /no supported dry tunnel step/)
+        return true
+    })
+    assert.equal(c.memory.mineDirection, 0, 'climbs east through the disposal-pit cell')
+})
+
+test('a stalled tunnel step says how many steps were unsafe, old excavations or blocked targets', async () => {
+    const { mineTunnel } = require('../src/progression-skills')
+    const bot = {
+        health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(305.5, 10, -105.5) },
+        blockAt(p) {
+            const key = `${p.x},${p.y},${p.z}`
+            const name = STALL_AIR.has(key) ? 'air' : stallWater(p.x, p.y, p.z) ? 'water' : STALL_GRAVEL.has(key) ? 'gravel' : 'stone'
+            return { name, position: p, boundingBox: name === 'stone' || name === 'gravel' ? 'block' : 'empty', diggable: true }
+        },
+        equip: async () => {}
+    }
+    // North touches water at both slopes; east is a blocked target; the rising west step has an
+    // open floor and no blocks to build one; the level west cell is the old stair.
+    const c = {
+        bot, running: true, paused: false, actionAbort: new AbortController(), log: { info() {}, warn() {} },
+        memory: { excavatedCells: new Set(['overworld:(304, 10, -106)', 'overworld:(304, 11, -106)']), minedCells: new Set(),
+            mineDirection: 3, tunnelFrontier: { x: 305, y: 10, z: -106, dimension: 'overworld', targetY: 75, direction: 3 } },
+        bestItem: names => names.includes('iron_pickaxe') ? { name: 'iron_pickaxe' } : null,
+        isBlockedTarget: block => block.position.x === 306
+    }
+    await assert.rejects(mineTunnel(c, 75), /no supported dry tunnel step: 3 unsafe .*, 1 already excavated, 2 blocked/)
+})
+
 test('a cave spring with no dry bank is filled from within bucket reach', async () => {
     const { performProgression } = require('../src/progression-skills')
     const spring = new Vec3(3, 66, 0)

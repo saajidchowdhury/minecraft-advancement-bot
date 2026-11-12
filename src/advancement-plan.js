@@ -278,13 +278,15 @@ function planAdvancement(state) {
         return craft(state, 'minecraft:story/shiny_gear', `diamond_${affordable}`)
     }
     const entered = state.completedAdvancements?.has('minecraft:story/enter_the_nether')
-    if ((state.waterBuckets ?? 0) < 2 && !state.obsidianCastPending && !state.portalInProgress && !entered) {
+    // A water search deferred after stalling in place also defers the obsidian and portal steps.
+    const portalRoute = !entered && !(state.waterDeferred && state.obsidian < 10 && !state.obsidianCastPending && !state.portalInProgress)
+    if ((state.waterBuckets ?? 0) < 2 && !state.obsidianCastPending && !state.portalInProgress && portalRoute) {
         return castingPrep(state)
     }
-    if (state.obsidian < 10 && !state.portalInProgress && !entered) {
+    if (state.obsidian < 10 && !state.portalInProgress && portalRoute) {
         return castingPrep(state) || target('minecraft:story/form_obsidian', 'gather_obsidian', 'mine ten obsidian for a portal')
     }
-    if (!state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
+    if (portalRoute) {
         if (!state.hasFlintAndSteel) {
             return craft(state, 'prep:portal ignition', 'flint_and_steel')
         }

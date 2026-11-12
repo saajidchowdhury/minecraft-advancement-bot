@@ -308,25 +308,33 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
         if (merge) {
             target = merge
         }
+        const refused = { unsafe: 0, excavated: 0, blocked: 0 }
         for (const [index, dy] of merge ? [] : slopes.flatMap(dy => directionOrder.map(i => [i, dy]))) {
             const [dx, dz] = DIRECTIONS[index]
             const candidate = feet.offset(dx, dy, dz)
             if (undergroundOnly && openToSky(bot, candidate.offset(0, dy === 0 ? 2 : 3, 0))) {
                 continue
             }
-            if ((!heading && index !== forward && minedPassage(c, candidate)) ||
-                c.isBlockedTarget?.({ position: candidate }) || !safeTunnelStep(bot, feet, candidate, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt'])))) {
-                continue
+            // A rising step gains height, so climbing sideways through old cells cannot spiral (F088);
+            // water ahead plus its own stair and disposal pit beside it froze a climb (live 06:19Z).
+            if (!heading && index !== forward && dy <= 0 && minedPassage(c, candidate)) {
+                refused.excavated++
+            } else if (c.isBlockedTarget?.({ position: candidate })) {
+                refused.blocked++
+            } else if (!safeTunnelStep(bot, feet, candidate, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt'])))) {
+                refused.unsafe++
+            } else {
+                target = candidate
+                c.memory.mineDirection = index
+                break
             }
-            target = candidate
-            c.memory.mineDirection = index
-            break
         }
         if (!target) {
             if (rise < 0 && frontier?.levelSteps >= 8) {
                 throw new Error('tunnel descent blocked after eight level detour steps')
             }
-            throw new Error('no supported dry tunnel step; exposed liquid or falling blocks nearby')
+            throw new Error(`no supported dry tunnel step: ${refused.unsafe} unsafe (liquid, falling blocks or support), ` +
+                `${refused.excavated} already excavated, ${refused.blocked} blocked`)
         }
         const floor = bot.blockAt(target.offset(0, -1, 0), false)
         if (floor.boundingBox === 'empty') {

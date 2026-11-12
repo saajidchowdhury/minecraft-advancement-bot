@@ -56,6 +56,7 @@ const SAFE_DESCENT_BLOCKS = new Set([
     'mud', 'clay', 'sand', 'red_sand', 'gravel', 'snow_block'
 ])
 const RECOVERY_WINDOW_MS = 4.5 * 60 * 1000
+const WATER_DEFER_MS = 5 * 60 * 1000
 // Pathfinder measures from the bot's feet to the landing block, so a value of
 // three permits a two-block fall. That is damage-free in vanilla Minecraft and
 // lets the bot step off small player-built platforms without enabling cliff jumps.
@@ -901,6 +902,13 @@ class SurvivalController {
             // starting a staircase, descent, or relocation that uses the same bot.
             this.clearCurrentTask()
             await sleep(100)
+            // Water searches skip drop-down recovery (F089), so an in-place stall would retry forever
+            // (live 06:19Z, 40+ tries at one cell); defer the obsidian route and do other work.
+            if (action === 'fill_water_bucket' && stalledInPlace) {
+                this.memory.waterDeferredUntil = Date.now() + WATER_DEFER_MS
+                this.failures.set(action, 0)
+                this.log.warn(`Water search stalled in place; deferring it for ${WATER_DEFER_MS / 60000} min.`)
+            }
             if (this.urgentReplan || [Actions.REFUGE, 'mine_from_refuge', 'avoid_enderman', 'fill_water_bucket'].includes(action) ||
                 !this.running || this.paused || this.followPlayer || this.bot.health <= 0) {
                 return
@@ -1054,6 +1062,7 @@ class SurvivalController {
             hasBucket: this.hasAnyItem(['bucket', 'lava_bucket']),
             buckets: this.countItems(['bucket', 'water_bucket', 'lava_bucket']),
             hasEmptyBucket: this.hasItem('bucket'), waterBuckets: this.countItems(['water_bucket']), hasLavaBucket: this.hasItem('lava_bucket'),
+            waterDeferred: this.memory.waterDeferredUntil > Date.now(),
             obsidianCastPending: this.memory.obsidianCast?.dimension === this.bot.game.dimension,
             hasFlintAndSteel: this.hasItem('flint_and_steel'),
             diamonds: this.countItems(['diamond']), obsidian: this.countItems(['obsidian']),

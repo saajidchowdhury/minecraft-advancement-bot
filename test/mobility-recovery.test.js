@@ -229,3 +229,37 @@ test('a shaft escape never chooses a staircase through the bot\'s own furnace', 
     assert.match(messages[0], /toward/)
     assert.doesNotMatch(messages[0], /toward 0,1\./)
 })
+
+test('a water search failing three times in place is deferred so the planner turns to other work (live 06:19Z)', async () => {
+    const c = Object.create(SurvivalController.prototype)
+    c.running = true
+    c.memory = {}
+    c.bot = { health: 20, entity: { position: new Vec3(305.5, 10, -105.5) } }
+    c.observe = () => ({
+        health: 20, food: 20, foodUnits: 24, hostileDistance: Infinity, underground: true, logs: 27, planks: 2, sticks: 5,
+        cobblestone: 63, hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true,
+        hasWoodcuttingAxe: true, hasDiggingShovel: true, hasFurnace: true, hasIronPickaxe: true, hasDiamondPickaxe: true,
+        hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true, hasSmeltingFuel: true,
+        gear: new Set(['iron_sword', 'diamond_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']),
+        hasBucket: true, hasEmptyBucket: true, waterBuckets: 0, hasLavaBucket: true, diamonds: 0, obsidian: 0,
+        rawIron: 4, ironIngots: 5, completedAdvancements: new Set(['minecraft:story/lava_bucket', 'minecraft:story/mine_diamond']),
+        waterDeferred: c.memory.waterDeferredUntil > Date.now()
+    })
+    c.log = { info() {}, warn() {} }
+    c.onState = c.scheduleLoop = () => {}
+    c.inventorySummary = () => ''
+    c.detectVerticalShaft = c.detectElevationTrap = () => false
+    c.failures = new Map()
+    const actions = []
+    c.performWithTimeout = async action => {
+        actions.push(action)
+        throw new Error('no supported dry tunnel step: 2 unsafe, 4 already excavated, 0 blocked')
+    }
+    c.unstick = c.scout = async () => assert.fail('a water search must not start drop-down recovery')
+    for (let i = 0; i < 4; i++) {
+        await c.tick()
+    }
+    assert.deepEqual(actions.slice(0, 3), ['fill_water_bucket', 'fill_water_bucket', 'fill_water_bucket'])
+    assert.notEqual(actions[3], 'fill_water_bucket')
+    assert.ok(c.memory.waterDeferredUntil > Date.now())
+})
