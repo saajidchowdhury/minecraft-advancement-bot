@@ -51,7 +51,8 @@ test('nighttime water search stays underground instead of continuing the surface
 test('a blocked nighttime water search fails in place, without land scouting, so the stall rule can defer it', async () => {
     const c = waterWorld(true)
     const at = c.bot.blockAt
-    c.bot.blockAt = p => p.y === 60 && Math.abs(p.x - 108) + Math.abs(p.z - 65) === 1
+    // Undiggable on all sides at the levels a level, rising or falling step would use (bedrock floors are fine).
+    c.bot.blockAt = p => p.y >= 59 && p.y <= 61 && Math.abs(p.x - 108) + Math.abs(p.z - 65) === 1
         ? { ...at(p), name: 'bedrock', diggable: false } : at(p)
     const start = c.bot.entity.position.clone()
     c.scout = async () => assert.fail('a night water search must not scout the surface')

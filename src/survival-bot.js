@@ -56,6 +56,7 @@ const SAFE_DESCENT_BLOCKS = new Set([
     'mud', 'clay', 'sand', 'red_sand', 'gravel', 'snow_block'
 ])
 const RECOVERY_WINDOW_MS = 4.5 * 60 * 1000
+const FALLING_BLOCK = /^(sand|red_sand|gravel|suspicious_sand|suspicious_gravel)$|_concrete_powder$/
 const WATER_DEFER_MS = 5 * 60 * 1000
 // Pathfinder measures from the bot's feet to the landing block, so a value of
 // three permits a two-block fall. That is damage-free in vanilla Minecraft and
@@ -2652,10 +2653,16 @@ class SurvivalController {
     }
 
     // The solid, non-liquid block filling the bot's eye cell, if any.
+    // A solid block at eye level, or a falling block that landed around the feet once the head was cleared
+    // (live 07:15:51Z: the lowest gravel of a fallen column held the bot in place).
     suffocatingBlock () {
         const entity = this.bot.entity
         const eye = entity && this.bot.blockAt?.(entity.position.offset(0, entity.eyeHeight ?? 1.62, 0), false)
-        return eye?.boundingBox === 'block' && eye.diggable !== false ? eye : null
+        if (eye?.boundingBox === 'block' && eye.diggable !== false) {
+            return eye
+        }
+        const feet = entity && this.bot.blockAt?.(entity.position, false)
+        return feet?.boundingBox === 'block' && feet.diggable !== false && FALLING_BLOCK.test(feet.name) ? feet : null
     }
 
     async clearHead () {

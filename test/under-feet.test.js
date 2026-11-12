@@ -110,3 +110,12 @@ test('a tower placement reported unanswered but landing a moment later is still 
     await bot.dig(bot.blockAt(new Vec3(0, 64, 0)), true)
     assert.equal(dug.at(-1).from.toString(), new Vec3(0.5, 65, 0.5).toString())
 })
+
+test('a falling block that landed around the feet is not support and is dug out in place (live 07:15:51Z)', async () => {
+    const gravel = new Vec3(0, 64, 0)
+    const { c, bot, dug } = digWorld({ [gravel.toString()]: 'gravel' }, new Vec3(0.5, 64.4, 0.5))
+    assert.equal(isUnderFeet(bot, gravel), false, 'the bot stands inside it, on the stone below')
+    await bot.dig(bot.blockAt(gravel))
+    assert.deepEqual(dug.map(d => [d.at.toString(), d.from.toString()]), [[gravel.toString(), '(0.5, 64.4, 0.5)']])
+    assert.ok(c)
+})

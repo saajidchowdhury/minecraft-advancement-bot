@@ -29,7 +29,8 @@ function supportCells(bot) {
     const columns = footprintColumns(p)
     const cells = []
     for (let y = Math.floor(p.y - 1e-3), n = 0; n < 3; y--, n++) {
-        const level = columns.map(([x, z]) => new Vec3(x, y, z))
+        // A falling block that landed around the feet (live 07:15:51Z) encloses them; it supports nothing.
+        const level = columns.map(([x, z]) => new Vec3(x, y, z)).filter(c => !(y + 1 > p.y + 1e-3 && fullBlock(bot.blockAt(c, false))))
         cells.push(...level)
         if (level.some(c => { const b = bot.blockAt(c, false); return !b || fullBlock(b) })) {
             break

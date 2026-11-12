@@ -30,9 +30,15 @@ test('stair mining refuses hazards the bot can see but cannot know about hazards
     const feet = new Vec3(0, 64, 0)
     const target = feet.offset(1, -1, 0)
     assert.equal(safeTunnelStep(tunnel(), feet, target), true)
-    for (const name of ['lava', 'water', 'gravel', 'sand', 'bedrock']) {
+    for (const name of ['lava', 'water', 'bedrock']) {
         assert.equal(safeTunnelStep(tunnel(new Map([[target.offset(0, 2, 0).toString(), name]])), feet, target), false,
             `${name} in the open tunnel wall`)
+    }
+    for (const name of ['gravel', 'sand']) {
+        assert.equal(safeTunnelStep(tunnel(new Map([[target.offset(0, 2, 0).toString(), name]])), feet, target), true,
+            `${name} in a cell to dig is dug through`)
+    }
+    for (const name of ['lava', 'water', 'gravel', 'sand', 'bedrock']) {
         assert.equal(safeTunnelStep(tunnel(new Map([[target.offset(1, 0, 0).toString(), name]])), feet, target), true,
             `${name} behind solid rock is not perceivable`)
     }
@@ -753,4 +759,52 @@ test('a cave spring with no dry bank is filled from within bucket reach', async 
     c.rememberBlockedTarget = block => quarantined.push(block.position)
     await assert.rejects(performProgression(c, 'fill_water_bucket', {}), /not in line of sight/)
     assert.deepEqual(quarantined, [spring])
+})
+
+test('gravel beside a step is harmless; gravel seen above the bot column is refused (F118)', () => {
+    const feet = new Vec3(0, 64, 0)
+    const side = tunnel(new Map([['(1, 64, 1)', 'gravel'], ['(1, 65, 1)', 'gravel']]), ['(1, 64, 0)', '(1, 65, 0)'])
+    assert.equal(safeTunnelStep(side, feet, feet.offset(1, 0, 0)), true, 'gravel only falls into the cell below it')
+    const shaft = tunnel(new Map([['(0, 68, 0)', 'gravel']]), ['(0, 66, 0)', '(0, 67, 0)'])
+    assert.equal(safeTunnelStep(shaft, feet, feet.offset(1, 1, 0)), false, 'it would land on the bot')
+})
+
+test('gravel that falls into a freshly dug tunnel cell is dug again until the column is gone (F118)', async () => {
+    const { mineTunnel } = require('../src/progression-skills')
+    const air = new Set(['0,64,0', '0,65,0'])
+    const gravel = new Set(['1,66,0', '1,67,0', '1,68,0'])
+    const dug = []
+    const bot = {
+        health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) }, entities: {},
+        blockAt(p) {
+            const key = `${p.x},${p.y},${p.z}`
+            const name = gravel.has(key) ? 'gravel' : air.has(key) ? 'air' : 'stone'
+            return { name, position: p, boundingBox: name === 'air' ? 'empty' : 'block', diggable: true, canHarvest: () => true }
+        },
+        equip: async () => {}, canDigBlock: () => true, waitForTicks: async () => {},
+        async dig(block) {
+            const { x, y, z } = block.position
+            dug.push(`${x},${y},${z}`)
+            gravel.delete(`${x},${y},${z}`)
+            air.add(`${x},${y},${z}`)
+            // The column above falls one cell, like vanilla falling blocks.
+            for (let h = y + 1; gravel.has(`${x},${h},${z}`); h++) {
+                gravel.delete(`${x},${h},${z}`)
+                gravel.add(`${x},${h - 1},${z}`)
+                air.delete(`${x},${h - 1},${z}`)
+                air.add(`${x},${h},${z}`)
+            }
+        }
+    }
+    const steps = []
+    const c = {
+        bot, running: true, paused: false, actionAbort: new AbortController(), memory: {}, log: { info() {}, warn() {} },
+        bestItem: names => names.includes('iron_pickaxe') ? { name: 'iron_pickaxe' } : null,
+        async gotoWithTimeout(goal) { steps.push([goal.x, goal.y, goal.z]); throw new Error('stop after one step') },
+        rememberBlockedTarget() {}
+    }
+    c.memory.mineDirection = 0
+    await assert.rejects(mineTunnel(c, 64), /stop after one step/)
+    assert.deepEqual(steps, [[1, 64, 0]])
+    assert.equal(dug.filter(key => key === '1,65,0').length, 4, 'the cell and three refills')
 })

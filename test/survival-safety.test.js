@@ -1252,3 +1252,18 @@ test('a charge that cannot close on its target gives up after five seconds inste
     await operation
     assert.match(failure?.message ?? '', /unreachable for 5s/)
 })
+
+test('gravel that landed in the feet cell is dug out by the suffocation reflex (live 07:15:51Z)', async () => {
+    const gravel = { name: 'gravel', position: new Vec3(280, 29, -40), boundingBox: 'block', diggable: true }
+    const c = Object.create(SurvivalController.prototype)
+    const dug = []
+    c.log = { warn() {} }
+    c.bot = {
+        entity: { position: new Vec3(280.5, 29, -39.5), eyeHeight: 1.62 },
+        blockAt: p => Math.floor(p.y) === 29 ? gravel : { name: 'air', boundingBox: 'empty' },
+        async dig(block) { dug.push(block.name) }
+    }
+    assert.equal(c.suffocatingBlock(), gravel)
+    await c.clearHead()
+    assert.deepEqual(dug, ['gravel'])
+})

@@ -12,6 +12,8 @@ const { isFuelPlank, isCharcoalLog, furnaceFuelTicks, plankFuelPlan, preparePlan
 
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
 const PROTECTED_CONTAINERS = new Set(['furnace', 'barrel', 'chest'])
+const LIQUIDS = new Set(['lava', 'water', 'fire', 'soul_fire'])
+const falls = name => /^(sand|red_sand|gravel|suspicious_sand|suspicious_gravel)$|_concrete_powder$/.test(name || '')
 const WOODCUTTING_AXES = ['netherite_axe', 'diamond_axe', 'iron_axe', 'copper_axe', 'stone_axe']
 const DIGGING_SHOVELS = ['netherite_shovel', 'diamond_shovel', 'iron_shovel', 'stone_shovel']
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
@@ -50,6 +52,10 @@ function seenHazard(bot, p) {
     return Boolean(block && HAZARDS.has(block.name) && cellVisible(bot, p))
 }
 
+function seenLiquid(bot, p) {
+    return Boolean(LIQUIDS.has(bot.blockAt(p, false)?.name) && cellVisible(bot, p))
+}
+
 function safeTunnelStep(bot, feet, target, allowFloorPlacement = false) {
     const floor = bot.blockAt(target.offset(0, -1, 0), false)
     const floorPosition = target.offset(0, -1, 0)
@@ -62,7 +68,7 @@ function safeTunnelStep(bot, feet, target, allowFloorPlacement = false) {
             ['air', 'cave_air', 'void_air'].includes(floor.name) &&
             (supportedPlacement(bot, floorPosition) || (base && ['air', 'cave_air', 'void_air'].includes(base.name) &&
                 supportedPlacement(bot, target.offset(0, -2, 0))))
-        if ((!canBuildFloor && floor.boundingBox !== 'block') || HAZARDS.has(floor.name)) {
+        if ((!canBuildFloor && floor.boundingBox !== 'block') || LIQUIDS.has(floor.name)) {
             return false
         }
     }
@@ -72,19 +78,58 @@ function safeTunnelStep(bot, feet, target, allowFloorPlacement = false) {
     } else if (target.y > feet.y) {
         cells.push(feet.offset(0, 2, 0), feet.offset(0, 3, 0), target.offset(0, 2, 0))
     }
+    // Gravel and sand fall only into the cell below them (F118): beside a step they are harmless, inside a
+    // cell they are dug through, and above an opened cell they refill it, which settleFalling digs again.
+    // Only a falling block seen above the bot's own column would land on the bot.
     for (const p of cells) {
         const block = bot.blockAt(p, false)
-        if (!block || seenHazard(bot, p) || PROTECTED_CONTAINERS.has(block.name) ||
+        if (!block || seenLiquid(bot, p) || block.name === 'bedrock' || PROTECTED_CONTAINERS.has(block.name) ||
             (block.boundingBox !== 'empty' && !block.diggable)) {
             return false
         }
         for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]]) {
-            if (!bot.blockAt(p.offset(dx, dy, dz), false) || seenHazard(bot, p.offset(dx, dy, dz))) {
+            const q = p.offset(dx, dy, dz)
+            const neighbor = bot.blockAt(q, false)
+            if (!neighbor || seenLiquid(bot, q) ||
+                (dy && p.x === feet.x && p.z === feet.z && falls(neighbor.name) && cellVisible(bot, q))) {
                 return false
             }
         }
     }
     return true
+}
+
+// A falling block above a freshly opened cell refills it within a few ticks; dig again until the column
+// is gone, as a player does (F118). One headed for the bot's own column is stopped with a block instead.
+async function settleFalling(c, p, feet, step) {
+    const bot = c.bot
+    const incoming = () => falls(bot.blockAt(p.offset(0, 1, 0), false)?.name) ||
+        Object.values(bot.entities || {}).some(e => e.name === 'falling_block' && e.isValid !== false &&
+            Math.abs(e.position.x - p.x - 0.5) < 0.6 && Math.abs(e.position.z - p.z - 0.5) < 0.6 &&
+            e.position.y > p.y - 0.5 && e.position.y < p.y + 8)
+    for (let wait = 0; wait < 40; wait++) {
+        const block = bot.blockAt(p, false)
+        const refilled = block && block.boundingBox !== 'empty' && falls(block.name)
+        if (!refilled && !incoming()) {
+            return
+        }
+        if (p.x === feet.x && p.z === feet.z) {
+            await Promise.resolve(c.placeSurvivalBlock?.(p)).catch(error => c.log.warn(`Could not stop the fall at ${p}: ${error.message}`))
+            c.rememberBlockedTarget?.({ position: step }, 'falling block above the bot', new Error('falling block'))
+            throw new Error(`falling ${block?.name || 'block'} above the bot at ${p}; stopped it with a block`)
+        }
+        if (refilled) {
+            const tool = tunnelTool(c, block)
+            if (tool) {
+                await bot.equip(tool, 'hand')
+            }
+            await bot.dig(block, true)
+        } else {
+            await bot.waitForTicks(2)
+        }
+        check(c)
+    }
+    throw new Error(`falling blocks kept refilling ${p}`)
 }
 
 // Liquid beside a freshly opened cell flows into it within ticks, so the bot would see it; the same
@@ -419,8 +464,9 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
                 await bot.equip(currentTool, 'hand')
                 await bot.dig(block, true)
                 dugFresh = true
+                await settleFalling(c, p, feet, target)
                 const revealed = revealedHazard(bot, p)
-                if (revealed) {
+                if (revealed?.kind === 'liquid') {
                     await plugRevealed(c, p, revealed, target)
                 }
                 if (c.findNearestBlock && exposedDiamond(c, p) && c.canPursueDiamond?.() !== false && findPriorityDiamond(c)) {
