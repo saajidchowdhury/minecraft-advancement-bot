@@ -13,11 +13,12 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-12
 
-AdvancementBot was restarted at 01:30 Eastern in Terminal window 781 on LAN
-port 49910, source `a76b2d6` (`outputs/2026-11-12@01.30.05/`, Terminal log
-`outputs/water-stall-restart-49910.log`). It deferred a stalled water search,
-earned Cover Me with Diamonds and went back to mining diamonds at night near
-(307,4,-106) (F113). The LAN port changes each time the world is opened.
+AdvancementBot was restarted at 01:41 Eastern in Terminal window 781 on LAN
+port 49910, source `f0b1468` (`outputs/2026-11-12@01.41.28/`, Terminal log
+`outputs/hidden-hazard-restart-2-49910.log`). It was tunnelling toward Y=-54
+for a diamond helmet near (305,-15,-105) (F113, F114). The owner `newflag`
+has infinite Night Vision and Regeneration I by user request
+(`outputs/owner-effects.json`; death or milk clears them). The LAN port changes each time the world is opened.
 Verify the process, connection and newest snapshot before live work.
 Baseline: 492 tests and syntax checks pass. The
 seeded cave harness `outputs/cave-mob-practice.js` is local (see
@@ -87,8 +88,11 @@ Mining and tunnels
   resource walks every 1.5 s for new targets (F073).
 - Never mine a natural block under the hitbox; step off first. Own placed blocks
   on sound support are exempt, and pointed dripstone is not a floor (F102).
-- Exposed-ore hazards use sight rays; tunnels and probes still use chunk data
-  (F107). Sloped steps blocked by liquid fall back to level side steps (F064).
+- Hazards count only when visible: tunnel steps, probes and exposed ore judge
+  liquid, falling blocks and missing floors by a sight line from the eye
+  (`cellVisible`), never by chunk data behind rock. A dig that opens onto liquid
+  plugs the opening and blocks that step for 120 s (F107, F114). The pathfinder's
+  own digging (`safeToBreak`) still reads hidden liquid. Sloped steps blocked by liquid fall back to level side steps (F064).
   Descents allow at most eight level detours (F094). Digs wait up to 400 ms for
   footing (F105).
 - A saved frontier and stable heading prevent spirals. Returns reach 48 blocks.
@@ -196,7 +200,9 @@ Navigation and recovery
 Highest risk first.
 0. A night water search at (305,10,-106) hit the 12 s movement watchdog three
    times with no log line saying what it was doing. The deferral contains it,
-   but it will retry every 5 min (F113).
+   but it will retry every 5 min (F113). Digging into hidden lava is now
+   possible, as for a player; the plug and the lava reflex are the only
+   defences (F114).
 1. Retreat under pursuit: reinforcements during an escape turned it into a
    wall-refuge search and one death. The staggered cases were not rerun after
    the F112 duel (F111).
@@ -345,3 +351,4 @@ Highest risk first.
 - F111 Cave combat while mining and smelting
 - F112 Sword strikes and retreat against an isolated creeper
 - F113 A water search froze beside water; deferral released Cover Me with Diamonds [live + regression]
+- F114 Hazards judged by sight, not hidden chunk data; revealed liquid is plugged [user direction + live + regression]

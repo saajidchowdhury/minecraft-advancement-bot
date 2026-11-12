@@ -2672,3 +2672,33 @@ The bot had carried 15 diamonds since about 05:57Z. The diamond detour (F103)
 had kept the interrupted water goal ahead of affordable armor, delaying the
 advancement by about 30 min. The sideways climb is regression-only so far.
 No commands were used.
+
+## F114 — Hazards judged by sight, not hidden chunk data; revealed liquid is plugged [user direction + live + regression]
+
+User direction (2026-11-12): the bot must not refuse to dig toward water it could not physically see
+from where it stands, whichever way it looks. In F113 the north step was refused because the cell
+behind the granite at (305,11,-107) was water in chunk data.
+
+`c72c0bc`: `cellVisible` (src/vision.js) walks voxels from the eye to a cell's centre and six face
+centres, ignoring view direction, with full collision blocks opaque and leaves clear, up to 16
+blocks. `safeTunnelStep` counts a liquid or falling-block hazard, and checks a missing floor, only
+when the cell is visible. A hidden floor is checked after the step's cells are dug, and an open one
+is built with carried blocks or the step is blocked. After each tunnel or probe dig,
+`revealedHazard` treats liquid in or beside the opened cell, or a falling block above it, as now
+seen: liquid flows in within ticks. Liquid is plugged with `placeSurvivalBlock`, which now accepts
+lava cells as well as water. The dug cell is blocked for 120 s and the dig throws. Probes stop that
+side.
+
+Live on `c72c0bc` (06:40Z, daylight, no commands): the climb dug north into the water at
+(307,8,-107) and plugged it, which F113 had made impossible. The next plan chose the same step and
+reopened the plug, because only the dug cell had been blocked. `f0b1468` also blocks the step that
+needed the cell. Restarted at 06:41:28Z; the bot went on tunnelling toward Y=-54 for a diamond
+helmet. A plug after the second fix has not been observed live. Regressions (stall geometry, a
+hidden water layer under a descent, probe reveals, the visible and hidden cases of
+`safeTunnelStep`) fail on the previous source. 493 tests pass.
+
+Remaining chunk-data reads: mineflayer-pathfinder's own `safeToBreak` (`dontCreateFlow`) still
+refuses path digs beside hidden liquid, and support, container and diggability checks in
+`safeTunnelStep` still read the cells being dug. The owner was also given infinite Night Vision and
+Regeneration I by a separate EffectHelper login; commands and replies are in
+`outputs/owner-effects.json`.

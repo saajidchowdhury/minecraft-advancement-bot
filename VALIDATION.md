@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-492 tests and `npm run check` pass at `a76b2d6`.
+493 tests and `npm run check` pass at `f0b1468`.
 Run them with the prepared runtime:
 
 ```sh
@@ -57,7 +57,7 @@ which leaves little room for more comments there.
 | mobility-recovery | 16 | unstick, shaft and pillar detection, safe drops, heap guard |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
-| progression-skills | 31 | stairs, tunnels, portal geometry, frontier, merges |
+| progression-skills | 32 | stairs, tunnels, portal geometry, frontier, merges |
 | resource-routing | 9 | visible-target searches, support preservation, exits |
 | sculk-caution | 5 | sculk alarms, zone, sneak flee |
 | shaft-memory | 11 | shaft recording, following, repair, pickless climb pause |
@@ -103,6 +103,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Water search with a daylight exit | live | F089 |
 | Water-search stall deferral | live | F113 |
 | Rising staircase crossing its own excavations | automated | F113 |
+| Digging into hidden water and plugging it | live (re-dig loop fixed after, regression only) | F114 |
 | Night water search | automated | F089 |
 | Underground night mining through a full night | live | F075 |
 | Natural night burrow, 1x2 shelter, `mine_from_shelter` | automated / staged | F102 |
