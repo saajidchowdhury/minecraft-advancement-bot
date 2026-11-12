@@ -2702,3 +2702,31 @@ refuses path digs beside hidden liquid, and support, container and diggability c
 `safeTunnelStep` still read the cells being dug. The owner was also given infinite Night Vision and
 Regeneration I by a separate EffectHelper login; commands and replies are in
 `outputs/owner-effects.json`.
+
+## F115 — Inventory cleanup ran every tunnel segment; keep rules, outclassed gear, batch cleanup [live + regression]
+
+Live 2026-11-12 06:41–06:43Z on `f0b1468`: 10 of 19 actions were `clear_inventory`, about 20% of
+mining time. The pack held 35 of 36 stacks. The trigger (4 or fewer free slots with any surplus)
+was always met. Each tunnel segment mined about 12 cobbled deepslate past the 64 reserve and
+started another shielded pit, which threw only those 12. Only listed rubble was ever
+discardable, so junk and outclassed gear accumulated: 27 raw copper, 6 oak saplings, 1
+gunpowder, wooden and stone pickaxes beside iron and diamond, an iron sword beside a diamond
+one, an iron chestplate and leggings under worn diamond, and a split cobblestone stack (59 + 1).
+
+`52609d2` (user direction): keep rules replace the reserve list. Every cleanup throws whole
+stacks beyond each rule (logs 40, coal and charcoal 32, gold 8, lapis 8, redstone 16, string
+5, feathers 4, food, valuables). The two best pickaxes and the best other tool of each kind
+are kept, armor only if better than worn, and items with no rule are thrown. Copper and
+gunpowder are junk by user direction, and caves no longer collect copper. Stone blocks share
+one 64 reserve and dirt has its own 16, because dirt seals have blast resistance 0.5. Cleanup
+starts at two free slots and merges split partial stacks first. `9d49a46`: at night,
+`fill_water_bucket` had swallowed a tunnel stall and returned success, looping every 1.7 s
+for six minutes at (308,-54,-148) (06:45:58Z onward). It now fails with the tunnel reason, so
+the F113 deferral applies.
+
+Restart 06:53:55Z (`9d49a46`, no commands; the owner kit ran beforehand and gave 6 enchanted
+golden apples): one cleanup threw iron leggings, saplings, 27 copper, stone and wooden picks,
+the iron chestplate, gunpowder, 57 cobblestone and the iron sword. Free slots went from 1 to
+9. The water search failed three times in place and was deferred for 5 min, and the bot went
+on to tunnel for a diamond helmet. Regressions use the 06:42Z inventory and fail on the
+previous source. 496 tests pass.

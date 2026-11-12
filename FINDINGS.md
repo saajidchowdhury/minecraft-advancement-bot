@@ -13,16 +13,14 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-12
 
-AdvancementBot was restarted at 01:41 Eastern in Terminal window 781 on LAN
-port 49910, source `f0b1468` (`outputs/2026-11-12@01.41.28/`, Terminal log
-`outputs/hidden-hazard-restart-2-49910.log`). It was tunnelling toward Y=-54
-for a diamond helmet near (305,-15,-105) (F113, F114). The owner `newflag`
-has infinite Night Vision and Regeneration I by user request
-(`outputs/owner-effects.json`; death or milk clears them). The LAN port changes each time the world is opened.
-Verify the process, connection and newest snapshot before live work.
-Baseline: 492 tests and syntax checks pass. The
-seeded cave harness `outputs/cave-mob-practice.js` is local (see
-DEVELOPMENT.md). Next actions are under "Now" in `GOALS.md`.
+AdvancementBot was restarted at 01:53 Eastern in Terminal window 781 on LAN
+port 49910, source `9d49a46` (`outputs/2026-11-12@01.53.55/`, Terminal log
+`outputs/inventory-rules-restart-49910.log`). One cleanup threw out the junk
+(9 slots free), the night water search was deferred, and the bot was tunnelling
+toward Y=-58 for a diamond helmet (F113–F115). Before each start,
+`outputs/owner-kit.js` checks and tops up the owner's kit (`outputs/owner-kit.json`).
+The LAN port changes each time the world is opened. Verify the process,
+connection and newest snapshot before live work. Baseline: 496 tests pass.
 
 ## Stable facts and process lessons
 
@@ -111,9 +109,15 @@ Mining and tunnels
 
 Inventory, base and disposal
 - Disposal tries the shielded pit (user technique), then a level or rising toss
-  lane, then retreat, with a 60 s back-off. Reserves: 64 cobblestone, 64
-  cobbled deepslate, 16 dirt (F019, F022). A full pack drops clutter, then one
-  low-priority stack, nearby storage, and finally an in-place drop (F050).
+  lane, then retreat, with a 60 s back-off (F019, F022). Cleanup starts at two
+  free slots (`needsCleanup`), merges split stacks, then throws every
+  discardable stack at once (F115).
+- Carry rules (`src/inventory.js`, F115): at least 64 cobblestone, deepslate or
+  netherrack in total plus 16 dirt; logs 40, fuel 32, gold 8, lapis 8, redstone
+  16, side-goal drops and food; the two best pickaxes, the best other tool of
+  each kind, and armor only if better than what is worn. Items without a rule,
+  including copper and gunpowder, are junk. A full pack with no junk throws
+  one low-priority stack, tries nearby storage, then drops in place (F050).
 - The base is a sealed barrel vault in rock beside a tunnel. Restock needs a
   carried pickaxe. Carry and restock levels are equal, and side-goal
   materials stay carried (`src/base.js`, F038, F039, F058, F070).
@@ -352,3 +356,4 @@ Highest risk first.
 - F112 Sword strikes and retreat against an isolated creeper
 - F113 A water search froze beside water; deferral released Cover Me with Diamonds [live + regression]
 - F114 Hazards judged by sight, not hidden chunk data; revealed liquid is plugged [user direction + live + regression]
+- F115 Inventory cleanup ran every tunnel segment; keep rules, outclassed gear, batch cleanup [live + regression]

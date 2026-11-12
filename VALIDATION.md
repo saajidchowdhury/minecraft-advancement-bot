@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-493 tests and `npm run check` pass at `f0b1468`.
+496 tests and `npm run check` pass at `9d49a46`.
 Run them with the prepared runtime:
 
 ```sh
@@ -48,7 +48,7 @@ which leaves little room for more comments there.
 | food-gathering | 3 | stew crafting, prey quarantine, watchdog recovery |
 | food | 22 | cooking jobs: reach, parking, far returns, detours, due times |
 | golem | 3 | Hired Help site, build order, gating |
-| inventory | 17 | cleanup reserves, surplus selection, pits, lanes, full packs |
+| inventory | 20 | keep rules, outclassed gear, batch trigger, stack merge, pits, lanes, full packs |
 | leaf-vision | 7 | leaf-transparent rays, overhead trunks, moving drops |
 | loot | 2 | chest and chest-minecart looting |
 | memory-random | 2 | seeded rng, atomic world memory |
@@ -95,6 +95,8 @@ none ran during the trial). "Automated" means regression tests only.
 | Descent merge into an old staircase | automated | F103 |
 | Disposal pit and toss lanes | live | F019, F022 |
 | Clutter cleanup | live | F050 |
+| Keep rules and batch cleanup (1 to 9 free slots in one pass) | live | F115 |
+| Night water-search stall deferred | live | F115 |
 | Barrel vault build and deposit | live | F039, F044 |
 | Restock after a death | not observed | F034, F039 |
 | Cave survey and return through a natural cave | not observed | F013, F051 |
