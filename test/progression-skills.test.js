@@ -689,7 +689,7 @@ test('water hidden behind rock does not stop the climb; the dig that reveals it 
     assert.equal(c.memory.mineDirection, 3, 'digs north toward the water it cannot see')
     assert.deepEqual(dug, ['(305, 13, -106)', '(305, 13, -107)'])
     assert.deepEqual(plugged, ['(305, 13, -107)'])
-    assert.deepEqual(blocked, ['(305, 13, -107)'])
+    assert.deepEqual(blocked, ['(305, 13, -107)', '(305, 11, -107)'], 'the step is blocked, not just the plugged cell')
 })
 
 test('a rising staircase facing visible water climbs sideways through its own excavations (F113)', async () => {

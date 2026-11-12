@@ -99,11 +99,15 @@ function revealedHazard(bot, p) {
     return above && HAZARDS.has(above.name) ? { kind: 'falling', name: above.name } : null
 }
 
-async function plugRevealed(c, p, found) {
+// The plug hides the hazard again, so the step that needed this cell is blocked too; otherwise the
+// next plan reopens the same plug (live 06:40:20Z, twice at (307,8,-107)).
+async function plugRevealed(c, p, found, step) {
     if (found.kind === 'liquid') {
         await Promise.resolve(c.placeSurvivalBlock?.(p)).catch(error => c.log.warn(`Could not plug ${found.name} at ${p}: ${error.message}`))
     }
-    c.rememberBlockedTarget?.({ position: p }, 'revealed hazard', new Error(found.name))
+    for (const position of step.equals(p) ? [p] : [p, step]) {
+        c.rememberBlockedTarget?.({ position }, 'revealed hazard', new Error(found.name))
+    }
     throw new Error(`dig at ${p} revealed ${found.name}${found.kind === 'liquid' ? '; plugged the opening' : ''}`)
 }
 
@@ -417,7 +421,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
                 dugFresh = true
                 const revealed = revealedHazard(bot, p)
                 if (revealed) {
-                    await plugRevealed(c, p, revealed)
+                    await plugRevealed(c, p, revealed, target)
                 }
                 if (c.findNearestBlock && exposedDiamond(c, p) && c.canPursueDiamond?.() !== false && findPriorityDiamond(c)) {
                     c.log.info('Tunnel dig exposed diamond ore; yielding to collect it.')
