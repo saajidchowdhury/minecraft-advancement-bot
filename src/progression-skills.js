@@ -1413,11 +1413,32 @@ async function tossAll(c, stacks, target, signal) {
     }
 }
 
+// Split partial stacks of one item (cobblestone 59 + 1, live 06:42Z) each hold a slot; combine them first.
+async function mergeSplitStacks(c) {
+    const bot = c.bot
+    const partial = new Map()
+    for (const item of bot.inventory.items()) {
+        if (item.stackSize > 1 && item.count < item.stackSize) {
+            partial.set(item.name, [...(partial.get(item.name) || []), item])
+        }
+    }
+    for (const stacks of partial.values()) {
+        stacks.sort((a, b) => b.count - a.count)
+        while (stacks.length > 1 && stacks[0].count + stacks.at(-1).count <= stacks[0].stackSize && bot.moveSlotItem) {
+            check(c)
+            const from = stacks.pop()
+            await bot.moveSlotItem(from.slot, stacks[0].slot)
+            stacks[0] = bot.inventory.slots[stacks[0].slot] || stacks[0]
+        }
+    }
+}
+
 async function clearInventory(c) {
     const bot = c.bot
+    await mergeSplitStacks(c)
     const items = bot.inventory.items()
     const full = bot.inventory.emptySlotCount() === 0
-    const surplus = discardableStacks(items)
+    const surplus = discardableStacks(items, c.inventoryContext?.() || { foods: bot.registry?.foodsByName || {} })
     if (!surplus.length) {
         if (!full || !items.length) {
             return

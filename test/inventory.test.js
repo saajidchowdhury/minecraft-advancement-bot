@@ -4,25 +4,29 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { discardableStack, discardableStacks } = require('../src/inventory')
 
-test('inventory cleanup keeps building reserves, ore, tools, food and rare items', () => {
+const foods = require('minecraft-data')('26.1').foodsByName
+
+test('inventory cleanup keeps one mixed stone reserve, dirt, ore, tools, food and rare items', () => {
     const valuable = [
-        { name: 'diamond', count: 64 }, { name: 'iron_ingot', count: 64 },
-        { name: 'cobblestone', count: 64 }, { name: 'cobbled_deepslate', count: 64 },
+        { name: 'diamond', count: 64 }, { name: 'iron_ingot', count: 64 }, { name: 'cobblestone', count: 64 },
         { name: 'dirt', count: 16 }, { name: 'bread', count: 64 }, { name: 'diamond_pickaxe', count: 1 }
     ]
-    assert.equal(discardableStack(valuable), null)
-    const surplus = { name: 'cobblestone', count: 64 }
-    assert.equal(discardableStack([...valuable, surplus]).name, 'cobblestone')
+    assert.equal(discardableStack(valuable, { foods }), null)
+    const surplus = { name: 'cobbled_deepslate', count: 64 }
+    assert.equal(discardableStack([...valuable, surplus], { foods }), surplus)
 })
 
-test('cleanup frees a full surplus rubble stack before discarding a tiny partial stack', () => {
+test('cleanup throws whole surplus rubble stacks and keeps one stack-sized reserve', () => {
     const small = { name: 'cobblestone', count: 1 }
     const full = { name: 'cobblestone', count: 64 }
     const items = [small, full, { ...full }, { ...full }]
-    assert.equal(discardableStack(items), full)
+    const surplus = discardableStacks(items)
+    assert.equal(surplus.length, 3)
+    assert.ok(surplus.includes(small))
+    assert.equal(items.filter(item => !surplus.includes(item)).reduce((n, item) => n + item.count, 0), 64)
 })
 
-test('one cleanup selects every surplus rubble stack while keeping each reserve', () => {
+test('one cleanup leaves at least 64 stone building blocks in total, 16 dirt and no stone variants', () => {
     const items = [
         ...Array.from({ length: 3 }, () => ({ name: 'cobblestone', count: 64 })), { name: 'cobblestone', count: 31 },
         { name: 'cobbled_deepslate', count: 64 }, { name: 'cobbled_deepslate', count: 48 }, { name: 'granite', count: 18 },
@@ -30,12 +34,38 @@ test('one cleanup selects every surplus rubble stack while keeping each reserve'
     ]
     const surplus = discardableStacks(items)
     const left = name => items.filter(i => i.name === name && !surplus.includes(i)).reduce((n, i) => n + i.count, 0)
-    assert.equal(left('cobblestone'), 64)
-    assert.equal(left('cobbled_deepslate'), 64)
-    assert.equal(left('dirt'), 17)
+    assert.equal(left('dirt'), 64)
+    assert.equal(left('cobblestone') + left('cobbled_deepslate'), 64)
     assert.equal(left('granite'), 0)
     assert.equal(left('raw_iron'), 15)
-    assert.equal(surplus.length, 6)
+    assert.equal(surplus.length, 7)
+})
+
+// The 06:42Z inventory (35 of 36 slots) whose cleanups ran after every tunnel segment.
+const LIVE = [['coal', 35], ['iron_leggings', 1], ['birch_log', 6], ['diamond', 2], ['oak_sapling', 6], ['redstone', 4],
+    ['furnace', 1], ['raw_copper', 27], ['wooden_pickaxe', 1], ['raw_iron', 7], ['stone_pickaxe', 1], ['bucket', 1],
+    ['iron_chestplate', 1], ['oak_log', 20], ['dirt', 29], ['gunpowder', 1], ['crafting_table', 1], ['birch_planks', 2],
+    ['iron_ingot', 2], ['leather', 1], ['stone_axe', 1], ['cobbled_deepslate', 64], ['lapis_lazuli', 17], ['stick', 2],
+    ['stone_shovel', 1], ['string', 2], ['diamond_sword', 1], ['cooked_beef', 9], ['cobblestone', 59], ['cobblestone', 1],
+    ['lava_bucket', 1], ['torch', 6], ['iron_sword', 1], ['diamond_pickaxe', 1], ['iron_pickaxe', 1]]
+    .map(([name, count]) => ({ name, count }))
+const LIVE_WORN = ['iron_helmet', 'diamond_chestplate', 'diamond_leggings', 'iron_boots', 'shield']
+
+test('the 06:42Z inventory throws junk, copper, gunpowder, outclassed gear and surplus rubble (10 slots)', () => {
+    const surplus = discardableStacks(LIVE, { worn: LIVE_WORN, foods })
+    assert.deepEqual(surplus.map(item => `${item.name} ${item.count}`).sort(), [
+        'cobblestone 1', 'cobblestone 59', 'gunpowder 1', 'iron_chestplate 1', 'iron_leggings 1', 'iron_sword 1',
+        'oak_sapling 6', 'raw_copper 27', 'stone_pickaxe 1', 'wooden_pickaxe 1'])
+})
+
+test('cleanup waits until two or fewer slots are free unless the pack is completely full', () => {
+    const { needsCleanup } = require('../src/inventory')
+    const junk = { name: 'raw_copper', count: 1 }
+    assert.equal(needsCleanup(4, junk), false, 'four free slots re-triggered after every tunnel segment')
+    assert.equal(needsCleanup(3, junk), false)
+    assert.equal(needsCleanup(2, junk), true)
+    assert.equal(needsCleanup(2, null), false)
+    assert.equal(needsCleanup(0, null), true)
 })
 
 function disposalContext(open, inventory, route = []) {
@@ -300,4 +330,23 @@ test('!inventory reports tools with durability first, then worn gear, then item 
     assert.ok(lines.length <= 4 && lines.every(line => line.length <= 256))
     assert.match(lines.at(-1), /\+\d+ more$/)
     assert.deepEqual(inventoryReport([], {}), ['Tools: none', 'Worn: nothing', 'Items: none'])
+})
+
+test('cleanup merges split partial stacks before choosing what to throw', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const big = { name: 'cobblestone', count: 59, stackSize: 64, slot: 9 }
+    const small = { name: 'cobblestone', count: 1, stackSize: 64, slot: 10 }
+    const inventory = [big, small, { name: 'diamond', count: 1, stackSize: 64, slot: 11 }]
+    const c = disposalContext(() => false, inventory)
+    const moves = []
+    c.bot.inventory.slots = { 9: big, 10: small }
+    c.bot.moveSlotItem = async (from, to) => {
+        moves.push([from, to])
+        big.count += small.count
+        inventory.splice(inventory.indexOf(small), 1)
+    }
+    await performProgression(c, 'clear_inventory', {})
+    assert.deepEqual(moves, [[10, 9]])
+    assert.equal(big.count, 60)
+    assert.equal(c.tossed.length, 0)
 })

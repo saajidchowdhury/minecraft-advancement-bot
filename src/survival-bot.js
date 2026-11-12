@@ -18,7 +18,7 @@ const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, I
     rememberMiningExposure, exposedByDig, visibleMiningHazard } = require('./cave-exploration')
 const { inView, blockInView, canSeeBlock, sightRay, scanFor } = require('./vision')
 const { findNearbyLoot, lootChest } = require('./loot')
-const { discardableStack, inventoryReport } = require('./inventory')
+const { discardableStack, needsCleanup, inventoryReport } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
 const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnimals } = require('./farming')
 const { archeryState, shootArrow } = require('./archery')
@@ -964,6 +964,11 @@ class SurvivalController {
         }
     }
 
+    inventoryContext () {
+        const worn = [5, 6, 7, 8, 45].map(slot => this.bot.inventory.slots?.[slot]?.name).filter(Boolean)
+        return { worn, foods: this.bot.registry?.foodsByName || {} }
+    }
+
     observe () {
         if ((this.memory.home?.provisional || this.memory.home?.y < 50) &&
             updateHome(this.memory, this.bot.entity.position, this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0))?.skyLight)) {
@@ -1071,7 +1076,7 @@ class SurvivalController {
             completedAdvancements: this.advancements.completed,
             dimension: this.bot.game.dimension, items,
             freeInventorySlots,
-            inventoryFull: (freeInventorySlots === 0 || (freeInventorySlots <= 4 && Boolean(discardableStack(inventory)))) &&
+            inventoryFull: needsCleanup(freeInventorySlots, discardableStack(inventory, this.inventoryContext())) &&
                 !(this.memory.disposalBackoffUntil > Date.now()),
             surfaceY: this.home?.y || 64, y: this.bot.entity.position.y,
             underground: Boolean(this.sheltered && this.memory.shelter?.burrowed) ||

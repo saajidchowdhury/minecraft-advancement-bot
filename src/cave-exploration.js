@@ -22,8 +22,7 @@ const ORES = [
     { ore: 'iron', cap: null, use: 'missing gear, buckets and spare picks' },
     { ore: 'coal', items: ['coal', 'charcoal'], cap: 32, use: 'fuel and cave lighting' },
     { ore: 'gold', items: ['raw_gold', 'gold_ingot'], cap: 8, use: 'Nether protection and bartering' },
-    { ore: 'copper', items: ['raw_copper', 'copper_ingot'], cap: 4, use: 'spyglass preparation' },
-    { ore: 'lapis', items: ['lapis_lazuli'], cap: 12, use: 'enchanting' },
+    { ore: 'lapis', items: ['lapis_lazuli'], cap: 8, use: 'enchanting' },
     { ore: 'redstone', items: ['redstone'], cap: 16, use: 'later redstone builds' }
 ]
 
