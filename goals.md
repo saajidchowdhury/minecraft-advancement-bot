@@ -8,9 +8,15 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
-Session handoff (2026-11-11): no bot is running; it was stopped cleanly on 499cba0
+F105 (2026-11-11): the bot is running on port 49910 after a same-Terminal
+restart. The server confirmed the corrected iron and copper ore break times.
+The landing wait also ran on an airborne stair-transition dig.
+Watch the next hunt on uneven ground for pickup or a `Left a hunted` warning.
+The automated baseline is 476 tests.
+
+Earlier session handoff (2026-11-11): the bot was stopped cleanly on 499cba0
 at 08:12:46Z, underground at about (-91,64,-224) with stone tools and a cooked meal.
-The latest LAN port is 54138 (world lan-49871). This world's run has been
+That LAN port was 54138 (world lan-49871). That run was
 command-assisted since 07:45:54Z (warden recovery, F104), and the staged sculk
 practice moved the clock to tick 1000. Every bot run and staged script goes in the
 user's visible Terminal window; staged scripts should teleport the owner to a

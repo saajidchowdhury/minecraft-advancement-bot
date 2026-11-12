@@ -2549,3 +2549,33 @@ sculk caution and its staged 3/3 practice). The user's directions this session:
 - Run staged scripts in the visible Terminal window and teleport the owner to watch.
 Biggest open risks: a real deep-dark flee through caves; the unexplained inventory loss after the
 recovery passes; and the unexplained 16 HP hit at 07:59:04Z.
+
+## F105 — Late ore breaks and hunting drops outside the view cone
+
+Live on port 49910 (2026-11-11, `outputs/2026-11-11@22.51.28/bot.log`):
+the pig hunt ending near (399,73,16) and the chicken hunt ending near
+(426,70,-8) left the food reserve unchanged, matching both user reports.
+After the 800 ms post-hunt wait, the bot used its current view cone twice
+to filter item entities. Hunting now searches server-tracked items within
+four blocks of the prey's last position, then uses the mined-drop routine
+to turn to them, follow them and try the exact item cell if needed. The
+hunt's dry pathfinder settings still apply. A post-fix hunt remains unobserved.
+
+The pinned 26.1 registry gives 108 blocks `incorrect_for_wooden_tool` where
+the 26.1.2 game jar tags all of them `mineable/pickaxe`. The local correction
+now applies to that set; `canHarvest()` still uses the original tier data.
+The Mineflayer finish packet moves from 4550 to 1150 ms for grounded iron
+ore with a stone pickaxe and from 4550 to 750 ms for grounded diamond ore
+with an iron pickaxe. The previous run's world clock averaged about 20 ticks/s
+before the report. The average cannot resolve individual stalls.
+
+Natural restart at 23:00 Eastern on port 49910 in the same Terminal (no
+Minecraft commands). The server confirmed removal at 1202 and 1159 ms for
+two iron ore blocks and 1166 ms for one copper ore, with a grounded stone
+pickaxe. The same trace showed one stair-transition copper dig start
+airborne and send finish at 5651 ms. Routine dry digs now wait up to 400 ms
+for footing before starting, with cancellation checked during the wait.
+On the next natural restart, an airborne copper dig request started grounded
+after 102 ms and sent finish 751 ms later with an iron pickaxe. Traces are in
+`outputs/mining-and-hunt-restart-49910.log` and
+`outputs/mining-and-hunt-landing-49910.log`.

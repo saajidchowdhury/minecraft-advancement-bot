@@ -2,6 +2,20 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F105 passes 476 tests and syntax checks. The mining regressions drive the
+pinned Mineflayer digging plugin and asserts the finish packet at 1150 ms
+for iron ore with a stone pickaxe, 750 ms for diamond ore with an iron
+pickaxe and 600 ms for ordinary stone with a stone pickaxe. A wooden pickaxe
+is refused for both ores. The hunting regression drives a complete hunt and
+checks that a drop outside the view cone is faced and reached after the
+follow goal stops short. Landing tests exercise the normal grounded timer
+after a short fall, the 400 ms cap and cancellation before the start packet.
+All four regressions failed before their respective fixes. After the natural
+restart on port 49910, two iron ores and one copper ore broke in 1159–1202 ms
+on the server. After the second restart, a copper dig requested airborne
+started grounded after 102 ms and sent finish 751 ms later with an iron
+pickaxe. Post-fix hunting is covered by the regression.
+
 F101 final: 436 tests pass. Later regressions cover kiting melee-only crowds of up
 to four, the shared kiteable-crowd rule for the crowd interrupt, no eating with
 melee within 4, forward kiting from an attacker behind, pillar persistence, the

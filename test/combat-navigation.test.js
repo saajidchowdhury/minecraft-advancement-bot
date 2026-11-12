@@ -59,6 +59,34 @@ test('an adjacent cow outside the view cone is turned to and hit, not abandoned 
     assert.equal(hits.length, 2)
 })
 
+test('a hunt turns to an out-of-view drop and steps into its cell if following misses pickup', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+    const { c, target, aims } = axeHunter()
+    delete c.visibleDrops
+    target.name = 'pig'
+    const drop = { name: 'item', position: new Vec3(2.5, 63, 1.5), isValid: true }
+    c.bot.entities = { 3: drop }
+    c.canSee = entity => entity !== drop
+    const goals = []
+    c.gotoWithTimeout = async (goal, ms, label) => {
+        goals.push(label)
+        if (label === 'hunted item cell') {
+            assert.deepEqual([goal.x, goal.y, goal.z, goal.rangeSq], [2, 63, 1, 0])
+            drop.isValid = false
+        }
+    }
+    const operation = c.fight(target, true)
+    for (let i = 0; i < 70; i++) {
+        t.mock.timers.tick(100)
+        await Promise.resolve()
+        await Promise.resolve()
+    }
+    await operation
+    assert.ok(aims.includes(drop.position))
+    assert.deepEqual(goals, ['hunted item pickup', 'hunted item cell'])
+    assert.equal(drop.isValid, false)
+})
+
 test('prey hidden by terrain for under 3 s is still hunted; hidden for 3 s ends the hunt', async t => {
     t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
     for (const [hiddenTicks, outcome] of [[20, 'hit'], [40, 'lost']]) {

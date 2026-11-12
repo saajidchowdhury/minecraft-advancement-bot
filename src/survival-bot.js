@@ -243,6 +243,37 @@ async function waitUntil (predicate, timeoutMs, intervalMs = 250) {
     throw new Error(`timed out after ${timeoutMs}ms`)
 }
 
+async function pickUpKnownDrops (c, drops, source, label, signal) {
+    const collected = drop => waitUntil(() => !drop.isValid, 1000, 100).then(() => true, () => false)
+    for (const drop of drops) {
+        if (signal?.aborted) {
+            throw new Error('collection cancelled')
+        }
+        if (!drop.isValid) {
+            continue
+        }
+        if (!c.canSee(drop)) {
+            await c.bot.lookAt(drop.position, true)
+        }
+        try {
+            await c.gotoWithTimeout(droppedItemGoal(drop), label === 'tree' ? 4000 : 8000, `${source} item pickup`)
+            if (!await collected(drop)) {
+                const p = drop.position.floored()
+                await c.gotoWithTimeout(new GoalNear(p.x, p.y, p.z, 0), 4000, `${source} item cell`)
+                await collected(drop)
+            }
+        } catch (error) {
+            if (signal?.aborted) {
+                throw error
+            }
+            c.log.warn(`Skipping ${label} drop pickup: ${error.message}`)
+        }
+        if (drop.isValid) {
+            c.log.warn(`Left a ${source} ${drop.getDroppedItem?.()?.name ?? 'item'} at ${drop.position.floored()}.`)
+        }
+    }
+}
+
 function actionMadeProgress (action, before, after, moved) {
     if (INTERRUPTIBLE.has(action) && ['diamondInView', 'ironInView', 'foodOpportunity'].some(key => after[key] && !before[key])) {
         return true
@@ -556,9 +587,10 @@ class SurvivalController {
 
     configureDigging () {
         // The pinned registry uses a harvest restriction in place of the tool speed tag.
-        const obsidian = this.bot.registry.blocksByName.obsidian
-        if (obsidian?.material === 'incorrect_for_wooden_tool') {
-            obsidian.material = 'mineable/pickaxe'
+        for (const block of Object.values(this.bot.registry.blocksByName)) {
+            if (block.material === 'incorrect_for_wooden_tool') {
+                block.material = 'mineable/pickaxe'
+            }
         }
         const dig = this.bot.dig.bind(this.bot)
         this.bot.dig = async (block, ...args) => {
@@ -570,6 +602,18 @@ class SurvivalController {
                 this.log.debug?.(`Breaking ${block.name} with ${tool?.name || 'bare hands'}.`)
             }
             const dimension = this.bot.game.dimension
+            const entity = this.bot.entity
+            if (block && entity?.onGround === false && !entity.isInWater && !entity.isInLava &&
+                this.bot.game.gameMode !== 'creative' && ![Actions.ESCAPE, Actions.REFUGE, 'avoid_enderman', 'flee_sculk',
+                    'surface_for_air', 'escape_lava', 'clear_head'].includes(this.activeAction)) {
+                const signal = this.actionAbort?.signal
+                for (let waitedMs = 0; waitedMs < 400 && !entity.onGround && !signal?.aborted; waitedMs += 50) {
+                    await sleep(50)
+                }
+                if (signal?.aborted || this.bot.game.dimension !== dimension) {
+                    throw new Error('dig cancelled while waiting for ground')
+                }
+            }
             if (block?.boundingBox === 'block' && isUnderFeet(this.bot, block.position) &&
                 !placedOnSupport(this.memory, dimension, this.bot, block)) {
                 await this.stepOffBlock(block)
@@ -1797,34 +1841,7 @@ class SurvivalController {
                 // Our own drop may land behind stone or in a pit out of view (live 01:54Z left raw iron);
                 // turn to it, follow it, then stand in its cell if the server has not collected it.
                 const drops = this.visibleDrops(block.position.offset(0.5, 0.5, 0.5), 3, false)
-                const collected = drop => waitUntil(() => !drop.isValid, 1000, 100).then(() => true, () => false)
-                for (const drop of drops) {
-                    if (signal?.aborted) {
-                        throw new Error('collection cancelled')
-                    }
-                    if (!drop.isValid) {
-                        continue
-                    }
-                    if (!this.canSee(drop)) {
-                        await this.bot.lookAt(drop.position, true)
-                    }
-                    try {
-                        await this.gotoWithTimeout(droppedItemGoal(drop), label === 'tree' ? 4000 : 8000, 'mined item pickup')
-                        if (!await collected(drop)) {
-                            const p = drop.position.floored()
-                            await this.gotoWithTimeout(new GoalNear(p.x, p.y, p.z, 0), 4000, 'mined item cell')
-                            await collected(drop)
-                        }
-                    } catch (error) {
-                        if (signal?.aborted) {
-                            throw error
-                        }
-                        this.log.warn(`Skipping ${label} drop pickup: ${error.message}`)
-                    }
-                    if (drop.isValid) {
-                        this.log.warn(`Left a mined ${drop.getDroppedItem?.()?.name ?? 'item'} at ${drop.position.floored()}.`)
-                    }
-                }
+                await pickUpKnownDrops(this, drops, 'mined', label, signal)
                 await sleep(300)
             }
         } catch (error) {
@@ -2172,10 +2189,8 @@ class SurvivalController {
                 throw new Error(reason)
             }
             if (hunt) {
-                const drops = this.visibleDrops(entity.position, 4)
-                if (drops.length > 0) {
-                    await this.collectTarget(drops, null, 'hunting drops')
-                }
+                const drops = this.visibleDrops(entity.position, 4, false)
+                await pickUpKnownDrops(this, drops, 'hunted', 'hunting', signal)
             }
         } finally {
             kite(this, null)
