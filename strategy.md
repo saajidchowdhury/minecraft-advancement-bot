@@ -21,8 +21,11 @@ when new evidence changes a ranking; goals.md carries the actionable queue.
    hostile sand spawn turned it into five deaths in 20 min; G015 targets the cascade.) The base (G013) turns a 30–45 min rebuild into a short walk once
    it holds spares; next add a bed at the base so respawn is beside it, and keep a
    spare iron kit stored. Survival fixes (F025–F035) cut the death rate itself.
+   The isolated creeper duel passed, but a reinforcement wave killed the bot
+   during a wall-refuge search (F111–F112). Keep the attack and retreat tests
+   separate when measuring changes to crowd behavior.
 2. **Fire-and-forget smelting.** Load all raw iron with enough fuel, leave the
-   furnace, keep mining, and collect when the fuel or input runs out (world ticks
+   furnace, keep working, and collect when the fuel or input runs out (world ticks
    from the furnace window, 2026-11-11) or when ingots are needed. Saves ~5 min per
    rebuild and most of the 29 min/day of idling. Jobs persist to 300 blocks and
    cooking runs where the bot is at night, so a furnace is rarely abandoned.

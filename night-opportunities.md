@@ -4,6 +4,11 @@
 > works on the surface at night; `huntAtNight` and `prepare_night_weapon` were removed
 > (recover from `db44453`). The hunting design below is kept as reference for a better
 > armed bot; drops such as string and bones now come from fights the bot cannot avoid.
+>
+> **Combat update 2026-11-12:** visible threats can interrupt work before a hit,
+> including from behind the bot. The isolated creeper duel passed in a staged
+> cave at full health. Reinforcements during a retreat remain an open problem.
+> See [F109–F112](findings.md#f109--pre-hit-mob-detection-and-a-shorter-creeper-retreat).
 
 
 Checked 2026-11-05 against Java 26.1.2. The installed game JAR was read directly:
@@ -16,10 +21,10 @@ or world data were changed or committed.
 | Source | Useful drops | Advancement dependencies and scope |
 | --- | --- | --- |
 | Spider | String, spider eyes | String supplies bows for Take Aim, fishing rods for Fishy Business, and wool for beds/Sweet Dreams. Eyes can support later brewing and Zombie Doctor prerequisites. Crafting an item alone does not satisfy these advancements. |
-| Skeleton | Bones and arrows; equipment drops are separate | Bones can tame wolves for Best Friends Forever and make bone meal for crops. Arrows support Take Aim; blocking a projectile with a shield can satisfy Not Today, Thank You. Ranged combat and wolf/crop skills remain future work. |
+| Skeleton | Bones and arrows; equipment drops are separate | Bones can tame wolves for Best Friends Forever and make bone meal for crops. Arrows support Take Aim; blocking a projectile with a shield can satisfy Not Today, Thank You. The bot has blocked a projectile in live play (F046). |
 | Zombie | Rotten flesh; rare carrot, potato or iron ingot | Vegetables support renewable food and pig breeding. Rotten flesh can support wolves and cleric trading/What a Deal! later; it is not the bot's normal food supply. In 26.1.2 carrots/potatoes are absent from A Seedy Place's qualifying crop criteria. |
 | Enderman | Ender pearls | With blaze powder, pearls become eyes of ender for stronghold/End progression; Eye Spy requires reaching a stronghold. Endermen are neutral until provoked, and deliberate hunting needs a dedicated safe method. |
-| Creeper | Gunpowder | Supports fireworks and later elytra travel, plus optional TNT. Killing an ordinary creeper or collecting powder is not a special advancement by itself. Explosion handling remains deferred. |
+| Creeper | Gunpowder | Supports fireworks and later elytra travel, plus optional TNT. Killing an ordinary creeper or collecting powder is not a special advancement by itself. An isolated creeper can be fought by striking and retreating. |
 | Witch | Redstone, glowstone dust, sugar, bottles, gunpowder, spider eyes, sticks | Useful for brewing and redstone prerequisites. Potion combat is deferred; witches are treated as a retreat trigger nearby. |
 | Phantom | Phantom membranes | Slow Falling preparation for later dangerous falls/End work. Deliberate insomnia farming is outside this first hunting slice; beds help avoid it. |
 
@@ -38,7 +43,7 @@ and [beds and first-night survival](https://www.minecraft.net/en-us/article/how-
 The local version's advancement predicates and loot tables take precedence over
 later releases, Bedrock behavior, or an article's simplified wording.
 
-## Implemented first slice
+## Historical first slice (2026-11-05)
 
 Nightfall does not interrupt ordinary healthy underground progression. On the
 surface, a bot with at least 18 health, 18 hunger, eight carried food points, an

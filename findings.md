@@ -2598,6 +2598,14 @@ makes up to three at once for a larger iron batch. Already-carried coal or
 charcoal remains preferred. A natural restart on port 49910 loaded the
 patch. The bot has coal, so a wood-only furnace job is still pending live.
 
+2026-11-12 follow-up: after a skeleton death, the bot loaded two carried
+oak planks at (502,20,136) and used the three resulting ingots to rebuild
+an iron pick. It later burned one carried oak plank to make one charcoal
+and used that charcoal to start an eight-iron batch at (490,17,134).
+The live record is `outputs/creeper-sword-restart-49910-r3.log`. A wood-only
+food job, conversion of logs into fuel planks and the multi-charcoal path
+still await live observation.
+
 ## F107 — Ore visibility, blind aquifers and approach alignment
 
 Port 49910, 2026-11-11. At (492,17,38), the 23:04 Eastern run rejected
@@ -2742,3 +2750,20 @@ was restored, the arena was removed, and AdvancementBot rejoined port
 49910. See `outputs/creeper-sword-cave-49910-r3.json` and its companion
 log. `CAVE_TRIALS=1` selects that lone-creeper case. The staggered crowd
 cases from F111 were not rerun with this change.
+
+## Session handoff — 2026-11-12, America/New_York
+
+At the handoff check, AdvancementBot was connected to LAN port 49910.
+`outputs/2026-11-12@00.19.31/session.json` records the 00:19 Eastern
+restart. Its 27 source hashes match the gameplay source committed in
+`510b533`. The previous natural run died to a skeleton at 00:17:53.
+The current run rebuilt an iron pick and was gathering iron again at
+full health around (474,16,133) at 00:25 Eastern. Check the newest state
+before another live test. The owner was returned and the temporary arena
+was cleared after the rematch. The seeded LAN harness and all run records
+are local to this development checkout under `outputs/`.
+
+The next combat check is the same-seed reinforcement scenario after a
+change to the retreat policy. Validate the isolated sword tactic on
+natural terrain as opportunities arise. Baseline: 489 automated tests
+and syntax checks pass.

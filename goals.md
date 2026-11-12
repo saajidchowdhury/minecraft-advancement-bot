@@ -1,12 +1,18 @@
 # Prioritized development goals
 
-Updated 2026-11-11 (America/New_York). Next: validate the new warden caution and
-food/furnace policy in natural play before expanding the advancement route.
+Updated 2026-11-12 (America/New_York). Next: improve retreat under pursuit
+and retest the reinforcement cases before expanding the advancement route.
 This is a working queue, not a rigid script.
 Reorder it when new evidence or user instructions warrant. Keep IDs stable and
 record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
+
+Current handoff (2026-11-12): AdvancementBot remained connected on port
+49910, with the `510b533` gameplay source verified by its startup hashes.
+It rebuilt an iron pick after a separate skeleton death and resumed mining.
+The latest run is `outputs/2026-11-12@00.19.31/`. Use its latest snapshot and
+verify the connection before resuming live work. Automated baseline: 489 tests.
 
 F112 (2026-11-12): the isolated creeper rematch passed at full health in
 four sword strikes. Watch for a natural encounter with poor footing or
@@ -29,10 +35,10 @@ approach correction. Watch the next ore that opens an aquifer and an
 approach from a corner on port 49910. The 481-test baseline includes
 raycast replays for both. Generic excavation still uses chunk safety data.
 
-F106 (2026-11-11): the bot on port 49910 now prepares planks for wood-fuel
-jobs and makes up to three charcoal for a larger batch. Check the next
-wood-only furnace job against `outputs/fuel-restart-49910.log`.
-The automated baseline is 478 tests.
+F106 (2026-11-12 follow-up): the bot rebuilt its first iron pick from a
+plank-fueled batch and made one charcoal for a later eight-iron job.
+Watch for an inventory log converted to fuel planks, a wood-only food
+job and a multi-charcoal batch. See `outputs/creeper-sword-restart-49910-r3.log`.
 
 F105 (2026-11-11): the bot is running on port 49910 after a same-Terminal
 restart. The server confirmed the corrected iron and copper ore break times.
@@ -48,7 +54,7 @@ practice moved the clock to tick 1000. Every bot run and staged script goes in t
 user's visible Terminal window; staged scripts should teleport the owner to a
 vantage point. Automated baseline: 472 passing tests (a5442ae).
 
-Next checks, in order (2026-11-11; F103, F104):
+Earlier validation queue (2026-11-11; F103, F104):
 1. Warden caution in natural play: a real deep-dark alarm, a sneaking flee through
    caves rather than the flat staged floor, and later mining that avoids the stored
    zone. Decide whether to run instead of sneak once a warden is already chasing.

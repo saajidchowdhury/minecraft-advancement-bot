@@ -34,8 +34,9 @@ Developer launch:
 native portable runtime in `.tools/`, then installed Node, then the Intel
 runtime through Rosetta. `./scripts/bootstrap.sh` downloads and checksums
 Node.js 26.13.0 into `.tools/` and runs `npm ci`. With Node 22 or newer already
-installed, `npm ci` installs the locked dependencies and reapplies the two
-inherited crafting synchronization patches.
+installed, `npm ci` installs the locked dependencies and reapplies the local
+Mineflayer patches, including crafting synchronization and player-only air
+updates.
 
 Ctrl-C stops the bot. An ordinary LAN world accepts a distinct offline bot
 username; an authenticated server requires `MC_AUTH=microsoft` and a separate
@@ -75,13 +76,14 @@ controls when that field is populated.
 
 The implemented route is:
 
-1. **Minecraft** — crafting table; prepare a wooden pickaxe and sword.
+1. **Minecraft** — crafting table and wooden pickaxe.
 2. **Stone Age** and **Getting an Upgrade** — cobblestone and a stone pickaxe,
    then a stone axe for wood and a stone shovel for dirt, grass blocks, sand,
    and gravel. Replace lost or broken tools unless a higher-tier tool is carried.
 3. Prepare a furnace; **Acquire Hardware** and **Isn't It Iron Pick** — smelt
    iron and craft an iron pickaxe.
-4. **Suit Up** — craft and wear an iron chestplate; prepare a shield.
+4. **Suit Up** — craft and wear an iron chestplate, then prepare a shield,
+   an iron sword and the rest of the iron armor.
 5. **Hot Stuff** — collect a lava source in a bucket.
 6. **Diamonds!** — staircase/branch mining, then a diamond pickaxe.
 7. Fill two water buckets. For **Ice Bucket Challenge**, mine exposed obsidian
@@ -90,9 +92,10 @@ The implemented route is:
 8. Gather ten obsidian, ignition supplies and food; **We Need to Go Deeper** —
    construct and enter a Nether portal.
 
-The bot waits near its destination after the supported route. Return it to the
-Overworld before a queued redstone demo. Autonomous fortress, stronghold and
-dragon progression are not implemented. Staged LAN trials verified the diamond
+After server-confirmed Nether entry, the bot returns to the Overworld, can
+pursue Enchanter if it already has book supplies, and works toward full diamond
+armor. Autonomous fortress, stronghold and dragon progression are not
+implemented. Staged LAN trials verified the diamond
 interrupt, a renewable water source, and one cast with server-confirmed Ice
 Bucket Challenge. A continuous run to ten obsidian and Nether entry is still
 unverified, as is the redstone demo.
@@ -131,9 +134,11 @@ abandoned. Returns target visible interaction reach: a furnace over 24 blocks
 away is first reached with normal movements, the dry approach gets 400 ms per
 block, and a failed approach tries a short lateral detour; eight consecutive
 failed detours pause the job for five minutes. Canceled approaches keep the job.
-Iron and charcoal smelting never use a furnace holding a cooking job. A
-fuel-starved iron job is refuelled with planks made from carried logs; iron jobs
-are also kept to 300 blocks and fetched early only beyond 250.
+Iron and charcoal smelting never use a furnace holding a cooking job. Coal or
+charcoal is preferred. When using wood, the bot can craft logs into planks for
+cooking or the first iron pick. A larger iron batch can justify making up to
+three charcoal first. Iron jobs are kept to 300 blocks and fetched early only
+beyond 250.
 Mining uses exposed targets and checked staircase steps, avoids removing
 its own support, and replaces broken tools. Charcoal provides furnace fuel when
 coal is unavailable. Every five horizontal tunnel blocks, the bot opens
@@ -144,11 +149,18 @@ starting value, not a measured optimum.
 
 Generic pathfinding cannot place scaffold blocks. Combat escape/pursuit and
 recovery scouting use supported dry routes without digging or bridging.
-Three observed hostiles within sixteen blocks latch a wall retreat: run clear,
+Hostiles with a clear sightline can interrupt work before a hit, even when the
+bot is facing away. Alert distances are six blocks for melee mobs, eight for
+creepers and twelve for archers. Against an isolated creeper, a healthy bot
+with a sword waits at reach, strikes once and backs away, then waits for the
+next approach. It retreats farther if the creeper swells. A nearby second
+threat or lack of a safe retreat route can end the duel.
+Three observed hostiles within sixteen blocks can trigger a wall retreat: run clear,
 dig and enter a one-by-two wall pocket, then confirm two sealing doorway
 blocks. A blocked seal triggers another run before retrying. Once enclosed,
 the bot mines inward and abandons the dangerous old tunnel frontier. Turning
-away from the mob group does not end the retreat. Descending tunnels permit
+away from the mob group does not end the retreat. The bot can kite a small
+melee-only group instead. Descending tunnels permit
 eight level detour steps before reporting a blocked descent; side probes wait
 until within eight blocks of the target layer. Level tunnels and descents beside
 an old mined passage running the same way step into it instead of digging a
@@ -157,8 +169,13 @@ parallel one.
 Newly exposed diamonds can interrupt another mining objective when safe. After
 collecting the drop, the bot returns to the interrupted objective, except that a
 newly affordable diamond pickaxe and then sword are crafted at once. Visible iron
-interrupts the same way while raw iron plus ingots are below 16 plus the ingots
-for missing iron gear (pickaxe, shield, sword, four armor pieces, three buckets).
+interrupts work while carried raw iron, ingots and recoverable furnace iron are
+below the cost of missing gear, up to three buckets and up to three spare iron
+pickaxes. The planner selects needed smelting ahead of optional iron, and an
+active return staircase skips optional ore detours. Exposed ore checks use
+visible hazards. If mining reveals water
+or lava, the bot skips approaching the drop. Ordinary digs wait briefly for
+footing, and the server confirms the block break.
 It also gathers other nearby ores up to reserve caps (coal and charcoal: 32). A supplied and protected
 bot explores caves depth first, remembering checkpoints and return waypoints by
 dimension. It excludes remembered mining passages from surveys and checks the
@@ -253,7 +270,8 @@ Each launch prints its output directory under `outputs/YYYY-MM-DD@HH.MM.SS/`
 (America/New_York):
 
 - `bot.log`: actions, confirmed advancements and failures; timestamps are UTC.
-- `state.json`: latest action snapshot, inventory, position and confirmed advancements.
+- `state.json`: latest action snapshot, inventory, position, iron reserve and
+  confirmed advancements.
 - `session.json`: configuration, exploration seed, hostname, runtime, source
   hashes and Git revision when available.
 - `p.pid`: bot process ID.
@@ -295,3 +313,20 @@ equipment, configuration bounds, resource routing, support-block safety, tunnel
 exits, liquid/falling-block checks, portal geometry, world-memory round trips
 and seeded exploration. Live-test results and remaining issues are recorded in
 `VALIDATION.md`.
+
+On the development checkout, the local `outputs/cave-mob-practice.js` harness
+uses a separate `CavePractice` player and a temporary stone arena with a
+tinted-glass viewing roof. It requires an open LAN world with commands enabled
+and `MC_OWNER` connected. Use the same visible Terminal as the ordinary bot
+and stop the verified ordinary process before staging. From the repository root
+with the prepared Node runtime on `PATH`, select the current port and a run file:
+
+```sh
+MC_PORT=12345 CAVE_SEED=49910 CAVE_TRIALS=1 \
+  CAVE_RESULTS=outputs/creeper-rematch.json \
+  node --env-file=.env outputs/cave-mob-practice.js
+```
+
+Omit `CAVE_TRIALS` for all eight encounters, or set `CAVE_MODE=staggered` for
+the two reinforcement cases. The seed fixes terrain and spawn placements.
+The harness records setup commands, restores the observer and removes the arena.

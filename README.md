@@ -4,7 +4,7 @@ A robot player for your Minecraft world. It joins your game as **AdvancementBot*
 and plays survival on its own, working through advancements: tools, iron,
 diamonds, all the way to a Nether portal. You just watch.
 
-No accounts, no API keys, no coding.
+The bot needs no separate Minecraft account, API key, or coding for LAN play.
 
 ## What you need
 
@@ -55,7 +55,8 @@ Press **T** in Minecraft, type one of these, and press **Enter**.
 | `!inventory` | The bot lists what it is carrying |
 | `!advancements` | The bot lists the advancements it has earned |
 
-When night comes, go to bed. The bot sleeps when you do.
+When night comes, go to bed. If the bot can see that you are sleeping and find
+a safe bed, it will join you.
 
 ## Windows
 

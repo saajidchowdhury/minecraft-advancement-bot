@@ -1,6 +1,8 @@
 # Validation
 
-Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
+Live tests through 2026-11-12, America/New_York. Host: MacBookPro. Minecraft
+Java 26.1.2, LAN protocol 775. Ordinary bot: AdvancementBot. The seeded
+cave arena uses a separate CavePractice player.
 
 F112 passes 489 tests and syntax checks. Regressions cover selection of
 the isolated duel, alternating swings and retreats, and an interruption
@@ -35,8 +37,11 @@ available. A stalled job crafts with the furnace closed, refuels with two
 planks and keeps the other two. The strengthened charcoal regression uses
 three logs and two different single-plank fuel stacks. The two cooking
 regressions and the strengthened charcoal test failed before the fix.
-Slab fuel is counted as 150 ticks per item. The bot rejoined LAN port 49910
-with the changes. Wood-only fueling and charcoal batching await live tests.
+Slab fuel is counted as 150 ticks per item. On 2026-11-12 the bot live-tested
+carried oak planks to smelt three iron and craft its first replacement pick.
+It also made one charcoal with a carried plank and used it to start an
+eight-iron batch. Live conversion of logs into fuel planks, wood-only food
+cooking and multi-charcoal batching remain open.
 
 F105 passes 476 tests and syntax checks. The mining regressions drive the
 pinned Mineflayer digging plugin and asserts the finish packet at 1150 ms
