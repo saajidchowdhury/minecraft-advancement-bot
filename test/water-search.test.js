@@ -123,12 +123,25 @@ test('nightfall interrupts a daytime water trip but leaves an underground night 
     const bot = new EventEmitter()
     bot.health = 20
     let interrupted = 0
+    let ready = false
     const c = { bot, running: true, busy: true, activeAction: 'fill_water_bucket', waterDaytimeSearch: true,
-        isNight: () => true, actionAbort: new AbortController(), cancelCurrentTask() { interrupted++ } }
+        isNight: () => true, nightSurfaceReady: () => ready, actionAbort: new AbortController(), cancelCurrentTask() { interrupted++ } }
     SurvivalController.prototype.bindEvents.call(c)
     bot.emit('time')
     assert.equal(interrupted, 1)
     c.waterDaytimeSearch = false
     bot.emit('time')
     assert.equal(interrupted, 1)
+    c.waterDaytimeSearch = true
+    ready = true
+    bot.emit('time')
+    assert.equal(interrupted, 1, 'a night-ready bot keeps its surface water search')
+})
+
+test('a night-ready bot continues the water search to the surface instead of staying underground', async () => {
+    const c = waterWorld(true)
+    c.nightSurfaceReady = () => true
+    await performProgression(c, 'fill_water_bucket', {})
+    assert.ok(c.bot.entity.position.y > 60, 'climbs as in daylight')
+    assert.equal(c.waterDaytimeSearch, true, 'nightfall does not cancel it')
 })

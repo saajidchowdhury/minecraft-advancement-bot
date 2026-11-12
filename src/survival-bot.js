@@ -607,7 +607,7 @@ class SurvivalController {
         installSculkCaution(this)
         this.bot.on('time', () => {
             if (this.running && this.busy && this.activeAction === 'fill_water_bucket' && this.waterDaytimeSearch &&
-                this.isNight() && !this.actionAbort?.signal.aborted) {
+                this.isNight() && !this.nightSurfaceReady() && !this.actionAbort?.signal.aborted) {
                 this.urgentReplan = true
                 this.cancelCurrentTask('nightfall during surface water search')
             }
@@ -949,6 +949,13 @@ class SurvivalController {
         }
     }
 
+    // Night surface work is allowed in full iron-or-better armor with a diamond sword and a shield, above 12 HP.
+    nightSurfaceReady () {
+        const slots = this.bot.inventory?.slots || []
+        return [5, 6, 7, 8].every(slot => /^(iron|diamond|netherite)_/.test(slots[slot]?.name || '')) &&
+            slots[45]?.name === 'shield' && this.hasAnyItem(['diamond_sword', 'netherite_sword']) && this.bot.health > 12
+    }
+
     inventoryContext () {
         const worn = [5, 6, 7, 8, 45].map(slot => this.bot.inventory.slots?.[slot]?.name).filter(Boolean)
         return { worn, foods: this.bot.registry?.foodsByName || {} }
@@ -1053,6 +1060,7 @@ class SurvivalController {
             buckets: this.countItems(['bucket', 'water_bucket', 'lava_bucket']),
             hasEmptyBucket: this.hasItem('bucket'), waterBuckets: this.countItems(['water_bucket']), hasLavaBucket: this.hasItem('lava_bucket'),
             waterDeferred: this.memory.waterDeferredUntil > Date.now(),
+            nightSurfaceReady: this.nightSurfaceReady(),
             obsidianCastPending: this.memory.obsidianCast?.dimension === this.bot.game.dimension,
             hasFlintAndSteel: this.hasItem('flint_and_steel'),
             diamonds: this.countItems(['diamond']), obsidian: this.countItems(['obsidian']),

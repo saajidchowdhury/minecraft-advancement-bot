@@ -559,3 +559,11 @@ test('the bot never starts eating with a melee mob at arm\'s length', () => {
     assert.notEqual(chooseAction(hungry), Actions.EAT)
     assert.equal(chooseAction({ ...hungry, meleeDistance: Infinity, hostileDistance: Infinity }), Actions.EAT)
 })
+
+test('a bot in full iron-or-better armor with a diamond sword and shield may work on the surface at night', () => {
+    const ready = state({ isNight: true, nightSurfaceReady: true, hasWeapon: true, armorPoints: 15, shieldEquipped: true })
+    assert.notEqual(chooseAction(ready), Actions.SHELTER, 'user direction 2026-11-12')
+    assert.equal(chooseAction({ ...ready, nightSurfaceReady: false }), Actions.SHELTER)
+    assert.equal(chooseAction({ ...ready, health: 12 }), Actions.SHELTER, 'hurt bots still shelter')
+    assert.equal(chooseAction({ ...ready, retreatForNight: true }), Actions.SHELTER, 'a night retreat still holds')
+})

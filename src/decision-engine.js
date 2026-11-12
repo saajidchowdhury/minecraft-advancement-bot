@@ -68,6 +68,9 @@ function hasMiningWood (state) {
 }
 
 function chooseAction (state) {
+    // User direction 2026-11-12: full iron-or-better armor, a diamond sword and a shield may work the
+    // surface at night, which finds water far faster; a hurt bot or a night retreat still shelters.
+    const nightCleared = state.isNight && state.nightSurfaceReady && state.health > 12 && !state.retreatForNight
     // Drowning costs 2 HP/s once air runs out and nothing else can fix it (02.56.08 died underwater).
     // Lava costs 4 HP per half second (03.45.28 died in 2.5 s standing still in it).
     if (state.inLava) {
@@ -196,7 +199,7 @@ function chooseAction (state) {
         return 'sleep'
     }
     // Surface nights killed the bot. At night descend, carve down when protected, or shelter.
-    if (state.isNight && !state.underground) {
+    if (state.isNight && !state.underground && !nightCleared) {
         if (state.nightShaftReady && state.hasStonePickaxe && state.health > 12 && !state.visibleHostiles) {
             return 'descend_shaft_at_night'
         }
@@ -313,7 +316,7 @@ function chooseAction (state) {
         }
     }
     // Surfacing at night walked a weak bot into archers twice (F035); hunger returns stay above.
-    if (surfaceBound && state.isNight) {
+    if (surfaceBound && state.isNight && !nightCleared) {
         if (preparingIronPick && action === Actions.WOOD && !state.hasSmeltingFuel && state.sticks >= 2 &&
             state.rawIron + state.ironIngots >= 3 && state.health > 12) {
             return Actions.COAL
