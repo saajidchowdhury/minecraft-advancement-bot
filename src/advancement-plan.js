@@ -135,6 +135,8 @@ function craft(state, id, item, action = 'craft_progression') {
 }
 
 // Each cast needs lava, two water buckets for the pool, and an empty bucket to recover the water.
+const DEFERRED_DIAMONDS = 16
+
 function castingPrep(state) {
     if (state.obsidianCastPending) {
         return null
@@ -309,6 +311,11 @@ function planAdvancement(state) {
     const missing = ARMOR_PIECES.find(piece => !ownsTier(state, piece, 'diamond'))
     if (missing) {
         return craft(state, 'prep:diamond armor', `diamond_${missing}`)
+    }
+    // A deferred water search left a fully geared bot idle (live 07:03Z); deep mining banks diamonds
+    // for the enchanting table and capped ore (gold, lapis, redstone) until the water route resumes.
+    if (state.waterDeferred && state.hasDiamondPickaxe && (state.diamonds ?? 0) < DEFERRED_DIAMONDS) {
+        return target('prep:mining while water waits', 'gather_diamonds', 'mine diamonds and ore while the water search is deferred')
     }
     return target('survival:established', 'wait', 'supported advancement route complete; use !come or !redstone')
 }

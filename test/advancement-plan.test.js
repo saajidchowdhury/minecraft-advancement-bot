@@ -239,3 +239,12 @@ test('a diamond sword follows the diamond pickaxe at once instead of waiting for
     assert.equal(nextAdvancement({ ...miner, diamonds: 1 }).item, 'iron_leggings')
     assert.equal(nextAdvancement({ ...miner, hasDiamondPickaxe: false, diamonds: 2 }).item, 'iron_leggings')
 })
+
+test('a deferred water search sends a fully geared bot deep mining instead of waiting (live 07:03Z)', () => {
+    const gear = new Set(['diamond_sword', 'diamond_helmet', 'diamond_chestplate', 'diamond_leggings', 'diamond_boots'])
+    const state = { ...established, hasDiamondPickaxe: true, gear, waterBuckets: 0, hasEmptyBucket: true, hasLavaBucket: true,
+        diamonds: 1, completedAdvancements: new Set(['minecraft:story/lava_bucket', 'minecraft:story/shiny_gear']) }
+    assert.equal(nextAdvancement(state).action, 'fill_water_bucket')
+    assert.equal(nextAdvancement({ ...state, waterDeferred: true }).action, 'gather_diamonds')
+    assert.equal(nextAdvancement({ ...state, waterDeferred: true, diamonds: 16 }).action, 'wait')
+})
