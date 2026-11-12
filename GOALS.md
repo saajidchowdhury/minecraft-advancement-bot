@@ -10,32 +10,21 @@ playthrough is a test, not the definition of success.
 
 ## Now
 
-1. Retreat under ongoing pursuit (F111). A late wave turned a running escape
-   into a wall-refuge search while the first mobs kept following. Improve the
-   sustained retreat, then rerun `CAVE_SEED=49910 CAVE_MODE=staggered` and the
-   simultaneous creeper cases. Done when both staggered cases end in a kill
-   or a scored escape on the same seed.
-2. Watch natural play on the running bot for:
-   - the next daytime water climb past water or old cells, and what the night
-     water search does in the 12 s before the watchdog fires (F113);
-   - whether diamond detours should let affordable armor go first: Cover Me with
-     Diamonds waited about 30 min behind the water goal (F113);
-   - a creeper duel on poor footing or with a reinforcement arriving (F112);
-   - a furnace job near the iron reserve cap (F108);
-   - the next unassisted pickless return (F110);
-   - an ore that opens an aquifer, and a corner approach (F107);
-   - a hunt pickup on uneven ground, or a `Left a hunted` warning (F105);
-   - logs turned into fuel planks, a wood-only food job, a multi-charcoal batch (F106).
-3. Warden caution in natural play (F104): a real deep-dark alarm, a flee through
-   caves and later mining that avoids the stored zone. Decide whether to run
-   instead of sneak once a warden is already chasing.
-4. Long furnace trips (F103): a two-stage trip to a far cooking furnace, a
-   parked job collected the next day, and fuel-tick due times compared with
-   actual finish times. Weigh the 300-block smelt pull against the risk of
-   death #5's long walk (F070).
-5. Diagnose before relying on them: the inventory loss after warden recovery
-   (does Mineflayer `tossStack` on 26.1 throw extra stacks?) and unattributed
-   damage. Log explosions and the attacker entity on every hit.
+1. Live-verify this session's unobserved changes: a revealed-water scoop and
+   `waterInReach` fill (F119), a gravel refill dig and a stopped column fall
+   (F118), night surface work when fully armed (F117), a dig into hidden water
+   followed by a plug (F114). Then cast obsidian toward the portal (G005).
+2. Retreat under ongoing pursuit (F111). A late wave turned a running escape
+   into a wall-refuge search. Rerun `CAVE_SEED=49910 CAVE_MODE=staggered` and the
+   simultaneous creeper cases. Done when both staggered cases end in a kill or
+   a scored escape on the same seed.
+3. Watch natural play for: the creeper duel on poor footing (F112), a furnace job
+   near the iron cap (F108), cleanup frequency under the keep rules (F115), and
+   whether head turning is gone (F116).
+4. Remaining hidden-data reads: mineflayer-pathfinder's `safeToBreak` still
+   refuses path digs beside hidden liquid (F114). Decide whether to patch it.
+5. Diagnose the inventory loss after warden recovery (F104) and unattributed
+   damage; condense the findings digest back under ~200 lines.
 
 ## Active goals
 

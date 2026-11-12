@@ -11,15 +11,17 @@ To record a finding, append its full entry to the archive, add one index line
 below, and edit the digest bullets it changes. Replace the current handoff
 instead of adding another. Keep everything above the index under ~200 lines.
 
-## Current handoff — 2026-11-12
+## Current handoff — 2026-11-12, session end
 
-AdvancementBot was restarted at 02:03 Eastern in Terminal window 781 on LAN
-port 49910, source `8bd5fab` (`outputs/2026-11-12@02.03.36/`, Terminal log
-`outputs/line-of-sight-restart-49910.log`). It wears full diamond armor and was
-waiting out a water-search deferral at (310,-3,-97) (F113–F116). Before each start,
-`outputs/owner-kit.js` checks and tops up the owner's kit (`outputs/owner-kit.json`).
-The LAN port changes each time the world is opened. Verify the process,
-connection and newest snapshot before live work. Baseline: 507 tests pass.
+AdvancementBot was left running in Terminal window 781 on LAN port 49910, source
+`e7e85b6` (`outputs/2026-11-12@02.29.56/`, Terminal log
+`outputs/water-opportunity-restart-49910.log`). It wears full diamond armor,
+carries an empty and a lava bucket, and was mining for diamonds while the water
+search was deferred (F113–F119). Before each start, `outputs/owner-kit.js`
+checks and tops up the owner's kit. The LAN port changes each time the world is
+opened. Verify the process, connection and newest snapshot before live work.
+Baseline: 507 tests pass. The digest above the index is about 250 lines, over
+its ~200 limit; condense older bullets next session.
 
 ## Stable facts and process lessons
 
