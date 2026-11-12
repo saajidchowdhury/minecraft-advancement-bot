@@ -2779,3 +2779,27 @@ cancels its surface search. A night retreat (crowd, low health or food, sudden s
 damage; night-policy) still shelters the bot, and kiting stays disabled on a surface night.
 Three regressions fail on the previous source. 500 tests pass. Restarted at 07:13:11Z (timeOfDay 22327)
 with dawn near, so a ready night on the surface is not yet observed.
+
+## F118 — A fallen gravel column trapped the bot by the feet; gravel handling [live + regression]
+
+Live 2026-11-12 07:15:49Z on `95e7e6d` at (280,29,-40), during a daylight water-search climb.
+Digging the stair headroom (280,32,-40) exposed a gravel column, and the gravel fell down the
+bot's column. `clear_head` dug the head-level gravel three times over about 3 s (HP 20 to
+14.2), but the lowest block landed in the feet cell. The saved region showed gravel at
+(280,29,-40) with air above. Neither the reflex (eye level only) nor the under-feet guard
+handled it: the guard counted a full block enclosing the feet as support. The gravel-filled
+cave walls then refused every tunnel step, because gravel beside any step cell counted as a
+hazard. Water deferral and `gather_diamonds` failed in place 26+ times.
+
+`6f6286a`: the reflex also digs a falling block (gravel, sand, concrete powder) enclosing the
+feet, and the guard skips a full block whose top is above the feet. Gravel and sand matter
+only above an opened cell: beside a step they are ignored and inside a cell they are dug
+through. A refill is dug again until the column is gone (`settleFalling`, which watches the
+cell above and `falling_block` entities). Only a falling block seen above the bot's own
+column refuses a step. One that starts to fall there is stopped by placing a block in the
+opened cell. Bedrock is now a valid floor. Five regressions fail on the previous source.
+504 tests pass.
+
+Restart 07:22:17Z (the owner kit topped up one enchanted golden apple): the reflex dug the
+feet gravel at 07:22:20Z, and `gather_diamonds` tunnelled away to (276,25,-40) at once. A
+live refill dig and a stopped column fall have not been observed yet.

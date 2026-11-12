@@ -19,7 +19,7 @@ port 49910, source `8bd5fab` (`outputs/2026-11-12@02.03.36/`, Terminal log
 waiting out a water-search deferral at (310,-3,-97) (F113–F116). Before each start,
 `outputs/owner-kit.js` checks and tops up the owner's kit (`outputs/owner-kit.json`).
 The LAN port changes each time the world is opened. Verify the process,
-connection and newest snapshot before live work. Baseline: 500 tests pass.
+connection and newest snapshot before live work. Baseline: 504 tests pass.
 
 ## Stable facts and process lessons
 
@@ -91,7 +91,11 @@ Mining and tunnels
   liquid, falling blocks and missing floors by a sight line from the eye
   (`cellVisible`), never by chunk data behind rock. A dig that opens onto liquid
   plugs the opening and blocks that step for 120 s (F107, F114). The pathfinder's
-  own digging (`safeToBreak`) still reads hidden liquid. Sloped steps blocked by liquid fall back to level side steps (F064).
+  own digging (`safeToBreak`) still reads hidden liquid. Gravel and sand matter
+  only above an opened cell: beside a step they are ignored, inside a cell they
+  are dug through, refills are dug again (`settleFalling`), and one seen above
+  the bot's own column refuses the step (F118). Sloped steps blocked by liquid
+  fall back to level side steps (F064).
   Descents allow at most eight level detours (F094). Digs wait up to 400 ms for
   footing (F105).
 - A saved frontier and stable heading prevent spirals. Returns reach 48 blocks.
@@ -171,7 +175,8 @@ Combat and threats
 Environmental reflexes
 - Lava triggers `escape_lava` (pour water, drive to a dry cell) (F069, F074).
   Air at 12/20 or less triggers a direct swim until 18 (F065, F091, F099). A
-  block at eye height triggers `clear_head` (F069). Critical-health
+  block at eye height, or a falling block enclosing the feet, triggers
+  `clear_head` (F069, F118). Critical-health
   cancellation spares escapes and reflexes (F010, F069). At 6 HP or less the
   bot rests to 14 when fed and calm (F062).
 - Fall damage, fire, cactus, berry bushes and powder snow have no reflex audit (F069).
@@ -366,3 +371,4 @@ Highest risk first.
 - F115 Inventory cleanup ran every tunnel segment; keep rules, outclassed gear, batch cleanup [live + regression]
 - F116 Line of sight replaces the view cone; head turns removed [user direction + regression]
 - F117 Night surface work for a fully armed bot [user direction + regression]
+- F118 A fallen gravel column trapped the bot by the feet; gravel handling [live + regression]
