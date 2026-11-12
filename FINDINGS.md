@@ -19,7 +19,7 @@ port 49910, source `8bd5fab` (`outputs/2026-11-12@02.03.36/`, Terminal log
 waiting out a water-search deferral at (310,-3,-97) (F113–F116). Before each start,
 `outputs/owner-kit.js` checks and tops up the owner's kit (`outputs/owner-kit.json`).
 The LAN port changes each time the world is opened. Verify the process,
-connection and newest snapshot before live work. Baseline: 498 tests pass.
+connection and newest snapshot before live work. Baseline: 500 tests pass.
 
 ## Stable facts and process lessons
 
@@ -177,9 +177,13 @@ Environmental reflexes
 - Fall damage, fire, cactus, berry bushes and powder snow have no reflex audit (F069).
 
 Night and shelter
-- No surface work at night. Underground mining continues at 12 HP as displayed
-  (`state.health >= 11.5`); below that the bot shelters and waits (F071, F104).
-  Night surface trips shelter underground instead (F035). Long restocks wait for
+- No surface work at night unless night-ready: full iron-or-better armor worn,
+  a diamond or netherite sword, a shield equipped and HP above 12
+  (`nightSurfaceReady`, user direction, F117). Such a bot works and searches for
+  water on the surface; a night retreat still shelters it. Underground mining
+  continues at 12 HP as displayed (`state.health >= 11.5`); below that the bot
+  shelters and waits (F071, F104). Other bots' night surface trips shelter
+  underground instead (F035). Long restocks wait for
   daylight (F070). Surface exploration and water search outdoors are
   daytime only (F089).
 - Shelters are 1x2 rooms (23-block surface enclosure, burrow, enderman refuge),
@@ -361,3 +365,4 @@ Highest risk first.
 - F114 Hazards judged by sight, not hidden chunk data; revealed liquid is plugged [user direction + live + regression]
 - F115 Inventory cleanup ran every tunnel segment; keep rules, outclassed gear, batch cleanup [live + regression]
 - F116 Line of sight replaces the view cone; head turns removed [user direction + regression]
+- F117 Night surface work for a fully armed bot [user direction + regression]

@@ -2765,3 +2765,17 @@ and iron on the way. The regression fails on the previous source. 498 tests pass
 Live 07:08:52Z on `3d436d7`: gravel revealed above a night water-search step at (313,-4,-38) ended
 three tries in place, the route was deferred, and a second later the planner chose `gather_diamonds`
 ("mining while water waits") instead of `wait`. No commands were used.
+
+## F117 — Night surface work for a fully armed bot [user direction + regression]
+
+User direction (2026-11-12): now that combat is decent, a bot in full iron-or-better armor
+with a diamond sword and a shield may go to the surface at night. This should speed up the
+water search in particular, since surface water is far easier to find than cave springs
+(F113, F115). `95e7e6d`: `nightSurfaceReady` (all four armor slots iron, diamond or netherite,
+shield in the off-hand, diamond or netherite sword carried, HP above 12) clears the night
+surface rules in `chooseAction`: shelter, carve down or descend a shaft, and no surface-bound
+trips at night. `fill_water_bucket` then searches as in daylight, and nightfall no longer
+cancels its surface search. A night retreat (crowd, low health or food, sudden surface
+damage; night-policy) still shelters the bot, and kiting stays disabled on a surface night.
+Three regressions fail on the previous source. 500 tests pass. Restarted at about 07:16Z
+with dawn near, so a ready night on the surface is not yet observed.
