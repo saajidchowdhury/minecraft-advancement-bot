@@ -2,8 +2,8 @@
 
 Updated 2026-11-12 (America/New_York). This file is the digest: the current
 handoff, stable facts, policies in force, open problems and a one-line index.
-Full evidence for each finding is in `findings-archive.md`; search it by ID
-(`rg -n '^## F112' findings-archive.md`) rather than reading it whole.
+Full evidence for each finding is in `FINDINGS-ARCHIVE.md`; search it by ID
+(`rg -n '^## F112' FINDINGS-ARCHIVE.md`) rather than reading it whole.
 Evidence labels: live (unaided), staged (commands set up the scene),
 regression, inspection, hypothesis. Keep IDs stable.
 
@@ -20,7 +20,7 @@ was mining iron at full health near (474,16,133) at 00:25. The LAN port changes
 each time the world is opened. Verify the process, connection and newest
 snapshot before live work. Baseline: 489 tests and syntax checks pass. The
 seeded cave harness `outputs/cave-mob-practice.js` is local (see
-DEVELOPMENT.md). Next actions are under "Now" in `goals.md`.
+DEVELOPMENT.md). Next actions are under "Now" in `GOALS.md`.
 
 ## Stable facts and process lessons
 

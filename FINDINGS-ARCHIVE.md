@@ -1,9 +1,9 @@
 # Findings archive
 
-Full evidence for every finding, verbatim and in ID order. `findings.md` holds the
+Full evidence for every finding, verbatim and in ID order. `FINDINGS.md` holds the
 current digest and a one-line index; open this file only by searching for an ID
-(`rg -n '^## F0NN' findings-archive.md`). Append each new full entry at the end and
-add its index line to `findings.md`. Correct an old entry in place when new evidence
+(`rg -n '^## F0NN' FINDINGS-ARCHIVE.md`). Append each new full entry at the end and
+add its index line to `FINDINGS.md`. Correct an old entry in place when new evidence
 changes it. Superseded session handoffs were removed on 2026-11-12; see git history.
 
 ## F001 — Project scope and visibility [user requirement]
@@ -187,7 +187,7 @@ The actual diamond-action dispatch is tested, not just the scoring function.
 Surface deep-mining departures reserve twelve hunger points of food; cleanup
 starts with four empty slots remaining to leave room for supplies and drops.
 These are initial policies, not measured optimum quotas or proof of safe return.
-`cave-opportunities.md` records official-source research and separates implemented
+`CAVE-OPPORTUNITIES.md` records official-source research and separates implemented
 ore reserves from later berry, axolotl, geode, container and enchanting skills.
 A large cave survey and return still need live evidence. Revision `ac9e912`,
 run `outputs/2026-11-05@01.04.11/`, gathered three raw iron through Opportunity
@@ -243,7 +243,7 @@ placement/orientation, both halves and server sleep state; other LAN players may
 also need to sleep. Checked shelter exits replace shaft-style wall escape, and
 intact shelter coordinates survive reconnects.
 
-`night-opportunities.md` records Mojang sources and exact 26.1.2 loot/advancement
+`NIGHT-OPPORTUNITIES.md` records Mojang sources and exact 26.1.2 loot/advancement
 JSON inspected in the installed JAR. Spider string, skeleton bones/arrows and
 later pearl/brewing prerequisites offer useful parallel branches. Carrots and
 potatoes do NOT satisfy this version's A Seedy Place predicates. Ordinary loot
@@ -631,7 +631,7 @@ the fourteenth confirmed advancement and the first from the G014 husbandry branc
 
 ## F037 — Throughput from the strategy review: loop latency and async smelting [logs + regression]
 
-strategy.md (new) measured today's sinks: ~29 min waiting at furnaces (60 smelt_iron
+STRATEGY.md (new) measured today's sinks: ~29 min waiting at furnaces (60 smelt_iron
 actions, 1744 s, batches of three) and a fixed 1.5 s replan delay after every action
 against a 3.6 s median action gap (~5% of run time). `b85f0da` replans 250 ms after a
 success (failures keep 1.5 s, threats 100 ms). `bc7b277` smelts fire-and-forget: all raw

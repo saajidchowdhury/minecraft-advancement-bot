@@ -85,11 +85,11 @@ implementation work.
 
 ## Read first
 
-- `findings.md`: current handoff, lessons, policies in force, open problems and
-  a one-line index; full evidence per ID is in `findings-archive.md` (search it
+- `FINDINGS.md`: current handoff, lessons, policies in force, open problems and
+  a one-line index; full evidence per ID is in `FINDINGS-ARCHIVE.md` (search it
   by ID, do not read it whole).
-- `goals.md`: specific next steps, in priority order, with completion criteria.
-- `strategy.md`: higher-level throughput analysis and ranked levers behind the goals.
+- `GOALS.md`: specific next steps, in priority order, with completion criteria.
+- `STRATEGY.md`: higher-level throughput analysis and ranked levers behind the goals.
 - `README.md`: player setup; `DEVELOPMENT.md`: configuration, controls,
   architecture and code map; `VALIDATION.md`: test coverage and live status.
 - `npm run outline -- <file>` lists functions, methods, tests or headings with
@@ -122,12 +122,12 @@ logs, dependencies, tools or the preserved `minecraft-iris` reference directory.
 
 Near the end of a session, record important discoveries and corrections,
 including evidence and uncertainty: append each full finding to
-`findings-archive.md`, add its index line to `findings.md` and edit the digest
+`FINDINGS-ARCHIVE.md`, add its index line to `FINDINGS.md` and edit the digest
 it changes. Replace the current handoff rather than appending another. Update
-`goals.md` with completed work, reordered priorities and concrete next actions;
+`GOALS.md` with completed work, reordered priorities and concrete next actions;
 collapse finished goals to one line. Update `VALIDATION.md` rows in place when
-coverage changes. Keep `findings.md` above its index under ~200 lines and
-`goals.md` and `VALIDATION.md` under ~150 lines each. Keep this general
+coverage changes. Keep `FINDINGS.md` above its index under ~200 lines and
+`GOALS.md` and `VALIDATION.md` under ~150 lines each. Keep this general
 instruction file relatively steady.
 
 `AGENTS.md` and `CLAUDE.md` must contain the same complete instructions and remain

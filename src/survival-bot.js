@@ -1975,7 +1975,7 @@ class SurvivalController {
     }
 
     // Fire-and-forget smelting: load all raw iron with enough fuel, record a job and keep
-    // working; standing at furnaces cost ~29 min on 2026-11-05 (strategy.md).
+    // working; standing at furnaces cost ~29 min on 2026-11-05 (STRATEGY.md).
     async smeltIron (batchSize = 64, plankFuel = null) {
         // The pre-job pendingSmelt flag is retired here so a stale value cannot loop the planner.
         this.memory.pendingSmelt = false

@@ -3,7 +3,7 @@
 Updated 2026-11-12 (America/New_York). This is a working queue, not a rigid
 script. Reorder it when evidence or user instructions change. Keep goal IDs
 stable. When a goal is done, reduce it to one line under "Completed" with its
-evidence reference. Dated session narratives belong in `findings-archive.md`
+evidence reference. Dated session narratives belong in `FINDINGS-ARCHIVE.md`
 or git history, not here. Keep this file under ~150 lines. The project goal is
 a bot that reliably gets selected advancements in a logical order. One
 playthrough is a test, not the definition of success.

@@ -1,7 +1,7 @@
 # Development notes
 
 Technical details moved out of the player-facing `README.md`. See also
-`findings.md`, `goals.md`, `strategy.md` and `VALIDATION.md`.
+`FINDINGS.md`, `GOALS.md`, `STRATEGY.md` and `VALIDATION.md`.
 
 ## Code map
 
@@ -149,9 +149,9 @@ Minecraft commands for staged tests stay outside the gameplay controller.
 
 The current rules for mining, furnaces, food, combat, night, shelter and
 recovery, each with its constants and finding IDs, are under "Policies in
-force" in `findings.md`. Research behind the cave and night branches is in
-[cave-opportunities.md](cave-opportunities.md) and
-[night-opportunities.md](night-opportunities.md).
+force" in `FINDINGS.md`. Research behind the cave and night branches is in
+[CAVE-OPPORTUNITIES.md](CAVE-OPPORTUNITIES.md) and
+[NIGHT-OPPORTUNITIES.md](NIGHT-OPPORTUNITIES.md).
 
 ## State and debugging
 

@@ -2,7 +2,7 @@
 
 Living document for higher-level throughput analysis (CLAUDE.md "Two efficiency
 goals"). Numbers come from the 2026-11-05 logs unless marked as estimates. Revise
-when new evidence changes a ranking; goals.md carries the actionable queue.
+when new evidence changes a ranking; GOALS.md carries the actionable queue.
 
 ## Where the time went (2026-11-05, port 51718)
 
