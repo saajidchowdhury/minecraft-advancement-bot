@@ -7,6 +7,52 @@ const { Vec3 } = require('vec3')
 const goto = require('mineflayer-pathfinder/lib/goto')
 const { SurvivalController } = require('../src/survival-bot')
 
+test('a creeper duel waits for sword reach and starts retreat with each swing', async t => {
+    t.mock.timers.enable({ apis: ['Date'] })
+    const bot = new EventEmitter()
+    const creeper = { name: 'creeper', position: new Vec3(0.5, 64, -5.5), isValid: true, metadata: [] }
+    const registry = require('minecraft-data')('26.1')
+    const moves = [], controls = new Set()
+    Object.assign(bot, {
+        registry, health: 20, entity: { position: new Vec3(0.5, 64, 0.5), yaw: 0 },
+        inventory: { items: () => [{ name: 'iron_sword' }], slots: [] },
+        pathfinder: { getPathTo: () => ({ status: 'success' }), setGoal() {}, setMovements() {} },
+        blockAt: p => p.y < 64 ? { name: 'stone', boundingBox: 'block' } : { name: 'air', boundingBox: 'empty' },
+        async lookAt() {}, async equip() {},
+        setControlState(key, enabled) { enabled ? controls.add(key) : controls.delete(key) },
+        async waitForTicks() {
+            t.mock.timers.tick(50)
+            if (!controls.has('back')) {
+                creeper.position = creeper.position.offset(0, 0, 0.2)
+            }
+        },
+        attack(target) {
+            assert.equal(target, creeper)
+            assert.ok(controls.has('back'))
+            const gap = bot.entity.position.distanceTo(target.position)
+            assert.ok(gap > 3 && gap <= 3.25)
+            moves.push('hit')
+            if (moves.length === 5) {
+                bot.emit('entityDead', target)
+            }
+        }
+    })
+    const c = Object.assign(Object.create(SurvivalController.prototype), {
+        bot, running: true, actionAbort: new AbortController(), log: { info() {}, warn: message => assert.fail(message) },
+        canSee: () => true,
+        async gotoWithTimeout(goal) {
+            assert.equal(controls.size, 0)
+            moves.push('retreat')
+            bot.entity.position = bot.entity.position.offset(0, 0, 5)
+            assert.ok(goal.isEnd(bot.entity.position.floored()))
+        }
+    })
+    await c.fightCreeper(creeper)
+    assert.deepEqual(moves, ['hit', 'retreat', 'hit', 'retreat', 'hit'])
+    assert.equal(controls.size, 0)
+    assert.equal(bot.listenerCount('entityDead'), 0)
+})
+
 function axeHunter() {
     const c = Object.create(SurvivalController.prototype)
     const target = { name: 'cow', isValid: true, position: new Vec3(2, 64, 0) }

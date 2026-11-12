@@ -5,7 +5,7 @@ const { plugin: collectBlockPlugin } = require('mineflayer-collectblock')
 const { Vec3 } = require('vec3')
 const { createRng } = require('./random')
 const { Actions, chooseAction, canSustainFight, outnumbered, hasMiningWood,
-    MELEE_ALERT_RANGE, CREEPER_ALERT_RANGE, ARCHER_ALERT_RANGE } = require('./decision-engine')
+    MELEE_ALERT_RANGE, CREEPER_ALERT_RANGE, CREEPER_DUEL_HP, ARCHER_ALERT_RANGE } = require('./decision-engine')
 const { RECIPES, nextAdvancement, ironPickPlankFuel, ironStock, ironReserveCap } = require('./advancement-plan')
 const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
@@ -39,7 +39,8 @@ const HOSTILES = new Set([
 ])
 
 const PREY = new Set(['cow', 'pig', 'sheep', 'chicken', 'rabbit'])
-const WEAPONS = ['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword',
+const SWORDS = ['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword']
+const WEAPONS = [...SWORDS,
     'netherite_axe', 'diamond_axe', 'iron_axe', 'stone_axe', 'golden_axe', 'wooden_axe']
 
 const LOG_SUFFIXES = ['_log', '_stem', '_wood', '_hyphae']
@@ -73,6 +74,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     [Actions.ASCEND]: 90000,
     [Actions.RECOVER]: 90000,
     [Actions.FIGHT]: 30000,
+    [Actions.FIGHT_CREEPER]: 30000,
     [Actions.EAT]: 15000,
     [Actions.WOOD]: 90000,
     [Actions.CRAFT_TABLE]: 30000,
@@ -150,10 +152,10 @@ function droppedItemGoal (entity) {
 
 // Steer away from melee inside 2.5 blocks using back/strafe controls relative to the facing set by
 // lookAt, choosing the safest-footed direction most opposed to the threats; null releases controls.
-function kite (c, threats) {
+function kite (c, threats, range = 2.5) {
     const bot = c.bot
     const here = bot.entity.position
-    const close = (threats || []).filter(e => here.distanceTo(e.position) < 2.5)
+    const close = (threats || []).filter(e => here.distanceTo(e.position) < range)
     let best = null
     if (close.length) {
         const away = close.reduce((v, e) => {
@@ -189,6 +191,15 @@ function kite (c, threats) {
     }
     c.kiteKeys = keys
     return best?.keys ?? null
+}
+
+function separationGoal (position, distance) {
+    const { x, z } = position
+    const separation = node => Math.hypot(node.x + 0.5 - x, node.z + 0.5 - z)
+    return Object.assign(new goals.Goal(), {
+        heuristic: node => Math.max(0, distance - separation(node)),
+        isEnd: node => separation(node) >= distance
+    })
 }
 
 // One rule for the decision interrupt and fight(): armed, above 10 HP, only melee mobs within 16
@@ -456,7 +467,8 @@ class SurvivalController {
             if (!this.running || this.paused || this.followPlayer || !victim || victim !== this.bot.entity ||
                 this.bot.health <= 0 || !source?.isValid || !HOSTILES.has(source.name) ||
                 victim.position.distanceTo(source.position) > (ARCHERS.has(source.name) ? 24 : 4) ||
-                (this.busy && [Actions.FIGHT, Actions.ESCAPE, Actions.REFUGE, 'escape_lava', 'surface_for_air', 'clear_head'].includes(action))) {
+                (this.busy && ([Actions.FIGHT, Actions.ESCAPE, Actions.REFUGE, 'escape_lava', 'surface_for_air', 'clear_head'].includes(action) ||
+                    source === this.creeperFightTarget))) {
                 return
             }
             this.lastHitBearing = {
@@ -496,7 +508,7 @@ class SurvivalController {
                     retreatForNight(this, 'surface damage or reduced health')
                     // Restarting a melee fight on every hit let two zombies win (staged 02:11Z); the next
                     // decision still weighs fight against escape.
-                    if (this.busy && ![Actions.ESCAPE, Actions.SHELTER, Actions.FIGHT, Actions.REFUGE].includes(action)) {
+                    if (this.busy && ![Actions.ESCAPE, Actions.SHELTER, Actions.FIGHT, Actions.FIGHT_CREEPER, Actions.REFUGE].includes(action)) {
                         this.cancelCurrentTask('night damage retreat')
                     }
                 }
@@ -517,7 +529,7 @@ class SurvivalController {
                 const attacker = this.nearestEntity?.(HOSTILES, 4) ||
                     Object.values(this.bot.entities || {}).find(e => e.isValid && ARCHERS.has(e.name) &&
                         this.bot.entity.position.distanceTo(e.position) <= 16 && this.canSee?.(e, true))
-                if (attacker && this.busy && ![Actions.ESCAPE, Actions.FIGHT, Actions.REFUGE].includes(action) && !this.actionAbort?.signal.aborted) {
+                if (attacker && this.busy && ![Actions.ESCAPE, Actions.FIGHT, Actions.FIGHT_CREEPER, Actions.REFUGE].includes(action) && !this.actionAbort?.signal.aborted) {
                     // Work must not continue under melee attack; the next decision fights or escapes.
                     this.cancelCurrentTask(`attacked by ${attacker.name}`)
                 }
@@ -539,7 +551,7 @@ class SurvivalController {
             (!this.busy || !this.actionAbort?.signal.aborted) &&
             ![Actions.REFUGE, 'avoid_enderman', 'flee_sculk', 'escape_lava', 'surface_for_air', 'clear_head'].includes(this.activeAction)
         const nearbyThreat = entity => {
-            if (!entity?.isValid || !HOSTILES.has(entity.name)) {
+            if (!entity?.isValid || !HOSTILES.has(entity.name) || entity === this.creeperFightTarget) {
                 return false
             }
             const creeper = entity.name === 'creeper'
@@ -998,9 +1010,11 @@ class SurvivalController {
             meleeDistance: melee ? this.bot.entity.position.distanceTo(melee.position) : Infinity,
             creeper,
             creeperDistance: creeper ? this.bot.entity.position.distanceTo(creeper.position) : Infinity,
+            creeperDuelBlocked: Boolean(creeper && this.creeperDuelRetry?.target === creeper && this.creeperDuelRetry.until > Date.now()),
             ranged: archer,
             rangedDistance: archer ? this.bot.entity.position.distanceTo(archer.position) : Infinity,
-            hasWeapon: Boolean(this.bestItem(['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword', ...WOODCUTTING_AXES, 'golden_axe', 'wooden_axe'])),
+            hasSword: Boolean(this.bestItem(SWORDS)),
+            hasWeapon: Boolean(this.bestItem([...SWORDS, ...WOODCUTTING_AXES, 'golden_axe', 'wooden_axe'])),
             hasFood: Boolean(this.bestFood()),
             hasReadyFood: this.bot.inventory.items().some(item => FOOD_VALUES[item.name] && !COOKED[item.name]),
             isNight: this.isNight(),
@@ -1178,6 +1192,7 @@ class SurvivalController {
             case Actions.RECOVER: return this.recoverItems()
             case Actions.FIGHT: return this.fight(state.rangedDistance <= ARCHER_ALERT_RANGE ? state.ranged : state.hostile ?? (state.cornered ? this.closeMelee() : null),
                 false, null, state.cornered)
+            case Actions.FIGHT_CREEPER: return this.fightCreeper(state.creeper)
             case Actions.EAT: return this.eat()
             case Actions.SHELTER: return this.makeNightSafe()
             case Actions.WOOD: return this.gatherWood()
@@ -2116,9 +2131,8 @@ class SurvivalController {
         if (!entity || !entity.isValid) {
             throw new Error('target disappeared')
         }
-        const swords = ['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword']
         const axes = [...WOODCUTTING_AXES, 'golden_axe', 'wooden_axe']
-        const weapon = this.bestItem(hunt ? [...axes, ...swords] : [...swords, ...axes])
+        const weapon = this.bestItem(hunt ? [...axes, ...SWORDS] : [...SWORDS, ...axes])
         if (weapon) {
             await this.bot.equip(weapon, 'hand')
             this.checkAction(signal)
@@ -2278,6 +2292,108 @@ class SurvivalController {
         }
     }
 
+    async fightCreeper (creeper) {
+        const { bot } = this
+        const signal = this.actionAbort?.signal
+        const sword = this.bestItem(SWORDS)
+        if (!creeper?.isValid || !sword) {
+            return
+        }
+        const resetRange = 7.5
+        const walking = dryMovements(bot)
+        const distance = () => bot.entity.position.distanceTo(creeper.position)
+        const inSwordReach = () => {
+            const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
+            const d = eye.minus(creeper.position)
+            const radius = (creeper.width ?? 0.6) / 2
+            return Math.hypot(Math.max(0, Math.abs(d.x) - radius), Math.max(0, -d.y, d.y - (creeper.height ?? 1.7)),
+                Math.max(0, Math.abs(d.z) - radius)) <= 2.95
+        }
+        const keys = bot.registry.entitiesByName.creeper.metadataKeys
+        const swell = keys.indexOf('swell_dir')
+        const ignited = keys.indexOf('is_ignited')
+        let dead = false
+        const onDeath = entity => { dead ||= entity === creeper }
+        bot.on('entityDead', onDeath)
+        this.creeperFightTarget = creeper
+        try {
+            await bot.equip(sword, 'hand')
+            let nextSwing = Date.now() + 650
+            let lastContact = Date.now()
+            let unseenAt = null
+            let swellingAt = null
+            while (!dead && creeper.isValid && Date.now() - lastContact < 8000) {
+                this.checkAction(signal)
+                if (bot.health < CREEPER_DUEL_HP) {
+                    throw new Error('health too low for creeper duel')
+                }
+                const seen = this.canSee(creeper, true)
+                unseenAt = seen ? null : unseenAt ?? Date.now()
+                if (unseenAt !== null && Date.now() - unseenAt > 2500) {
+                    return
+                }
+                const gap = distance()
+                const lit = creeper.metadata?.[ignited]
+                const swelling = creeper.metadata?.[swell] > 0
+                swellingAt = swelling ? swellingAt ?? Date.now() : null
+                const fuseAdvanced = swellingAt !== null && Date.now() - swellingAt >= 300
+                if (!seen || (!inSwordReach() && gap > 3 && !((lit || fuseAdvanced) && gap < resetRange))) {
+                    await bot.waitForTicks(1)
+                    continue
+                }
+                await bot.lookAt(creeper.position.offset(0, 0.9, 0), true)
+                this.checkAction(signal)
+                const reach = distance()
+                // Hitbox reach leaves room to tap before the fuse starts and use a shorter retreat.
+                const retreat = separationGoal(creeper.position, !swelling && !lit && reach > 3.05 ? 4.8 : resetRange)
+                const route = bot.pathfinder.getPathTo(walking, retreat, 75)
+                if (route.status !== 'success') {
+                    throw new Error(`dry creeper retreat search ${route.status} after ${Math.round(route.time)} ms`)
+                }
+                if (!dead && creeper.isValid && !lit && !fuseAdvanced && reach >= 2.5 && inSwordReach() &&
+                    Date.now() >= nextSwing && this.canSee(creeper, true) && kite(this, [creeper], 3.6)) {
+                    bot.attack(creeper)
+                    nextSwing = Date.now() + 650
+                    this.log.info(`Tapped creeper at ${reach.toFixed(2)} blocks; stepping back.`)
+                    await bot.waitForTicks(1)
+                }
+                kite(this, null)
+                this.checkAction(signal)
+                if (dead || !creeper.isValid) {
+                    break
+                }
+                bot.pathfinder.setMovements(walking)
+                await this.gotoWithTimeout(retreat, 1450, 'creeper sword retreat')
+                this.checkAction(signal)
+                lastContact = Date.now()
+                if (creeper.metadata?.[swell] > 0) {
+                    swellingAt ??= lastContact - 300
+                }
+                this.combatLiveAt = lastContact
+                this.log.info(`Creeper retreat gap: ${distance().toFixed(2)} blocks.`)
+            }
+            if (!dead && creeper.isValid) {
+                throw new Error('creeper stopped approaching')
+            }
+        } catch (error) {
+            this.checkAction(signal)
+            this.creeperDuelRetry = { target: creeper, until: Date.now() + 5000 }
+            this.urgentReplan = true
+            this.log.warn(`Leaving creeper duel: ${error.message}.`)
+            kite(this, null)
+            bot.pathfinder.setGoal(null)
+            if (!dead && creeper.isValid && distance() <= 5 && bot.inventory.slots[45]?.name === 'shield') {
+                await this.braceAgainst(creeper)
+            }
+        } finally {
+            this.creeperFightTarget = null
+            bot.removeListener('entityDead', onDeath)
+            kite(this, null)
+            bot.pathfinder.setGoal(null)
+            bot.pathfinder.setMovements(this.movements)
+        }
+    }
+
     // Melee within three blocks is known without sight: it is hitting us, and zombies at arm's length sit
     // below the eye's view cone (staged 02:21Z: two "unseen" zombies killed a cornered bot).
     closeMelee (range = 3) {
@@ -2295,13 +2411,7 @@ class SurvivalController {
         const length = Math.max(Math.sqrt(away.x * away.x + away.z * away.z), 0.01)
         let goal
         if (clearDistance) {
-            const { x, z } = entity.position
-            const separation = node => Math.hypot(node.x + 0.5 - x, node.z + 0.5 - z)
-            const target = Math.min(clearDistance + 2, length + 4)
-            goal = Object.assign(new goals.Goal(), {
-                heuristic: node => Math.max(0, target - separation(node)),
-                isEnd: node => separation(node) >= target
-            })
+            goal = separationGoal(entity.position, Math.min(clearDistance + 2, length + 4))
         } else {
             const x = Math.floor(here.x + (away.x / length) * 16)
             const z = Math.floor(here.z + (away.z / length) * 16)

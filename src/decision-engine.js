@@ -7,6 +7,7 @@ const MIN_MINING_WOOD_PLANKS = 128
 const NIGHT_CARVE_ACTIONS = new Set(['gather_iron', 'gather_coal', 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'fill_lava_bucket'])
 const MELEE_ALERT_RANGE = 6
 const CREEPER_ALERT_RANGE = 8
+const CREEPER_DUEL_HP = 12
 const ARCHER_ALERT_RANGE = 12
 
 const Actions = Object.freeze({
@@ -16,6 +17,7 @@ const Actions = Object.freeze({
     ASCEND: 'escape_shaft',
     RECOVER: 'recover_items',
     FIGHT: 'fight',
+    FIGHT_CREEPER: 'fight_creeper',
     EAT: 'eat',
     SHELTER: 'shelter',
     WOOD: 'gather_wood',
@@ -93,7 +95,8 @@ function chooseAction (state) {
         return Actions.REFUGE
     }
     if (state.creeperDistance <= CREEPER_ALERT_RANGE) {
-        return Actions.ESCAPE
+        const alone = (state.visibleHostiles ?? state.hostileCount) === 1 && !(state.rangedDistance <= 16)
+        return alone && state.hasSword && state.health >= CREEPER_DUEL_HP && !state.creeperDuelBlocked ? Actions.FIGHT_CREEPER : Actions.ESCAPE
     }
     // An escape pinned in place by adjacent melee mobs only absorbs hits; fight back (03.36.15).
     if (state.cornered && state.hasWeapon) {
@@ -320,4 +323,5 @@ function chooseAction (state) {
     return surfaceBound ? 'return_surface' : action
 }
 
-module.exports = { Actions, chooseAction, canSustainFight, outnumbered, hasMiningWood, MELEE_ALERT_RANGE, CREEPER_ALERT_RANGE, ARCHER_ALERT_RANGE }
+module.exports = { Actions, chooseAction, canSustainFight, outnumbered, hasMiningWood,
+    MELEE_ALERT_RANGE, CREEPER_ALERT_RANGE, CREEPER_DUEL_HP, ARCHER_ALERT_RANGE }

@@ -8,6 +8,16 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
+F112 (2026-11-12): the isolated creeper rematch passed at full health in
+four sword strikes. Watch for a natural encounter with poor footing or
+reinforcements entering during a duel. The staggered crowd cases still
+need a separate retreat improvement.
+
+F111 (2026-11-12): use the seeded cave suite to verify a sustained retreat
+before resuming mining. A late skeleton changed a running escape into a
+wall-refuge search while the first two mobs kept following. Retest against
+the same seed when changing the response to ongoing pursuit or reinforcements.
+
 F108–F110 (2026-11-11): iron reserve and proactive combat changes are
 loaded on port 49910. Watch a furnace job near the reserve cap and a
 natural cave encounter involving a creeper and ranged mobs. The bot

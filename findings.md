@@ -2673,3 +2673,72 @@ started gathering wood at 23:53:16 Eastern. It cut the exit with picks
 crafted after the resupply and without any teleport or blocks supplied
 for the climb. See `outputs/iron-threat-restart-49910.log` and
 `outputs/iron-threat-restart-2-49910.log`.
+
+## F111 — Cave combat while mining and smelting
+
+`outputs/cave-mob-practice.js` stages eight encounters for a separate
+CavePractice player. `CAVE_SEED` selects three ore veins, up to ten patches of
+uneven stone and pits, mob placement, and two of the three possible
+pairs. Three single-mob trials and an all-three trial guarantee coverage
+of creepers, bow-equipped skeletons and zombies. Each starts with iron
+helmet, chestplate, leggings, sword and pickaxe, a shield and empty boots.
+The normal bot controller starts smelting 16 raw iron and chooses an
+exposed iron dig before a single command moves the mobs out of their
+holding cells. The last two trials release reinforcements while the bot
+is moving on an escape or refuge path with the initial pair still a
+threat. All released mobs remain in the same trial's scoring. The escape
+window starts after the last wave. Only wave release commands run during
+combat. Run all cases with the current LAN port and seed, or select
+`CAVE_MODE=simultaneous` or `CAVE_MODE=staggered` to run one group. Set
+`CAVE_RESULTS` to save a new result file without replacing an older run.
+
+The observer sees glowing mobs from a lit arena under a tinted-glass roof.
+The harness credits a kill only when the server reports death and damage
+from the bot. An escape must move at least four blocks during a defensive
+response and maintain clearance from all surviving mobs for four seconds
+without taking damage. The clearance is 10 blocks for creepers, 12 for
+zombies and 16 for skeletons, or 7 with stone or other terrain blocking
+sight. Timeout, bot death and disappearance without attribution cannot
+pass. The harness logs commands and samples to JSON, returns the observer
+to their position and removes the temporary arena.
+
+On Nov 12, seed 49910 passed the lone skeleton and lone zombie. All four
+simultaneous cases with creepers timed out. The bot killed the skeleton
+in the creeper/skeleton pair and both non-creepers in the three-mob case.
+In the lone creeper trial it resumed work between retreats, then braced
+with its shield at 3.1 blocks and stayed at 20 HP. The creeper disappeared
+without a credited kill. In the creeper/zombie pair both mobs remained
+alive and were still following at the deadline. The simultaneous run is
+in `outputs/cave-mob-practice-49910-r2.json`.
+
+Both reinforcement waves fired during a real `escape` action, at 4.286 s
+and 7.606 s. Creeper and zombie followed the bot into a wall-refuge search
+after a skeleton arrived. It survived to the deadline at a minimum of
+17.76 HP. In the other trial, it killed the initial skeleton, then took
+heavy damage while seeking a wall refuge after the zombie and second
+creeper arrived. The server confirmed a creeper explosion killed it at
+(437,168,41). See `outputs/cave-mob-practice-49910-staggered.json`.
+The server restored the owner and removed the arena after each run.
+AdvancementBot rejoined port 49910 and resumed mining.
+
+## F112 — Sword strikes and retreat against an isolated creeper
+
+The planner previously sent every nearby creeper to escape. A healthy
+bot with a sword now waits for an isolated creeper at the edge of sword
+reach. It verifies a dry path, sets the back or strafe control as it
+strikes, opens a gap and waits for the next approach. It backs off farther
+if the creeper is swelling and falls back to cover or its shield if the
+route fails. A new nearby attacker can interrupt the duel.
+
+In the first two same-seed cave reruns, a short path-search budget
+prevented the first swing, and full-distance retreats after all swings
+pushed the bot into a corner. The third rerun used the edge of the mob's
+hitbox and a shorter route before swelling. With the requested iron kit
+and shield, it killed the creeper in four strikes at 2.94–3.20 blocks and
+took zero damage. The nonlethal strikes were followed by gaps of 5.79,
+6.13 and 8.63 blocks, with an extra retreat to 8.29 when it saw swelling.
+The trial began during an iron dig with 16 raw iron smelting. The owner
+was restored, the arena was removed, and AdvancementBot rejoined port
+49910. See `outputs/creeper-sword-cave-49910-r3.json` and its companion
+log. `CAVE_TRIALS=1` selects that lone-creeper case. The staggered crowd
+cases from F111 were not rerun with this change.

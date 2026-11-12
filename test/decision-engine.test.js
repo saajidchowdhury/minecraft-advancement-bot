@@ -232,6 +232,15 @@ test('a visible nearby creeper triggers avoidance even at full health undergroun
     assert.equal(chooseAction(state({ ...armed, creeperDistance: Infinity })), Actions.FIGHT)
 })
 
+test('a healthy swordsman duels an isolated creeper and falls back when the duel is unsafe', () => {
+    const solo = state({ health: 20, underground: true, hasWeapon: true, hasSword: true,
+        hostileDistance: 7, creeperDistance: 7, visibleHostiles: 1 })
+    assert.equal(chooseAction(solo), 'fight_creeper')
+    assert.equal(chooseAction({ ...solo, health: 9 }), Actions.ESCAPE)
+    assert.equal(chooseAction({ ...solo, visibleHostiles: 2 }), Actions.ESCAPE)
+    assert.equal(chooseAction({ ...solo, creeperDuelBlocked: true }), Actions.ESCAPE)
+})
+
 test('deep mining does not abandon the trip for sticks and departs with a wood reserve', () => {
     const { nextAdvancement } = require('../src/advancement-plan')
     const geared = {

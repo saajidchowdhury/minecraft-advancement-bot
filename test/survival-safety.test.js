@@ -272,6 +272,15 @@ test('walking into range of a stationary creeper interrupts work at eight blocks
     c.escapingCreeper = true
     bot.emit('entityMoved', creeper)
     assert.equal(reasons.length, 1)
+    c.activeAction = Actions.FIGHT_CREEPER
+    c.creeperFightTarget = creeper
+    bot.emit('entityMoved', creeper)
+    assert.equal(reasons.length, 1)
+    const zombie = { name: 'zombie', isValid: true, position: new Vec3(4, 64, 1) }
+    bot.entities[2] = zombie
+    bot.emit('entitySpawn', zombie)
+    assert.match(reasons.at(-1), /nearby hostile.*zombie/)
+    assert.equal(reasons.length, 2)
 })
 
 test('a perception fault still escapes a nearby hostile instead of idling to death', async () => {
