@@ -239,7 +239,10 @@ test('a smelt job is kept to 300 blocks and abandoned beyond', () => {
     assert.equal(smeltJobState(c).smeltReady, true, 'a 3-iron job 212 blocks off is kept')
     assert.notEqual(c.memory.smeltJob, null)
     c.memory = { smeltJob: { dimension: 'overworld', x: 100, y: 8, z: -72, count: 10, readyAt: Date.now() + 60000 } }
-    assert.deepEqual(smeltJobState(c), { smeltRunning: true, smeltReady: false }, 'an unfinished job 52 blocks off waits')
+    assert.deepEqual(smeltJobState(c), { smeltRunning: true, smeltReady: false, ironInFurnace: 10 }, 'an unfinished job 52 blocks off waits')
+    c.bot.game.dimension = 'the_nether'
+    assert.deepEqual(smeltJobState(c), { smeltRunning: false, smeltReady: false })
+    c.bot.game.dimension = 'overworld'
     c.memory.smeltJob.x = 300
     assert.equal(smeltJobState(c).smeltReady, true, 'an unfinished job near the abandonment radius is fetched')
     c.memory = { smeltJob: { dimension: 'overworld', x: 360, y: 8, z: -72, count: 32, readyAt: 0 } }

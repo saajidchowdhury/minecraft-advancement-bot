@@ -227,26 +227,51 @@ test('a creeper in open terrain is fled rather than walled with many blocks', as
     assert.equal(c.fled, creeper)
 })
 
-test('a visible creeper interrupts mining but not escape, and hidden creepers are ignored', () => {
-    let cancels = 0
+test('a zombie behind the bot interrupts mining before a hit if it could be seen by turning', () => {
+    const reasons = []
     const bot = new EventEmitter()
-    bot.entity = { position: new Vec3(0, 64, 0) }
-    let visible = true
+    bot.entity = { position: new Vec3(0, 64, 0), yaw: 0, pitch: 0 }
+    bot.health = 20
+    let occluded = true
+    bot.world = { raycast: () => occluded ? {} : null }
     const c = { bot, running: true, busy: true, activeAction: 'gather_diamonds', log: { warn() {} },
-        canSee: () => visible, cancelCurrentTask() { cancels++ } }
+        canSee: SurvivalController.prototype.canSee, cancelCurrentTask(reason) { reasons.push(reason) } }
     SurvivalController.prototype.bindEvents.call(c)
-    const creeper = { name: 'creeper', position: new Vec3(0, 64, 5) }
-    bot.emit('entityMoved', { name: 'zombie', position: new Vec3(0, 64, 2) })
-    bot.emit('entityMoved', { ...creeper, position: new Vec3(0, 64, 8) })
-    visible = false
-    bot.emit('entityMoved', creeper)
-    assert.equal(cancels, 0)
-    visible = true
-    bot.emit('entityMoved', creeper)
-    assert.equal(cancels, 1)
+    const zombie = { name: 'zombie', isValid: true, position: new Vec3(0, 64, 5.5) }
+    bot.emit('entityMoved', zombie)
+    assert.deepEqual(reasons, [])
+    occluded = false
+    bot.emit('entityMoved', { ...zombie, position: new Vec3(0, 64, 6.5) })
+    assert.deepEqual(reasons, [])
+    assert.equal(c.canSee(zombie), false)
+    assert.equal(c.canSee(zombie, true), true)
+    bot.emit('entityMoved', zombie)
+    assert.match(reasons[0] ?? '', /nearby hostile.*zombie/)
+    assert.equal(reasons.length, 1)
+})
+
+test('walking into range of a stationary creeper interrupts work at eight blocks', t => {
+    t.mock.timers.enable({ apis: ['Date'] })
+    const bot = new EventEmitter()
+    bot.entity = { position: new Vec3(0, 64, 0), yaw: 0, pitch: 0 }
+    bot.health = 20
+    bot.world = { raycast: () => null }
+    const creeper = { name: 'creeper', isValid: true, position: new Vec3(0, 64, 8.5) }
+    bot.entities = { 1: creeper }
+    const reasons = []
+    const c = { bot, running: true, busy: true, activeAction: 'gather_diamonds', log: { warn() {} },
+        canSee: SurvivalController.prototype.canSee, cancelCurrentTask(reason) { reasons.push(reason) } }
+    SurvivalController.prototype.bindEvents.call(c)
+    bot.emit('physicsTick')
+    assert.deepEqual(reasons, [])
+    bot.entity.position = new Vec3(0, 64, 1)
+    t.mock.timers.tick(100)
+    bot.emit('physicsTick')
+    assert.match(reasons[0] ?? '', /nearby hostile.*creeper/)
     c.activeAction = Actions.ESCAPE
+    c.escapingCreeper = true
     bot.emit('entityMoved', creeper)
-    assert.equal(cancels, 1)
+    assert.equal(reasons.length, 1)
 })
 
 test('a perception fault still escapes a nearby hostile instead of idling to death', async () => {

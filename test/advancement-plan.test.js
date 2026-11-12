@@ -213,12 +213,24 @@ test('no wooden sword: an iron sword follows the shield and the full iron set pr
     assert.equal(nextAdvancement({ ...shielded, armorUpgrade: true }).action, 'equip_armor')
 })
 
-test('the iron reserve cap is 16 plus the ingots for missing iron gear and buckets', () => {
-    assert.equal(ironReserveCap({ gear: new Set(), buckets: 0 }), 16 + 3 + 1 + 2 + 5 + 8 + 7 + 4 + 9)
+test('the iron reserve covers missing gear, three buckets and three spare iron pickaxes', () => {
+    assert.equal(ironReserveCap({ gear: new Set(), buckets: 0 }), 9 + 3 + 1 + 2 + 5 + 8 + 7 + 4 + 9)
     const iron = new Set(['iron_pickaxe', 'shield', 'iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots'])
-    assert.equal(ironReserveCap({ gear: iron, buckets: 1 }), 22)
+    assert.equal(ironReserveCap({ gear: iron, buckets: 0 }), 18)
+    assert.equal(ironReserveCap({ gear: iron, buckets: 1, items: { iron_pickaxe: 2 } }), 12)
+    iron.delete('iron_boots')
+    assert.equal(ironReserveCap({ gear: iron, buckets: 0 }), 22)
     const diamond = new Set(['diamond_pickaxe', 'shield', 'diamond_sword', 'diamond_helmet', 'netherite_chestplate', 'diamond_leggings', 'diamond_boots'])
-    assert.equal(ironReserveCap({ gear: diamond, buckets: 3 }), 16)
+    assert.equal(ironReserveCap({ gear: diamond, buckets: 3, items: { iron_pickaxe: 3 } }), 0)
+})
+
+test('iron already smelting covers the boot budget and frees the miner to look for diamonds', () => {
+    const gear = new Set(['iron_pickaxe', 'shield', 'iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings'])
+    const miner = { ...established, gear, ironInFurnace: 29, smeltRunning: true }
+    assert.equal(nextAdvancement(miner).item, 'iron_boots')
+    assert.equal(nextAdvancement(miner).action, 'gather_diamonds')
+    assert.equal(nextAdvancement({ ...miner, ironInFurnace: 12 }).action, 'gather_iron')
+    assert.equal(nextAdvancement({ ...miner, smeltRunning: false, smeltReady: true }).action, 'smelt_iron')
 })
 
 test('a diamond sword follows the diamond pickaxe at once instead of waiting for the iron set', () => {

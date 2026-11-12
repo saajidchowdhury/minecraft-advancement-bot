@@ -237,7 +237,8 @@ test('opportunistic coal stops at 32 and iron follows the observed reserve cap',
     inventory.at(-1).count = 32
     assert.equal(await collectOpportunity(c), false)
     target = { name: 'iron_ore', position: new Vec3(2, 64, 0), canHarvest: () => true }
-    inventory.push({ name: 'raw_iron', count: 30 }, { name: 'iron_ingot', count: 10 })
+    inventory.push({ name: 'raw_iron', count: 1 }, { name: 'iron_ingot', count: 10 })
+    Object.assign(state, { rawIron: 1, ironIngots: 10, ironInFurnace: 29 })
     state.ironCap = 41
     assert.equal(await collectOpportunity(c), true)
     state.ironCap = 40

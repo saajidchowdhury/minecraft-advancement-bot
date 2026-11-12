@@ -3,6 +3,7 @@
 const { Vec3 } = require('vec3')
 const { Movements, goals } = require('mineflayer-pathfinder')
 const { inView, sightRay } = require('./vision')
+const { ironStock, ironReserveCap } = require('./advancement-plan')
 
 const RAILS = new Set(['rail', 'powered_rail', 'detector_rail', 'activator_rail'])
 const AIR = new Set(['air', 'cave_air', 'void_air', 'torch', 'wall_torch', ...RAILS])
@@ -18,7 +19,7 @@ const ROCK = new Set(['stone', 'deepslate', 'granite', 'diorite', 'andesite', 't
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 const ORES = [
     { ore: 'diamond', items: ['diamond'], cap: 5, use: 'diamond tools and enchanting table' },
-    { ore: 'iron', items: ['raw_iron', 'iron_ingot'], cap: null, use: 'missing iron gear plus 16 spare' },
+    { ore: 'iron', cap: null, use: 'missing gear, buckets and spare picks' },
     { ore: 'coal', items: ['coal', 'charcoal'], cap: 32, use: 'fuel and cave lighting' },
     { ore: 'gold', items: ['raw_gold', 'gold_ingot'], cap: 8, use: 'Nether protection and bartering' },
     { ore: 'copper', items: ['raw_copper', 'copper_ingot'], cap: 4, use: 'spyglass preparation' },
@@ -133,8 +134,9 @@ async function collectOpportunity(c, excluded = []) {
     const feet = c.bot.entity.position.floored()
     for (const resource of ORES) {
         const names = [`${resource.ore}_ore`, `deepslate_${resource.ore}_ore`]
-        const cap = resource.cap ?? state.ironCap ?? 24
-        if (names.some(name => excluded.includes(name)) || c.countItems(resource.items) >= cap) {
+        const cap = resource.cap ?? state.ironCap ?? ironReserveCap(state)
+        const stock = resource.ore === 'iron' ? ironStock(state) : c.countItems(resource.items)
+        if (names.some(name => excluded.includes(name)) || stock >= cap) {
             continue
         }
         const block = c.findNearestBlock(name => names.includes(name), 6, {

@@ -153,6 +153,17 @@ test('ordinary combat escape also disables digging, parkour and scaffold placeme
     assert.equal(c.moves[0].label, 'combat escape')
 })
 
+test('creeper retreat can use a short sideways route when the straight escape is blocked', async () => {
+    const c = corridor()
+    const creeper = { name: 'creeper', position: new Vec3(0.5, 64, 8.5) }
+    c.gotoWithTimeout = async goal => {
+        assert.equal(goal.isEnd(new Vec3(0, 64, 1)), false)
+        assert.equal(goal.isEnd(new Vec3(0, 64, -1)), false)
+        assert.equal(goal.isEnd(new Vec3(9, 64, 0)), true)
+    }
+    await c.escapeFrom(creeper, 10)
+})
+
 test('a cornered fight cannot attack after a crowd with an archer has latched', async () => {
     // All-melee crowds are kited now (user); a crowd containing a skeleton still refuses the fight.
     const c = corridor()

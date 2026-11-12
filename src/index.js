@@ -109,6 +109,7 @@ function connect () {
             fs.writeFileSync(path.join(runDir, 'state.json'), JSON.stringify({
                 updatedAt: new Date().toISOString(), wallSeconds: (Date.now() - startedAt) / 1000,
                 action, goal, position, dimension: state.dimension, health: state.health, food: state.food,
+                iron: { raw: state.rawIron, ingots: state.ironIngots, inFurnace: state.ironInFurnace ?? 0, reserveCap: state.ironCap },
                 inventory: bot.inventory.items().map(item => ({ name: item.name, count: item.count })),
                 equipment: Object.fromEntries(['head', 'torso', 'legs', 'feet', 'offhand'].map((name, i) =>
                     [name, bot.inventory.slots[[5, 6, 7, 8, 45][i]]?.name || null])),

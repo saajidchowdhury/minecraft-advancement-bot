@@ -1,10 +1,13 @@
 'use strict'
 
-const { nextAdvancement } = require('./advancement-plan')
+const { nextAdvancement, ironStock, ironReserveCap } = require('./advancement-plan')
 const { MIN_MINING_MEALS } = require('./food')
 // User direction (2026-11-06): 32 logs, counting a plank as a quarter log, before a mining trip.
 const MIN_MINING_WOOD_PLANKS = 128
 const NIGHT_CARVE_ACTIONS = new Set(['gather_iron', 'gather_coal', 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'fill_lava_bucket'])
+const MELEE_ALERT_RANGE = 6
+const CREEPER_ALERT_RANGE = 8
+const ARCHER_ALERT_RANGE = 12
 
 const Actions = Object.freeze({
     ESCAPE: 'escape',
@@ -36,10 +39,10 @@ function nightMining (state, progression) {
     if (!state.hasStonePickaxe) {
         return (state.coal || 0) < 32 ? Actions.COAL : Actions.STONE
     }
-    if (NIGHT_CARVE_ACTIONS.has(progression.action)) {
+    if (NIGHT_CARVE_ACTIONS.has(progression.action) || (progression.action === 'wait' && state.smeltRunning)) {
         return progression.action
     }
-    return (state.rawIron || 0) + (state.ironIngots || 0) < (state.ironCap ?? 40) || !state.hasIronPickaxe ? Actions.IRON : 'gather_diamonds'
+    return ironStock(state) < (state.ironCap ?? ironReserveCap(state)) || !state.hasIronPickaxe ? Actions.IRON : 'gather_diamonds'
 }
 
 function canSustainFight (health, armorPoints) {
@@ -89,8 +92,11 @@ function chooseAction (state) {
     if ((state.crowdRetreat || (state.visibleHostiles ?? state.hostileCount ?? 0) >= 3) && !kiteCrowd) {
         return Actions.REFUGE
     }
+    if (state.creeperDistance <= CREEPER_ALERT_RANGE) {
+        return Actions.ESCAPE
+    }
     // An escape pinned in place by adjacent melee mobs only absorbs hits; fight back (03.36.15).
-    if (state.cornered && state.hasWeapon && !(state.creeperDistance <= 6)) {
+    if (state.cornered && state.hasWeapon) {
         return Actions.FIGHT
     }
     if (outnumbered(state.closeHostiles, state.armorPoints, meleeOnlyFight(state))) {
@@ -98,18 +104,17 @@ function chooseAction (state) {
     }
     // Running from an archer at arm's length only invites more arrows; melee it while able.
     // Standing still under arrows loses; a lone archer within twelve blocks is charged when healthy.
-    if (!(state.creeperDistance <= 6) && state.hasWeapon && !((state.visibleHostiles ?? state.hostileCount ?? 0) > 1) &&
+    if (state.hasWeapon && !((state.visibleHostiles ?? state.hostileCount ?? 0) > 1) &&
         ((state.rangedDistance <= 3.5 && canSustainFight(state.health, state.armorPoints)) ||
-            (state.rangedDistance <= 12 && state.health > 10))) {
+            (state.rangedDistance <= ARCHER_ALERT_RANGE && state.health > 10))) {
         return Actions.FIGHT
     }
     // An armored, armed bot beats one or two melee attackers; running lets them keep hitting (F030, F032).
-    if (!(state.creeperDistance <= 7) && state.hostileDistance <= 3.5 && state.hasWeapon && (state.armorPoints || 0) >= 12 &&
+    if (state.hostileDistance <= 3.5 && state.hasWeapon && (state.armorPoints || 0) >= 12 &&
         (state.visibleHostiles ?? 1) <= 2 && !(state.rangedDistance <= 16 && state.rangedDistance > 3.5) && state.health > 4) {
         return Actions.FIGHT
     }
-    if (state.creeperDistance <= 6 || (state.hostileDistance <= 5 && state.health <= 10) || (state.hostileDistance <= 3.5 && !state.hasWeapon) ||
-        (state.rangedDistance <= 16 && state.health <= 10) || ((state.visibleHostiles ?? state.hostileCount) >= 3 && !kiteCrowd) ||
+    if ((state.rangedDistance <= 16 && state.health <= 10) || ((state.visibleHostiles ?? state.hostileCount) >= 3 && !kiteCrowd) ||
         (state.isNight && !state.underground && !state.sheltered &&
             (state.overwhelmed || (state.retreatForNight && state.hostileDistance <= 6)))) {
         return Actions.ESCAPE
@@ -117,9 +122,8 @@ function chooseAction (state) {
     if (state.sleeping) {
         return state.sleepPartnerReady === false ? 'wake' : 'wait'
     }
-    // Eating takes 1.6 s; with an attacker at arm's length, fight first while healthy.
-    if (state.hostileDistance <= 3.5 && state.hasWeapon && state.health > 10 && !(state.creeperDistance <= 6)) {
-        return Actions.FIGHT
+    if (state.hostileDistance <= MELEE_ALERT_RANGE || state.rangedDistance <= ARCHER_ALERT_RANGE) {
+        return state.hasWeapon && state.health > 10 && !(state.rangedDistance <= ARCHER_ALERT_RANGE) ? Actions.FIGHT : Actions.ESCAPE
     }
     // Eating (1.6 s, not cleanly cancellable) never runs with melee at arm's length (round 9). User 2026-11-11:
     // cook what is about to be eaten (raw mutton gave 3.2 of 15.6 meal points, 06:52Z); raw is the fallback.
@@ -223,8 +227,9 @@ function chooseAction (state) {
     const daytimeDeparture = nearSurface && !state.isNight
     const needsDepartureWood = daytimeDeparture && !hasMiningWood(state)
     const needsDepartureFood = daytimeDeparture && (state.mealReserve ?? 0) < MIN_MINING_MEALS
-    const priorityOre = state.health > 10 && state.hostileDistance > 6 &&
-        (state.diamondInView ? 'mine_diamond' : state.ironInView ? 'mine_iron' : null)
+    const finishingExit = state.carvingSurfaceExit && state.underground && ['gather_wood', Actions.FOOD].includes(progression.action)
+    const priorityOre = !finishingExit && state.health > 10 && state.hostileDistance > 6 &&
+        (state.diamondInView ? 'mine_diamond' : state.ironInView && progression.action !== Actions.SMELT_IRON ? 'mine_iron' : null)
     if (priorityOre && !needsDepartureWood && !needsDepartureFood) {
         return priorityOre
     }
@@ -315,4 +320,4 @@ function chooseAction (state) {
     return surfaceBound ? 'return_surface' : action
 }
 
-module.exports = { Actions, chooseAction, canSustainFight, outnumbered, hasMiningWood }
+module.exports = { Actions, chooseAction, canSustainFight, outnumbered, hasMiningWood, MELEE_ALERT_RANGE, CREEPER_ALERT_RANGE, ARCHER_ALERT_RANGE }

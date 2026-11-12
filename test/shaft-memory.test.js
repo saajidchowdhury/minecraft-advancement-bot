@@ -83,6 +83,19 @@ test('a return follows the current stairs with the checked jump fallback before 
     assert.deepEqual(c.visits.map(v => v.label), ['prepared stair step'])
 })
 
+test('a failed pickaxe-free climb waits before retrying the same blocked exit', async t => {
+    t.mock.timers.enable({ apis: ['Date', 'setTimeout'] })
+    const c = shaftWorld(new Vec3(42.5, 48, 12.5), { fail: () => true })
+    c.memory.shaft = null
+    c.bestItem = () => null
+    c.bot.blockAt = p => ({ name: 'stone', position: p, boundingBox: 'block' })
+    await assert.rejects(performProgression(c, 'return_surface', {}), /requires a pickaxe/)
+    const retry = performProgression(c, 'return_surface', {})
+    t.mock.timers.tick(2000)
+    await retry
+    assert.deepEqual(c.visits.map(v => v.label), ['pickaxe-free climb'])
+})
+
 test('a blocked shaft is forgotten and an unreachable or distant one falls back to digging', async () => {
     const blocked = shaftWorld(new Vec3(0.5, 70, 0.5), { fail: goal => goal.y < 30 })
     blocked.bot.blockAt = p => ({ name: 'lava', position: p, boundingBox: 'empty' })

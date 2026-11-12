@@ -2622,3 +2622,54 @@ failure retries after 15 s. Exact sub-block live position was not logged.
 At (600,15,29), the fuel-update restart interrupted the selected ore at
 23:14:27. The bot collected the nearby furnace output at 23:16:48 and the
 server confirmed the ore break at 23:16:54, before this change.
+
+## F108 — Furnace iron counts toward the equipment reserve
+
+On port 49910, the old underground reserve with boots missing was 29 iron:
+16 unallocated ingots, 9 for three buckets, and 4 for boots. Moving raw
+iron into a furnace dropped it from that calculation, allowing visible
+iron to keep interrupting the plan. Count the recoverable furnace job,
+carried raw iron and ingots together. Budget up to three spare iron picks
+(9 ingots), up to three buckets (9 ingots), and missing iron equipment.
+An iron pick already serving as the main pick does not fill a spare slot.
+The planner starts a needed smelt ahead of optional visible iron.
+
+## F109 — Pre-hit mob detection and a shorter creeper retreat
+
+At 23:30:35 Eastern on port 49910, the server confirmed a creeper killed
+AdvancementBot at (700,3,25). Multiple skeleton arrows had worn the bot
+down, five escape attempts failed, and the explosion took its final
+2.93 HP. `outputs/visible-ore-restart-49910.log` contains the bot trace.
+Commands to give the owner gear and visit the scene are recorded in
+`outputs/creeper-death-visit.json`.
+
+Check line of sight in any direction before interrupting work. Melee
+alerts reach 6 blocks, creepers 8, and archers 12. Entity updates and a
+100 ms scan cover stationary mobs coming into reach as the bot moves.
+The first staged trial caught both mobs behind a working bot at full
+health. The zombie was killed, but the creeper escape targeted a point
+16 blocks away outside the arena. The new goal permits shorter retreats
+in any direction that increases separation, using dry walking movement.
+Commands and outcomes are in `outputs/proactive-mob-practice.json` and
+`outputs/proactive-mob-practice-2.json`. In the rerun, MobPractice stopped
+digging at 6 blocks from the zombie and 8 from the creeper, then killed
+the zombie and reached 12.04 blocks from the creeper at 20 HP in both
+trials. The owner watched from the tinted-glass roof. The server
+confirmed the owner's return and the arena was removed.
+
+## F110 — Surface return exhausted both picks
+
+The old bot reached Y48 on a carved exit with one plank and no sticks.
+Both picks broke. Failed walking searches repeated and the generic
+scout sent it farther down. Six sticks and two cooked beef let the bot
+craft new picks, eat and resume work; see `outputs/surface-resupply.json`.
+Failed pickless climbs now pause route retries for 30 seconds in that
+dimension, or until a pick is available. Surface failures no longer
+start a lateral scout, and an upward return segment does not abandon
+the staircase for optional ore.
+
+The restarted bot climbed from Y16 to open ground at (483,64,78) and
+started gathering wood at 23:53:16 Eastern. It cut the exit with picks
+crafted after the resupply and without any teleport or blocks supplied
+for the climb. See `outputs/iron-threat-restart-49910.log` and
+`outputs/iron-threat-restart-2-49910.log`.

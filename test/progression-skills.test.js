@@ -499,7 +499,7 @@ test('reaching the home level inside a hill keeps climbing until the sky is open
             gotoWithTimeout: async () => { throw new Error('No path to the goal!') } }
         const run = performProgression(c, 'return_surface', {})
         if (expectClimb) {
-            await assert.rejects(run, /No path to the goal/)
+            await assert.rejects(run, /carving requires a pickaxe/)
         } else {
             await run
         }

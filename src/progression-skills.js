@@ -394,7 +394,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
         if (c.memory.minedCells.size > 4096) {
             c.memory.minedCells.delete(c.memory.minedCells.values().next().value)
         }
-        if (c.findNearestBlock && c.canPursueDiamond?.() !== false &&
+        if (c.activeAction !== 'return_surface' && c.findNearestBlock && c.canPursueDiamond?.() !== false &&
             (findPriorityDiamond(c) || (c.ironWanted && findPriorityOre(c, IRON_ORES)))) {
             c.log.info('Priority ore came into view; leaving the tunnel segment to mine it.')
             return
@@ -1174,6 +1174,11 @@ async function returnSurface(c, surfaceY = c.home?.y || 64) {
         c.memory.surfaceByStaircase = false
         return
     }
+    const retry = c.picklessReturnRetry
+    const dimension = c.bot.game?.dimension
+    if (retry && retry.dimension === dimension && retry.until > Date.now() && !miningPickaxe(c)) {
+        return sleep(2000)
+    }
     const route = c.memory.mineRoute || []
     // Walking off the route (ore pickup, restock) leaves deeper cells behind; resume at the nearest one.
     const here = c.bot.entity.position
@@ -1219,13 +1224,21 @@ async function returnSurface(c, surfaceY = c.home?.y || 64) {
         // surface level ends the search, and height is the A* heuristic.
         const up = Object.assign(new goals.Goal(), {
             heuristic: node => Math.max(0, surfaceY - 1 - node.y),
-            isEnd: node => node.y >= surfaceY - 1
+            isEnd: node => node.y >= surfaceY - 1 && (!enclosed || openToSky(c.bot, new Vec3(node.x, node.y + 1, node.z)))
         })
-        await c.gotoWithTimeout(up, 20000, 'pickaxe-free climb')
-        if (c.bot.entity.position.y < surfaceY - 1) {
-            throw new Error('return stairs blocked and carving requires a pickaxe')
+        try {
+            await c.gotoWithTimeout(up, 20000, 'pickaxe-free climb')
+            if (c.bot.entity.position.y >= surfaceY - 1 && (!enclosed || openToSky(c.bot, c.bot.entity.position.floored().offset(0, 1, 0)))) {
+                return
+            }
+        } catch (error) {
+            check(c)
+            if (!/no path|timed out/i.test(error.message)) {
+                throw error
+            }
         }
-        return
+        c.picklessReturnRetry = { dimension, until: Date.now() + 30000 }
+        throw new Error('return stairs blocked and carving requires a pickaxe')
     }
     if (!c.memory.surfaceByStaircase) {
         c.log.warn('Known return stairs unavailable. Carving a supported staircase.')

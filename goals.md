@@ -8,6 +8,12 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
+F108–F110 (2026-11-11): iron reserve and proactive combat changes are
+loaded on port 49910. Watch a furnace job near the reserve cap and a
+natural cave encounter involving a creeper and ranged mobs. The bot
+received sticks and food, crafted picks, then cut its own exit to
+(483,64,78). The next unassisted pickless return remains to be observed.
+
 F107 (2026-11-11): exposed ore uses visible hazard checks and a bounded
 approach correction. Watch the next ore that opens an aquifer and an
 approach from a corner on port 49910. The 481-test baseline includes

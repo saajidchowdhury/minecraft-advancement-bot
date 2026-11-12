@@ -60,8 +60,11 @@ function ironPickPlankFuel(state) {
     return count > 0 && plan?.count === count + reserve ? { ...plan, count } : null
 }
 
-// Iron worth banking: 16 spare ingots plus the cost of every listed iron item not yet owned,
-// with three buckets of any content (user direction 2026-11-06). Higher tiers count as owned.
+function ironStock(state) {
+    return (state.rawIron ?? 0) + (state.ironIngots ?? 0) + (state.ironInFurnace ?? 0)
+}
+
+// Budget three spare iron pickaxes, three buckets and any missing iron equipment.
 function ironReserveCap(state) {
     const missing = [
         ['iron_pickaxe', ['iron_pickaxe', 'diamond_pickaxe', 'netherite_pickaxe']],
@@ -69,7 +72,10 @@ function ironReserveCap(state) {
         ['iron_sword', ['iron_sword', 'diamond_sword', 'netherite_sword']],
         ...ARMOR_PIECES.map(piece => [`iron_${piece}`, ARMOR_TIERS.slice(3).map(t => `${t}_${piece}`)])
     ].filter(([, names]) => !owns(state, names)).reduce((sum, [item]) => sum + RECIPES[item].ironIngots, 0)
-    return 16 + missing + RECIPES.bucket.ironIngots * Math.max(0, 3 - (state.buckets ?? 0))
+    const ironPicks = state.items?.iron_pickaxe ?? Number(owns(state, ['iron_pickaxe']))
+    const spares = Math.max(0, ironPicks - Number(!owns(state, ['diamond_pickaxe', 'netherite_pickaxe'])))
+    return missing + RECIPES.iron_pickaxe.ironIngots * Math.max(0, 3 - spares) +
+        RECIPES.bucket.ironIngots * Math.max(0, 3 - (state.buckets ?? 0))
 }
 
 function target(id, action, reason, extra = {}) {
@@ -101,9 +107,11 @@ function resourceAction(state, costs) {
         if (state.smeltNeedsFuel) {
             return 'gather_coal'
         }
-        // The furnace works on its own; keep mining iron nearby until the job is ready.
         if (state.smeltRunning) {
-            return 'gather_iron'
+            if (ironStock(state) < (state.ironCap ?? ironReserveCap(state))) {
+                return 'gather_iron'
+            }
+            return state.hasIronPickaxe ? 'gather_diamonds' : 'wait'
         }
         if (!state.hasFurnace) {
             return state.cobblestone < 8 ? 'gather_stone' : 'craft_furnace'
@@ -303,4 +311,4 @@ function planAdvancement(state) {
     return target('survival:established', 'wait', 'supported advancement route complete; use !come or !redstone')
 }
 
-module.exports = { EARLY_ADVANCEMENTS, RECIPES, ARMOR_TIERS, nextAdvancement, ironReserveCap, plankPotential, resourceAction, ironPickPlankFuel }
+module.exports = { EARLY_ADVANCEMENTS, RECIPES, ARMOR_TIERS, nextAdvancement, ironStock, ironReserveCap, plankPotential, resourceAction, ironPickPlankFuel }

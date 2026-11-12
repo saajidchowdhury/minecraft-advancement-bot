@@ -2,6 +2,13 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F108–F110 pass 487 tests and syntax checks. Regressions cover bucket and
+spare-pick accounting, furnace stock and smelt priority, hostiles behind
+the bot or occluded by stone, a sideways creeper retreat, and pacing a
+pickless climb retry. On port 49910 the staged zombie and creeper trials
+both passed at 20 HP. After the separate stick and food resupply, the
+normal bot climbed to open ground on its own. See findings F109–F110.
+
 F107 passes 481 tests and syntax checks. Three regressions failed on the
 old source and pass with the fix. Real prismarine-world rays distinguish
 visible water from water concealed by stone or ore. Collection skips the

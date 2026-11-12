@@ -404,13 +404,14 @@ test('an armored bot fights two zombies once a creeper is beyond its fuse range'
 })
 
 test('a non-urgent surface trip waits underground in shelter at night', () => {
-    const night = { underground: true, isNight: true, hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true,
+    const night = { underground: true, isNight: true, ironCap: 22, hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true,
         hasStonePickaxe: true, hasFurnace: true, hasIronPickaxe: true, rawIron: 3, cobblestone: 10, food: 17, hasFood: true, logs: 0, planks: 0, sticks: 0 }
     assert.equal(chooseAction(state(night)), Actions.IRON)
     assert.equal(chooseAction(state({ ...night, health: 12, hasFood: false, sheltered: true })), Actions.IRON, '12 HP keeps mining')
     assert.equal(chooseAction(state({ ...night, health: 11, hasFood: false })), Actions.SHELTER)
     assert.equal(chooseAction(state({ ...night, health: 11, hasFood: false, sheltered: true })), 'wait')
     assert.equal(chooseAction(state({ ...night, rawIron: 40 })), 'gather_diamonds')
+    assert.equal(chooseAction(state({ ...night, ironCap: 22, ironInFurnace: 29 })), 'gather_diamonds')
     assert.equal(chooseAction(state({ ...night, rawIron: 40, hasStonePickaxe: false, hasWoodenPickaxe: false, hasIronPickaxe: false })), Actions.SHELTER)
     assert.equal(chooseAction(state({ ...night, isNight: false })), 'return_surface')
     // User direction: night mining continues regardless of carried food until health is low.
@@ -475,6 +476,21 @@ test('visible iron below its reserve cap is mined like a seen diamond, but not i
     assert.equal(chooseAction(state({ ...busy, diamondInView: true })), 'mine_diamond')
     assert.equal(chooseAction(state({ ...busy, health: 8, hostileDistance: 4 })), Actions.ESCAPE)
     assert.equal(chooseAction(state({ ...busy, health: 10 })), 'return_surface')
+})
+
+test('visible threats trigger defense before melee reach or creeper fuse range', () => {
+    const zombie = { underground: true, hostileDistance: 5.5 }
+    assert.equal(chooseAction(state({ ...zombie, hasWeapon: true })), Actions.FIGHT)
+    assert.equal(chooseAction(state({ ...zombie, hasWeapon: false })), Actions.ESCAPE)
+    assert.equal(chooseAction(state({ ...zombie, hasWeapon: true, hostileDistance: 7.5, creeperDistance: 7.5 })), Actions.ESCAPE)
+})
+
+test('smelting for missing boots outranks a visible iron detour', () => {
+    const gear = new Set(['iron_pickaxe', 'shield', 'iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings'])
+    const miner = state({ underground: true, ironInView: true, gear, rawIron: 4, hasSmeltingFuel: true,
+        hasCraftingTable: true, hasWoodenPickaxe: true, hasStonePickaxe: true, hasIronPickaxe: true,
+        hasFurnace: true, hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true })
+    assert.equal(chooseAction(miner), 'smelt_iron')
 })
 
 test('a night miner cooks its raw food underground and returns to the finished furnace', () => {

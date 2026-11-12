@@ -12,7 +12,7 @@ const UNSAFE = new Set(['water', 'lava', 'sand', 'red_sand', 'gravel', 'magma_bl
 
 function observedThreats(c, names) {
     return Object.values(c.bot.entities || {}).filter(e => e.isValid && names.has(e.name) &&
-        e.position.distanceTo(c.bot.entity.position) <= 16 && c.canSee(e))
+        e.position.distanceTo(c.bot.entity.position) <= 16 && c.canSee(e, true))
 }
 
 function updateCrowdRetreat(c, names) {

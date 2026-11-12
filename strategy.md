@@ -43,9 +43,9 @@ when new evidence changes a ranking; goals.md carries the actionable queue.
    Tactical Fishing. Each costs about a minute when conditions are met.
 7. **Mining yield** (G008): measure ore per block for probe spacing; later G012
    relocation when a site is exhausted.
-8. **Use banked iron.** Night mining now banks iron (up to 40) before diamonds. Spare
-   iron makes Hired Help cheap (4 iron blocks = 36 ingots, plus a carved pumpkin from a
-   pumpkin and shears) and fills the base's spare kit (G013).
+8. **Use banked iron.** Count iron in a recoverable furnace when budgeting missing
+   gear, three buckets and three spare picks before diamonds. Hired Help needs
+   a separate investment of 36 ingots and a carved pumpkin.
 
 ## Advancements reachable with current or near-current skills
 
