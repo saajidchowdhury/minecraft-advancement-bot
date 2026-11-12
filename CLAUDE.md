@@ -58,6 +58,16 @@ behavior ran without command assistance. Distinguish staged-condition evidence
 and supplied items from survival-earned progression; do not present a staged
 survival test as an unaided playthrough.
 
+Owner preferences for live sessions (the configured `owner` player):
+- Before a staged test that sets up structures or mobs, such as an arena,
+  teleport the owner to a vantage point that shows the whole test area without
+  interfering with it, for example on top of a dark stained-glass ceiling over
+  the arena. Return them afterwards.
+- Whenever you start or restart the bot, make sure the owner has full enchanted
+  netherite armor and tools, 64 enchanted golden apples and infinite Night
+  Vision and Regeneration. Check first and give only what is missing.
+Use a separate helper login for these commands and record them like any other.
+
 The user authorizes iterative live testing in the supplied LAN world: run,
 observe, stop a misbehaving bot, diagnose, patch and rerun. Verify PID/process
 identity before stopping it; avoid duplicate bots. Use the latest supplied port.
