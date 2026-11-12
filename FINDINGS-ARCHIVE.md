@@ -2639,3 +2639,36 @@ was restored, the arena was removed, and AdvancementBot rejoined port
 49910. See `outputs/creeper-sword-cave-49910-r3.json` and its companion
 log. `CAVE_TRIALS=1` selects that lone-creeper case. The staggered crowd
 cases from F111 were not rerun with this change.
+
+## F113 — A water search froze beside water; deferral released Cover Me with Diamonds [live + regression]
+
+Live 2026-11-12 on `510b533`, `outputs/2026-11-12@00.19.31`. At 06:18:58Z a
+daylight `fill_water_bucket`, underground with no visible water, was carving a
+staircase from Y=-14 toward Y=75 heading north. At (305,10,-106) it failed
+"no supported dry tunnel step" 40+ times, about every 2.5 s, without moving. A
+read-only parse of the saved region (`r.0.-1.mca`, saved 06:20Z, after the
+stall began) showed water source blocks from z=-108 north at Y 8–15. The north
+step's neighbour cells were water; south had gravel at z=-104. East was the
+bot's own shielded disposal pit, dug at 06:18:56Z, and west was its own stair.
+Both were in `excavatedCells`, which lateral tunnel steps refuse (F088). The
+hazard check reads chunk data, not sight or memory, so it correctly saw that
+digging north would open into the water. A failed `fill_water_bucket` skips all
+failure recovery (F089), so nothing broke the loop.
+
+Fix `a76b2d6`: a rising step may cross old excavations sideways, because each step
+gains height and cannot spiral. The stall error now counts unsafe, excavated
+and blocked candidates. Three in-place `fill_water_bucket` failures set
+`memory.waterDeferredUntil` for 5 min, and the planner skips the water,
+obsidian and portal steps while it is set. Three regressions replay the saved
+geometry and the tick loop; all fail on the previous source. 492 tests pass.
+
+Restart at 06:30:05Z in Terminal window 781: by then it was night
+(timeOfDay 18586), so the covered night search ran instead of the climb. Each
+of three tries hit the 12 s movement watchdog with nothing logged. The
+deferral fired at 06:30:48Z. The planner then crafted a diamond chestplate and
+the server confirmed Cover Me with Diamonds (`story/shiny_gear`) at 06:30:51Z.
+The bot also crafted diamond leggings and went back to mining for a helmet.
+The bot had carried 15 diamonds since about 05:57Z. The diamond detour (F103)
+had kept the interrupted water goal ahead of affordable armor, delaying the
+advancement by about 30 min. The sideways climb is regression-only so far.
+No commands were used.

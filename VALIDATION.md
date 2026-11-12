@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-489 tests and `npm run check` pass at `510b533` (gameplay) / `ade949e` (docs).
+492 tests and `npm run check` pass at `a76b2d6`.
 Run them with the prepared runtime:
 
 ```sh
@@ -54,10 +54,10 @@ which leaves little room for more comments there.
 | memory-random | 2 | seeded rng, atomic world memory |
 | mined-ore-recovery | 7 | dig-exposed ore, hidden water, corner approach, out-of-view drops |
 | mining-timing | 3 | break times for tier ores, landing before digging |
-| mobility-recovery | 15 | unstick, shaft and pillar detection, safe drops, heap guard |
+| mobility-recovery | 16 | unstick, shaft and pillar detection, safe drops, heap guard |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
-| progression-skills | 29 | stairs, tunnels, portal geometry, frontier, merges |
+| progression-skills | 31 | stairs, tunnels, portal geometry, frontier, merges |
 | resource-routing | 9 | visible-target searches, support preservation, exits |
 | sculk-caution | 5 | sculk alarms, zone, sneak flee |
 | shaft-memory | 11 | shaft recording, following, repair, pickless climb pause |
@@ -101,6 +101,8 @@ none ran during the trial). "Automated" means regression tests only.
 | Staged cave walk with checkpoints and loot | staged | F051 |
 | High-tree pillar | staged | F097 |
 | Water search with a daylight exit | live | F089 |
+| Water-search stall deferral | live | F113 |
+| Rising staircase crossing its own excavations | automated | F113 |
 | Night water search | automated | F089 |
 | Underground night mining through a full night | live | F075 |
 | Natural night burrow, 1x2 shelter, `mine_from_shelter` | automated / staged | F102 |

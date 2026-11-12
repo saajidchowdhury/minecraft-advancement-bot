@@ -13,12 +13,13 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-12
 
-AdvancementBot was last seen connected to LAN port 49910 on gameplay source
-`510b533` (`outputs/2026-11-12@00.19.31/session.json`, 27 matching source
-hashes). After a skeleton death at 00:17:53 Eastern it rebuilt an iron pick and
-was mining iron at full health near (474,16,133) at 00:25. The LAN port changes
-each time the world is opened. Verify the process, connection and newest
-snapshot before live work. Baseline: 489 tests and syntax checks pass. The
+AdvancementBot was restarted at 01:30 Eastern in Terminal window 781 on LAN
+port 49910, source `a76b2d6` (`outputs/2026-11-12@01.30.05/`, Terminal log
+`outputs/water-stall-restart-49910.log`). It deferred a stalled water search,
+earned Cover Me with Diamonds and went back to mining diamonds at night near
+(307,4,-106) (F113). The LAN port changes each time the world is opened.
+Verify the process, connection and newest snapshot before live work.
+Baseline: 492 tests and syntax checks pass. The
 seeded cave harness `outputs/cave-mob-practice.js` is local (see
 DEVELOPMENT.md). Next actions are under "Now" in `GOALS.md`.
 
@@ -186,10 +187,16 @@ Navigation and recovery
   `return_surface` never escalates to a drop-down unstick (F070).
 - Path searches and actions are bounded. An operation that refuses cancellation
   forces a reconnect before the next action starts (F004).
+- Rising tunnel steps may cross old excavations sideways; level and falling steps
+  may not. Three in-place `fill_water_bucket` failures defer the water and portal
+  route for 5 min (`WATER_DEFER_MS`), since that action has no other recovery (F113).
 
 ## Open problems and unverified behavior
 
 Highest risk first.
+0. A night water search at (305,10,-106) hit the 12 s movement watchdog three
+   times with no log line saying what it was doing. The deferral contains it,
+   but it will retry every 5 min (F113).
 1. Retreat under pursuit: reinforcements during an escape turned it into a
    wall-refuge search and one death. The staggered cases were not rerun after
    the F112 duel (F111).
@@ -337,3 +344,4 @@ Highest risk first.
 - F110 Surface return exhausted both picks
 - F111 Cave combat while mining and smelting
 - F112 Sword strikes and retreat against an isolated creeper
+- F113 A water search froze beside water; deferral released Cover Me with Diamonds [live + regression]

@@ -16,6 +16,10 @@ playthrough is a test, not the definition of success.
    simultaneous creeper cases. Done when both staggered cases end in a kill
    or a scored escape on the same seed.
 2. Watch natural play on the running bot for:
+   - the next daytime water climb past water or old cells, and what the night
+     water search does in the 12 s before the watchdog fires (F113);
+   - whether diamond detours should let affordable armor go first: Cover Me with
+     Diamonds waited about 30 min behind the water goal (F113);
    - a creeper duel on poor footing or with a reinforcement arriving (F112);
    - a furnace job near the iron reserve cap (F108);
    - the next unassisted pickless return (F110);
