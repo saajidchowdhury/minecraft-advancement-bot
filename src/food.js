@@ -6,6 +6,7 @@ const { until } = require('./progression-skills')
 const { canSeeBlock } = require('./vision')
 const { dryMovements } = require('./cave-exploration')
 const { reachGoal } = require('./tree-climb')
+const { furnaceFuelTicks, plankFuelPlan, preparePlankFuel } = require('./furnace-fuel')
 
 // [hunger points, saturation] per item, vanilla Java values.
 const FOODS = {
@@ -42,18 +43,12 @@ function mealReserve(items) {
     }, 0)
 }
 
-// Vanilla burn ticks per fuel item; a furnace takes 200 ticks per item. Nether wood does not burn.
-const BURN_TICKS = { coal: 1600, charcoal: 1600, coal_block: 16000, blaze_rod: 2400, lava_bucket: 20000, stick: 100 }
-const burnTicks = name => BURN_TICKS[name] ?? 300
-
 // User direction (2026-11-11): a furnace job is due when its fuel runs out or its input is done, by world
 // ticks: those left in the burning item plus the fuel slot's burn time. mineflayer can report a burning
 // furnace's first fuel property before its total, so the window settles two ticks first.
 async function furnaceDue(bot, furnace, count) {
     await bot.waitForTicks?.(2)
-    const burning = furnace.totalFuel ? Math.round((furnace.fuel || 0) * furnace.totalFuel) : 0
-    const slot = furnace.fuelItem()
-    const fuel = burning + (slot ? slot.count * burnTicks(slot.name) : 0)
+    const fuel = furnaceFuelTicks(furnace)
     const input = count * 200 - Math.round((furnace.progress || 0) * (furnace.totalProgress || 200))
     const ticks = Math.max(0, Math.min(fuel, input)) + 20
     return { readyAtTick: bot.time?.age != null ? bot.time.age + ticks : null, readyAt: Date.now() + ticks * 50 }
@@ -66,12 +61,18 @@ function jobDue(bot, job) {
 function cookFuel(c, count) {
     const coal = c.bestItem(['coal', 'charcoal'])
     if (coal) {
-        return { item: coal, count: Math.ceil(count / 8) }
+        return { name: coal.name, count: Math.ceil(count / 8) }
     }
-    // Planks and logs each burn 1.5 items.
-    const wood = c.bot.inventory.items().filter(item => /_(planks|log)$/.test(item.name) && !/^(crimson|warped)_/.test(item.name))
-        .sort((a, b) => Number(b.name.endsWith('_planks')) - Number(a.name.endsWith('_planks')) || b.count - a.count)[0]
-    return wood ? { item: wood, count: Math.ceil(count / 1.5) } : null
+    return plankFuelPlan(c.bot.inventory.items(), Math.ceil(count * 2 / 3))
+}
+
+async function putCookingFuel(c, furnace, plan) {
+    const items = (furnace.items?.() ?? c.bot.inventory.items()).filter(item => item.name === plan.name)
+    const count = Math.min(plan.count, items.reduce((n, item) => n + item.count, 0))
+    if (count > 0) {
+        await furnace.putFuel(items[0].type, items[0].metadata ?? null, count)
+    }
+    return count > 0
 }
 
 function foodState(c, state) {
@@ -186,7 +187,7 @@ async function startCooking(c, state) {
         c.checkAction(signal)
     }
     const block = await c.getFurnace(true)
-    const furnace = await c.bot.openFurnace(block)
+    let furnace = await c.bot.openFurnace(block)
     try {
         // Leftover output (charcoal, ingots) is the bot's own and is collected; foreign input blocks.
         const busy = furnace.inputItem() && !FOODS[furnace.inputItem().name] ? furnace.inputItem() : null
@@ -198,15 +199,25 @@ async function startCooking(c, state) {
             await furnace.takeOutput()
         }
         // Raw food already in the slot (an earlier interrupted job) is adopted rather than mixed.
-        const current = furnace.inputItem()
+        let current = furnace.inputItem()
         const raw = current || c.bot.inventory.items().filter(item => COOKED[item.name]).sort((a, b) => b.count - a.count)[0]
         if (!raw) {
             return
         }
-        const count = current ? current.count : Math.min(64, c.countItems([raw.name]))
-        const fuel = cookFuel(c, count)
-        if (!fuel && !furnace.fuelItem()) {
-            throw new Error('no furnace fuel for cooking')
+        const fuel = !furnace.fuelItem() && cookFuel(c, current?.count ?? Math.min(64, c.countItems([raw.name])))
+        if (!furnace.fuelItem()) {
+            if (!fuel) {
+                throw new Error('no furnace fuel for cooking')
+            }
+            furnace = await preparePlankFuel(c, block, furnace, fuel)
+            current = furnace.inputItem()
+            if (current && current.name !== raw.name) {
+                throw new Error(`furnace is busy with ${current.name}`)
+            }
+        }
+        const count = current?.count ?? Math.min(64, c.countItems([raw.name]))
+        if (count === 0) {
+            return
         }
         if (!current) {
             await furnace.putInput(raw.type, null, count)
@@ -214,8 +225,8 @@ async function startCooking(c, state) {
         const p = block.position
         c.memory.cookJob = { dimension: c.bot.game.dimension, x: p.x, y: p.y, z: p.z, input: raw.name, count,
             underground: Boolean(state?.underground), readyAt: Date.now() + count * SECONDS_PER_ITEM * 1000 + 1000 }
-        if (!furnace.fuelItem()) {
-            await furnace.putFuel(fuel.item.type, null, Math.min(fuel.count, c.countItems([fuel.item.name])))
+        if (fuel && !furnace.fuelItem()) {
+            await putCookingFuel(c, furnace, fuel)
         }
         Object.assign(c.memory.cookJob, await furnaceDue(c.bot, furnace, count))
         c.log.info(`Cooking ${count} ${raw.name} at ${p}; due in about ${Math.round((c.memory.cookJob.readyAt - Date.now()) / 1000)} s.`)
@@ -287,11 +298,31 @@ async function collectCooking(c, job) {
         c.memory.cookJob = null
         throw new Error(`cooking furnace at ${position} is gone`)
     }
-    const furnace = await c.bot.openFurnace(block)
+    let furnace = await c.bot.openFurnace(block)
     let finished = false
     try {
         // A departing bot waits out the job here; one called when ready waits only a few seconds.
-        await until(c, () => !furnace.inputItem(), Math.min(100000, Math.max(5000, job.readyAt - Date.now() + 3000))).catch(() => {})
+        if (furnace.fuelItem() || furnace.fuel > 0 || block.getProperties?.().lit) {
+            await until(c, () => !furnace.inputItem(), Math.min(100000, Math.max(5000, job.readyAt - Date.now() + 3000))).catch(() => {})
+        }
+        c.checkAction()
+        const jobInput = () => {
+            const input = furnace.inputItem()
+            if (input && input.name !== job.input) {
+                c.memory.cookJob = null
+                throw new Error(`cooking furnace now contains ${input.name}`)
+            }
+            return input
+        }
+        const input = jobInput()
+        const fuel = input && !furnace.fuelItem() && cookFuel(c, input.count)
+        let added = false
+        if (fuel) {
+            furnace = await preparePlankFuel(c, block, furnace, fuel)
+            if (jobInput() && !furnace.fuelItem()) {
+                added = await putCookingFuel(c, furnace, fuel)
+            }
+        }
         if (furnace.outputItem()) {
             await furnace.takeOutput()
         }
@@ -303,11 +334,7 @@ async function collectCooking(c, job) {
             c.memory.cookJob = null
         } else {
             const left = furnace.inputItem().count
-            const fuel = !furnace.fuelItem() && cookFuel(c, left)
-            if (fuel) {
-                await furnace.putFuel(fuel.item.type, null, Math.min(fuel.count, c.countItems([fuel.item.name])))
-            }
-            if (!fuel && !furnace.fuelItem() && !(furnace.fuel > 0)) {
+            if (!added && !furnace.fuelItem() && !(furnace.fuel > 0)) {
                 // Out of fuel with none carried: take the raw food back rather than revisit every
                 // ten seconds (three trips, the last into lava: death #8, 17:30:22Z).
                 await furnace.takeInput()

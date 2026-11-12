@@ -7,6 +7,7 @@ const { storeOverflowAtBase } = require('./base')
 const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight, minedPassage, exposedDiamond, findPriorityDiamond, findPriorityOre, IRON_ORES } = require('./cave-exploration')
 const { scanFor, canSeeBlock } = require('./vision')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
+const { isFuelPlank, isCharcoalLog, furnaceFuelTicks, plankFuelPlan, preparePlankFuel } = require('./furnace-fuel')
 
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
 const PROTECTED_CONTAINERS = new Set(['furnace', 'barrel', 'chest'])
@@ -643,44 +644,77 @@ async function fillLavaBucket(c) {
     }
 }
 
-async function smeltCharcoal(c) {
-    await c.ensurePlanks(2)
+async function smeltCharcoal(c, state) {
+    const wanted = state.hasIronPickaxe && state.rawIron > 8 ? 3 : 1
     const block = await c.getFurnace()
-    const furnace = await c.bot.openFurnace(block)
+    let furnace = await c.bot.openFurnace(block)
     let complete = false
     try {
-        if (furnace.outputItem()?.name !== 'charcoal') {
-            if (!furnace.inputItem()) {
-                const log = furnace.items().find(item => item.name.endsWith('_log'))
-                if (!log) {
-                    throw new Error('a log is required for charcoal')
-                }
-                await furnace.putInput(log.type, log.metadata, 1)
-            } else if (!furnace.inputItem().name.endsWith('_log')) {
+        const checkInput = () => {
+            const input = furnace.inputItem()
+            if (input && !isCharcoalLog(input.name)) {
                 throw new Error('charcoal furnace contains unrelated input')
             }
-            check(c)
-            if (!furnace.fuelItem() && (furnace.fuelSeconds || 0) < 11) {
-                let remaining = 2
-                while (remaining > 0) {
-                    const planks = furnace.items().find(item => item.name.endsWith('_planks') && item.count > 0)
-                    if (!planks) {
-                        throw new Error('two planks are required for charcoal fuel')
-                    }
-                    const count = Math.min(remaining, planks.count)
-                    await furnace.putFuel(planks.type, planks.metadata, count)
-                    remaining -= count
-                    if (remaining > 0) {
-                        await until(c, () => !furnace.fuelItem(), 2500)
-                    }
-                }
+            return input
+        }
+        checkInput()
+        const output = furnace.outputItem()
+        if (output && output.name !== 'charcoal') {
+            throw new Error(`charcoal furnace contains ${output.name} in the output slot`)
+        }
+        if (!output) {
+            const bestLog = () => furnace.items().filter(item => isCharcoalLog(item.name)).sort((a, b) => b.count - a.count)[0]
+            await c.bot.waitForTicks?.(2)
+            let input = checkInput()
+            let log = input || bestLog()
+            if (!log) {
+                throw new Error('a log is required for charcoal')
             }
-            await until(c, () => furnace.outputItem()?.name === 'charcoal', 16000)
+            const planksNeeded = count => Math.ceil(Math.max(0, count * 200 - furnaceFuelTicks(furnace)) / 300)
+            const needed = planksNeeded(Math.min(wanted, log.count))
+            const items = furnace.items()
+            const carried = items.filter(item => isFuelPlank(item.name)).reduce((n, item) => n + item.count, 0)
+            if (carried < needed) {
+                furnace = await preparePlankFuel(c, block, furnace, plankFuelPlan(items, needed))
+                await c.bot.waitForTicks?.(2)
+                input = checkInput()
+                log = input || bestLog()
+            }
+            if (!log) {
+                throw new Error('a log is required for charcoal after crafting fuel')
+            }
+            const count = Math.min(wanted, log.count)
+            let remaining = planksNeeded(count)
+            check(c)
+            if (!input) {
+                await furnace.putInput(log.type, log.metadata, count)
+            }
+            while (remaining > 0) {
+                const available = () => furnace.items().find(item => isFuelPlank(item.name) && item.count > 0 &&
+                    (!furnace.fuelItem() || furnace.fuelItem().name === item.name))
+                if (!available() && furnace.fuelItem()) {
+                    await until(c, () => !furnace.fuelItem(), 2500)
+                }
+                const planks = available()
+                if (!planks) {
+                    throw new Error('planks are required for charcoal fuel')
+                }
+                const added = Math.min(remaining, planks.count)
+                await furnace.putFuel(planks.type, planks.metadata, added)
+                remaining -= added
+            }
+            await until(c, () => furnace.outputItem()?.name === 'charcoal' && furnace.outputItem().count >= count, 6000 + count * 10000)
         }
         await furnace.takeOutput()
+        if (checkInput()) {
+            await furnace.takeInput()
+        }
+        if (furnace.fuelItem()) {
+            await furnace.takeFuel()
+        }
         complete = true
     } finally {
-        if (!complete && !c.actionAbort?.signal.aborted && furnace.inputItem()?.name.endsWith('_log')) {
+        if (!complete && !c.actionAbort?.signal.aborted && isCharcoalLog(furnace.inputItem()?.name ?? '')) {
             await furnace.takeInput().catch(() => {})
         }
         await c.bot.closeWindow(furnace).catch(() => {})
@@ -1455,7 +1489,7 @@ async function leaveNether(c) {
 async function performProgression(c, action, state) {
     switch (action) {
         case 'clear_inventory': return clearInventory(c)
-        case 'smelt_charcoal': return smeltCharcoal(c)
+        case 'smelt_charcoal': return smeltCharcoal(c, state)
         case 'craft_stone_axe': return craftProgression(c, 'stone_axe')
         case 'craft_stone_shovel': return craftProgression(c, 'stone_shovel')
         case 'craft_progression': {

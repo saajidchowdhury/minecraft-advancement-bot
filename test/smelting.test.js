@@ -182,7 +182,12 @@ test('a fuel-starved job is refuelled with planks from carried logs instead of w
     furnaceState.input = { name: 'raw_iron', count: 13 }
     const { smeltJobState } = require('../src/survival-bot')
     assert.equal(smeltJobState(c).smeltReady, true)
-    c.ensurePlanks = async n => { inv.oak_log -= Math.ceil(n / 4); inv.oak_planks = (inv.oak_planks || 0) + 4 * Math.ceil(n / 4) }
+    c.craftItem = async (name, n, table) => {
+        assert.equal(name, 'oak_planks')
+        assert.equal(table, false)
+        inv.oak_log -= Math.ceil(n / 4)
+        inv.oak_planks = (inv.oak_planks || 0) + 4 * Math.ceil(n / 4)
+    }
     const furnace = await c.bot.openFurnace()
     let added = 0
     furnace.putFuel = async (type, meta, count) => { added = count; furnaceState.fuel = { name: 'oak_planks', count } }

@@ -2,6 +2,15 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F106 passes 478 tests and syntax checks. A six-item cooking job crafts a
+log into four planks even when a single plank of another species is
+available. A stalled job crafts with the furnace closed, refuels with two
+planks and keeps the other two. The strengthened charcoal regression uses
+three logs and two different single-plank fuel stacks. The two cooking
+regressions and the strengthened charcoal test failed before the fix.
+Slab fuel is counted as 150 ticks per item. The bot rejoined LAN port 49910
+with the changes. Wood-only fueling and charcoal batching await live tests.
+
 F105 passes 476 tests and syntax checks. The mining regressions drive the
 pinned Mineflayer digging plugin and asserts the finish packet at 1150 ms
 for iron ore with a stone pickaxe, 750 ms for diamond ore with an iron

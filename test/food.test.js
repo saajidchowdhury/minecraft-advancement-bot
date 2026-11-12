@@ -7,6 +7,7 @@ const { MIN_MINING_MEALS, mealReserve, foodState, cookFood, furnaceDue, jobDue, 
 
 function kitchen(items) {
     const furnace = { input: null, output: null, fuel: null }
+    let open = false
     const window = {
         inputItem: () => furnace.input, outputItem: () => furnace.output, fuelItem: () => furnace.fuel,
         takeOutput: async () => { items.push(furnace.output); furnace.output = null },
@@ -29,11 +30,20 @@ function kitchen(items) {
         hasItem: name => items.some(i => i.name === name), findStation: () => block,
         getFurnace: async () => block, reclaimStation: async () => { c.reclaimed = true },
         bot: { game: { dimension: 'overworld' }, entity: { position: new Vec3(0, 64, 0) }, blockAt: () => block,
-            inventory: { items: () => items }, openFurnace: async () => window, closeWindow: async () => {} }
+            inventory: { items: () => items }, openFurnace: async () => { open = true; return window },
+            closeWindow: async () => { open = false } }
     }
     for (const [i, item] of items.entries()) {
         item.type = i
         names[i] = item.name
+    }
+    c.craftItem = async (name, count, needsTable) => {
+        assert.equal(open, false, 'crafting requires a closed furnace window')
+        assert.equal(needsTable, false)
+        take(name.replace(/_planks$/, '_log'), Math.ceil(count / 4))
+        const type = Object.keys(names).length
+        names[type] = name
+        items.push({ name, type, count: 4 * Math.ceil(count / 4) })
     }
     return { c, furnace }
 }
@@ -250,6 +260,8 @@ test('a furnace job is due when its fuel runs out, counted in world ticks includ
     const coal = { fuelItem: () => ({ name: 'coal', count: 1 }) }
     assert.equal((await furnaceDue(bot, coal, 21)).readyAtTick, 1000 + 1600 + 20, 'one coal covers 8 of 21 iron')
     assert.equal((await furnaceDue(bot, coal, 3)).readyAtTick, 1000 + 600 + 20, 'three items finish before the coal')
+    const slabs = { fuelItem: () => ({ name: 'oak_slab', count: 2 }) }
+    assert.equal((await furnaceDue(bot, slabs, 4)).readyAtTick, 1000 + 300 + 20)
     const burning = { fuelItem: () => null, totalFuel: 300, fuel: 0.5, progress: 0.25, totalProgress: 200 }
     assert.equal((await furnaceDue(bot, burning, 13)).readyAtTick, 1000 + 150 + 20, 'half a plank left burning')
     const job = { readyAtTick: 2620, readyAt: Date.now() + 1e9 }
@@ -266,6 +278,24 @@ test('cooking collects leftover charcoal output instead of treating the furnace 
     await cookFood(c)
     assert.equal(c.countItems(['charcoal']), 1)
     assert.deepEqual(furnace.input, { name: 'mutton', count: 2 })
+})
+
+test('cooking makes enough planks from one log for six items instead of burning logs', async () => {
+    const { c, furnace } = kitchen([{ name: 'beef', count: 6 }, { name: 'oak_log', count: 3 }, { name: 'birch_planks', count: 1 }])
+    await cookFood(c)
+    assert.deepEqual(furnace.fuel, { name: 'oak_planks', count: 4 })
+    assert.equal(c.countItems(['oak_log']), 2)
+    assert.equal(c.countItems(['birch_planks']), 1)
+})
+
+test('a stalled cooking job converts a log and keeps the planks it does not need', async () => {
+    const { c, furnace } = kitchen([{ name: 'oak_log', count: 2 }])
+    c.memory.cookJob = { dimension: 'overworld', x: 1, y: 64, z: 0, input: 'beef', count: 2, readyAt: 0 }
+    furnace.input = { name: 'beef', count: 2 }
+    await cookFood(c)
+    assert.deepEqual(furnace.fuel, { name: 'oak_planks', count: 2 })
+    assert.equal(c.countItems(['oak_log']), 1)
+    assert.equal(c.countItems(['oak_planks']), 2)
 })
 
 test('cooking refuses a furnace holding iron and backs off instead of mixing jobs', async () => {

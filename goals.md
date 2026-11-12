@@ -8,6 +8,11 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
+F106 (2026-11-11): the bot on port 49910 now prepares planks for wood-fuel
+jobs and makes up to three charcoal for a larger batch. Check the next
+wood-only furnace job against `outputs/fuel-restart-49910.log`.
+The automated baseline is 478 tests.
+
 F105 (2026-11-11): the bot is running on port 49910 after a same-Terminal
 restart. The server confirmed the corrected iron and copper ore break times.
 The landing wait also ran on an airborne stair-transition dig.

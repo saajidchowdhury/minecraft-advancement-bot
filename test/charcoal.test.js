@@ -6,17 +6,17 @@ const { performProgression } = require('../src/progression-skills')
 
 test('charcoal accepts two different single-plank fuel stacks', async () => {
     const items = [{ name: 'oak_planks', count: 1, type: 1 },
-        { name: 'birch_planks', count: 1, type: 2 }, { name: 'birch_log', count: 1, type: 3 }]
+        { name: 'birch_planks', count: 1, type: 2 }, { name: 'birch_log', count: 3, type: 3 }]
     const inventorySnapshot = items.map(item => ({ ...item }))
     const fuel = []
     let input = null
     let reclaimed = false
     const furnace = {
         items: () => items.filter(item => item.count > 0),
-        outputItem: () => fuel.length === 2 ? { name: 'charcoal', count: 1 } : null,
+        outputItem: () => fuel.length === 2 ? { name: 'charcoal', count: 3 } : null,
         inputItem: () => input,
         fuelItem: () => null,
-        async putInput(type) { input = items.find(item => item.type === type) },
+        async putInput(type, metadata, count) { input = { ...items.find(item => item.type === type), count } },
         async putFuel(type, metadata, count) {
             const stack = items.find(item => item.type === type && item.count >= count)
             if (!stack) {
@@ -35,7 +35,8 @@ test('charcoal accepts two different single-plank fuel stacks', async () => {
         bot: { health: 20, inventory: { items: () => inventorySnapshot },
             openFurnace: async () => furnace, closeWindow: async () => {} }
     }
-    await performProgression(controller, 'smelt_charcoal', {})
+    await performProgression(controller, 'smelt_charcoal', { hasIronPickaxe: true, rawIron: 24 })
+    assert.equal(input.count, 3)
     assert.deepEqual(fuel, [1, 2])
     assert.equal(reclaimed, true)
 })

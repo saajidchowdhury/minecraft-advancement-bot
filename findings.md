@@ -2579,3 +2579,21 @@ On the next natural restart, an airborne copper dig request started grounded
 after 102 ms and sent finish 751 ms later with an iron pickaxe. Traces are in
 `outputs/mining-and-hunt-restart-49910.log` and
 `outputs/mining-and-hunt-landing-49910.log`.
+
+## F106 — Convert furnace wood to planks and batch charcoal
+
+User reported raw oak logs being burned. The cooking start and refuel paths
+could choose logs directly; iron's first-pick fallback could only use
+already-crafted planks. The installed Java 26.1.2 `FuelValues` and recipes
+give 300 burn ticks for a log or plank, 150 per wooden slab, 100 per stick
+and 1600 per charcoal, at 200 ticks per furnace item. Per oak log this is
+1.5 items raw, 6 via planks or slabs, and 4 via sticks. Slabs tie planks
+in bulk and need another recipe. Two planks make three charcoal, enough
+to smelt 24 items from 3.5 log equivalents (about 6.86 items/log).
+
+Cooking and first-iron jobs convert logs only when needed, using enough
+compatible planks for the fuel slot. Cooking closes and reopens its
+window before and after inventory crafting. The existing charcoal action
+makes up to three at once for a larger iron batch. Already-carried coal or
+charcoal remains preferred. A natural restart on port 49910 loaded the
+patch. The bot has coal, so a wood-only furnace job is still pending live.

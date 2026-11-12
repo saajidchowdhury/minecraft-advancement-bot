@@ -1,5 +1,7 @@
 'use strict'
 
+const { isCharcoalLog, isFuelPlank, plankFuelPlan } = require('./furnace-fuel')
+
 const EARLY_ADVANCEMENTS = Object.freeze([
     { id: 'minecraft:story/root', title: 'Minecraft' },
     { id: 'minecraft:story/mine_stone', title: 'Stone Age' },
@@ -54,9 +56,8 @@ function ironPickPlankFuel(state) {
     }
     const count = Math.ceil((RECIPES.iron_pickaxe.ironIngots - state.ironIngots) * 2 / 3)
     const reserve = state.sticks < RECIPES.iron_pickaxe.sticks ? 2 : 0
-    const available = Object.entries(state.items || {}).find(([name, n]) =>
-        name.endsWith('_planks') && !['crimson_planks', 'warped_planks'].includes(name) && n >= count + reserve)
-    return count > 0 && available ? { name: available[0], count } : null
+    const plan = plankFuelPlan(Object.entries(state.items || {}).map(([name, count]) => ({ name, count })), count + reserve)
+    return count > 0 && plan?.count === count + reserve ? { ...plan, count } : null
 }
 
 // Iron worth banking: 16 spare ingots plus the cost of every listed iron item not yet owned,
@@ -110,8 +111,13 @@ function resourceAction(state, costs) {
         if (state.rawIron < Math.min(3, costs.ironIngots - state.ironIngots)) {
             return 'gather_iron'
         }
-        return state.hasSmeltingFuel || (costs === RECIPES.iron_pickaxe && ironPickPlankFuel(state)) ? 'smelt_iron' :
-            (state.logs >= 2 || (state.logs >= 1 && state.planks >= 2) ? 'smelt_charcoal' : 'gather_wood')
+        if (state.hasSmeltingFuel || (costs === RECIPES.iron_pickaxe && ironPickPlankFuel(state))) {
+            return 'smelt_iron'
+        }
+        const items = Object.entries(state.items || {})
+        const logs = state.items ? items.filter(([name]) => isCharcoalLog(name)).reduce((n, [, count]) => n + count, 0) : state.logs
+        const hasPlank = state.items ? items.some(([name, count]) => isFuelPlank(name) && count > 0) : state.planks >= 1
+        return logs >= 2 || (logs >= 1 && hasPlank) ? 'smelt_charcoal' : 'gather_wood'
     }
     return null
 }

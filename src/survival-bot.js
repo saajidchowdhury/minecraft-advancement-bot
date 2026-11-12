@@ -12,6 +12,7 @@ const { prepareBed, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = re
 const { AdvancementTracker } = require('./advancement-tracker')
 const { installSculkCaution, sculkZoneAt, fleeSculk } = require('./sculk-caution')
 const { FOOD_VALUES, COOKED, furnaceDue, jobDue, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
+const { plankFuelPlan, isFuelPlank } = require('./furnace-fuel')
 const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight, dryMovements, safeFooting,
     rememberMiningExposure, exposedByDig } = require('./cave-exploration')
 const { inView, blockInView, canSeeBlock, sightRay, scanFor } = require('./vision')
@@ -301,9 +302,8 @@ function actionMadeProgress (action, before, after, moved) {
 
 // Planks burn 1.5 items and a log makes four; nether wood does not burn. A fuel-starved job with
 // 25 logs carried went coal hunting 72 blocks off, near its 100-block abandonment (07:17Z).
-function woodFuels (c, items) {
-    const wood = (c.bot.inventory?.items() ?? []).filter(i => /_(planks|log)$/.test(i.name) && !/^(crimson|warped)_/.test(i.name))
-    return wood.reduce((n, i) => n + i.count * (i.name.endsWith('_log') ? 4 : 1), 0) >= Math.ceil(items / 1.5)
+function smeltPlankFuel (c, items) {
+    return plankFuelPlan(c.bot.inventory?.items() ?? [], Math.ceil(items * 2 / 3))
 }
 
 // A running job is ready once its time has passed, or at once near the abandonment radius.
@@ -320,7 +320,7 @@ function smeltJobState (c) {
         return { smeltRunning: false, smeltReady: false }
     }
     if (job.needsFuel) {
-        return { smeltRunning: false, smeltReady: c.hasAnyItem(['coal', 'charcoal']) || woodFuels(c, job.count), smeltNeedsFuel: true }
+        return { smeltRunning: false, smeltReady: c.hasAnyItem(['coal', 'charcoal']) || Boolean(smeltPlankFuel(c, job.count)), smeltNeedsFuel: true }
     }
     // An early return guards only the 300-block abandonment: at 48 blocks it fetched unfinished iron (07:23Z).
     const far = c.bot.entity.position.distanceTo(new Vec3(job.x, job.y, job.z)) > 250
@@ -1901,6 +1901,10 @@ class SurvivalController {
         if (job && job.dimension === this.bot.game.dimension) {
             return this.collectSmelt(job)
         }
+        if (plankFuel?.craftCount) {
+            await this.craftItem(plankFuel.name, plankFuel.craftCount, false)
+            this.checkAction()
+        }
         const furnaceBlock = await this.getFurnace()
         const furnace = await this.bot.openFurnace(furnaceBlock)
         try {
@@ -1978,8 +1982,12 @@ class SurvivalController {
             this.memory.smeltJob = null
             throw new Error(`smelting furnace at ${position} is gone`)
         }
-        if (job.needsFuel && !this.hasAnyItem(['coal', 'charcoal']) && woodFuels(this, job.count)) {
-            await this.ensurePlanks(Math.ceil(job.count / 1.5))
+        if (job.needsFuel && !this.hasAnyItem(['coal', 'charcoal'])) {
+            const plan = smeltPlankFuel(this, job.count)
+            if (plan?.craftCount) {
+                await this.craftItem(plan.name, plan.craftCount, false)
+                this.checkAction()
+            }
         }
         const furnace = await this.bot.openFurnace(block)
         const burning = () => furnace.fuel > 0 || this.bot.blockAt(position)?.getProperties?.().lit === true
@@ -2004,7 +2012,7 @@ class SurvivalController {
                 job.needsFuel = !furnace.fuelItem() && !burning()
                 if (job.needsFuel) {
                     const fuel = this.bestItem(['coal', 'charcoal']) || this.bot.inventory.items()
-                        .filter(i => i.name.endsWith('_planks') && !/^(crimson|warped)_/.test(i.name)).sort((a, b) => b.count - a.count)[0]
+                        .filter(i => isFuelPlank(i.name)).sort((a, b) => this.countItems([b.name]) - this.countItems([a.name]))[0]
                     if (fuel) {
                         const per = fuel.name.endsWith('_planks') ? 1.5 : 8
                         await furnace.putFuel(fuel.type, fuel.metadata, Math.min(Math.ceil(left / per), this.countItems([fuel.name])))
