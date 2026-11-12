@@ -140,163 +140,20 @@ Current inventory determines whether lost tools must be rebuilt.
 
 ## Behavior summary
 
-Food, danger, recoverable death drops and night protection can interrupt the
-route. Carried armor upgrades and shields equip before tool progression or
-night waiting. Shelters permit local replacement-pick crafting and safe work
-with a wooden backup pick, restricted to coal and stone until tools improve.
-An empty-handed bot (no drops to recover) builds wood and stone tools before
-hunting: until it holds a stone pickaxe and an axe only food <= 6 starts a hunt,
-and low health hunts only below 18 food, since a full bar regenerates.
-After a stone pick, an axe and shovel precede ordinary surface hunting,
-including after a death or tool loss. Hunting prefers axes and waits for
-charged swings; a stone axe charges for 1.25 seconds. Prey is lost only after
-3 s of terrain occlusion without closing 2 blocks (the view cone is ignored;
-the bot turns before swinging). Urgent survival actions still interrupt
-preparation and cooldowns.
-Cooking starts once the meal reserve is gathered, at night or deep below the
-departure surface, and always for raw food the bot is about to eat; raw meat is
-eaten only when no furnace serves in time. A surface job starts only if it
-finishes before nightfall. Food in the bot's furnaces counts toward the reserve.
-A furnace job is due when its fuel or input runs out, by world ticks from the
-furnace window (burning ticks plus fuel-slot burn time; 200 ticks an item).
-Cooking jobs are visited within 300 blocks by day on the surface, 64 underground
-or for a furnace placed underground, and 8 at night; an out-of-reach job parks
-so raw food can cook where the bot is, and only beyond 300 blocks is a job
-abandoned. Returns target visible interaction reach: a furnace over 24 blocks
-away is first reached with normal movements, the dry approach gets 400 ms per
-block, and a failed approach tries a short lateral detour; eight consecutive
-failed detours pause the job for five minutes. Canceled approaches keep the job.
-Iron and charcoal smelting never use a furnace holding a cooking job. Coal or
-charcoal is preferred. When using wood, the bot can craft logs into planks for
-cooking or the first iron pick. A larger iron batch can justify making up to
-three charcoal first. Iron jobs are kept to 300 blocks and fetched early only
-beyond 250.
-Mining uses exposed targets and checked staircase steps, avoids removing
-its own support, and replaces broken tools. Charcoal provides furnace fuel when
-coal is unavailable. Every five horizontal tunnel blocks, the bot opens
-head-height probes up to five blocks on each side. It can crouch closer to the
-wall while staying in the tunnel cell. Reach and safety checks can shorten a
-probe, and exposed ore returns control to resource harvesting. Five is a
-starting value, not a measured optimum.
+`chooseAction` in `src/decision-engine.js` picks one action per cycle. Food,
+danger, environmental reflexes, recoverable death drops and night protection
+interrupt the route above. A threat cancellation replans after 100 ms, a
+success after 250 ms, a failure after 1.5 s. Path searches and actions are
+bounded. An operation that refuses cancellation forces a reconnect.
+Minecraft commands for staged tests stay outside the gameplay controller.
 
-Generic pathfinding cannot place scaffold blocks. Combat escape/pursuit and
-recovery scouting use supported dry routes without digging or bridging.
-Hostiles with a clear sightline can interrupt work before a hit, even when the
-bot is facing away. Alert distances are six blocks for melee mobs, eight for
-creepers and twelve for archers. Against an isolated creeper, a healthy bot
-with a sword waits at reach, strikes once and backs away, then waits for the
-next approach. It retreats farther if the creeper swells. A nearby second
-threat or lack of a safe retreat route can end the duel.
-Three observed hostiles within sixteen blocks can trigger a wall retreat: run clear,
-dig and enter a one-by-two wall pocket, then confirm two sealing doorway
-blocks. A blocked seal triggers another run before retrying. Once enclosed,
-the bot mines inward and abandons the dangerous old tunnel frontier. Turning
-away from the mob group does not end the retreat. The bot can kite a small
-melee-only group instead. Descending tunnels permit
-eight level detour steps before reporting a blocked descent; side probes wait
-until within eight blocks of the target layer. Level tunnels and descents beside
-an old mined passage running the same way step into it instead of digging a
-parallel one.
-
-Newly exposed diamonds can interrupt another mining objective when safe. After
-collecting the drop, the bot returns to the interrupted objective, except that a
-newly affordable diamond pickaxe and then sword are crafted at once. Visible iron
-interrupts work while carried raw iron, ingots and recoverable furnace iron are
-below the cost of missing gear, up to three buckets and up to three spare iron
-pickaxes. The planner selects needed smelting ahead of optional iron, and an
-active return staircase skips optional ore detours. Exposed ore checks use
-visible hazards. If mining reveals water
-or lava, the bot skips approaching the drop. Ordinary digs wait briefly for
-footing, and the server confirms the block break.
-It also gathers other nearby ores up to reserve caps (coal and charcoal: 32). A supplied and protected
-bot explores caves depth first, remembering checkpoints and return waypoints by
-dimension. It excludes remembered mining passages from surveys and checks the
-local light level before placing a torch. A placement check enforces at least
-10 blocks of straight-line distance from every nearby torch or wall torch,
-including ones behind the bot. It checks support, stops for threats, and avoids
-digging or bridging during the survey. It can loot visible chests and chest
-minecarts and remember whether each was emptied. Target discovery uses a
-100° horizontal by 70° vertical view and a clear ray from eye level. Visual
-rays pass through leaves; solid blocks retain normal occlusion. Wood searches
-also look upward for remaining canopy logs. Item pickup follows moving drops
-and stops once the server removes the collected entity. A tree-drop pickup
-timeout does not blacklist the remaining trunk.
-Resource searches can turn in place to look around. Buried ore coordinates
-do not steer the tunnel. With no visible iron, the fallback heads toward
-Y=16. Tunneling keeps a stable heading and a frontier scoped by dimension and
-target depth. After nearby detours it walks back without digging or bridging
-before resuming. Existing excavations may be crossed forward; lateral bypasses
-retain mining exclusions and cannot reverse the main heading.
-A mined block opens up to six adjacent faces. The bot can turn to
-mine a remembered face while the opening is still air and the face has a
-clear sightline. Movement and placement checks still read nearby block geometry.
-Before leaving the surface to mine in daylight, it stocks 32 logs (a plank
-counts as a quarter log), then 16 average cooked land meats (260.48 hunger plus
-saturation points). Urgent hunger and ready furnace output can still interrupt
-restocking. Raw food counts at its cooked value. Nearby open ground sets the
-reserve check's height at a shallow mine entrance even below the original spawn.
-Raw meat, fish and potatoes are cooked in fire-and-forget
-furnace jobs. While the meal reserve is short it takes food on the way, underground
-or not: cod and salmon near the water surface, ripe glow berries, mushroom stew (up to
-four) and tropical fish, and it waits at a remembered fish shore before scouting. At
-night it never works or hunts on the surface: it takes a known shaft down, carves
-down when protected, or shelters; underground it keeps mining regardless of
-carried food and waits enclosed once health falls below 12 as displayed (11.5). A full natural cave survey and return still needs live
-validation. See [cave-opportunities.md](cave-opportunities.md).
-
-Food gathering can turn nearby red and brown mushrooms, including drops from
-giant mushroom caps, into stew. It crafts bowls at a crafting table when
-needed. Repeated movement stalls switch to cardinal scouting and, if that
-fails, a short staircase with support and liquid checks.
-
-Inventory cleanup throws away clutter and surplus rubble while keeping prepared
-food. If the pack fills without ordinary surplus, the bot frees a slot using a
-lower-priority stack. A nearby owned chest or barrel can take overflow when
-there is no safe place to throw it clear.
-
-Nightfall alone does not stop underground work. On the surface it does no night
-work or hunting (removed in `ce24690`, F071); it sleeps when the owner sleeps,
-takes a known shaft down, carves down when protected, or shelters. Bed preparation uses available same-color wool, and
-beds are only used in the Overworld. In this LAN setup, the bot joins sleep
-only when it can observe the owner sleeping, and wakes when the owner wakes.
-Staged trials confirmed Sweet Dreams and a since-removed spider hunt. The bot also earned
-Not Today, Thank You in a later LAN run. Reliable natural combat, cooperative
-sleep and shelter exits still need live validation. See
+The current rules for mining, furnaces, food, combat, night, shelter and
+recovery, each with its constants and finding IDs, are under "Policies in
+force" in `findings.md`. Research behind the cave and night branches is in
+[cave-opportunities.md](cave-opportunities.md) and
 [night-opportunities.md](night-opportunities.md).
 
-Warden caution (`src/sculk-caution.js`): a sculk-family block within 16 blocks,
-a heard sculk-sensor click, shriek or warden sound within 32, Darkness, or a
-warden within 32 records a 48-block zone (`memory.sculkZones`) and cancels work.
-`flee_sculk` (ahead of combat and shelter, which a sonic boom ignores) sneaks out
-with no drops and no parkour, since sneaking stops at ledges, and never breaks
-sensors or shriekers. Sneak is reasserted every physics tick until there is no
-sculk within 24 blocks, the bot is outside every zone, and 30 s pass without an
-alarm. Targets and tunnel steps inside a zone are refused, so mining moves elsewhere.
-
-Path searches and actions have limits; an operation that refuses cancellation
-triggers reconnection before another action starts.
-
-Water search uses actual sky exposure rather than the near-home height flag.
-During daylight it finishes returning to open ground before surface scouting;
-scout and bucket-approach paths cannot dig or bridge into another cave.
-At night it searches covered caves and tunnels at the current depth, preserving
-cover and interrupting any daytime water trip at nightfall. A visible spring
-already within bucket reach can still supply water without a surface detour.
-
-Low air interrupts work and follow mode at twelve of twenty air units.
-Emergency swimming takes direct control until breathing recovers, without
-pathfinding overriding its swim controls. Station reclamation keeps supporting
-blocks intact and avoids collecting workstation drops from unsafe wet cells.
-
 ## State and debugging
-
-Endermen have a separate defensive response. Ordinary look calls and each
-physics tick avoid unobstructed enderman faces, including yaw interpolation.
-Visible anger or an attributed hit interrupts work and follow mode. The bot
-pours carried water outside the Nether, tries a sealed burrow, and carves a
-two-high side refuge if the shaft cannot be sealed. It keeps the enclosure
-closed while the remembered threat remains; endermen are never combat targets.
-Command staging remains external to the gameplay controller.
 
 Each launch prints its output directory under `outputs/YYYY-MM-DD@HH.MM.SS/`
 (America/New_York):

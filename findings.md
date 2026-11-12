@@ -79,9 +79,11 @@ Planner and gear order
   before hunting unless food is 6 or less (F104).
 
 Mining and tunnels
-- Targets must be visible: forward view, eye ray, leaves transparent. Ore that
-  the bot's own dig exposed within 6 blocks stays a target (F079, F080, F090,
-  F100, F107). A watchdog checks resource walks every 1.5 s for new targets (F073).
+- Targets must be visible: a 100° by 70° forward view, a clear eye ray, leaves
+  transparent, turning in place to look. Buried ore never steers a tunnel; with
+  no visible iron the bot heads toward Y=16. Ore that its own dig exposed within
+  6 blocks stays a target (F079, F080, F090, F100, F107). A watchdog checks
+  resource walks every 1.5 s for new targets (F073).
 - Never mine a natural block under the hitbox; step off first. Own placed blocks
   on sound support are exempt, and pointed dripstone is not a floor (F102).
 - Exposed-ore hazards use sight rays; tunnels and probes still use chunk data
@@ -118,8 +120,10 @@ Furnaces, fuel and food
   furnaces are not used for iron or charcoal (F103).
 - Smelt and cook jobs are abandoned only beyond 300 blocks. Cooking reach is
   300 by day on the surface, 64 underground, 8 at night; out-of-reach cooking
-  jobs park (`src/food.js`, F103). Far returns use normal movement beyond 24
-  blocks at 400 ms per block and pause after eight failed detours (F104).
+  jobs park (`src/food.js`, F103). A surface cooking job starts only if it
+  finishes before tick 12500. Iron jobs are fetched early only beyond 250
+  blocks. Far returns use normal movement beyond 24 blocks at 400 ms per block
+  and pause after eight failed detours (F104).
 - Carried coal and charcoal come first. Logs become planks only as needed:
   300 ticks per log or plank, 1600 per charcoal, 200 per item. Charcoal is made
   up to three at a time (`src/furnace-fuel.js`, F106). A fuel-starved job is
@@ -129,6 +133,9 @@ Furnaces, fuel and food
   always cooked, and raw food is eaten only when no furnace serves in time.
   Furnace contents count toward the reserve (F103). Underground food taken in
   passing: fish near air, ripe glow berries, up to four stews, tropical fish (F072).
+- Hunts prefer axes and wait for charged swings (stone axe 1.25 s). Prey is
+  dropped only after 3 s of terrain occlusion without closing 2 blocks; the view
+  cone is ignored (F095, F103). Low health starts a hunt only below 18 food (F104).
 
 Combat and threats
 - Line-of-sight alerts in any direction: melee 6, creeper 8, archer 12 blocks,
@@ -177,6 +184,8 @@ Navigation and recovery
 - A pickless bot climbs to surface level by pathfinding. Failed climbs pause
   for 30 s, and the surface never starts a lateral scout (F062, F110).
   `return_surface` never escalates to a drop-down unstick (F070).
+- Path searches and actions are bounded. An operation that refuses cancellation
+  forces a reconnect before the next action starts (F004).
 
 ## Open problems and unverified behavior
 
