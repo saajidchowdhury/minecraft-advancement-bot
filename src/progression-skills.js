@@ -6,7 +6,7 @@ const { discardableStacks, overflowStack } = require('./inventory')
 const { storeOverflowAtBase } = require('./base')
 const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight, minedPassage, exposedDiamond, findPriorityDiamond,
     findPriorityOre, IRON_ORES, visibleMiningHazard } = require('./cave-exploration')
-const { scanFor, canSeeBlock } = require('./vision')
+const { scanFor, canSeeBlock, cellVisible } = require('./vision')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
 const { isFuelPlank, isCharcoalLog, furnaceFuelTicks, plankFuelPlan, preparePlankFuel } = require('./furnace-fuel')
 
@@ -15,6 +15,7 @@ const PROTECTED_CONTAINERS = new Set(['furnace', 'barrel', 'chest'])
 const WOODCUTTING_AXES = ['netherite_axe', 'diamond_axe', 'iron_axe', 'copper_axe', 'stone_axe']
 const DIGGING_SHOVELS = ['netherite_shovel', 'diamond_shovel', 'iron_shovel', 'stone_shovel']
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
+const FACES = [[1, 0, 0], [-1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 function check(c) {
@@ -42,16 +43,28 @@ function supportedPlacement(bot, position) {
     })
 }
 
+// A hazard counts only if the bot could see it from where it stands. Chunk data behind rock is not
+// perceivable (user direction 2026-11-12, F114); a dig that reveals liquid is plugged (revealedLiquid).
+function seenHazard(bot, p) {
+    const block = bot.blockAt(p, false)
+    return Boolean(block && HAZARDS.has(block.name) && cellVisible(bot, p))
+}
+
 function safeTunnelStep(bot, feet, target, allowFloorPlacement = false) {
     const floor = bot.blockAt(target.offset(0, -1, 0), false)
     const floorPosition = target.offset(0, -1, 0)
-    const base = bot.blockAt(target.offset(0, -2, 0), false)
-    const canBuildFloor = allowFloorPlacement && target.y > feet.y && floor &&
-        ['air', 'cave_air', 'void_air'].includes(floor.name) &&
-        (supportedPlacement(bot, floorPosition) || (base && ['air', 'cave_air', 'void_air'].includes(base.name) &&
-            supportedPlacement(bot, target.offset(0, -2, 0))))
-    if (!floor || (!canBuildFloor && floor.boundingBox !== 'block') || HAZARDS.has(floor.name)) {
+    if (!floor) {
         return false
+    }
+    if (cellVisible(bot, floorPosition)) {
+        const base = bot.blockAt(target.offset(0, -2, 0), false)
+        const canBuildFloor = allowFloorPlacement && target.y > feet.y &&
+            ['air', 'cave_air', 'void_air'].includes(floor.name) &&
+            (supportedPlacement(bot, floorPosition) || (base && ['air', 'cave_air', 'void_air'].includes(base.name) &&
+                supportedPlacement(bot, target.offset(0, -2, 0))))
+        if ((!canBuildFloor && floor.boundingBox !== 'block') || HAZARDS.has(floor.name)) {
+            return false
+        }
     }
     const cells = [target, target.offset(0, 1, 0)]
     if (target.y < feet.y) {
@@ -61,18 +74,37 @@ function safeTunnelStep(bot, feet, target, allowFloorPlacement = false) {
     }
     for (const p of cells) {
         const block = bot.blockAt(p, false)
-        if (!block || HAZARDS.has(block.name) || PROTECTED_CONTAINERS.has(block.name) ||
+        if (!block || seenHazard(bot, p) || PROTECTED_CONTAINERS.has(block.name) ||
             (block.boundingBox !== 'empty' && !block.diggable)) {
             return false
         }
         for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]]) {
-            const neighbor = bot.blockAt(p.offset(dx, dy, dz), false)
-            if (!neighbor || HAZARDS.has(neighbor.name)) {
+            if (!bot.blockAt(p.offset(dx, dy, dz), false) || seenHazard(bot, p.offset(dx, dy, dz))) {
                 return false
             }
         }
     }
     return true
+}
+
+// Liquid beside a freshly opened cell flows into it within ticks, so the bot would see it; the same
+// goes for a falling block above it.
+function revealedHazard(bot, p) {
+    const liquid = [p, ...[[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0], [0, -1, 0]].map(([x, y, z]) => p.offset(x, y, z))]
+        .find(q => ['water', 'lava'].includes(bot.blockAt(q, false)?.name))
+    if (liquid) {
+        return { kind: 'liquid', name: bot.blockAt(liquid, false).name }
+    }
+    const above = bot.blockAt(p.offset(0, 1, 0), false)
+    return above && HAZARDS.has(above.name) ? { kind: 'falling', name: above.name } : null
+}
+
+async function plugRevealed(c, p, found) {
+    if (found.kind === 'liquid') {
+        await Promise.resolve(c.placeSurvivalBlock?.(p)).catch(error => c.log.warn(`Could not plug ${found.name} at ${p}: ${error.message}`))
+    }
+    c.rememberBlockedTarget?.({ position: p }, 'revealed hazard', new Error(found.name))
+    throw new Error(`dig at ${p} revealed ${found.name}${found.kind === 'liquid' ? '; plugged the opening' : ''}`)
 }
 
 function miningPickaxe(c, block = null) {
@@ -131,9 +163,8 @@ async function probeTunnelSides(c, direction) {
                 !block.diggable) {
                 break
             }
-            const neighbors = [[1, 0, 0], [-1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]
-                .map(([x, y, z]) => bot.blockAt(position.offset(x, y, z), false))
-            if (neighbors.some(b => !b || HAZARDS.has(b.name))) {
+            const neighbors = FACES.map(([x, y, z]) => bot.blockAt(position.offset(x, y, z), false))
+            if (neighbors.some((b, i) => !b || seenHazard(bot, position.offset(...FACES[i])))) {
                 break
             }
             const face = position.offset(0.5, 0.5, 0.5).plus(faceNormal.scaled(0.5))
@@ -170,6 +201,15 @@ async function probeTunnelSides(c, direction) {
             check(c)
             await bot.dig(block, true, faceNormal)
             dug++
+            const revealed = revealedHazard(bot, position)
+            if (revealed) {
+                if (revealed.kind === 'liquid') {
+                    await Promise.resolve(c.placeSurvivalBlock?.(position))
+                        .catch(error => c.log.warn(`Could not plug ${revealed.name} at ${position}: ${error.message}`))
+                }
+                c.log.info(`Side probe at ${position} revealed ${revealed.name}; stopping that side.`)
+                continue probe
+            }
             foundOre ||= neighbors.some(b => b.name.endsWith('_ore') && miningSight(c, b))
             if (miningPickaxe(c)?.name !== tool.name) {
                 break probe
@@ -336,14 +376,23 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
             throw new Error(`no supported dry tunnel step: ${refused.unsafe} unsafe (liquid, falling blocks or support), ` +
                 `${refused.excavated} already excavated, ${refused.blocked} blocked`)
         }
-        const floor = bot.blockAt(target.offset(0, -1, 0), false)
-        if (floor.boundingBox === 'empty') {
+        const placeFloor = async () => {
+            if (bot.blockAt(target.offset(0, -1, 0), false)?.boundingBox !== 'empty') {
+                return
+            }
+            if (!c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt'])) {
+                c.rememberBlockedTarget?.({ position: target }, 'tunnel step', new Error('no floor'))
+                throw new Error(`tunnel step ${target} has no floor and no blocks to build one`)
+            }
             if (!supportedPlacement(bot, target.offset(0, -1, 0))) {
                 await c.placeSurvivalBlock(target.offset(0, -2, 0))
                 check(c)
             }
             await c.placeSurvivalBlock(target.offset(0, -1, 0))
             check(c)
+        }
+        if (cellVisible(bot, target.offset(0, -1, 0))) {
+            await placeFloor()
         }
         let dugFresh = false
         const cells = target.y < feet.y
@@ -366,6 +415,10 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
                 await bot.equip(currentTool, 'hand')
                 await bot.dig(block, true)
                 dugFresh = true
+                const revealed = revealedHazard(bot, p)
+                if (revealed) {
+                    await plugRevealed(c, p, revealed)
+                }
                 if (c.findNearestBlock && exposedDiamond(c, p) && c.canPursueDiamond?.() !== false && findPriorityDiamond(c)) {
                     c.log.info('Tunnel dig exposed diamond ore; yielding to collect it.')
                     return
@@ -376,6 +429,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
             }
         }
         check(c)
+        await placeFloor()
         try {
             if (target.y > feet.y) {
                 await climbStep(c, target)

@@ -3035,7 +3035,7 @@ class SurvivalController {
         await clearPlants(this, [target])
         this.checkAction(signal)
         const existing = this.bot.blockAt(target)
-        if (!this.isEmptyPlacementBlock(existing) && existing?.name !== 'water') {
+        if (!this.isEmptyPlacementBlock(existing) && !['water', 'lava'].includes(existing?.name)) {
             return
         }
         const item = this.bestItem(BUILDING_BLOCKS)

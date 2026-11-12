@@ -78,22 +78,42 @@ test('probes reach five blocks on both sides while staying in the tunnel cell', 
     assert.equal(c.dug.some(p => p.z === 5), true)
 })
 
-test('a blocked diamond descent cannot drift level indefinitely or probe the wrong layer', async () => {
+test('a descent over a hidden water layer plugs each reveal and still stops after eight level detours', async () => {
     const c = miningWorld()
     const blockAt = c.bot.blockAt
-    c.bot.blockAt = p => p.y === 62 ? { name: 'water', position: p, boundingBox: 'empty' } : blockAt(p)
-    await mineTunnel(c, -54)
-    await mineTunnel(c, -54)
-    await assert.rejects(mineTunnel(c, -54), /descent blocked/)
-    assert.equal(c.dug.some(p => p.z !== 0), false)
+    const plugged = new Set()
+    const blocked = new Set()
+    c.bot.blockAt = p => p.y === 62 ? { name: 'water', position: p, boundingBox: 'empty' } :
+        plugged.has(p.toString()) ? { name: 'cobblestone', position: p, boundingBox: 'block', diggable: true } : blockAt(p)
+    c.placeSurvivalBlock = async p => { plugged.add(p.toString()) }
+    c.rememberBlockedTarget = block => blocked.add(block.position.toString())
+    c.isBlockedTarget = block => blocked.has(block.position.toString())
+    let calls = 0
+    for (; calls < 60; calls++) {
+        try {
+            await mineTunnel(c, -54)
+        } catch (error) {
+            if (/descent blocked/.test(error.message)) {
+                break
+            }
+            assert.match(error.message, /revealed water; plugged the opening/)
+        }
+    }
+    assert.ok(calls < 60, 'the descent ends instead of drifting level')
+    assert.ok(plugged.size > 0)
+    assert.equal(c.dug.some(p => Math.abs(p.z) > 1), false, 'no side probes far from the target layer')
     assert.equal(c.bot.entity.position.y, 64)
 })
 
-test('a liquid or falling-block neighbor stops that probe before opening the hazard', async () => {
+test('a probe that opens onto a hidden hazard stops there and plugs liquid', async () => {
     for (const hazard of ['lava', 'water', 'gravel', 'sand']) {
         const c = miningWorld(new Map([[new Vec3(0, 65, 3).toString(), hazard]]))
+        const plugged = []
+        c.placeSurvivalBlock = async p => { plugged.push(p.toString()) }
         await probeTunnelSides(c, 0)
-        assert.equal(c.dug.some(p => p.z >= 2), false)
+        assert.equal(c.dug.some(p => p.z >= 3), false, `${hazard} cell itself is never dug`)
+        assert.equal(c.dug.some(p => p.z === 2), true, `${hazard} behind rock is not known before digging`)
+        assert.deepEqual(plugged, ['lava', 'water'].includes(hazard) ? ['(0, 65, 2)'] : [])
         assert.equal(c.dug.filter(p => p.z < 0).length, 5)
     }
 })

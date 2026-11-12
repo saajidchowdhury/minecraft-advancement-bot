@@ -1,5 +1,7 @@
 'use strict'
 
+const { Vec3 } = require('vec3')
+
 const HORIZONTAL_SLOPE = Math.tan(50 * Math.PI / 180)
 const VERTICAL_SLOPE = Math.tan(35 * Math.PI / 180)
 
@@ -49,6 +51,54 @@ function canSeeBlock(bot, block) {
     return Boolean(sightRay(bot, eye, delta.normalize(), range + 0.01, block.position)?.position.equals(block.position))
 }
 
+function opaqueCell(bot, cell) {
+    const block = bot.blockAt(cell, false)
+    return !block || (block.boundingBox === 'block' && !block.name.endsWith('_leaves'))
+}
+
+// Amanatides–Woo voxel walk from `from` to `to`; clear when no opaque cell other than `target` lies
+// between. Cell granularity treats every full collision block as opaque, like sightRay.
+function clearSegment(bot, from, to, target) {
+    const d = to.minus(from)
+    const cell = [Math.floor(from.x), Math.floor(from.y), Math.floor(from.z)]
+    const origin = [from.x, from.y, from.z]
+    const dir = [d.x, d.y, d.z]
+    const step = dir.map(Math.sign)
+    const tMax = dir.map((v, i) => v === 0 ? Infinity : (step[i] > 0 ? cell[i] + 1 - origin[i] : origin[i] - cell[i]) / Math.abs(v))
+    const tDelta = dir.map(v => v === 0 ? Infinity : 1 / Math.abs(v))
+    for (let guard = 0; guard < 64; guard++) {
+        const axis = tMax.indexOf(Math.min(...tMax))
+        if (tMax[axis] > 1) {
+            return true
+        }
+        cell[axis] += step[axis]
+        tMax[axis] += tDelta[axis]
+        if (cell[0] === target.x && cell[1] === target.y && cell[2] === target.z) {
+            return true
+        }
+        if (opaqueCell(bot, new Vec3(cell[0], cell[1], cell[2]))) {
+            return false
+        }
+    }
+    return false
+}
+
+// What a player standing here could see of cell p by turning: a clear line from the eye to its centre
+// or to any face centre. Hazard checks use this instead of chunk data hidden behind rock (F114).
+function cellVisible(bot, p, range = 16) {
+    const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
+    const centre = p.offset(0.5, 0.5, 0.5)
+    if (eye.distanceTo(centre) > range) {
+        return false
+    }
+    const eyeCell = eye.floored()
+    if (eyeCell.equals(p)) {
+        return true
+    }
+    return [[0, 0, 0], [0.49, 0, 0], [-0.49, 0, 0], [0, 0.49, 0], [0, -0.49, 0], [0, 0, 0.49], [0, 0, -0.49]]
+        .some(([x, y, z]) => clearSegment(bot, eye, centre.offset(x, y, z), p))
+}
+
 async function scanFor(c, find, { lookUp = false } = {}) {
     const found = find()
     if (found) {
@@ -71,4 +121,4 @@ async function scanFor(c, find, { lookUp = false } = {}) {
     return null
 }
 
-module.exports = { inView, blockInView, canSeeBlock, sightRay, scanFor }
+module.exports = { inView, blockInView, canSeeBlock, sightRay, scanFor, cellVisible }

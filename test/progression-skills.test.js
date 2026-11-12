@@ -3,7 +3,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { Vec3 } = require('vec3')
-const { safeTunnelStep, portalFrame, redstonePlan } = require('../src/progression-skills')
+const { safeTunnelStep, portalFrame, redstonePlan, mineTunnel } = require('../src/progression-skills')
 const { chooseAction } = require('../src/decision-engine')
 
 function world(overrides = new Map()) {
@@ -14,25 +14,41 @@ function world(overrides = new Map()) {
     }
 }
 
-test('stair mining rejects liquid, falling blocks, missing support and unloaded neighbors', () => {
+// A one-wide tunnel: the bot stands in the open cells (0,64,0) and (0,65,0) inside solid rock.
+function tunnel(overrides = new Map(), open = []) {
+    const air = new Set(['(0, 64, 0)', '(0, 65, 0)', ...open])
+    return {
+        entity: { position: new Vec3(0.5, 64, 0.5) },
+        blockAt(p) {
+            const name = overrides.get(p.toString()) || (air.has(p.toString()) ? 'air' : 'stone')
+            return { name, position: p, boundingBox: ['air', 'water', 'lava'].includes(name) ? 'empty' : 'block', diggable: true }
+        }
+    }
+}
+
+test('stair mining refuses hazards the bot can see but cannot know about hazards hidden in rock', () => {
     const feet = new Vec3(0, 64, 0)
     const target = feet.offset(1, -1, 0)
-    assert.equal(safeTunnelStep(world(), feet, target), true)
+    assert.equal(safeTunnelStep(tunnel(), feet, target), true)
     for (const name of ['lava', 'water', 'gravel', 'sand', 'bedrock']) {
-        assert.equal(safeTunnelStep(world(new Map([[target.offset(1, 0, 0).toString(), name]])), feet, target), false)
+        assert.equal(safeTunnelStep(tunnel(new Map([[target.offset(0, 2, 0).toString(), name]])), feet, target), false,
+            `${name} in the open tunnel wall`)
+        assert.equal(safeTunnelStep(tunnel(new Map([[target.offset(1, 0, 0).toString(), name]])), feet, target), true,
+            `${name} behind solid rock is not perceivable`)
     }
-    assert.equal(safeTunnelStep({ blockAt: () => null }, feet, target), false)
-    const noFloor = world()
-    const blockAt = noFloor.blockAt
-    noFloor.blockAt = p => p.equals(target.offset(0, -1, 0)) ? { name: 'air', boundingBox: 'empty' } : blockAt(p)
-    assert.equal(safeTunnelStep(noFloor, feet, target), false)
+    assert.equal(safeTunnelStep({ entity: { position: new Vec3(0.5, 64, 0.5) }, blockAt: () => null }, feet, target), false)
+    const level = feet.offset(1, 0, 0)
+    const hiddenHole = tunnel(new Map([[level.offset(0, -1, 0).toString(), 'air']]))
+    assert.equal(safeTunnelStep(hiddenHole, feet, level), true, 'a floor hidden under rock is checked after digging')
+    const openHole = tunnel(new Map([[level.offset(0, -1, 0).toString(), 'air']]), [level.toString(), level.offset(0, 1, 0).toString()])
+    assert.equal(safeTunnelStep(openHole, feet, level), false, 'a visible missing floor is refused')
 })
 
 test('tunneling routes around a furnace or storage container without discarding adjacent dry steps', () => {
     const feet = new Vec3(0, 64, 0)
     const target = feet.offset(1, 0, 0)
     for (const name of ['furnace', 'barrel', 'chest']) {
-        const bot = world(new Map([[target.toString(), name]]))
+        const bot = tunnel(new Map([[target.toString(), name]]))
         assert.equal(safeTunnelStep(bot, feet, target), false)
         assert.equal(safeTunnelStep(bot, feet, feet.offset(0, 0, 1)), true)
     }
@@ -558,9 +574,10 @@ test('lava with no walking path is tunneled toward before the source is quaranti
     await assert.rejects(performProgression(c, 'fill_lava_bucket', {}), /No path/)
 })
 
-test('when water above blocks every rising step, the tunnel takes a level side step instead of stalling', async () => {
+test('when visible water above blocks every rising step, the tunnel takes a level side step instead of stalling', async () => {
     const { mineTunnel } = require('../src/progression-skills')
-    const air = new Set(['0,64,0', '0,65,0'])
+    // An open shaft over the bot shows the water two cells up; hidden water is the reveal test's case.
+    const air = new Set(['0,64,0', '0,65,0', '0,66,0', '0,67,0'])
     const water = new Vec3(0, 68, 0)
     const bot = {
         health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) },
@@ -627,29 +644,60 @@ function stallWater(x, y, z) {
         (y === 14 && x <= 305) || (y === 15 && x <= 304))) || (z === -107 && y === 8 && x <= 303)
 }
 
-test('a rising staircase blocked by water ahead climbs sideways through its own excavations (live 06:19Z)', async () => {
-    const { mineTunnel } = require('../src/progression-skills')
-    const air = new Set(STALL_AIR)
-    const bot = {
+// The saved stall geometry; `leak` cells are extra water, e.g. after the granite wall north is gone.
+function stallBot(air, leak = new Set(), onDig = () => {}) {
+    return {
         health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(305.5, 10, -105.5) },
         blockAt(p) {
             const key = `${p.x},${p.y},${p.z}`
-            const name = air.has(key) ? 'air' : stallWater(p.x, p.y, p.z) ? 'water' : STALL_GRAVEL.has(key) ? 'gravel' : 'stone'
+            const name = leak.has(key) ? 'water' : air.has(key) ? 'air' : stallWater(p.x, p.y, p.z) ? 'water' :
+                STALL_GRAVEL.has(key) ? 'gravel' : 'stone'
             return { name, position: p, boundingBox: name === 'stone' || name === 'gravel' ? 'block' : 'empty', diggable: true,
                 canHarvest: () => true }
         },
         equip: async () => {}, canDigBlock: () => true,
-        async dig(block) { air.add(`${block.position.x},${block.position.y},${block.position.z}`); throw new Error(`dug ${block.position}`) }
+        async dig(block) {
+            air.add(`${block.position.x},${block.position.y},${block.position.z}`)
+            onDig(block.position)
+        }
     }
-    const excavatedCells = new Set([...STALL_AIR].map(key => `overworld:(${key.split(',').join(', ')})`))
-    const c = {
+}
+
+function stallController(bot, extra = {}) {
+    return {
         bot, running: true, paused: false, actionAbort: new AbortController(), log: { info() {}, warn() {} },
-        memory: { excavatedCells, minedCells: new Set(), mineDirection: 3,
+        memory: { excavatedCells: new Set([...STALL_AIR].map(key => `overworld:(${key.split(',').join(', ')})`)),
+            minedCells: new Set(), mineDirection: 3,
             tunnelFrontier: { x: 305, y: 10, z: -106, dimension: 'overworld', targetY: 75, direction: 3, levelSteps: 64 } },
         bestItem: names => names.includes('iron_pickaxe') ? { name: 'iron_pickaxe' } : null,
         async gotoWithTimeout(goal) { throw new Error(`moved to ${goal.x},${goal.y},${goal.z}`) },
-        rememberBlockedTarget() {}
+        rememberBlockedTarget() {},
+        ...extra
     }
+}
+
+test('water hidden behind rock does not stop the climb; the dig that reveals it is plugged (live 06:19Z)', async () => {
+    const dug = []
+    const plugged = []
+    const blocked = []
+    const bot = stallBot(new Set(STALL_AIR), new Set(), p => dug.push(p.toString()))
+    const c = stallController(bot, {
+        async placeSurvivalBlock(p) { plugged.push(p.toString()) },
+        rememberBlockedTarget(block) { blocked.push(block.position.toString()) }
+    })
+    await assert.rejects(mineTunnel(c, 75), /revealed water; plugged the opening/)
+    assert.equal(c.memory.mineDirection, 3, 'digs north toward the water it cannot see')
+    assert.deepEqual(dug, ['(305, 13, -106)', '(305, 13, -107)'])
+    assert.deepEqual(plugged, ['(305, 13, -107)'])
+    assert.deepEqual(blocked, ['(305, 13, -107)'])
+})
+
+test('a rising staircase facing visible water climbs sideways through its own excavations (F113)', async () => {
+    // The granite north of the bot is gone and water stands in its place, so the hazard is in view.
+    const bot = stallBot(new Set(STALL_AIR), new Set(['305,10,-107', '305,11,-107']), p => {
+        throw new Error(`dug ${p}`)
+    })
+    const c = stallController(bot)
     await assert.rejects(mineTunnel(c, 75), error => {
         assert.doesNotMatch(error.message, /no supported dry tunnel step/)
         return true
@@ -658,25 +706,11 @@ test('a rising staircase blocked by water ahead climbs sideways through its own 
 })
 
 test('a stalled tunnel step says how many steps were unsafe, old excavations or blocked targets', async () => {
-    const { mineTunnel } = require('../src/progression-skills')
-    const bot = {
-        health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(305.5, 10, -105.5) },
-        blockAt(p) {
-            const key = `${p.x},${p.y},${p.z}`
-            const name = STALL_AIR.has(key) ? 'air' : stallWater(p.x, p.y, p.z) ? 'water' : STALL_GRAVEL.has(key) ? 'gravel' : 'stone'
-            return { name, position: p, boundingBox: name === 'stone' || name === 'gravel' ? 'block' : 'empty', diggable: true }
-        },
-        equip: async () => {}
-    }
-    // North touches water at both slopes; east is a blocked target; the rising west step has an
+    // Water visible north at both slopes; east is a blocked target; the rising west step has an
     // open floor and no blocks to build one; the level west cell is the old stair.
-    const c = {
-        bot, running: true, paused: false, actionAbort: new AbortController(), log: { info() {}, warn() {} },
-        memory: { excavatedCells: new Set(['overworld:(304, 10, -106)', 'overworld:(304, 11, -106)']), minedCells: new Set(),
-            mineDirection: 3, tunnelFrontier: { x: 305, y: 10, z: -106, dimension: 'overworld', targetY: 75, direction: 3 } },
-        bestItem: names => names.includes('iron_pickaxe') ? { name: 'iron_pickaxe' } : null,
-        isBlockedTarget: block => block.position.x === 306
-    }
+    const bot = stallBot(new Set(STALL_AIR), new Set(['305,10,-107', '305,11,-107']))
+    const c = stallController(bot, { isBlockedTarget: block => block.position.x === 306 })
+    c.memory.excavatedCells = new Set(['overworld:(304, 10, -106)', 'overworld:(304, 11, -106)'])
     await assert.rejects(mineTunnel(c, 75), /no supported dry tunnel step: 3 unsafe .*, 1 already excavated, 2 blocked/)
 })
 
