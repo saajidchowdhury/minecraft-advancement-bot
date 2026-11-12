@@ -144,6 +144,62 @@ function revealedHazard(bot, p) {
     return above && HAZARDS.has(above.name) ? { kind: 'falling', name: above.name } : null
 }
 
+// Water opened by a dig is a free source while buckets are short (user direction, F119). The source is
+// often still out of sight (above the dug cell, or behind one block): dig what blocks the line from the
+// eye, up to three blocks, then scoop it and plug the leftover flow, as a player would.
+function firstOpaqueCell(bot, from, to) {
+    const steps = Math.ceil(from.distanceTo(to) / 0.05)
+    for (let i = 1; i < steps; i++) {
+        const cell = from.plus(to.minus(from).scaled(i / steps)).floored()
+        const block = bot.blockAt(cell, false)
+        if (block && block.boundingBox === 'block' && !block.name.endsWith('_leaves')) {
+            return block
+        }
+    }
+    return null
+}
+
+async function takeRevealedWater(c, opened) {
+    const bot = c.bot
+    if (!c.countItems || c.countItems(['water_bucket']) >= 2 || c.countItems(['bucket']) < 1) {
+        return false
+    }
+    const eye = () => bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
+    const cells = [opened]
+    for (let attempt = 0; attempt < 4; attempt++) {
+        const sources = cells.flatMap(p => [p, ...FACES.map(([x, y, z]) => p.offset(x, y, z))]).map(q => bot.blockAt(q, false))
+            .filter(b => b?.name === 'water' && Number(b.getProperties?.().level ?? 0) === 0 &&
+                eye().distanceTo(b.position.offset(0.5, 0.5, 0.5)) <= 4.5)
+            .sort((a, b) => eye().distanceTo(a.position) - eye().distanceTo(b.position))
+        const seen = sources.find(b => cellVisible(bot, b.position))
+        if (seen) {
+            const before = c.countItems(['water_bucket'])
+            try {
+                await useBucket(c, 'bucket', seen.position.offset(0.5, 0.5, 0.5), () => c.countItems(['water_bucket']) > before,
+                    'scoop revealed water')
+            } catch (error) {
+                check(c)
+                c.log.warn(`Could not scoop revealed water at ${seen.position}: ${error.message}`)
+                return false
+            }
+            c.log.info(`Filled a water bucket from the water a dig opened at ${seen.position} (${c.countItems(['water_bucket'])}/2).`)
+            return true
+        }
+        const blocker = sources[0] && firstOpaqueCell(bot, eye(), sources[0].position.offset(0.5, 0.5, 0.5))
+        if (attempt === 3 || !blocker || !blocker.diggable || PROTECTED_CONTAINERS.has(blocker.name) || !bot.canDigBlock?.(blocker)) {
+            return false
+        }
+        const tool = tunnelTool(c, blocker)
+        if (tool) {
+            await bot.equip(tool, 'hand')
+        }
+        await bot.dig(blocker, true)
+        check(c)
+        cells.push(blocker.position)
+    }
+    return false
+}
+
 // The plug hides the hazard again, so the step that needed this cell is blocked too; otherwise the
 // next plan reopens the same plug (live 06:40:20Z, twice at (307,8,-107)).
 async function plugRevealed(c, p, found, step) {
@@ -252,6 +308,9 @@ async function probeTunnelSides(c, direction) {
             dug++
             const revealed = revealedHazard(bot, position)
             if (revealed) {
+                if (revealed.name === 'water') {
+                    await takeRevealedWater(c, position)
+                }
                 if (revealed.kind === 'liquid') {
                     await Promise.resolve(c.placeSurvivalBlock?.(position))
                         .catch(error => c.log.warn(`Could not plug ${revealed.name} at ${position}: ${error.message}`))
@@ -467,6 +526,11 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
                 await settleFalling(c, p, feet, target)
                 const revealed = revealedHazard(bot, p)
                 if (revealed?.kind === 'liquid') {
+                    if (revealed.name === 'water' && await takeRevealedWater(c, p)) {
+                        await Promise.resolve(c.placeSurvivalBlock?.(p)).catch(() => {})
+                        c.rememberBlockedTarget?.({ position: target }, 'revealed water', new Error('water'))
+                        return
+                    }
                     await plugRevealed(c, p, revealed, target)
                 }
                 if (c.findNearestBlock && exposedDiamond(c, p) && c.canPursueDiamond?.() !== false && findPriorityDiamond(c)) {
@@ -875,7 +939,7 @@ async function fillWaterBucket(c) {
     const feet = bot.entity.position.floored()
     const outside = openToSky(bot, feet.offset(0, 1, 0))
     c.waterDaytimeSearch = !night
-    const range = night && !outside ? 32 : outside && !night ? 48 : 4
+    const range = night && !outside ? 32 : outside && !night ? 48 : 6
     const water = await scanFor(c, () => c.findNearestBlock(name => name === 'water', range, {
         filter: b => liquidSource(b, 'water') &&
             (bot.entity.position.distanceTo(b.position.offset(0.5, 0.5, 0.5)) <= 4.5 ||

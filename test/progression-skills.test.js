@@ -808,3 +808,70 @@ test('gravel that falls into a freshly dug tunnel cell is dug again until the co
     assert.deepEqual(steps, [[1, 64, 0]])
     assert.equal(dug.filter(key => key === '1,65,0').length, 4, 'the cell and three refills')
 })
+
+test('a dig that reveals water opens a line to the source and fills an empty bucket before plugging (F119)', async () => {
+    const inventory = { bucket: 1, water_bucket: 0 }
+    const plugged = []
+    const order = []
+    const bot = stallBot(new Set(STALL_AIR))
+    Object.assign(bot, {
+        inventory: { items: () => Object.entries(inventory).filter(([, n]) => n).map(([name, count]) => ({ name, count })) },
+        async lookAt() {}, async waitForTicks() {}, heldItem: null,
+        async equip(item) { bot.heldItem = item },
+        activateItem() {
+            if (bot.heldItem?.name === 'bucket') {
+                inventory.bucket--
+                inventory.water_bucket++
+                order.push('scoop')
+            }
+        },
+        deactivateItem() {}
+    })
+    const c = stallController(bot, {
+        countItems: names => names.reduce((n, name) => n + (inventory[name] || 0), 0),
+        async placeSurvivalBlock(p) { plugged.push(p.toString()); order.push('plug') }
+    })
+    // The source behind the opened cell is hidden by (305,12,-107); the bot digs that block, then scoops.
+    await mineTunnel(c, 75)
+    assert.equal(inventory.water_bucket, 1)
+    assert.deepEqual(order, ['scoop', 'plug'])
+})
+
+test('digging up into water above the bot scoops it instead of counting a failure (live 07:2xZ, F119)', async () => {
+    const { mineTunnel } = require('../src/progression-skills')
+    const air = new Set(['0,64,0', '0,65,0'])
+    let water = new Set(['0,68,0'])
+    const inventory = { bucket: 1, water_bucket: 0, cobblestone: 32 }
+    const dug = []
+    const bot = {
+        health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5), eyeHeight: 1.62 }, entities: {},
+        blockAt(p) {
+            const key = `${p.x},${p.y},${p.z}`
+            const name = water.has(key) ? 'water' : air.has(key) ? 'air' : 'stone'
+            return { name, position: p, boundingBox: name === 'stone' ? 'block' : 'empty', diggable: true, canHarvest: () => true,
+                getProperties: () => ({ level: 0 }) }
+        },
+        inventory: { items: () => Object.entries(inventory).filter(([, n]) => n).map(([name, count]) => ({ name, count })) },
+        canDigBlock: () => true, waitForTicks: async () => {}, async lookAt() {}, heldItem: null,
+        async equip(item) { bot.heldItem = item },
+        async dig(block) { dug.push(block.position.toString()); air.add(`${block.position.x},${block.position.y},${block.position.z}`) },
+        activateItem() {
+            if (bot.heldItem?.name === 'bucket') {
+                inventory.bucket--
+                inventory.water_bucket++
+                water = new Set()
+            }
+        },
+        deactivateItem() {}
+    }
+    const c = {
+        bot, running: true, paused: false, actionAbort: new AbortController(), memory: { mineDirection: 0 }, log: { info() {}, warn() {} },
+        bestItem: names => names.find(name => inventory[name] || name === 'iron_pickaxe') ? { name: names[0] } : null,
+        countItems: names => names.reduce((n, name) => n + (inventory[name] || 0), 0),
+        async placeSurvivalBlock() {}, rememberBlockedTarget() {},
+        async gotoWithTimeout() { throw new Error('should not step after taking the water') }
+    }
+    await mineTunnel(c, 75)
+    assert.equal(inventory.water_bucket, 1)
+    assert.deepEqual(dug.slice(0, 2), ['(0, 67, 0)', '(0, 66, 0)'], 'opens the stair headroom, then the block hiding the source')
+})

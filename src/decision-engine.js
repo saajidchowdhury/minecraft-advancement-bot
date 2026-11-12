@@ -235,7 +235,8 @@ function chooseAction (state) {
     const needsDepartureFood = daytimeDeparture && (state.mealReserve ?? 0) < MIN_MINING_MEALS
     const finishingExit = state.carvingSurfaceExit && state.underground && ['gather_wood', Actions.FOOD].includes(progression.action)
     const priorityOre = !finishingExit && state.health > 10 && state.hostileDistance > 6 &&
-        (state.diamondInView ? 'mine_diamond' : state.ironInView && progression.action !== Actions.SMELT_IRON ? 'mine_iron' : null)
+        (state.diamondInView ? 'mine_diamond' : state.waterInReach ? 'fill_water_bucket'
+            : state.ironInView && progression.action !== Actions.SMELT_IRON ? 'mine_iron' : null)
     if (priorityOre && !needsDepartureWood && !needsDepartureFood) {
         return priorityOre
     }

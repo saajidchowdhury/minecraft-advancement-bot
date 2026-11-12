@@ -287,7 +287,7 @@ async function pickUpKnownDrops (c, drops, source, label, signal) {
 }
 
 function actionMadeProgress (action, before, after, moved) {
-    if (INTERRUPTIBLE.has(action) && ['diamondInView', 'ironInView', 'foodOpportunity'].some(key => after[key] && !before[key])) {
+    if (INTERRUPTIBLE.has(action) && ['diamondInView', 'ironInView', 'waterInReach', 'foodOpportunity'].some(key => after[key] && !before[key])) {
         return true
     }
     if ([Actions.STONE, Actions.COAL, Actions.IRON].includes(action) &&
@@ -1117,8 +1117,9 @@ class SurvivalController {
         try {
             state.diamondInView = Boolean(this.mcData && findPriorityDiamond(this))
             state.ironInView = Boolean(this.mcData && this.ironWanted && findPriorityOre(this, IRON_ORES))
+            state.waterInReach = Boolean(this.waterSourceInReach())
         } catch (error) {
-            state.diamondInView = state.ironInView = false
+            state.diamondInView = state.ironInView = state.waterInReach = false
             this.log.warn(`Priority ore search failed; ignoring it this cycle: ${error.message}`)
         }
         if (this.mcData && state.health >= 16 && state.hostileDistance > 12 && freeInventorySlots > 1) {
@@ -1811,6 +1812,18 @@ class SurvivalController {
     }
 
     // The decision loop's opportunistic targets, cheaply: null, 'diamond', 'iron' or a food action.
+    // A water source within bucket reach while buckets are short is an opportunity, even with the water
+    // search deferred (user direction, F119).
+    waterSourceInReach () {
+        if (!this.mcData || this.countItems(['water_bucket']) >= 2 || !this.hasItem('bucket')) {
+            return null
+        }
+        const eye = this.bot.entity.position.offset(0, this.bot.entity.eyeHeight ?? 1.62, 0)
+        return this.findNearestBlock(name => name === 'water', 6, {
+            filter: b => Number(b.getProperties?.().level ?? 0) === 0 && eye.distanceTo(b.position.offset(0.5, 0.5, 0.5)) <= 4.5
+        })
+    }
+
     priorityTargetInView (allowOre = true) {
         try {
             if (!this.mcData || !this.canPursueDiamond()) {
@@ -1821,6 +1834,9 @@ class SurvivalController {
             }
             if (allowOre && this.ironWanted && findPriorityOre(this, IRON_ORES)) {
                 return 'iron'
+            }
+            if (this.waterSourceInReach()) {
+                return 'water'
             }
             const items = this.bot.inventory.items()
             if (this.bot.health < 12 || mealReserve(items) >= MIN_MINING_MEALS || this.bot.inventory.emptySlotCount() < 1 ||

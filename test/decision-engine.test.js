@@ -567,3 +567,10 @@ test('a bot in full iron-or-better armor with a diamond sword and shield may wor
     assert.equal(chooseAction({ ...ready, health: 12 }), Actions.SHELTER, 'hurt bots still shelter')
     assert.equal(chooseAction({ ...ready, retreatForNight: true }), Actions.SHELTER, 'a night retreat still holds')
 })
+
+test('a water source in bucket reach is taken while buckets are short, even with the water search deferred (F119)', () => {
+    const working = state({ hasWeapon: true, waterInReach: true, waterDeferred: true, underground: true, hasStonePickaxe: true })
+    assert.equal(chooseAction(working), 'fill_water_bucket')
+    assert.equal(chooseAction({ ...working, diamondInView: true }), 'mine_diamond', 'diamonds still come first')
+    assert.notEqual(chooseAction({ ...working, waterInReach: false }), 'fill_water_bucket')
+})
