@@ -2762,3 +2762,6 @@ Follow-up `3d436d7` (user direction): when the water route is deferred and the b
 diamond pickaxe and fewer than 16 diamonds, the planner chooses `gather_diamonds` instead of
 `wait`. That banks diamonds for the enchanting table and collects capped gold, lapis, redstone
 and iron on the way. The regression fails on the previous source. 498 tests pass.
+Live 07:08:52Z on `3d436d7`: gravel revealed above a night water-search step at (313,-4,-38) ended
+three tries in place, the route was deferred, and a second later the planner chose `gather_diamonds`
+("mining while water waits") instead of `wait`. No commands were used.

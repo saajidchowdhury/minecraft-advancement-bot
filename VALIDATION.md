@@ -98,6 +98,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Keep rules and batch cleanup (1 to 9 free slots in one pass) | live | F115 |
 | Night water-search stall deferred | live | F115 |
 | Line of sight without head turns | automated | F116 |
+| Mining fallback while the water search is deferred | live | F116 |
 | Barrel vault build and deposit | live | F039, F044 |
 | Restock after a death | not observed | F034, F039 |
 | Cave survey and return through a natural cave | not observed | F013, F051 |
