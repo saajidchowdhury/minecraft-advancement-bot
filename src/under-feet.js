@@ -103,12 +103,15 @@ function stepOffCells(bot, target) {
 }
 
 // Sneak toward the cell centre so the 0.6-wide hitbox rests on this column alone.
-async function centerIn(bot, cell, ticks = 16) {
+async function centerIn(bot, cell, signal, ticks = 16) {
     const centre = cell.offset(0.5, 0, 0.5)
     const off = () => Math.hypot(bot.entity.position.x - centre.x, bot.entity.position.z - centre.z)
     try {
-        for (let tick = 0; tick < ticks && off() > 0.15; tick++) {
+        for (let tick = 0; tick < ticks && off() > 0.15 && !signal?.aborted; tick++) {
             await bot.lookAt(new Vec3(centre.x, bot.entity.position.y + EYE, centre.z), true)
+            if (signal?.aborted) {
+                break
+            }
             bot.setControlState('sneak', true)
             bot.setControlState('forward', true)
             await bot.waitForTicks(1)

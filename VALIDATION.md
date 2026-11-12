@@ -2,6 +2,13 @@
 
 Live tests: 2026-11-04–06, America/New_York. Host: MacBookPro. Minecraft Java 26.1.2, LAN protocol 775, bot identity AdvancementBot. The original minecraft-iris directory was preserved.
 
+F107 passes 481 tests and syntax checks. Three regressions failed on the
+old source and pass with the fix. Real prismarine-world rays distinguish
+visible water from water concealed by stone or ore. Collection skips the
+drop approach when breaking ore reveals water, and a blocked eye ray at
+the corner of a reachable cell is recovered by centering. The bot rejoined
+port 49910 with the changes. No reported target was restaged.
+
 F106 passes 478 tests and syntax checks. A six-item cooking job crafts a
 log into four planks even when a single plank of another species is
 available. A stalled job crafts with the furnace closed, refuels with two

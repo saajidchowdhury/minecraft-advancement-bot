@@ -8,6 +8,11 @@ record completion evidence rather than deleting the history of a useful goal.
 The project goal is to develop a bot that gets selected advancements logically;
 one playthrough is a test, not the definition of success.
 
+F107 (2026-11-11): exposed ore uses visible hazard checks and a bounded
+approach correction. Watch the next ore that opens an aquifer and an
+approach from a corner on port 49910. The 481-test baseline includes
+raycast replays for both. Generic excavation still uses chunk safety data.
+
 F106 (2026-11-11): the bot on port 49910 now prepares planks for wood-fuel
 jobs and makes up to three charcoal for a larger batch. Check the next
 wood-only furnace job against `outputs/fuel-restart-49910.log`.

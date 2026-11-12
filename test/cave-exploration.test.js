@@ -411,13 +411,13 @@ test('a diamond seen only by the face beside a probe hole still counts as in vie
     assert.deepEqual(findPriorityDiamond(c).position, ore.position)
 })
 
-test('a cached diamond behind stone stays hidden and visible liquid-adjacent ore is refused', () => {
+test('a cached diamond behind stone stays hidden and concealed water does not rule out visible ore', () => {
     const hidden = new Vec3(4, 65, -1)
     const { c } = diamondWorld({ '(2, 65, 1)': 'deepslate', [hidden.toString()]: 'diamond_ore' })
     c.memory.knownOres = [{ x: hidden.x, y: hidden.y, z: hidden.z, dimension: 'overworld', at: Date.now() }]
     assert.equal(findPriorityDiamond(c), null)
     const wet = diamondWorld({ [new Vec3(2, 66, 1).toString()]: 'water' })
-    assert.equal(findPriorityDiamond(wet.c), null)
+    assert.ok(findPriorityDiamond(wet.c))
 })
 
 test('a clear diamond is outside the view when the bot faces away', () => {

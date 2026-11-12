@@ -6,6 +6,8 @@ const { inView, sightRay } = require('./vision')
 
 const RAILS = new Set(['rail', 'powered_rail', 'detector_rail', 'activator_rail'])
 const AIR = new Set(['air', 'cave_air', 'void_air', 'torch', 'wall_torch', ...RAILS])
+const FLUIDS = new Set(['water', 'lava', 'bubble_column'])
+const FALLING = new Set(['sand', 'red_sand', 'gravel', 'suspicious_sand', 'suspicious_gravel', 'pointed_dripstone'])
 const DANGER = new Set(['lava', 'water', 'fire', 'soul_fire', 'magma_block', 'campfire',
     'soul_campfire', 'cactus', 'powder_snow', 'pointed_dripstone', 'sculk_shrieker', 'sculk_sensor', 'spawner', 'trial_spawner'])
 const SURVEY_STEPS = 48
@@ -138,7 +140,7 @@ async function collectOpportunity(c, excluded = []) {
         const block = c.findNearestBlock(name => names.includes(name), 6, {
             sight: b => miningSight(c, b, 6),
             filter: b => (b.position.x !== feet.x || b.position.z !== feet.z) &&
-                c.movements.safeToBreak(b) && c.bot.inventory.items().some(item => item.name.endsWith('_pickaxe') && b.canHarvest(item.type))
+                !visibleMiningHazard(c.bot, b.position) && c.bot.inventory.items().some(item => item.name.endsWith('_pickaxe') && b.canHarvest(item.type))
         })
         if (block) {
             c.log.info(`Opportunity: ${block.name} at ${block.position}; reserve for ${resource.use} (cap=${cap}).`)
@@ -152,8 +154,27 @@ async function collectOpportunity(c, excluded = []) {
 const DIAMOND_ORES = ['diamond_ore', 'deepslate_diamond_ore']
 const IRON_ORES = ['iron_ore', 'deepslate_iron_ore']
 const FACES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]
+const ORE_NEIGHBORS = [[0, 0, 0], ...FACES]
 const OPEN_AIR = new Set(['air', 'cave_air', 'void_air'])
 const MAX_MINED_OPENINGS = 128
+
+function visibleMiningHazard(bot, position) {
+    const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
+    for (const [x, y, z] of ORE_NEIGHBORS) {
+        const block = bot.blockAt(position.offset(x, y, z), false)
+        if (!block || !(FLUIDS.has(block.name) || block.getProperties?.().waterlogged ||
+            (y > 0 && (FALLING.has(block.name) || block.name.endsWith('_concrete_powder'))))) {
+            continue
+        }
+        const delta = block.position.offset(0.5, 0.5, 0.5).minus(eye)
+        const distance = delta.norm()
+        const hit = sightRay(bot, eye, delta.normalize(), distance + 0.01, block.position)
+        if ((hit?.position ?? hit?.intersect?.floored())?.equals(block.position)) {
+            return block
+        }
+    }
+    return null
+}
 
 function rememberMiningExposure(c, block) {
     const bot = c.bot
@@ -221,8 +242,8 @@ function oreSeen(bot, block, range) {
     return Boolean(oreSight(bot, block, range))
 }
 
-function miningSight(c, block, range) {
-    return oreSight(c.bot, block, range, exposedByDig(c, block))
+function miningSight(c, block, range, allowTurn = false) {
+    return oreSight(c.bot, block, range, allowTurn || exposedByDig(c, block))
 }
 
 function exposedDiamond(c, opened) {
@@ -233,8 +254,7 @@ function exposedDiamond(c, opened) {
     })
 }
 
-// Diamonds (and iron below its reserve cap) outrank routine work once seen or exposed by a probe,
-// unless mining them could release liquid or remove the bot's own support.
+// Prioritize exposed ore unless a nearby hazard is visible or the ore is directly underfoot.
 // An ore face our own dig opened is known even when the opening is out of sight from here
 // (live 01:54Z: vein faces in a diagonal pit behind stone); collectTarget walks to a view first.
 function knownExposure(c, block) {
@@ -248,7 +268,7 @@ function findPriorityOre(c, ores, range = 16) {
     return c.findNearestBlock(name => ores.includes(name), range, {
         sight: b => Boolean(miningSight(c, b, range)) || knownExposure(c, b),
         filter: b => !(b.position.x === feet.x && b.position.z === feet.z && b.position.y < feet.y) &&
-            FACES.every(([x, y, z]) => !['water', 'lava', 'bubble_column'].includes(bot.blockAt(b.position.offset(x, y, z), false)?.name ?? 'water')) &&
+            !visibleMiningHazard(bot, b.position) &&
             bot.inventory.items().some(item => item.name.endsWith('_pickaxe') && b.canHarvest(item.type))
     })
 }
@@ -386,5 +406,5 @@ async function exploreCave(c, targetY, canEnter = () => true) {
     return moved
 }
 
-module.exports = { safeFooting, findCaveRoute, exploreCave, collectOpportunity, dryMovements, oreSeen, miningSight, minedPassage,
+module.exports = { safeFooting, findCaveRoute, exploreCave, collectOpportunity, dryMovements, oreSeen, miningSight, minedPassage, visibleMiningHazard,
     rememberMiningExposure, exposedByDig, exposedDiamond, findPriorityDiamond, findPriorityOre, IRON_ORES }

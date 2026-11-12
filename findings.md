@@ -2597,3 +2597,28 @@ window before and after inventory crafting. The existing charcoal action
 makes up to three at once for a larger iron batch. Already-carried coal or
 charcoal remains preferred. A natural restart on port 49910 loaded the
 patch. The bot has coal, so a wood-only furnace job is still pending live.
+
+## F107 — Ore visibility, blind aquifers and approach alignment
+
+Port 49910, 2026-11-11. At (492,17,38), the 23:04 Eastern run rejected
+iron as unsafe. A read-only inspection of the saved region found water
+directly north and below the ore. The old target and dig checks could
+read those cells even through rock. Exposed-ore selection and direct
+mining now use sight rays to recognize adjacent hazards. If a break
+reveals water or lava, the bot skips the drop approach. The tunneling,
+probe excavation and generic pathfinder checks still use chunk data.
+In the installed Java 26.1.2 client, the ambient sound from flowing water
+is a client-local animation effect. It is not available as a position cue
+from the server, and stationary source blocks do not play that effect.
+
+At (573,17,32), an approach ended without a valid sight ray at 23:10:44.
+The 120 s cooldown delayed the retry until 23:13:06, then the server
+confirmed removal. A real raycast replay reproduced an occluded eye
+position within a cell the pathfinder considered reachable from its
+center. A failed ore approach now checks again after landing, then tries
+centering in the supported cell when its center has a view. A visibility
+failure retries after 15 s. Exact sub-block live position was not logged.
+
+At (600,15,29), the fuel-update restart interrupted the selected ore at
+23:14:27. The bot collected the nearby furnace output at 23:16:48 and the
+server confirmed the ore break at 23:16:54, before this change.

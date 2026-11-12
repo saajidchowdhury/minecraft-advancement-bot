@@ -14,7 +14,7 @@ const { installSculkCaution, sculkZoneAt, fleeSculk } = require('./sculk-caution
 const { FOOD_VALUES, COOKED, furnaceDue, jobDue, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
 const { plankFuelPlan, isFuelPlank } = require('./furnace-fuel')
 const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight, dryMovements, safeFooting,
-    rememberMiningExposure, exposedByDig } = require('./cave-exploration')
+    rememberMiningExposure, exposedByDig, visibleMiningHazard } = require('./cave-exploration')
 const { inView, blockInView, canSeeBlock, sightRay, scanFor } = require('./vision')
 const { findNearbyLoot, lootChest } = require('./loot')
 const { discardableStack, inventoryReport } = require('./inventory')
@@ -667,7 +667,7 @@ class SurvivalController {
         for (const cell of stepOffCells(this.bot, block.position).slice(0, 3)) {
             try {
                 await this.gotoWithTimeout(new goals.GoalBlock(cell.x, cell.y, cell.z), 3000, 'step off dig target')
-                await centerIn(this.bot, cell)
+                await centerIn(this.bot, cell, signal)
             } catch (error) {
                 if (signal?.aborted) {
                     throw new Error('action cancelled')
@@ -1642,7 +1642,8 @@ class SurvivalController {
         const block = await scanFor(this, () => this.findNearestBlock(name =>
             ['stone', 'cobblestone', 'deepslate', 'cobbled_deepslate'].includes(name), 24, {
             mining: true,
-            filter: candidate => candidate.position.x !== feet.x || candidate.position.z !== feet.z
+            filter: candidate => (candidate.position.x !== feet.x || candidate.position.z !== feet.z) &&
+                (!candidate.name.endsWith('_ore') || !visibleMiningHazard(this.bot, candidate.position))
         }))
         if (!block) {
             return mineTunnel(this, 16)
@@ -1799,20 +1800,38 @@ class SurvivalController {
                     }
                     continue
                 }
-                const block = this.bot.blockAt(entry.position)
+                let block = this.bot.blockAt(entry.position)
                 if (!block || block.type !== entry.type || (block.boundingBox === 'empty' && !block.diggable)) {
                     continue
                 }
-                let sight = block.name.endsWith('_ore') && miningSight(this, block, 4.5)
+                const ore = block.name.endsWith('_ore')
+                const aim = () => ore && miningSight(this, block, 4.5, true)
+                let sight = aim()
                 if (!this.bot.canDigBlock(block) || (!sight && !canSeeBlock(this.bot, block))) {
                     const view = { raycast: (from, direction, range) => sightRay(this.bot, from, direction, range) }
-                    await this.gotoWithTimeout(reachGoal(block.position, view), 10000, 'resource approach')
-                    sight = block.name.endsWith('_ore') && miningSight(this, block, 4.5)
+                    const goal = reachGoal(block.position, view)
+                    await this.gotoWithTimeout(goal, 10000, 'resource approach')
+                    block = this.bot.blockAt(entry.position)
+                    if (!block || block.type !== entry.type) {
+                        continue
+                    }
+                    sight = aim()
+                    if (ore && !sight && this.bot.entity.onGround === false) {
+                        await waitUntil(() => this.bot.entity.onGround || signal?.aborted, 250, 50).catch(() => {})
+                        sight = aim()
+                    }
+                    const cell = this.bot.entity.position.floored()
+                    if (ore && !sight && !signal?.aborted && goal.isEnd(cell) && safeFooting(this.bot, cell) &&
+                        !cell.offset(0, -1, 0).equals(block.position)) {
+                        await centerIn(this.bot, cell, signal)
+                        sight = aim()
+                    }
                 }
                 if (signal?.aborted) {
                     throw new Error('collection cancelled')
                 }
-                if (!this.movements.safeToBreak(block)) {
+                const hazard = ore && visibleMiningHazard(this.bot, block.position)
+                if (ore ? hazard : !this.movements.safeToBreak(block)) {
                     throw new Error(`unsafe block to mine: ${block.name}`)
                 }
                 if (!this.bot.canDigBlock(block) || (!sight && !canSeeBlock(this.bot, block))) {
@@ -1837,6 +1856,11 @@ class SurvivalController {
                 await sleep(600)
                 if (signal?.aborted) {
                     throw new Error('collection cancelled')
+                }
+                const openedHazard = ore && visibleMiningHazard(this.bot, block.position)
+                if (openedHazard) {
+                    this.log.info(`Leaving drops at ${block.position}; mining exposed ${openedHazard.name}.`)
+                    continue
                 }
                 // Our own drop may land behind stone or in a pit out of view (live 01:54Z left raw iron);
                 // turn to it, follow it, then stand in its cell if the server has not collected it.
@@ -1867,9 +1891,10 @@ class SurvivalController {
         }
         const key = this.targetKey(block)
         const wasBlocked = (this.memory.blockedTargets.get(key) || 0) > Date.now()
-        this.memory.blockedTargets.set(key, Date.now() + 120000)
+        const seconds = block.name?.endsWith('_ore') && error.message.startsWith('block is not visible or reachable:') ? 15 : 120
+        this.memory.blockedTargets.set(key, Date.now() + seconds * 1000)
         if (!wasBlocked) {
-            this.log.warn(`Remembering unreachable ${label} at ${key} for 120s: ${error.message}`)
+            this.log.warn(`Remembering unreachable ${label} at ${key} for ${seconds}s: ${error.message}`)
         }
     }
 

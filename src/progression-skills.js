@@ -4,7 +4,8 @@ const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { discardableStacks, overflowStack } = require('./inventory')
 const { storeOverflowAtBase } = require('./base')
-const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight, minedPassage, exposedDiamond, findPriorityDiamond, findPriorityOre, IRON_ORES } = require('./cave-exploration')
+const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight, minedPassage, exposedDiamond, findPriorityDiamond,
+    findPriorityOre, IRON_ORES, visibleMiningHazard } = require('./cave-exploration')
 const { scanFor, canSeeBlock } = require('./vision')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
 const { isFuelPlank, isCharcoalLog, furnaceFuelTicks, plankFuelPlan, preparePlankFuel } = require('./furnace-fuel')
@@ -548,9 +549,7 @@ async function gatherDeep(c, names) {
     const block = await scanFor(c, () => c.findNearestBlock(name => names.includes(name), 24, {
         sight: b => miningSight(c, b, 24),
         filter: b => (b.position.x !== feet.x || b.position.z !== feet.z) &&
-            ['air', 'cave_air', 'void_air', 'stone', 'deepslate'].includes(bot.blockAt(b.position.offset(0, -1, 0))?.name) &&
-            ![new Vec3(1, 0, 0), new Vec3(-1, 0, 0), new Vec3(0, -1, 0), new Vec3(0, 0, 1), new Vec3(0, 0, -1)]
-                .some(d => ['lava', 'water'].includes(bot.blockAt(b.position.plus(d))?.name))
+            !visibleMiningHazard(bot, b.position)
     }))
     if (block) {
         return c.collectTarget(block, block, block.name)
