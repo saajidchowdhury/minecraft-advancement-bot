@@ -2730,3 +2730,30 @@ the iron chestplate, gunpowder, 57 cobblestone and the iron sword. Free slots we
 9. The water search failed three times in place and was deferred for 5 min, and the bot went
 on to tunnel for a diamond helmet. Regressions use the 06:42Z inventory and fail on the
 previous source. 496 tests pass.
+
+## F116 — Line of sight replaces the view cone; head turns removed [user direction + regression]
+
+User observation (2026-11-12): the bot often turned its head, sometimes after a pause, and then
+went straight back to work. The cause was the F079 field-of-view rule. Searches (`scanFor`)
+turned through four directions with a tick pause each when nothing was in the 100° by 70° view
+cone. Ores were aimed at before digging (one more tick), drops were turned to before following
+(F100, F105, F097), and the hit bearing was turned to before deciding (F081, F101). The user
+retracted the rule: the bot may use anything that a line from its eye reaches at any point,
+edge or corner, without passing an opaque block, whichever way it faces. Things it once saw
+(dig-exposure memory) still count.
+
+`8bd5fab`: the cone is gone from block, ore and entity sight. `canSeeBlock` samples the centre,
+face centres and corners. Ore faces add edge samples, and `canSee` adds hitbox corners. Leaves
+and glass are see-through in `sightRay`. `scanFor` no longer turns. Ores are dug without a
+pre-aim turn (`dig(..., 'ignore')`), drops are followed without facing them, and the hit
+bearing is no longer recorded. Looks that interaction needs remain: throws, attacks,
+placement, movement steering and enderman gaze avoidance. A first draft normalised a Vec3
+before taking its length, which made every entity ray one block long. The existing leaf test
+caught it (compare F090). Nine tests that required turning now require none, and a new test
+covers a hitbox corner over a wall and sight through glass. Each fails on the previous
+source. 497 tests pass.
+
+Restart 07:03:36Z on `8bd5fab` (the owner kit check gave nothing). With full diamond armor
+crafted at 06:56–06:59Z and the water route deferred, the planner had only `wait` left. The
+bot idled until the deferral expired, so the fallback when the water route is deferred is
+idle time.

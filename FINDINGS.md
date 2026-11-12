@@ -13,14 +13,13 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-12
 
-AdvancementBot was restarted at 01:53 Eastern in Terminal window 781 on LAN
-port 49910, source `9d49a46` (`outputs/2026-11-12@01.53.55/`, Terminal log
-`outputs/inventory-rules-restart-49910.log`). One cleanup threw out the junk
-(9 slots free), the night water search was deferred, and the bot was tunnelling
-toward Y=-58 for a diamond helmet (F113–F115). Before each start,
+AdvancementBot was restarted at 02:03 Eastern in Terminal window 781 on LAN
+port 49910, source `8bd5fab` (`outputs/2026-11-12@02.03.36/`, Terminal log
+`outputs/line-of-sight-restart-49910.log`). It wears full diamond armor and was
+waiting out a water-search deferral at (310,-3,-97) (F113–F116). Before each start,
 `outputs/owner-kit.js` checks and tops up the owner's kit (`outputs/owner-kit.json`).
 The LAN port changes each time the world is opened. Verify the process,
-connection and newest snapshot before live work. Baseline: 496 tests pass.
+connection and newest snapshot before live work. Baseline: 497 tests pass.
 
 ## Stable facts and process lessons
 
@@ -79,8 +78,10 @@ Planner and gear order
   before hunting unless food is 6 or less (F104).
 
 Mining and tunnels
-- Targets must be visible: a 100° by 70° forward view, a clear eye ray, leaves
-  transparent, turning in place to look. Buried ore never steers a tunnel; with
+- Targets need line of sight, not field of view (user direction, F116): a line
+  from the eye to any point, edge or corner of the thing that passes no opaque
+  block (leaves and glass are clear), whichever way the bot faces. Searches do
+  not turn the head. Buried ore never steers a tunnel; with
   no visible iron the bot heads toward Y=16. Ore that its own dig exposed within
   6 blocks stays a target (F079, F080, F090, F100, F107). A watchdog checks
   resource walks every 1.5 s for new targets (F073).
@@ -143,13 +144,13 @@ Furnaces, fuel and food
   Furnace contents count toward the reserve (F103). Underground food taken in
   passing: fish near air, ripe glow berries, up to four stews, tropical fish (F072).
 - Hunts prefer axes and wait for charged swings (stone axe 1.25 s). Prey is
-  dropped only after 3 s of terrain occlusion without closing 2 blocks; the view
-  cone is ignored (F095, F103). Low health starts a hunt only below 18 food (F104).
+  dropped only after 3 s of terrain occlusion without closing 2 blocks (F095,
+  F103). Low health starts a hunt only below 18 food (F104).
 
 Combat and threats
 - Line-of-sight alerts in any direction: melee 6, creeper 8, archer 12 blocks,
   with a 100 ms scan (`decision-engine.js`, F109). Attributed hits interrupt work
-  (melee close, archers to 24 blocks) and turn the bot to the bearing (F081, F101).
+  (melee close, archers to 24 blocks); no turn to the bearing is needed (F081, F101, F116).
 - An isolated creeper meets a sword at the edge of reach when HP is at least
   `CREEPER_DUEL_HP` (12), and the bot backs off farther if it swells (F112).
   Otherwise it escapes, sealing facing openings, or braces the shield within 4
@@ -357,3 +358,4 @@ Highest risk first.
 - F113 A water search froze beside water; deferral released Cover Me with Diamonds [live + regression]
 - F114 Hazards judged by sight, not hidden chunk data; revealed liquid is plugged [user direction + live + regression]
 - F115 Inventory cleanup ran every tunnel segment; keep rules, outclassed gear, batch cleanup [live + regression]
+- F116 Line of sight replaces the view cone; head turns removed [user direction + regression]

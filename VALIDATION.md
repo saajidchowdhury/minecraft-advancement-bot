@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-496 tests and `npm run check` pass at `9d49a46`.
+497 tests and `npm run check` pass at `8bd5fab`.
 Run them with the prepared runtime:
 
 ```sh
@@ -49,7 +49,7 @@ which leaves little room for more comments there.
 | food | 22 | cooking jobs: reach, parking, far returns, detours, due times |
 | golem | 3 | Hired Help site, build order, gating |
 | inventory | 20 | keep rules, outclassed gear, batch trigger, stack merge, pits, lanes, full packs |
-| leaf-vision | 7 | leaf-transparent rays, overhead trunks, moving drops |
+| leaf-vision | 8 | leaf-transparent rays, overhead trunks, moving drops |
 | loot | 2 | chest and chest-minecart looting |
 | memory-random | 2 | seeded rng, atomic world memory |
 | mined-ore-recovery | 7 | dig-exposed ore, hidden water, corner approach, out-of-view drops |
@@ -97,6 +97,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Clutter cleanup | live | F050 |
 | Keep rules and batch cleanup (1 to 9 free slots in one pass) | live | F115 |
 | Night water-search stall deferred | live | F115 |
+| Line of sight without head turns | automated | F116 |
 | Barrel vault build and deposit | live | F039, F044 |
 | Restock after a death | not observed | F034, F039 |
 | Cave survey and return through a natural cave | not observed | F013, F051 |
