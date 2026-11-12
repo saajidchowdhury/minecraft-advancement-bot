@@ -2803,3 +2803,22 @@ opened cell. Bedrock is now a valid floor. Five regressions fail on the previous
 Restart 07:22:17Z (the owner kit topped up one enchanted golden apple): the reflex dug the
 feet gravel at 07:22:20Z, and `gather_diamonds` tunnelled away to (276,25,-40) at once. A
 live refill dig and a stopped column fall have not been observed yet.
+
+## F119 — Water treated as an opportunity while buckets are short [user direction + regression]
+
+Live 2026-11-12 on `6f6286a`: at 07:23:08–15Z a `gather_diamonds` tunnel opened onto water
+three times at (252,0,-41) and (250,0,-39) and plugged it each time. The user also saw a climb
+dig up into water above the bot, which was treated as a hazard and deferred the water search.
+In both cases the bot needed two water buckets and carried an empty one. The revealed source
+is usually not yet in line of sight: it sits above the opened cell or behind one block, so a
+plain scoop could not reach it.
+
+`e7e85b6` (user direction: treat water opportunistically while it is on hold): when a tunnel
+or probe dig reveals water and buckets are short, `takeRevealedWater` digs up to three blocks
+on the line from the eye to the nearest source within reach. It then scoops with the empty
+bucket and plugs the leftover flow. The tunnel segment ends as progress, not a failure. A
+visible water source within bucket reach (`waterInReach`) outranks iron and routine work even
+while the water search is deferred, and interrupts resource walks. `fill_water_bucket` now
+searches 6 blocks underground by day so it finds that source. Three regressions (saved stall
+geometry, water directly above the column, planner priority) fail on the previous source.
+507 tests pass.

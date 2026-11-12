@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-504 tests and `npm run check` pass at `6f6286a`.
+507 tests and `npm run check` pass at `e7e85b6`.
 Run them with the prepared runtime:
 
 ```sh
@@ -101,6 +101,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Mining fallback while the water search is deferred | live | F116 |
 | Night surface work when fully armed | automated | F117 |
 | Gravel refills dug again, feet cleared after a fall | automated | F118 |
+| Scooping water a dig reveals; water in reach as an opportunity | automated | F119 |
 | Barrel vault build and deposit | live | F039, F044 |
 | Restock after a death | not observed | F034, F039 |
 | Cave survey and return through a natural cave | not observed | F013, F051 |

@@ -19,7 +19,7 @@ port 49910, source `8bd5fab` (`outputs/2026-11-12@02.03.36/`, Terminal log
 waiting out a water-search deferral at (310,-3,-97) (F113–F116). Before each start,
 `outputs/owner-kit.js` checks and tops up the owner's kit (`outputs/owner-kit.json`).
 The LAN port changes each time the world is opened. Verify the process,
-connection and newest snapshot before live work. Baseline: 504 tests pass.
+connection and newest snapshot before live work. Baseline: 507 tests pass.
 
 ## Stable facts and process lessons
 
@@ -90,7 +90,10 @@ Mining and tunnels
 - Hazards count only when visible: tunnel steps, probes and exposed ore judge
   liquid, falling blocks and missing floors by a sight line from the eye
   (`cellVisible`), never by chunk data behind rock. A dig that opens onto liquid
-  plugs the opening and blocks that step for 120 s (F107, F114). The pathfinder's
+  plugs the opening and blocks that step for 120 s (F107, F114), except that
+  water is taken while buckets are short: the bot digs what hides the source,
+  scoops it, then plugs. A visible source in bucket reach outranks iron even
+  while the water search is deferred (`waterInReach`, F119). The pathfinder's
   own digging (`safeToBreak`) still reads hidden liquid. Gravel and sand matter
   only above an opened cell: beside a step they are ignored, inside a cell they
   are dug through, refills are dug again (`settleFalling`), and one seen above
@@ -372,3 +375,4 @@ Highest risk first.
 - F116 Line of sight replaces the view cone; head turns removed [user direction + regression]
 - F117 Night surface work for a fully armed bot [user direction + regression]
 - F118 A fallen gravel column trapped the bot by the feet; gravel handling [live + regression]
+- F119 Water treated as an opportunity while buckets are short [user direction + regression]
