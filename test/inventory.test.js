@@ -51,10 +51,10 @@ const LIVE = [['coal', 35], ['iron_leggings', 1], ['birch_log', 6], ['diamond', 
     .map(([name, count]) => ({ name, count }))
 const LIVE_WORN = ['iron_helmet', 'diamond_chestplate', 'diamond_leggings', 'iron_boots', 'shield']
 
-test('the 06:42Z inventory throws junk, copper, gunpowder, outclassed gear and surplus rubble (10 slots)', () => {
+test('the 06:42Z inventory throws junk, leather, outclassed gear and surplus rubble (11 slots)', () => {
     const surplus = discardableStacks(LIVE, { worn: LIVE_WORN, foods })
     assert.deepEqual(surplus.map(item => `${item.name} ${item.count}`).sort(), [
-        'cobblestone 1', 'cobblestone 59', 'gunpowder 1', 'iron_chestplate 1', 'iron_leggings 1', 'iron_sword 1',
+        'cobblestone 1', 'cobblestone 59', 'gunpowder 1', 'iron_chestplate 1', 'iron_leggings 1', 'iron_sword 1', 'leather 1',
         'oak_sapling 6', 'raw_copper 27', 'stone_pickaxe 1', 'wooden_pickaxe 1'])
 })
 
@@ -105,11 +105,13 @@ test('cleanup clears the incidental stacks from the stalled LAN inventory', asyn
         { name: 'mushroom_stew', count: 1 }, { name: 'iron_pickaxe', count: 1 }, { name: 'raw_iron', count: 2 },
         { name: 'azalea', count: 1 }, { name: 'leaf_litter', count: 2 }, { name: 'moss_block', count: 7 },
         { name: 'red_mushroom', count: 1 }, { name: 'brown_mushroom', count: 1 }, { name: 'bowl', count: 1 },
-        { name: 'birch_sapling', count: 1 }
+        { name: 'birch_sapling', count: 1 }, { name: 'wheat_seeds', count: 1 }, { name: 'black_wool', count: 1 },
+        { name: 'white_wool', count: 1 }, { name: 'leather', count: 1 }, { name: 'wheat', count: 1 },
+        { name: 'white_bed', count: 1 }
     ]
     const c = disposalContext((x, z) => x === 0 && z >= 0 && z <= 8, inventory)
     await performProgression(c, 'clear_inventory', {})
-    assert.deepEqual(inventory.map(item => item.name), ['cobblestone', 'dirt', 'gravel', 'mushroom_stew', 'iron_pickaxe', 'raw_iron'])
+    assert.deepEqual(inventory.map(item => item.name), ['cobblestone', 'dirt', 'gravel', 'mushroom_stew', 'iron_pickaxe', 'raw_iron', 'wheat', 'white_bed'])
     assert.equal(c.paused, false)
     assert.equal(c.memory.paused, undefined)
 })

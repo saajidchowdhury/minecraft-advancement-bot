@@ -48,7 +48,7 @@ which leaves little room for more comments there.
 | food-gathering | 3 | stew crafting, prey quarantine, watchdog recovery |
 | food | 23 | cooking depth, urgent meals, reach, parking, far returns, detours, due times |
 | golem | 3 | Hired Help site, build order, gating |
-| inventory | 20 | keep rules, outclassed gear, batch trigger, stack merge, pits, lanes, full packs |
+| inventory | 20 | keep rules, wool/leather/seed disposal, batch trigger, stack merge, pits, lanes, full packs |
 | leaf-vision | 8 | leaf-transparent rays, overhead trunks, moving drops |
 | loot | 2 | chest and chest-minecart looting |
 | memory-random | 2 | seeded rng, atomic world memory |

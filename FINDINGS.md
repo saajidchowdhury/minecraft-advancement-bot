@@ -132,8 +132,9 @@ Inventory, base and disposal
 - Carry rules (`src/inventory.js`, F115): at least 64 cobblestone, deepslate or
   netherrack in total plus 16 dirt; logs 40, fuel 32, gold 8, lapis 8, redstone
   16, side-goal drops and food; the two best pickaxes, the best other tool of
-  each kind, and armor only if better than what is worn. Items without a rule,
-  including copper and gunpowder, are junk. A full pack with no junk throws
+  each kind, and armor only if better than what is worn. Cleanup throws wool
+  of every color, leather and wheat seeds (F125), along with other junk such
+  as copper and gunpowder. A full pack with no junk throws
   one low-priority stack, tries nearby storage, then drops in place (F050).
 - The base is a sealed barrel vault in rock beside a tunnel. Restock needs a
   carried pickaxe. Carry and restock levels are equal, and side-goal
@@ -391,3 +392,4 @@ Highest risk first.
 - F122 Deepslate blocked a lava bucket's centre ray [live failure + regression + staged]
 - F123 Diamond armor now interrupts routine work [live delay + regression + staged]
 - F124 Fatal fall during a deferred water search [live failure + regression]
+- F125 Cleanup throws wool, leather and wheat seeds [user direction + regression]

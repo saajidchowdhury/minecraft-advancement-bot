@@ -2927,3 +2927,11 @@ one-block rise, grounded takeoff, sound floors and jump headroom. Berry
 routes use dry movement and supported interaction and pickup cells.
 The regression for airborne jump acceptance fails before the patch. Exact
 live fall reproduction remains pending.
+
+## F125 — Cleanup throws wool, leather and wheat seeds
+
+The user reported repeated cleanup while black wool, white wool, leather and
+wheat seeds stayed carried. The keep rules retained at least three wool,
+one leather and sixteen wheat seeds. Removing those limits lets the normal
+cleanup pass throw all four stacks with the other junk. The historical
+inventory and the cleanup action regressions failed before the change.
