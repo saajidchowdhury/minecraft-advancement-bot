@@ -1267,3 +1267,23 @@ test('gravel that landed in the feet cell is dug out by the suffocation reflex (
     await c.clearHead()
     assert.deepEqual(dug, ['gravel'])
 })
+
+test('a placement cell overlapping the bot hitbox is placed only after centring in its own cell (F129)', async () => {
+    const c = shelterWorld()
+    // Live 05:16Z: x=-44.876 left 0.18 of the hitbox over the stair floor cell; the server refused it 136 times.
+    c.bot.entity.position = new Vec3(0.82, 64, 0.5)
+    c.bestItem = () => ({ name: 'cobblestone' })
+    c.bot.equip = async () => {}
+    c.bot.lookAt = async () => {}
+    c.bot.setControlState = () => {}
+    let placedAt = null
+    c.bot.placeBlock = async () => { placedAt = c.bot.entity.position.clone() }
+    c.bot.waitForTicks = async () => { c.bot.entity.position = new Vec3(0.55, 64, 0.5) }
+    await SurvivalController.prototype.placeSurvivalBlock.call(c, new Vec3(1, 64, 0))
+    assert.ok(placedAt && placedAt.x + 0.3 <= 1, `placed from ${placedAt}`)
+    placedAt = null
+    c.bot.entity.position = new Vec3(0.82, 64, 0.5)
+    c.bot.waitForTicks = async () => {}
+    await assert.rejects(SurvivalController.prototype.placeSurvivalBlock.call(c, new Vec3(1, 64, 0)), /would overlap the bot/)
+    assert.equal(placedAt, null)
+})

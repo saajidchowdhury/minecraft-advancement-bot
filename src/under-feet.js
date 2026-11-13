@@ -103,6 +103,13 @@ function stepOffCells(bot, target) {
     return cells.sort((a, b) => here.distanceTo(a.offset(0.5, 0, 0.5)) - here.distanceTo(b.offset(0.5, 0, 0.5)))
 }
 
+// The server refuses a block whose cell intersects the placer's 0.6 x 1.8 hitbox (F129).
+function overlapsBody(bot, cell) {
+    const p = bot.entity.position
+    return cell.y >= Math.floor(p.y + EPS) && cell.y <= Math.floor(p.y + 1.8 - EPS) &&
+        footprintColumns(p).some(([x, z]) => x === cell.x && z === cell.z)
+}
+
 // Sneak toward the cell centre so the 0.6-wide hitbox rests on this column alone.
 async function centerIn(bot, cell, signal, ticks = 16) {
     const centre = cell.offset(0.5, 0, 0.5)
@@ -124,4 +131,4 @@ async function centerIn(bot, cell, signal, ticks = 16) {
     return off() < 0.5 - HALF_WIDTH
 }
 
-module.exports = { supportCells, isUnderFeet, rememberPlacement, forgetPlacement, placedOnSupport, stepOffCells, centerIn, soundFloor }
+module.exports = { supportCells, isUnderFeet, rememberPlacement, forgetPlacement, placedOnSupport, stepOffCells, centerIn, soundFloor, overlapsBody }

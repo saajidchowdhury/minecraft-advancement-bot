@@ -409,3 +409,4 @@ Highest risk first.
 - F126 Pickless bot sealed in night shelter digs out by hand [live failure + user direction + regression]
 - F127 Water buckets before lava; reachable glow berries only; no leather restock [user direction + live failure + regression]
 - F128 Enchanted tools crashed dig timing on 26.1 item components [live failure + regression]
+- F129 Surface scouts walked down own stairs; placements overlapped the bot; lane tosses re-collected [live failure + staged + regression]

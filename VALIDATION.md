@@ -55,7 +55,7 @@ which leaves little room for more comments there.
 | memory-random | 2 | seeded rng, atomic world memory |
 | mined-ore-recovery | 10 | confirmed diamond memory, alternate stair approaches, cancellation, hidden water, ore drops |
 | mining-timing | 5 | break times for tier ores, landing before digging, bare-hand stone when stranded, enchanted 26.1 tools |
-| mobility-recovery | 16 | unstick, shaft and pillar detection, safe drops, heap guard |
+| mobility-recovery | 17 | unstick, shaft and pillar detection, safe drops, heap guard, sky-bound surface scouts |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
 | progression-skills | 33 | stairs, tunnels, lava scoop rays, portal geometry, frontier, merges |
@@ -65,7 +65,7 @@ which leaves little room for more comments there.
 | side-probes | 23 | probe reach, spacing, anchors, hazards, descents |
 | smelting | 16 | async smelt jobs, fuel due times, plank fuel, collection |
 | station-recovery | 3 | workstation placement relocation, cooking recess beside a stair |
-| survival-safety | 62 | shelters, critical health, reflexes, threats, combat events |
+| survival-safety | 63 | shelters, critical health, reflexes, threats, combat events, self-overlapping placements |
 | terrain-scout | 4 | land scouting, isolated pillars |
 | tree-climb | 13 | eye-reach approach, tree pillars, scaffold recovery |
 | under-feet | 7 | no digging under the hitbox, own blocks, dripstone |

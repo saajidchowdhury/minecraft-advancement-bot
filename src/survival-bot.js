@@ -27,7 +27,7 @@ const { golemState, summonGolem } = require('./golem')
 const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, openCookingAlcove, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
 const { updateCrowdRetreat, retreatToWall, mineFromRefuge } = require('./crowd-retreat')
 const { reachGoal, treePillar, climbForLog } = require('./tree-climb')
-const { isUnderFeet, rememberPlacement, forgetPlacement, placedOnSupport, stepOffCells, centerIn, soundFloor } = require('./under-feet')
+const { isUnderFeet, rememberPlacement, forgetPlacement, placedOnSupport, stepOffCells, centerIn, soundFloor, overlapsBody } = require('./under-feet')
 
 const { GoalNear, GoalFollow } = goals
 
@@ -3078,6 +3078,16 @@ class SurvivalController {
         if (!item) {
             throw new Error('out of shelter blocks')
         }
+        // A stair floor beside the feet: 0.18 of the hitbox over the edge drew 136 refusals (F129).
+        // Pillar placements under the feet column are left to the jump timing of their callers.
+        const feet = this.bot.entity.position.floored()
+        if (overlapsBody(this.bot, target) && (feet.x !== target.x || feet.z !== target.z)) {
+            await centerIn(this.bot, feet, signal)
+            this.checkAction(signal)
+            if (overlapsBody(this.bot, target)) {
+                throw new Error(`block at ${target} would overlap the bot`)
+            }
+        }
         // Clicking a furnace or table opens it instead of placing (03.32.42: three refusals on the
         // bot's own furnace); plain supports come first, and an interactive one is used sneaking.
         const interactive = name => PROTECTED_CONTAINERS.has(name) || INTERACTIVE.test(name)
@@ -3420,13 +3430,20 @@ class SurvivalController {
 
         this.log.info(`Land scout selected ${selected.x},${Math.floor(here.y)},${selected.z} ` +
             `(land=${selected.landSamples}, water=${selected.waterSamples}, visited=${selected.visits}).`)
+        const skyStep = block => block.position && openToSky(this.bot, block.position.offset(0, 1, 0)) ? 0 : 100
+        // A scout that starts under open sky stays there: wood scouts from a staircase top walked back
+        // down the bot's own stairs to y=44, then return_surface climbed again, in a loop (F129).
+        const surfaceStart = !surfaceOnly && openToSky(this.bot, here.floored().offset(0, 1, 0))
+        const active = surfaceStart ? this.bot.pathfinder.movements : null
         if (surfaceOnly) {
             if (this.isNight()) {
                 throw new Error('surface water exploration is daytime only')
             }
             const walking = dryMovements(this.bot)
-            walking.exclusionAreasStep.push(block => block.position && openToSky(this.bot, block.position.offset(0, 1, 0)) ? 0 : 100)
+            walking.exclusionAreasStep.push(skyStep)
             this.bot.pathfinder.setMovements(walking)
+        } else if (active) {
+            active.exclusionAreasStep.push(skyStep)
         }
         try {
             // Terrain height at the target is unknown; a fixed-height 3-D goal can sit in air or rock.
@@ -3446,6 +3463,7 @@ class SurvivalController {
             if (surfaceOnly) {
                 this.bot.pathfinder.setMovements(this.movements)
             }
+            active?.exclusionAreasStep.splice(active.exclusionAreasStep.indexOf(skyStep), 1)
         }
     }
 

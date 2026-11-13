@@ -3005,3 +3005,34 @@ The test fails with the patch reversed. `miningPickaxe` already prefers
 netherite, then diamond, iron, stone and wooden. The pickaxe was supplied by
 the user, so progress made with it is assisted.
 
+## F129 — Surface scouts walked down own stairs; placements overlapped the bot; lane tosses re-collected
+
+Live, `01d17da`, run `outputs/2026-11-13@00.06.37/`. The user saw the bot go
+up and down its staircase repeatedly. At the stair top (-57..-61, 72..76,
+-85), `gather_wood` scouted for trees with a `GoalNearXZ`, which accepts any
+height, toward x of about -25 to -47. A* walked back down the bot's own
+staircase to y=44..62, and the next `return_surface` climbed up again. This
+happened four times (05:13-05:16Z). Fix: a scout that starts with its head
+open to sky adds a temporary step exclusion to the active movements, so each
+step must also be open to sky (cost 100 otherwise; leaves do not count as
+cover). The exclusion is removed afterwards. Underground scouts, such as
+unstick, are unchanged.
+
+The user then saw the bot stuck placing cobblestone. `return_surface` failed
+136 times with "Server refused to place cobblestone at (-46, 61, -85)". The
+bot stood at x=-44.876, z=-84.329. Its 0.6-wide hitbox reached into the
+stair-floor cell beside its feet, and the server refuses a block that would
+intersect the placer. Fix: `placeSurvivalBlock` checks `overlapsBody`. When
+the target is not the bot's own column, it first sneaks the bot to the centre
+of its own cell, and it throws if the overlap remains.
+
+Open: each surface cleanup at the stair top threw about 390 cobblestone,
+cobbled deepslate and junk along a toss lane. The next scout walked that lane
+and picked everything up again (the server inventory still held it all at
+05:20Z). Staged probe (`outputs/toss-probe.js`, player TossProbe, owner kit
+verified first, commands and replies in `outputs/toss-probe-results.json`):
+tosses go through with and without an enchanted netherite pickaxe carried
+(128 -> 64 both times), and a probe that stands still re-collects its own
+stack. So disposal drops need to land where later routes do not pass, or be
+avoided by those routes.
+

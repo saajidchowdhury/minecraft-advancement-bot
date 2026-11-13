@@ -122,7 +122,7 @@ test('land scouting targets a horizontal area so hills and valleys stay reachabl
     const { Vec3 } = require('vec3')
     let goal = null
     const c = {
-        bot: { entity: { position: new Vec3(0.5, 78, 0.5) } }, memory: { scoutVisits: new Map() }, scoutAngle: 0, scoutSteps: 0,
+        bot: { entity: { position: new Vec3(0.5, 78, 0.5) }, blockAt: () => null }, memory: { scoutVisits: new Map() }, scoutAngle: 0, scoutSteps: 0,
         log: { info() {} }, classifyTerrainColumn: () => 'land',
         async gotoWithTimeout(g) {
             goal = g
@@ -262,4 +262,34 @@ test('a water search failing three times in place is deferred so the planner tur
     assert.deepEqual(actions.slice(0, 3), ['fill_water_bucket', 'fill_water_bucket', 'fill_water_bucket'])
     assert.notEqual(actions[3], 'fill_water_bucket')
     assert.ok(c.memory.waterDeferredUntil > Date.now())
+})
+
+test('a scout starting under open sky never steps under cover, so it cannot walk down its own stairs (F129)', async () => {
+    const { Vec3 } = require('vec3')
+    // Open sky above y=72 at x <= -50; the bot's staircase runs below the surface east of that.
+    const sky = p => p.y >= 72 || p.x <= -50
+    const movements = { exclusionAreasStep: [] }
+    let during = null
+    const c = {
+        bot: { entity: { position: new Vec3(-56.5, 72, -84.5) }, blockAt: p => sky(p) ? { name: 'air', boundingBox: 'empty', skyLight: 15 }
+            : p.y >= 60 ? { name: 'stone', boundingBox: 'block' } : { name: 'air', boundingBox: 'empty', skyLight: 0 },
+            pathfinder: { movements } },
+        memory: { scoutVisits: new Map() }, scoutAngle: 0, scoutSteps: 0, log: { info() {} }, classifyTerrainColumn: () => 'land',
+        async gotoWithTimeout(g) {
+            const step = movements.exclusionAreasStep[0]
+            during = { open: step({ position: new Vec3(-56, 72, -85) }), stairs: step({ position: new Vec3(-40, 55, -85) }) }
+            this.bot.entity.position = new Vec3(g.x, 72, g.z)
+        }
+    }
+    await SurvivalController.prototype.scout.call(c, 20)
+    assert.deepEqual(during, { open: 0, stairs: 100 })
+    assert.equal(movements.exclusionAreasStep.length, 0)
+    c.bot.entity.position = new Vec3(-40.5, 55, -84.5)
+    during = null
+    c.gotoWithTimeout = async g => {
+        during = movements.exclusionAreasStep.length
+        c.bot.entity.position = new Vec3(g.x, 55, g.z)
+    }
+    await SurvivalController.prototype.scout.call(c, 20)
+    assert.equal(during, 0)
 })

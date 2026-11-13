@@ -221,7 +221,7 @@ test('pursuit keeps one dynamic goal while an animal remains out of attack range
 test('recovery scouting uses a bounded path operation', async () => {
     let bounded = false
     const c = {
-        bot: { entity: { position: new Vec3(0, 64, 0) },
+        bot: { entity: { position: new Vec3(0, 64, 0) }, blockAt: () => null,
             pathfinder: { goto: async () => { throw new Error('unbounded path used') } } },
         memory: { scoutVisits: new Map() }, scoutAngle: 0, scoutSteps: 0,
         log: { info() {} }, classifyTerrainColumn: () => 'land',
@@ -239,6 +239,7 @@ test('scouting treats pathfinder resolving an empty path outside the goal as fai
     const c = Object.create(SurvivalController.prototype)
     c.bot = new EventEmitter()
     c.bot.entity = { position: new Vec3(32.3, 63, -186.9) }
+    c.bot.blockAt = () => null
     c.bot.pathfinder = {
         goto: goal => goto(c.bot, goal),
         setGoal(goal) {
