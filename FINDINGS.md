@@ -62,10 +62,10 @@ Planner and gear order
   come a stone axe and shovel, before ordinary hunting and after rebuilds (F044,
   F049, F095). No wooden sword (F071). Carried armor and shields equip before
   tool progression or waiting (F093).
-- Shield, iron sword, then iron leggings, helmet and boots before buckets.
-  Hot Stuff waits for the full iron set (F071). A diamond pick at three
-  diamonds, a diamond sword with two spare, even during a detour (F063, F073,
-  F103), then diamond armor (F024).
+- Shield, iron sword, then iron-or-better armor before buckets (F071). A diamond
+  pick at three diamonds and a diamond sword with two spare (F063, F073, F103).
+  Once both tools are ready, craft and equip affordable missing armor before
+  routine work, including during a lava search or diamond detour (F123).
 - Location-bound ingredients (diamonds, obsidian, flint, redstone) precede
   wood. When a recipe lacks both wood and stone, wood comes first (F021, F057).
 - The iron reserve counts furnace input, raw iron and ingots, and budgets three
@@ -116,6 +116,9 @@ Mining and tunnels
 - Furnaces, barrels and chests are never dug by tunnels or the pathfinder
   (F042). Stairs through a station are unusable (F062). Survival blocks go on
   plain supports, or the bot sneaks (F067).
+- Pathfinder jumps must predict a landing on solid ground or in water. Manual
+  stair jumps check the takeoff floor, landing floor and headroom. Berry
+  approaches and pickup use supported dry paths (F124).
 - A completed surface-to-depth descent is stored as a shaft per dimension and
   climbed cell by cell. A blocked shaft is forgotten (F033).
 - Cave surveys are dry with no digging: 48 steps or 2 min, saved checkpoints,
@@ -386,3 +389,5 @@ Highest risk first.
 - F120 Cooking furnace obstructed the stairs and was left outside night shelter [live failure + regression + staged]
 - F121 Diamond under an overhang lost after path failures [live failure + regression + staged]
 - F122 Deepslate blocked a lava bucket's centre ray [live failure + regression + staged]
+- F123 Diamond armor now interrupts routine work [live delay + regression]
+- F124 Fatal fall during a deferred water search [live failure + regression]

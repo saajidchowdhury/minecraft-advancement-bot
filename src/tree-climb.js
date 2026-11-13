@@ -3,6 +3,7 @@
 const { goals } = require('mineflayer-pathfinder')
 const { Vec3 } = require('vec3')
 const { canSeeBlock } = require('./vision')
+const { soundFloor } = require('./under-feet')
 
 const EYE = 1.62           // player eye height, blocks
 const REACH = 4.4          // eye-to-centre reach, blocks; canDigBlock allows 5.1
@@ -126,6 +127,9 @@ async function clearHead (c, feet) {
 async function towerStep (c, signal, attempts = 3) {
     const bot = c.bot
     const feet = bot.entity.position.floored()
+    if (!soundFloor(bot.blockAt(feet.offset(0, -1, 0), false))) {
+        throw new Error('pillar jump has no confirmed landing block')
+    }
     await clearHead(c, feet)
     const item = scaffoldItem(bot)
     if (!item) {

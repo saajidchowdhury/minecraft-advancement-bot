@@ -231,6 +231,9 @@ function chooseAction (state) {
     if (mustFreeSlot) {
         return 'clear_inventory'
     }
+    if (progression.id === 'minecraft:story/shiny_gear' && progression.action === 'craft_progression') {
+        return progression.action
+    }
     // Shallow mine entrances below a high spawn use nearby open terrain; deep exposed ravine floors are mine.
     const nearSurface = state.underground
         ? state.y >= (state.departureSurfaceY ?? state.surfaceY) - 8

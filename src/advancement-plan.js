@@ -177,9 +177,7 @@ function enchanterStep(state) {
 function nextAdvancement(state) {
     const detour = state.diamondDetour
     const fresh = planAdvancement(state)
-    // A detour defers diamond armor, not the pick and sword: five diamonds rode a lava search on an
-    // iron pick (user, 07:40Z), and the sword follows the pick at once (user, 17:30Z).
-    if (['diamond_pickaxe', 'diamond_sword'].includes(fresh.item)) {
+    if (['diamond_pickaxe', 'diamond_sword'].includes(fresh.item) || fresh.id === 'minecraft:story/shiny_gear') {
         return fresh
     }
     if (detour && state.diamonds > detour.diamonds && !detour.item?.startsWith('diamond_')) {
@@ -220,6 +218,12 @@ function planAdvancement(state) {
     // Two diamonds and a stick outclass the iron sword; once the pick exists, craft it at once (user, 17:30Z).
     if (state.hasDiamondPickaxe && state.diamonds >= RECIPES.diamond_sword.diamonds && !owns(state, ['diamond_sword', 'netherite_sword'])) {
         return craft(state, 'prep:diamond sword', 'diamond_sword')
+    }
+    if (state.hasDiamondPickaxe && owns(state, ['diamond_sword', 'netherite_sword'])) {
+        const affordable = ARMOR_PIECES.find(piece => !ownsTier(state, piece, 'diamond') && state.diamonds >= RECIPES[`diamond_${piece}`].diamonds)
+        if (affordable) {
+            return craft(state, 'minecraft:story/shiny_gear', `diamond_${affordable}`)
+        }
     }
     if (!state.hasIronPickaxe && state.smeltReady) {
         return craft(state, 'minecraft:story/iron_tools', 'iron_pickaxe', 'craft_iron_pickaxe')
@@ -274,10 +278,6 @@ function planAdvancement(state) {
     }
     if (!owns(state, ['diamond_sword', 'netherite_sword'])) {
         return craft(state, 'prep:diamond sword', 'diamond_sword')
-    }
-    const affordable = ARMOR_PIECES.find(piece => !ownsTier(state, piece, 'diamond') && state.diamonds >= RECIPES[`diamond_${piece}`].diamonds)
-    if (affordable) {
-        return craft(state, 'minecraft:story/shiny_gear', `diamond_${affordable}`)
     }
     const entered = state.completedAdvancements?.has('minecraft:story/enter_the_nether')
     // A water search deferred after stalling in place also defers the obsidian and portal steps.

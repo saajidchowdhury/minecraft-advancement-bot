@@ -285,7 +285,8 @@ test('a stalled prepared stair can use a short checked jump and releases control
     let cleared = false
     const bot = {
         health: 20, entity: { position: new Vec3(0.5, 64, 0.5) },
-        blockAt: p => ({ name: p.y === 64 ? 'stone' : 'air', boundingBox: p.y === 64 ? 'block' : 'empty' }),
+        blockAt: p => ({ name: p.y <= 63 || p.equals(target.offset(0, -1, 0)) ? 'stone' : 'air',
+            boundingBox: p.y <= 63 || p.equals(target.offset(0, -1, 0)) ? 'block' : 'empty' }),
         pathfinder: { setGoal() {} }, lookAt: async () => {},
         setControlState(name, value) {
             if (name === 'jump') {
@@ -304,6 +305,9 @@ test('a stalled prepared stair can use a short checked jump and releases control
     assert.equal(jumped, true)
     assert.equal(cleared, true)
     bot.entity.position = new Vec3(0.5, 64, 0.5)
+    const at = bot.blockAt
+    bot.blockAt = p => p.equals(target.offset(0, -1, 0)) ? { name: 'pointed_dripstone', boundingBox: 'block' } : at(p)
+    await assert.rejects(climbStep(c, target), /simulated pathfinder stall/)
     bot.blockAt = () => ({ name: 'water', boundingBox: 'empty' })
     await assert.rejects(climbStep(c, target), /simulated pathfinder stall/)
 })

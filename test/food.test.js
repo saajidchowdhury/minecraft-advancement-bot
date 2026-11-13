@@ -337,13 +337,23 @@ test('glow berries are picked from ripe vines and a vine that keeps its berries 
     const vine = { name: 'cave_vines', position: new Vec3(2, 66, 0), ripe: true, getProperties() { return { berries: this.ripe } } }
     const { c } = kitchen(items)
     let blocked = 0
+    const normal = { canDig: true }
+    let movement = normal
+    c.movements = normal
+    c.bot.registry = require('minecraft-data')('26.1')
+    c.bot.pathfinder = { setMovements: next => { movement = next } }
     Object.assign(c, {
         findNearestBlock: (predicate, range, options) => predicate(vine.name) && options.filter(vine) && !blocked ? vine : null,
-        gotoWithTimeout: async () => { items.push({ name: 'glow_berries', count: 1 }) },
+        gotoWithTimeout: async () => {
+            assert.equal(movement.canDig, false)
+            assert.equal(movement.allowParkour, false)
+            assert.equal(movement.maxDropDown, 2)
+            items.push({ name: 'glow_berries', count: 1 })
+        },
         visibleDrops: () => Object.values(c.bot.entities),
         rememberBlockedTarget: () => { blocked++ }
     })
-    c.bot.blockAt = () => vine
+    c.bot.blockAt = p => p.equals(vine.position) ? vine : p.y < 64 ? { name: 'stone', boundingBox: 'block' } : { name: 'air', boundingBox: 'empty' }
     c.bot.canDigBlock = c.bot.canSeeBlock = () => true
     c.bot.waitForTicks = async () => {}
     c.bot.entities = { 1: { isValid: true, name: 'item', position: new Vec3(2, 64, 0) } }
@@ -351,6 +361,7 @@ test('glow berries are picked from ripe vines and a vine that keeps its berries 
     c.bot.activateBlock = async () => { uses++; vine.ripe = false }
     await pickGlowBerries(c)
     assert.deepEqual([uses, c.countItems(['glow_berries']), blocked], [1, 1, 0])
+    assert.equal(movement, normal)
     vine.ripe = true
     c.bot.activateBlock = async () => { uses++ }
     await pickGlowBerries(c)

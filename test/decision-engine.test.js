@@ -293,6 +293,18 @@ test('a lava search stocks food before descent and continues if already undergro
     assert.equal(chooseAction({ ...ready, underground: true, y: 75, surfaceY: 81 }), 'return_surface')
 })
 
+test('a safe lava search yields to crafting and equipping diamond armor even with more ore in view', () => {
+    const miner = state({ underground: true, hasCraftingTable: true, hasWoodenPickaxe: true, hasStonePickaxe: true,
+        hasFurnace: true, hasIronPickaxe: true, hasDiamondPickaxe: true, hasIronArmor: true, armorEquipped: true,
+        hasShield: true, shieldEquipped: true, hasBucket: true, hasWeapon: true, diamonds: 32, freeInventorySlots: 3,
+        diamondInView: true, gear: new Set(['diamond_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']),
+        diamondDetour: { id: 'minecraft:story/lava_bucket', diamonds: 0 } })
+    assert.equal(chooseAction(miner), 'craft_progression')
+    assert.equal(chooseAction({ ...miner, armorUpgrade: true }), 'equip_armor')
+    assert.equal(chooseAction({ ...miner, hostileDistance: 3 }), Actions.FIGHT)
+    assert.equal(chooseAction({ ...miner, freeInventorySlots: 0, inventoryFull: true }), 'clear_inventory')
+})
+
 test('daylight iron departure stocks wood before food on terrain below the spawn plateau', () => {
     const miner = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasStonePickaxe: true,
         hasWoodcuttingAxe: true, hasDiggingShovel: true, hasFurnace: true, sticks: 2,

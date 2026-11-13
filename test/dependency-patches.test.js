@@ -8,6 +8,29 @@ const path = require('node:path')
 const injectInventory = require('mineflayer/lib/plugins/inventory')
 const injectFurnace = require('mineflayer/lib/plugins/furnace')
 
+test('pathfinder only accepts a jump that lands at the waypoint', () => {
+    const Physics = require('mineflayer-pathfinder/lib/physics')
+    const { Vec3 } = require('vec3')
+    const physics = new Physics({})
+    const point = new Vec3(1.5, 64, 0.5)
+    const state = { pos: point.offset(0, -0.6, 0), onGround: false, isInWater: false }
+    physics.simulateUntil = () => state
+    for (const jump of ['canWalkJump', 'canSprintJump']) {
+        assert.equal(physics[jump]([point]), false, 'falling past a waypoint is not a landing')
+        state.onGround = true
+        state.pos = point
+        assert.equal(physics[jump]([point]), true)
+        state.onGround = false
+        state.isInWater = true
+        assert.equal(physics[jump]([point]), true)
+        state.isInLava = true
+        assert.equal(physics[jump]([point]), false)
+        state.isInLava = false
+        state.isInWater = false
+        state.pos = point.offset(0, -0.6, 0)
+    }
+})
+
 test('Mineflayer crafting synchronization fixes are installed', () => {
     const project = path.resolve(__dirname, '..')
     const inventory = fs.readFileSync(path.join(project, 'node_modules/mineflayer/lib/plugins/inventory.js'), 'utf8')

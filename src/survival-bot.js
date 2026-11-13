@@ -27,7 +27,7 @@ const { golemState, summonGolem } = require('./golem')
 const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, openCookingAlcove, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
 const { updateCrowdRetreat, retreatToWall, mineFromRefuge } = require('./crowd-retreat')
 const { reachGoal, treePillar, climbForLog } = require('./tree-climb')
-const { isUnderFeet, rememberPlacement, forgetPlacement, placedOnSupport, stepOffCells, centerIn } = require('./under-feet')
+const { isUnderFeet, rememberPlacement, forgetPlacement, placedOnSupport, stepOffCells, centerIn, soundFloor } = require('./under-feet')
 
 const { GoalNear, GoalFollow } = goals
 
@@ -2725,7 +2725,7 @@ class SurvivalController {
                 for (let dy = -1; dy <= 2; dy++) {
                     const p = feet.offset(dx, dy, dz)
                     const floor = this.bot.blockAt(p.offset(0, -1, 0), false)
-                    if ((dx || dz) && clear(p) && clear(p.offset(0, 1, 0)) && floor?.boundingBox === 'block' && !hot(p.offset(0, -1, 0)) &&
+                    if ((dx || dz) && clear(p) && clear(p.offset(0, 1, 0)) && soundFloor(floor) &&
                         (!best || feet.distanceTo(p) < feet.distanceTo(best))) {
                         best = p
                     }

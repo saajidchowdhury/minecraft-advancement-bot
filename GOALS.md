@@ -26,6 +26,9 @@ playthrough is a test, not the definition of success.
    refuses path digs beside hidden liquid (F114). Decide whether to patch it.
 5. Diagnose the inventory loss after warden recovery (F104) and unattributed
    damage; condense the findings digest back under ~200 lines.
+6. Recheck the surface stair at (32,-3,490). The water search deferred after
+   three climb failures. A berry detour preceded a fatal fall. Verify a safe
+   route with the new landing checks (F124).
 
 ## Active goals
 

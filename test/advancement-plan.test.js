@@ -96,21 +96,21 @@ test('obsidian preparation fills two water buckets and preserves a full lava buc
     assert.equal(chooseAction({ ...state, health: 20, food: 20, hostileDistance: Infinity, logs: 0, planks: 0 }), 'gather_obsidian')
 })
 
-test('a diamond detour resumes obsidian work before a newly affordable armor upgrade', () => {
+test('a diamond detour crafts affordable armor before resuming obsidian work', () => {
     const state = { ...established, hasDiamondPickaxe: true, gear: diamondSword, diamonds: 3 }
     const goal = nextAdvancement(state)
     assert.equal(goal.action, 'gather_obsidian')
     const after = { ...state, diamonds: 4 }
     assert.equal(nextAdvancement(after).item, 'diamond_boots')
     const resumed = { ...after, diamondDetour: { id: goal.id, item: goal.item, diamonds: 3 } }
-    assert.equal(nextAdvancement(resumed).action, 'gather_obsidian')
-    assert.equal(nextAdvancement({ ...resumed, obsidian: 10 }).item, 'diamond_boots')
+    assert.equal(nextAdvancement(resumed).item, 'diamond_boots')
+    assert.equal(nextAdvancement({ ...resumed, diamonds: 0, gear: new Set([...diamondSword, 'diamond_boots']) }).action, 'gather_obsidian')
     const pick = { ...state, hasDiamondPickaxe: false, diamonds: 2 }
     const pickGoal = nextAdvancement(pick)
     assert.equal(nextAdvancement({ ...pick, diamonds: 3, diamondDetour: { ...pickGoal, diamonds: 2 } }).action, 'craft_progression')
 })
 
-test('a diamond detour from the lava bucket goal still crafts the diamond pickaxe and sword at once', () => {
+test('a lava detour spends diamonds on tools and affordable armor before resuming the search', () => {
     const lava = { ...established, hasDiamondPickaxe: false, diamonds: 0, hasBucket: true, completedAdvancements: new Set() }
     const goal = nextAdvancement(lava)
     assert.equal(goal.action, 'fill_lava_bucket')
@@ -118,7 +118,17 @@ test('a diamond detour from the lava bucket goal still crafts the diamond pickax
     assert.equal(nextAdvancement({ ...lava, diamonds: 5, diamondDetour: detour }).item, 'diamond_pickaxe')
     const picked = { ...lava, hasDiamondPickaxe: true, diamonds: 2, diamondDetour: detour }
     assert.equal(nextAdvancement(picked).item, 'diamond_sword')
-    assert.equal(nextAdvancement({ ...picked, gear: diamondSword, diamonds: 4 }).action, 'fill_lava_bucket')
+    const miner = { ...picked, gear: diamondSword, diamonds: 32 }
+    for (const [piece, cost] of [['chestplate', 8], ['leggings', 7], ['helmet', 5], ['boots', 4]]) {
+        const item = `diamond_${piece}`
+        assert.equal(nextAdvancement(miner).item, item)
+        miner.gear = new Set([...miner.gear, item])
+        miner.diamonds -= cost
+    }
+    assert.equal(miner.diamonds, 8)
+    assert.equal(nextAdvancement(miner).action, 'fill_lava_bucket')
+    assert.equal(nextAdvancement({ ...miner, diamonds: 4, gear: diamondSword }).item, 'diamond_boots')
+    assert.equal(nextAdvancement({ ...miner, diamonds: 4, gear: new Set([...diamondSword, 'netherite_boots']) }).action, 'fill_lava_bucket')
 })
 
 test('portal needs ignition and provisions; partial frame is resumed instead of remined', () => {

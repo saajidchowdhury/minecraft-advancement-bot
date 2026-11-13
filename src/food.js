@@ -4,7 +4,7 @@ const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { until } = require('./progression-skills')
 const { canSeeBlock } = require('./vision')
-const { dryMovements } = require('./cave-exploration')
+const { dryMovements, safeFooting } = require('./cave-exploration')
 const { reachGoal } = require('./tree-climb')
 const { furnaceFuelTicks, plankFuelPlan, preparePlankFuel } = require('./furnace-fuel')
 
@@ -365,6 +365,15 @@ async function cookFood(c, state) {
 
 // Ripe cave vines pop one berry on use and keep growing; pick a local cluster per action.
 async function pickGlowBerries(c) {
+    c.bot.pathfinder.setMovements(dryMovements(c.bot))
+    try {
+        await pickLocalGlowBerries(c)
+    } finally {
+        c.bot.pathfinder.setMovements(c.movements)
+    }
+}
+
+async function pickLocalGlowBerries(c) {
     const signal = c.actionAbort?.signal
     const origin = c.bot.entity.position.clone()
     for (let picked = 0; picked < 16; picked++) {
@@ -380,9 +389,15 @@ async function pickGlowBerries(c) {
         }
         try {
             if (!c.bot.canDigBlock(vine) || !canSeeBlock(c.bot, vine)) {
-                await c.gotoWithTimeout(reachGoal(vine.position, c.bot.world), 10000, 'glow berry approach')
+                const goal = reachGoal(vine.position, c.bot.world)
+                const reachable = goal.isEnd.bind(goal)
+                goal.isEnd = cell => safeFooting(c.bot, cell) && reachable(cell)
+                await c.gotoWithTimeout(goal, 10000, 'glow berry approach')
             }
             c.checkAction(signal)
+            if (!c.bot.canDigBlock(vine) || !canSeeBlock(c.bot, vine)) {
+                throw new Error('glow berry approach did not reach the vine')
+            }
             await c.bot.activateBlock(vine)
             await c.bot.waitForTicks(10)
             if (c.bot.blockAt(vine.position)?.getProperties?.().berries === true) {
@@ -392,7 +407,9 @@ async function pickGlowBerries(c) {
             for (const drop of drops) {
                 c.checkAction(signal)
                 const p = drop.position.floored()
-                await c.gotoWithTimeout(new goals.GoalNear(p.x, p.y, p.z, 1), 8000, 'glow berry pickup')
+                if (safeFooting(c.bot, p)) {
+                    await c.gotoWithTimeout(new goals.GoalBlock(p.x, p.y, p.z), 8000, 'glow berry pickup')
+                }
             }
         } catch (error) {
             if (signal?.aborted) {

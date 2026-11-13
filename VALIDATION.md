@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-513 tests and `npm run check` pass after the F122 lava scoop fix.
+515 tests and `npm run check` pass after the F123 armor and F124 landing fixes.
 Run them with the prepared runtime:
 
 ```sh
@@ -39,8 +39,8 @@ which leaves little room for more comments there.
 | combat-navigation | 10 | creeper duel, hunting with axes, out-of-view prey and drops |
 | config | 1 | LAN port bounds, 26.1.2 protocol data |
 | crowd-retreat | 11 | crowd latch, wall-pocket retreat and seal, pillar refuge |
-| decision-engine | 57 | planner priorities: danger, food, night, threats, reflexes |
-| dependency-patches | 4 | Mineflayer patch: crafting, furnace close, entity air |
+| decision-engine | 58 | planner priorities: danger, food, armor, night, threats, reflexes |
+| dependency-patches | 5 | crafting, furnace close, entity air, pathfinder jump landings |
 | drowning | 6 | low-air interrupt, direct swim rescue, dry station pickup |
 | enchanting | 5 | Enchanter gating, offer choice, zero-level wait |
 | enderman | 11 | gaze avoidance, anger, refuge priority and persistence |
@@ -82,6 +82,8 @@ none ran during the trial). "Automated" means regression tests only.
 | Empty-inventory start through Suit Up (10 adv. in 28 min) | live | F057 |
 | Iron pick priority, axe, shovel, rebuild after tool loss | live | F043–F045, F049, F095 |
 | Full iron set, diamond pick/sword, Cover Me with Diamonds | live | F029, F031, F065 |
+| Crafting and wearing diamond armor before Hot Stuff | automated | F123 |
+| Rejecting unsupported jump landings; dry berry approaches and pickup | automated | F124 |
 | Diamond interrupt, probe-exposed ore, dig-exposed vein ore | live / staged | F031, F054, F079, F100 |
 | Remembered diamond behind an overhang, stair approach and pickup | automated / staged on original vein | F121 |
 | Lava source with an obstructed centre ray | automated / staged at original ledge | F122 |

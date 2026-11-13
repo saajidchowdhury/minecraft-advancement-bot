@@ -2889,3 +2889,36 @@ A staged LAN trial supplied the bucket and position, then filled it at
 (77.5,-42,293.5) with no movement, digging or further commands. The server
 confirmed Hot Stuff. See `outputs/lava-77-live-results.json`. The regular
 bot separately earned Hot Stuff at 04:10:04Z on its original lava search.
+
+## F123 — Spend available diamonds on armor during other work
+
+In `outputs/2026-11-12@22.52.48/bot.log`, the bot carried 32 diamonds at
+03:54:13Z, with a diamond pickaxe and sword, and kept searching for lava.
+The first diamond chestplate was crafted only after Hot Stuff at 04:10:04Z
+(`outputs/2026-11-12@23.06.16/bot.log`). The affordable armor check ran
+after Hot Stuff, and the saved detour could also suppress armor upgrades.
+
+With the pickaxe and sword ready, select the first affordable missing piece
+in chestplate, leggings, helmet, boots order. Carried and worn pieces count,
+including netherite upgrades. Craft before routine work and equip through the
+existing armor action. Threats and an inventory with no free slot still take
+precedence. Three updated regressions fail on the previous source.
+
+## F124 — Water search deferred after stair failures; berry detour preceded a fatal fall
+
+At (32,-3,490), two stair-jump attempts timed out and a floor placement was
+refused. At 04:14:50Z the bot deferred water search for five minutes. It held
+27 diamonds, above the 16-diamond threshold for mining while deferred, so
+the planner chose wait between berry opportunities. It did not have a
+completed portal route. At 04:16:03Z a berry approach moved it off the stair
+line. It was falling by the next wait action and died at (32,-51,489).
+The log did not record which movement control initiated the fall.
+
+The pathfinder's jump simulation accepted airborne proximity as success,
+and the live waypoint loop could advance midair. The dependency patch
+requires a landing on ground or in water to accept a simulated jump and
+retains ladder waypoints. A manual stair jump now requires an adjacent
+one-block rise, grounded takeoff, sound floors and jump headroom. Berry
+routes use dry movement and supported interaction and pickup cells.
+The regression for airborne jump acceptance fails before the patch. Exact
+live fall reproduction remains pending.

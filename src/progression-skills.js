@@ -398,10 +398,13 @@ async function climbStep(c, target) {
         check(c)
         const bot = c.bot
         const here = bot.entity.position
-        const floor = bot.blockAt(target.offset(0, -1, 0))
-        if (Math.hypot(here.x - target.x - 0.5, here.z - target.z - 0.5) > 1.8 ||
-            Math.abs(here.y - target.y) > 1.5 || floor?.boundingBox !== 'block' || HAZARDS.has(floor.name) ||
-            [target, target.offset(0, 1, 0)].some(p => bot.blockAt(p)?.boundingBox !== 'empty')) {
+        const feet = here.floored()
+        if (bot.entity.onGround === false || target.y !== feet.y + 1 ||
+            Math.abs(feet.x - target.x) + Math.abs(feet.z - target.z) !== 1 ||
+            !soundFloor(bot.blockAt(feet.offset(0, -1, 0), false)) ||
+            !soundFloor(bot.blockAt(target.offset(0, -1, 0), false)) ||
+            !safeFooting(bot, target) ||
+            [feet, target].some(p => bot.blockAt(p.offset(0, 2, 0), false)?.boundingBox !== 'empty')) {
             throw error
         }
         c.log.warn(`Pathfinder stalled on a prepared stair; trying a short jump to ${target}.`)
@@ -411,8 +414,18 @@ async function climbStep(c, target) {
         try {
             bot.setControlState('jump', true)
             bot.setControlState('forward', true)
-            await until(c, () => Math.hypot(bot.entity.position.x - target.x - 0.5, bot.entity.position.z - target.z - 0.5) < 0.35 &&
-                bot.entity.position.y >= target.y && bot.entity.position.y < target.y + 0.6, 2500)
+            await until(c, () => {
+                if (!soundFloor(bot.blockAt(target.offset(0, -1, 0), false)) || bot.entity.position.y < feet.y - 0.25) {
+                    throw new Error('stair jump lost confirmed support')
+                }
+                if (Math.hypot(bot.entity.position.x - target.x - 0.5, bot.entity.position.z - target.z - 0.5) < 0.35 &&
+                    bot.entity.position.y >= target.y && bot.entity.position.y < target.y + 0.6) {
+                    bot.setControlState('forward', false)
+                    bot.setControlState('jump', false)
+                    return bot.entity.onGround !== false
+                }
+                return false
+            }, 2500)
         } finally {
             bot.clearControlStates()
         }

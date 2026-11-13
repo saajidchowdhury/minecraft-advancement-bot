@@ -1,0 +1,45 @@
+diff --git a/node_modules/mineflayer-pathfinder/lib/physics.js b/node_modules/mineflayer-pathfinder/lib/physics.js
+--- a/node_modules/mineflayer-pathfinder/lib/physics.js
++++ b/node_modules/mineflayer-pathfinder/lib/physics.js
+@@ -89,21 +89,23 @@
+   }
+ 
+   canSprintJump (path, jumpAfter = 0) {
+-    const reached = this.getReached(path)
++    const reached = this.getReached(path, true)
+     const state = this.simulateUntil(reached, this.getController(path[0], true, true, jumpAfter), 20)
+     return reached(state)
+   }
+ 
+   canWalkJump (path, jumpAfter = 0) {
+-    const reached = this.getReached(path)
++    const reached = this.getReached(path, true)
+     const state = this.simulateUntil(reached, this.getController(path[0], true, false, jumpAfter), 20)
+     return reached(state)
+   }
+ 
+-  getReached (path) {
++  getReached (path, landing = false) {
+     return (state) => {
+       const delta = path[0].minus(state.pos)
+-      return Math.abs(delta.x) <= 0.35 && Math.abs(delta.z) <= 0.35 && Math.abs(delta.y) < 1
++      return Math.abs(delta.x) <= 0.35 && Math.abs(delta.z) <= 0.35 &&
++        Math.abs(delta.y) < (landing ? 0.6 : 1) &&
++        (!landing || (!state.isInLava && (state.onGround || state.isInWater)))
+     }
+   }
+ 
+diff --git a/node_modules/mineflayer-pathfinder/index.js b/node_modules/mineflayer-pathfinder/index.js
+--- a/node_modules/mineflayer-pathfinder/index.js
++++ b/node_modules/mineflayer-pathfinder/index.js
+@@ -576,7 +576,9 @@
+     let dx = nextPoint.x - p.x
+     const dy = nextPoint.y - p.y
+     let dz = nextPoint.z - p.z
+-    if (Math.abs(dx) <= 0.35 && Math.abs(dz) <= 0.35 && Math.abs(dy) < 1) {
++    if (Math.abs(dx) <= 0.35 && Math.abs(dz) <= 0.35 && Math.abs(dy) < 1 &&
++        !bot.entity.isInLava && (bot.entity.onGround || bot.entity.isInWater ||
++          stateMovements.climbables.has(bot.blockAt(p)?.type))) {
+       // arrived at next point
+       lastNodeTime = performance.now()
+       if (stopPathing) {
