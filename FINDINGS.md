@@ -11,13 +11,16 @@ To record a finding, append its full entry to the archive, add one index line
 below, and edit the digest bullets it changes. Replace the current handoff
 instead of adding another. Keep everything above the index under ~200 lines.
 
-## Current handoff — 2026-11-12, session end
+## Current handoff — 2026-11-13, session end
 
-AdvancementBot resumed on `4a0d52f` on LAN port 49503, PID 13564, with logs in
-`outputs/2026-11-12@23.49.25/`. It is pickless (1 plank, no sticks) in its
-y=31 night shelter at -4,31,-46 and should dig out and carve to the surface by
-hand at dawn (F126). The owner kit was verified before restart. Verify the
-newest process, snapshot and owner kit. Baseline: 525 tests pass.
+AdvancementBot resumed on `01d17da` on LAN port 49503, PID 16079, with logs in
+`outputs/2026-11-13@00.06.37/`. It hand-carved out of its pickless y=31
+shelter (F126), then the user gave it an enchanted netherite pickaxe. Progress
+made with that pickaxe is assisted, not survival-earned. With F128 the bot is
+tunneling to y=16 for iron. Not yet live-verified: water-before-lava buckets
+and the glow berry path bound (F127). The owner kit was verified before
+restart. Verify the newest process, snapshot and owner kit. Baseline: 525
+tests pass.
 
 ## Stable facts and process lessons
 
