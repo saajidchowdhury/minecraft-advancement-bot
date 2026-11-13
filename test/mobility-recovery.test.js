@@ -371,7 +371,7 @@ test('swamp wood targets skip trunk logs beside water instead of blocking the tr
     Object.assign(c, {
         movements: { safeToBreak: log => log !== base }, actionAbort: new AbortController(), memory: { blockedTargets: new Map() },
         findNearestBlock: (match, range, options) => [base, upper].find(log => match(log.name) && options.filter(log)) ?? null,
-        bot: { collectBlock: { findFromVein: () => [base, upper] } },
+        bot: { collectBlock: { findFromVein: () => [base, upper] }, entity: { isInWater: false }, blockAt: () => ({ name: 'air' }) },
         async collectTarget(target) { collected = target }
     })
     await c.gatherWood()
@@ -416,7 +416,7 @@ test('a wood attempt cut off by low air blocks the whole tree (F134)', async () 
     Object.assign(c, {
         movements: { safeToBreak: () => true }, actionAbort: new AbortController(), memory: { blockedTargets: new Map() },
         findNearestBlock: () => logs[1], nearestEntity: () => null,
-        bot: { collectBlock: { findFromVein: () => logs } },
+        bot: { collectBlock: { findFromVein: () => logs }, entity: { isInWater: false }, blockAt: () => ({ name: 'air' }) },
         async collectTarget() {
             c.actionAbort.abort('low air supply')
             throw new Error('collection cancelled')
@@ -477,7 +477,7 @@ test('the reach-land goal heads for the nearest dry ground block and clears once
         Object.assign(bot.entity, { position: new Vec3(g.x + 0.5, g.y, g.z + 0.5), onGround: true, isInWater: false })
     }
     await c.reachLand()
-    assert.deepEqual([goal.x, goal.y, goal.z], [21, 62, 0], 'the shore, not the dirt under the water')
+    assert.deepEqual([goal.x, goal.y, goal.z], [22, 62, 0], 'dry shore one cell from the water, not the dirt under it')
     assert.equal(c.needsLand(), false)
     assert.equal(c.landPending, false)
 })
@@ -497,4 +497,75 @@ test('a reach-land goal with no loaded ground scouts, and gives up after six att
     c.bot.game.dimension = 'the_nether'
     c.landPending = true
     assert.equal(c.needsLand(), false, 'the goal is Overworld-only')
+})
+
+test('a dry pocket below the swamp surface is not land; the dry shore is (F135)', async () => {
+    const { c, bot, Vec3 } = landWorld()
+    const blockAt = bot.blockAt
+    const air = blockAt(new Vec3(30, 70, 0))
+    // Live 06:15Z: dirt at y=60 with air above but water on every side looked like land.
+    bot.blockAt = at => {
+        const p = at.floored()
+        return p.x === 5 && p.z === 0 && (p.y === 61 || p.y === 62) ? Object.assign(Object.create(air), { position: p }) : blockAt(at)
+    }
+    let goal = null
+    c.gotoWithTimeout = async g => {
+        goal = g
+        Object.assign(bot.entity, { position: new Vec3(g.x + 0.5, g.y, g.z + 0.5), onGround: true, isInWater: false })
+    }
+    await c.reachLand()
+    assert.deepEqual([goal.x, goal.y, goal.z], [22, 62, 0])
+})
+
+test('after swimming to land the bot stocks sixteen soil blocks before wood (F135)', async () => {
+    const { chooseAction } = require('../src/decision-engine')
+    const { c, bot, Vec3 } = landWorld()
+    let carried = 0
+    c.countItems = () => carried
+    c.gotoWithTimeout = async g => Object.assign(bot.entity, { position: new Vec3(g.x + 0.5, g.y, g.z + 0.5), onGround: true, isInWater: false })
+    await c.reachLand()
+    assert.equal(c.needsLand(), false)
+    assert.equal(c.needsBlockStock(), true)
+    assert.equal(chooseAction({ health: 20, food: 20, hostileDistance: Infinity, stockBlocks: true, completedAdvancements: new Set() }), 'stock_blocks')
+    const soil = { name: 'grass_block', position: new Vec3(25, 61, 0) }
+    c.findNearestBlock = (match, range, options) => match(soil.name) && options.filter(soil) ? soil : null
+    c.collectTarget = async block => { assert.equal(block, soil); carried += 1 }
+    await c.stockBlocks()
+    assert.equal(carried, 1)
+    carried = 16
+    assert.equal(c.needsBlockStock(), false)
+    const { c: dry } = landWorld()
+    Object.assign(dry.bot.entity, { position: new Vec3(25.5, 62, 0.5), onGround: true, isInWater: false })
+    assert.equal(dry.needsLand(), false)
+    assert.equal(dry.needsBlockStock(), false, 'spawning on land needs no stock')
+})
+
+test('a trunk ringed by water gets a block on the water surface to stand on (F135)', async () => {
+    const { c, bot, Vec3 } = landWorld()
+    const blockAt = bot.blockAt
+    const trunk = p => p.x === 5 && p.z === 0 && p.y >= 61 && p.y <= 66
+    bot.blockAt = at => {
+        const p = at.floored()
+        if (trunk(p)) {
+            const registry = bot.registry
+            const b = require('prismarine-block')(registry).fromStateId(registry.blocksByName.oak_log.defaultState, 0)
+            b.position = p
+            return b
+        }
+        return blockAt(at)
+    }
+    const placed = []
+    const visits = []
+    Object.assign(c, { bestItem: () => ({ name: 'dirt' }),
+        async placeSurvivalBlock(p) { placed.push(p.toString()) },
+        async gotoWithTimeout(g, ms, label) { visits.push([label, g.x, g.y, g.z]) } })
+    const target = bot.blockAt(new Vec3(5, 64, 0))
+    assert.equal(await c.buildLogPlatform(target), true)
+    assert.equal(placed.length, 1)
+    const [x, y, z] = placed[0].slice(1, -1).split(', ').map(Number)
+    assert.equal(y, 62, 'on the water surface')
+    assert.equal(Math.abs(x - 5) + Math.abs(z), 1, 'beside the trunk')
+    assert.deepEqual(visits.at(-1), ['log platform', x, 63, z])
+    c.bestItem = () => null
+    await assert.rejects(c.buildLogPlatform(target), /no block to stand on/)
 })

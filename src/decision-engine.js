@@ -137,6 +137,9 @@ function chooseAction (state) {
     if (state.needsLand) {
         return 'reach_land'
     }
+    if (state.stockBlocks) {
+        return 'stock_blocks'
+    }
     // Eating (1.6 s, not cleanly cancellable) never runs with melee at arm's length (round 9). User 2026-11-11:
     // cook what is about to be eaten (raw mutton gave 3.2 of 15.6 meal points, 06:52Z); raw is the fallback.
     const wantsMeal = state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood && !(state.meleeDistance <= 4)

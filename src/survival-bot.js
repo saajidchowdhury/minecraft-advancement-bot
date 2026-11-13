@@ -95,7 +95,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     smelt_charcoal: 45000, craft_progression: 45000, equip_armor: 10000, equip_shield: 10000,
     fill_water_bucket: 90000, fill_lava_bucket: 90000, gather_diamonds: 90000, gather_obsidian: 90000,
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
-    clear_inventory: 30000, mine_diamond: 45000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, reach_land: 60000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
+    clear_inventory: 30000, mine_diamond: 45000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, reach_land: 60000, stock_blocks: 30000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
     wake: 10000, sleep: 30000, prepare_bed: 45000, leave_shelter: 20000, mine_iron: 45000, cook_food: 120000, pick_glow_berries: 60000, hunt_fish: 30000, gather_mushroom_stew: 60000,
     [Actions.EXPLORE]: 60000
@@ -106,6 +106,8 @@ const LAND_GROUND = /^(dirt|coarse_dirt|rooted_dirt|grass_block|podzol|mycelium|
 const LAND_SEARCH_RADIUS = 48
 const LAND_CANDIDATES = 32
 const LAND_ATTEMPTS = 6
+// Building blocks dug after swimming to land, matching the dirt carry limit.
+const LAND_BLOCK_STOCK = 16
 // Low-air cutoff in bubbles (the breath handler surfaces at 12); one bubble is 15 ticks of air.
 const LOW_AIR_BUBBLES = 12
 const BUBBLE_MS = 750
@@ -1133,6 +1135,7 @@ class SurvivalController {
                 (this.bot.entity.position.y < (this.home?.y || 64) - 3 && !(this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0))?.skyLight >= 12) &&
                     coveredAbove(this.bot, this.bot.entity.position.floored().offset(0, 1, 0))),
             needsLand: this.needsLand(),
+            stockBlocks: this.needsBlockStock(),
             portalInProgress: Boolean(this.memory.portalOrigin),
             redstoneInProgress: Boolean(this.memory.redstoneOrigin),
             redstoneRequested: Boolean(this.memory.redstoneRequested)
@@ -1210,6 +1213,7 @@ class SurvivalController {
             case 'shoot_arrow': return shootArrow(this)
             case 'surface_for_air': return this.surfaceForAir()
             case 'reach_land': return this.reachLand()
+            case 'stock_blocks': return this.stockBlocks()
             case 'escape_lava': return this.escapeLava()
             case 'clear_head': return this.clearHead()
             case 'gather_leather': return gatherLeather(this)
@@ -1736,6 +1740,9 @@ class SurvivalController {
             .filter(log => log.position.equals(block.position) || (breakable(log) && blockInView(this.bot, log, exposedByDig(this, log))))
         const signal = this.actionAbort?.signal
         try {
+            if (this.bot.entity?.isInWater || this.bot.blockAt(block.position.offset(0, -1, 0), false)?.name === 'water') {
+                await this.buildLogPlatform(block)
+            }
             await this.collectTarget(trunk.length > 0 ? trunk : block, block, 'tree')
         } catch (error) {
             // Remaining logs above standing reach (live 01:07Z, oak at -24,69,194) need a short pillar.
@@ -3621,22 +3628,86 @@ class SurvivalController {
         }
         if (this.standsOnLand()) {
             this.landPending = false
+            // User (F135): a bot that had to swim stocks soil first, to stand beside water-bound trunks.
+            this.blockStockPending = Boolean(this.landSwam)
+            this.landSwam = false
             this.log.info(`Standing on land at ${this.positionText()}; reach-land goal complete.`)
             return false
         }
         return true
     }
 
+    needsBlockStock () {
+        if (this.blockStockPending && this.countItems(BUILDING_BLOCKS) >= LAND_BLOCK_STOCK) {
+            this.blockStockPending = false
+            this.log.info(`Carrying ${this.countItems(BUILDING_BLOCKS)} building blocks; starting on wood.`)
+        }
+        return Boolean(this.blockStockPending)
+    }
+
+    async stockBlocks () {
+        const feet = this.bot.entity.position.floored()
+        const soil = this.findNearestBlock(name => ['dirt', 'grass_block'].includes(name), 16, { mining: true,
+            filter: block => (block.position.x !== feet.x || block.position.z !== feet.z) && (this.movements?.safeToBreak?.(block) ?? true) })
+        if (!soil) {
+            this.blockStockPending = false
+            this.log.warn('No reachable dirt for a block stock; starting on wood without one.')
+            return
+        }
+        await this.collectTarget(soil, soil, 'soil')
+    }
+
+    // A trunk with no dry footing in reach gets a block on the water surface beside it to stand on (F135).
+    async buildLogPlatform (log) {
+        const eye = cell => cell.offset(0.5, 1.62, 0.5)
+        const inReach = cell => eye(cell).distanceTo(log.position.offset(0.5, 0.5, 0.5)) <= 4.5
+        const near = []
+        for (let dx = -4; dx <= 4; dx++) {
+            for (let dz = -4; dz <= 4; dz++) {
+                for (let dy = -5; dy <= 1; dy++) {
+                    const cell = log.position.offset(dx, dy, dz)
+                    if (inReach(cell) && safeFooting(this.bot, cell)) {
+                        return false
+                    }
+                    near.push(cell)
+                }
+            }
+        }
+        if (!this.bestItem(BUILDING_BLOCKS)) {
+            throw new Error('no block to stand on beside a water-bound trunk')
+        }
+        const at = p => this.bot.blockAt(p, false)
+        const here = this.bot.entity.position
+        const stand = near.filter(cell => inReach(cell) && at(cell.offset(0, -1, 0))?.name === 'water' &&
+            at(cell)?.boundingBox === 'empty' && at(cell)?.name !== 'water' && at(cell.offset(0, 1, 0))?.boundingBox === 'empty' &&
+            SIDES.some(([dx, dz]) => at(cell.offset(dx, -1, dz))?.boundingBox === 'block'))
+            .sort((a, b) => a.distanceTo(here) - b.distanceTo(here))[0]
+        if (!stand) {
+            throw new Error('no water-surface cell beside the trunk to build on')
+        }
+        const signal = this.actionAbort?.signal
+        this.log.info(`No dry footing near ${log.name} at ${log.position}; placing a block at ${stand.offset(0, -1, 0)} to stand on.`)
+        await this.gotoWithTimeout(new goals.GoalNear(stand.x, stand.y, stand.z, 3), 15000, 'log platform approach')
+        this.checkAction(signal)
+        await this.placeSurvivalBlock(stand.offset(0, -1, 0))
+        this.checkAction(signal)
+        await this.gotoWithTimeout(new goals.GoalBlock(stand.x, stand.y, stand.z), 8000, 'log platform')
+        return true
+    }
+
     // Nearest loaded ground block with two dry, empty cells above it; scouting covers unloaded land.
     async reachLand () {
         const ids = Object.values(this.bot.registry.blocksByName).filter(block => LAND_GROUND.test(block.name)).map(block => block.id)
-        const open = p => {
+        const wet = p => {
             const block = this.bot.blockAt(p, false)
-            return block?.boundingBox === 'empty' && !['water', 'lava'].includes(block.name) && block.getProperties?.().waterlogged !== true
+            return ['water', 'lava', 'bubble_column'].includes(block?.name) || block?.getProperties?.().waterlogged === true
         }
+        const open = p => this.bot.blockAt(p, false)?.boundingBox === 'empty' && !wet(p)
+        // Dry pockets below the swamp surface still touch water and never count as land (live 06:15Z).
+        const dryStand = feet => open(feet) && open(feet.offset(0, 1, 0)) && SIDES.every(([dx, dz]) => !wet(feet.offset(dx, 0, dz)))
         const spots = this.bot.findBlocks({ matching: ids, maxDistance: LAND_SEARCH_RADIUS, count: LAND_CANDIDATES,
-            useExtraInfo: block => open(block.position.offset(0, 1, 0)) && open(block.position.offset(0, 2, 0)) &&
-                !this.isBlockedTarget({ position: block.position }) })
+            useExtraInfo: block => dryStand(block.position.offset(0, 1, 0)) && !this.isBlockedTarget({ position: block.position }) })
+        this.landSwam = true
         const signal = this.actionAbort?.signal
         for (const floor of spots.slice(0, 3)) {
             this.checkAction(signal)

@@ -3179,3 +3179,18 @@ work can resume. In the Nether the goal does nothing. Regression in
 `test/mobility-recovery.test.js` (priority, nearest shore rather than the
 dirt under the water, scout and give-up) fails on the pre-fix source.
 
+Update (same session). Staged check (teleport to 73.5,62,-34.5, then a
+restart on `2a3ced7`): `reach_land` chose dirt at y=59-60 with air above it.
+These were pockets below the swamp surface with water all round, so the bot
+reached them and still touched water. It cycled through them, with two 20 s
+timeouts. The landing cell must now be dry and empty, along with the cell
+above it, and none of its 4 neighbours may hold water. User additions: if
+reaching land took a swim, the bot first digs dirt or grass until it carries
+16 building blocks (`stock_blocks`; it gives up if no dirt is reachable).
+`gatherWood` calls `buildLogPlatform` when the bot is in water or the log
+sits on water. If no dry standable cell lies within reach of the log, it
+places a building block on the water surface beside the trunk (against a
+solid side face) and stands on it to chop. With no block carried it throws,
+and the tree is blocked. Regression tests (dry pocket, stock, platform)
+fail on the pre-fix source.
+

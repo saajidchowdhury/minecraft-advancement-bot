@@ -55,7 +55,7 @@ which leaves little room for more comments there.
 | memory-random | 2 | seeded rng, atomic world memory |
 | mined-ore-recovery | 10 | confirmed diamond memory, alternate stair approaches, cancellation, hidden water, ore drops |
 | mining-timing | 6 | break times for tier ores, landing before digging, bare-hand stone when stranded, enchanted 26.1 tools, 5-tick destroy delay |
-| mobility-recovery | 25 | unstick, shaft and pillar detection, safe drops, heap guard, sky-bound surface scouts, swamp swims, logs and treading, reach land on spawn |
+| mobility-recovery | 28 | unstick, shaft and pillar detection, safe drops, heap guard, sky-bound surface scouts, swamp swims, logs and treading, reach land on spawn, soil stock, trunk platforms |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
 | progression-skills | 33 | stairs, tunnels, lava scoop rays, portal geometry, frontier, merges |
