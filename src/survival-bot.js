@@ -65,6 +65,7 @@ const SAFE_PATHFINDER_DROP = 3
 // Limit A* detours beyond the direct goal heuristic. Unlimited searches with
 // digging enabled can branch through millions of underground block states.
 const PATH_SEARCH_RADIUS = 48
+const SWIM_STEP_COST = 3
 const HEAP_GUARD_BYTES = 768 * 1024 * 1024
 const HUNT_AXE_COOLDOWN_MS = Object.freeze({ wooden_axe: 1250, stone_axe: 1250, copper_axe: 1250,
     iron_axe: 1112, golden_axe: 1000, diamond_axe: 1000, netherite_axe: 1000 })
@@ -1371,6 +1372,13 @@ class SurvivalController {
 
     async gotoWithTimeout (goal, timeoutMs, label) {
         let timeout
+        // From inside water the only way out is to swim: at 3 per step the 48 cost slack ends a swim
+        // after about 16 cells, short of the shore in a 40-block swamp (F134).
+        const active = this.bot.entity?.isInWater ? this.bot.pathfinder.movements : null
+        const liquidCost = active?.liquidCost
+        if (active) {
+            active.liquidCost = Math.min(liquidCost, 1)
+        }
         try {
             return await Promise.race([
                 this.bot.pathfinder.goto(goal),
@@ -1384,6 +1392,9 @@ class SurvivalController {
             ])
         } finally {
             clearTimeout(timeout)
+            if (active) {
+                active.liquidCost = liquidCost
+            }
         }
     }
 
@@ -1688,13 +1699,16 @@ class SurvivalController {
     }
 
     async gatherWood () {
+        // Swamp trunks stand in water: the base log beside it is refused (dontCreateFlow) and then blocked the
+        // whole tree, so only logs that are safe to break are targets; the rest of the trunk stays reachable (F134).
+        const breakable = log => this.movements?.safeToBreak?.(log) ?? true
         const block = await scanFor(this, () => this.findNearestBlock(name =>
-            LOG_SUFFIXES.some(suffix => name.endsWith(suffix)) && !name.includes('stripped_'), 48, { mining: true }), { lookUp: true })
+            LOG_SUFFIXES.some(suffix => name.endsWith(suffix)) && !name.includes('stripped_'), 48, { mining: true, filter: breakable }), { lookUp: true })
         if (!block) {
             return this.scout(36)
         }
         const trunk = this.bot.collectBlock.findFromVein(block, 3, 6, 1)
-            .filter(log => log.position.equals(block.position) || blockInView(this.bot, log, exposedByDig(this, log)))
+            .filter(log => log.position.equals(block.position) || (breakable(log) && blockInView(this.bot, log, exposedByDig(this, log))))
         const signal = this.actionAbort?.signal
         try {
             await this.collectTarget(trunk.length > 0 ? trunk : block, block, 'tree')
@@ -3412,10 +3426,13 @@ class SurvivalController {
         const signal = this.actionAbort?.signal
         const loose = dryMovements(this.bot)
         loose.getMoveDiagonal = () => {}
+        const water = this.bot.registry.blocksByName.water.id
         if (!this.bot.entity?.isInWater) {
-            const water = this.bot.registry.blocksByName.water.id
             loose.blocksToAvoid.add(water)
             loose.blocksCantBreak.add(water)
+        } else {
+            // dryMovements avoids water, which left a bot in a swamp with no first step at all (F134).
+            loose.blocksToAvoid.delete(water)
         }
         this.log.warn(`No route out; scouting supported cardinal steps without bridging; maximum drop=${loose.maxDropDown}.`)
         this.bot.pathfinder.setMovements(loose)
@@ -3667,9 +3684,10 @@ class SurvivalController {
         if (dripstone) {
             movements.fences.add(dripstone.id)
         }
-        // Prefer walking around water. Water remains traversable for emergencies,
-        // but ordinary scouting will not select an open-ocean destination.
-        movements.liquidCost = 50
+        // Prefer walking around water but keep it traversable: searchRadius (48) also caps A*'s cost above the
+        // start heuristic, so 50 per water step made a 2-deep swamp impassable from inside it (F134).
+        // Land scouting, not this cost, keeps destinations off open ocean.
+        movements.liquidCost = SWIM_STEP_COST
         movements.infiniteLiquidDropdownDistance = false
     }
 

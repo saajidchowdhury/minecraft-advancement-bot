@@ -3119,3 +3119,32 @@ any other failure. A stone axe under water (about 3.75 s) still fits within
 source. Its world fixture now floors positions, as Mineflayer's `blockAt`
 does. Not yet seen live.
 
+## F134 — Water impassable inside the path cost budget; swamp trees blocked
+
+Live, run `outputs/2026-11-13@00.53.57/` (port 50636, new world): after F133
+the bot stayed at its water spawn (73,61,-35). Every tree failed with "unsafe
+block to mine" or "No path", and every land scout and unstick failed within
+about 20 ms. A read-only EffectHelper map (`outputs/inspect-water-spawn.js`,
+`outputs/water-spawn-map.json`) showed a flooded swamp: water was the top
+block in 1199 of 1681 columns of a 41x41 area, 2 deep (y=61-62 over dirt at
+60), with oaks standing in it. A bot walking the bottom has its head under
+water. Replaying the bot's own path searches on those chunks
+(`outputs/inspect-water-paths.js`, logs `water-paths*.log`) found three
+causes:
+1. `pathfinder.searchRadius = 48` also caps A*'s cost above the start
+   heuristic (`maxCost = h + searchRadius`). At `liquidCost = 50`, a single
+   water step used the whole slack, so water was impassable. The only paths
+   left tunnelled under the water bed (ending at y=58), which the F129
+   sky-bound scout bans.
+2. `unstick` used `dryMovements`, whose DANGER set avoids water, so from
+   inside water it found no first step (noPath, 1 node visited).
+3. The nearest log was the trunk base beside the water. `dontCreateFlow`
+   refused it, and the failure blocked the whole tree for 120 s.
+Fix: `liquidCost` 3 still prefers land. `gotoWithTimeout` drops it to 1
+while the bot is in water, since at 3 the slack ends a swim after about 16
+cells. Unstick from water no longer avoids water. Wood targets and trunk logs
+must pass `safeToBreak`. After the fix the replay gives success to the near
+targets from both the surface and the bottom, and partial paths toward 47,-10.
+Regression in `test/mobility-recovery.test.js` (the real A* on a 20-cell
+2-deep strip, unstick movements, swamp logs) fails on the pre-fix source.
+

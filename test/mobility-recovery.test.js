@@ -293,3 +293,87 @@ test('a scout starting under open sky never steps under cover, so it cannot walk
     await SurvivalController.prototype.scout.call(c, 20)
     assert.equal(during, 0)
 })
+
+// Synthetic F134 swamp: dirt floor at y=60, water at y=61..62 for x in [0, 20], dry grass at y=61 beyond x=20.
+function swampBot() {
+    const registry = require('prismarine-registry')('26.1')
+    const Block = require('prismarine-block')(registry)
+    const { Vec3 } = require('vec3')
+    const name = p => p.y < 60 ? 'stone' : p.y === 60 ? 'dirt' : p.x >= 0 && p.x <= 20 && p.y <= 62 ? 'water'
+        : p.x > 20 && p.y === 61 ? 'grass_block' : 'air'
+    const bot = {
+        registry, version: '26.1', game: { dimension: 'overworld' }, entity: { position: new Vec3(2.5, 61, 0.5), isInWater: true },
+        inventory: { items: () => [] },
+        blockAt: at => {
+            const p = at.floored()
+            const b = Block.fromStateId(registry.blocksByName[name(p)].defaultState, 0)
+            b.position = p
+            b.skyLight = 15
+            return b
+        }
+    }
+    return { bot, Vec3 }
+}
+
+// The real A* with the bot's 48 search radius, which also caps cost above the start heuristic.
+function swim(movements, bot) {
+    const AStar = require('mineflayer-pathfinder/lib/astar')
+    const Move = require('mineflayer-pathfinder/lib/move')
+    const { goals } = require('mineflayer-pathfinder')
+    const p = bot.entity.position.floored()
+    return new AStar(new Move(p.x, p.y, p.z, 0, 0), movements, new goals.GoalNearXZ(24, 0, 1), 2000, 2000, 48).compute()
+}
+
+test('a bot inside a two-deep swamp swims 20 cells to shore within the path cost budget (F134)', async () => {
+    const { Movements } = require('mineflayer-pathfinder')
+    const { bot } = swampBot()
+    const movements = new Movements(bot)
+    SurvivalController.prototype.configureSafeMovements.call({ memory: {} }, movements)
+    // Live config before F134: one water step cost more than the whole 48 slack the search allows.
+    movements.liquidCost = 50
+    assert.notEqual(swim(movements, bot).status, 'success')
+    SurvivalController.prototype.configureSafeMovements.call({ memory: {} }, movements)
+    let result = null
+    bot.pathfinder = { movements, goto: async () => { result = swim(movements, bot) } }
+    await SurvivalController.prototype.gotoWithTimeout.call({ bot }, null, 1000, 'test swim')
+    assert.equal(result.status, 'success')
+    assert.ok(result.path.every(node => node.y >= 61), 'no tunnel under the water bed')
+    assert.equal(movements.liquidCost, 3, 'the land preference returns after the swim')
+    bot.entity.isInWater = false
+    await SurvivalController.prototype.gotoWithTimeout.call({ bot }, null, 1000, 'test walk')
+    assert.notEqual(result.status, 'success', 'from dry land the same swim stays too costly')
+})
+
+test('unstick from inside water does not treat water as a hazard (F134)', async () => {
+    const { bot } = swampBot()
+    const water = bot.registry.blocksByName.water.id
+    let loose = null
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, { bot, log: { warn() {} }, movements: {}, memory: {},
+        async scout() { throw new Error('stop after recording movements') } })
+    bot.pathfinder = { setMovements(m) { loose ??= m }, setGoal() {} }
+    bot.waitForTicks = async () => { throw new Error('stop') }
+    await assert.rejects(c.unstick())
+    assert.equal(loose.blocksToAvoid.has(water), false)
+    assert.equal(swim(loose, bot).status, 'success')
+    bot.entity.isInWater = false
+    loose = null
+    await assert.rejects(c.unstick())
+    assert.equal(loose.blocksToAvoid.has(water), true)
+})
+
+test('swamp wood targets skip trunk logs beside water instead of blocking the tree (F134)', async () => {
+    const { Vec3 } = require('vec3')
+    const base = { name: 'oak_log', position: new Vec3(5, 61, 0) }
+    const upper = { name: 'oak_log', position: new Vec3(5, 63, 0) }
+    let collected = null
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, {
+        movements: { safeToBreak: log => log !== base }, actionAbort: new AbortController(), memory: { blockedTargets: new Map() },
+        findNearestBlock: (match, range, options) => [base, upper].find(log => match(log.name) && options.filter(log)) ?? null,
+        bot: { collectBlock: { findFromVein: () => [base, upper] } },
+        async collectTarget(target) { collected = target }
+    })
+    await c.gatherWood()
+    assert.deepEqual(collected, [upper])
+})
