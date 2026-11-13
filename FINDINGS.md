@@ -13,12 +13,12 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-12, session end
 
-AdvancementBot resumed on `f0a8ab0` on LAN port 49503, PID 6832, with logs in
-`outputs/2026-11-12@22.52.48/`. The F120 fix passed a staged LAN trial on the
-existing staircase. The owner kit was supplied and verified before the restart
-(`outputs/owner-kit-f120.json`). Check the newest snapshot and process before
-live work. Verify the owner's kit for every gameplay login, including trials.
-Baseline: 509 tests pass. The digest above the index is about 250 lines.
+AdvancementBot resumed on `2906728` on LAN port 49503, PID 8187, with logs in
+`outputs/2026-11-12@23.06.16/`. It resumed the lava search. The staged F121
+trial mined the two missed ore blocks and collected two diamonds. The owner
+kit was verified before restart (`outputs/diamond-150-restart-owner-kit.log`).
+Check the newest snapshot and process before live work. Verify the kit for
+every gameplay login, including trials. Baseline: 512 tests pass.
 
 ## Stable facts and process lessons
 
