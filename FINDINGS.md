@@ -13,10 +13,11 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-12, session end
 
-The 22:14 LAN run used `547ada9` on port 49503, with logs in
-`outputs/2026-11-12@22.14.28/`. The F120 fix passed a staged LAN trial on its
-existing staircase. Check the newest snapshot and process before live work.
-Verify the owner's kit before starting any live bot, including test logins.
+AdvancementBot resumed on `f0a8ab0` on LAN port 49503, PID 6832, with logs in
+`outputs/2026-11-12@22.52.48/`. The F120 fix passed a staged LAN trial on the
+existing staircase. The owner kit was supplied and verified before the restart
+(`outputs/owner-kit-f120.json`). Check the newest snapshot and process before
+live work. Verify the owner's kit for every gameplay login, including trials.
 Baseline: 509 tests pass. The digest above the index is about 250 lines.
 
 ## Stable facts and process lessons
