@@ -13,12 +13,12 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-12, session end
 
-AdvancementBot resumed on `6ee25ea` on LAN port 49503, PID 8923, with logs in
-`outputs/2026-11-12@23.13.28/`. It earned Hot Stuff before restart and resumed
-the water search. The original blocked lava scoop passed a staged trial
-(F122). The owner kit was verified before restart
-(`outputs/lava-77-restart-owner-kit.log`). Verify the newest process, snapshot
-and owner kit before live work. Baseline: 513 tests pass.
+AdvancementBot resumed on `1b234a6` on LAN port 49503, PID 10487, with logs in
+`outputs/2026-11-12@23.26.13/`. The bot lost its kit in the staircase fall
+(F124), failed three recovery trips and repeatedly returned to water. The
+command helper relocated it near spawn before restarting, after verifying the
+owner's kit. Armor crafting before Hot Stuff passed a staged trial (F123).
+Verify the newest process, snapshot and owner kit. Baseline: 515 tests pass.
 
 ## Stable facts and process lessons
 
@@ -389,5 +389,5 @@ Highest risk first.
 - F120 Cooking furnace obstructed the stairs and was left outside night shelter [live failure + regression + staged]
 - F121 Diamond under an overhang lost after path failures [live failure + regression + staged]
 - F122 Deepslate blocked a lava bucket's centre ray [live failure + regression + staged]
-- F123 Diamond armor now interrupts routine work [live delay + regression]
+- F123 Diamond armor now interrupts routine work [live delay + regression + staged]
 - F124 Fatal fall during a deferred water search [live failure + regression]

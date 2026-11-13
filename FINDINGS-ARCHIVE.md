@@ -2904,6 +2904,11 @@ including netherite upgrades. Craft before routine work and equip through the
 existing armor action. Threats and an inventory with no free slot still take
 precedence. Three updated regressions fail on the previous source.
 
+On LAN 49503, ArmorTrial2 crafted and wore all four pieces before Hot Stuff
+using 24 of 32 supplied diamonds. The successful setup used spare crafting
+tables because the earlier trial failed to reclaim its table after leggings.
+See `outputs/diamond-armor-live-results.json` for setup commands and results.
+
 ## F124 — Water search deferred after stair failures; berry detour preceded a fatal fall
 
 At (32,-3,490), two stair-jump attempts timed out and a floor placement was

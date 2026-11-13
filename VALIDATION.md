@@ -82,7 +82,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Empty-inventory start through Suit Up (10 adv. in 28 min) | live | F057 |
 | Iron pick priority, axe, shovel, rebuild after tool loss | live | F043–F045, F049, F095 |
 | Full iron set, diamond pick/sword, Cover Me with Diamonds | live | F029, F031, F065 |
-| Crafting and wearing diamond armor before Hot Stuff | automated | F123 |
+| Crafting and wearing diamond armor before Hot Stuff | automated / staged | F123 |
 | Rejecting unsupported jump landings; dry berry approaches and pickup | automated | F124 |
 | Diamond interrupt, probe-exposed ore, dig-exposed vein ore | live / staged | F031, F054, F079, F100 |
 | Remembered diamond behind an overhang, stair approach and pickup | automated / staged on original vein | F121 |
