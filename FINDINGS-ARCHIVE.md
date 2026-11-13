@@ -3202,3 +3202,19 @@ seagrass, tall seagrass, kelp and kelp plants as water, as well as anything
 waterlogged. The land check, `standsOnLand` and the F133 eye-in-water check
 all use it. The regression test fails on the pre-fix source.
 
+Update (same session, user report; world remade, run
+`outputs/2026-11-13@01.28.21/`). The bot spawned on a tree top (oak leaves
+at 60,69,-36, grass at y=62). Every land route failed within milliseconds
+("No path"), because the safe movements never dig straight down and allow at
+most a 2-block drop. The 6-attempt give-up fired after 9 s. The bot then got
+wood and a wooden pickaxe and ended up on a stump in water, with the goal
+gone. User rule: until the bot has stood on dry ground, that stays the
+primary goal. Fix: the give-up is removed, and a failed attempt now scouts
+instead. While the block underfoot is a tree part (leaves, log, wood,
+vines, mangrove roots), `descendFromCanopy` digs it and drops a level, but
+only onto water or a fall of 3 or less, and never onto lava, fire or magma.
+`canopyDescent` lets the dig wrapper mine straight down for this. The land
+trip swims at water cost 1 even when the bot itself is not in water (it was
+on a stump). Regression tests (no lapse, swim cost, canopy descent) fail on
+the pre-fix source.
+

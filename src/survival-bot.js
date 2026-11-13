@@ -101,11 +101,13 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     [Actions.EXPLORE]: 60000
 })
 const STRANDED_TIMEOUT_FACTOR = 4
-// Reach-land goal (F135): ground blocks, search radius in blocks, candidates tried and attempts before giving up.
+// Reach-land goal (F135): ground blocks, search radius in blocks and candidates tried per attempt.
 const LAND_GROUND = /^(dirt|coarse_dirt|rooted_dirt|grass_block|podzol|mycelium|mud|clay|moss_block|sand|red_sand|gravel|stone|cobblestone|mossy_cobblestone|deepslate|andesite|diorite|granite|tuff|calcite|sandstone|red_sandstone|snow_block|.*terracotta)$/
 const LAND_SEARCH_RADIUS = 48
 const LAND_CANDIDATES = 32
-const LAND_ATTEMPTS = 6
+// Tree blocks dug through to leave a canopy or stump, and the most levels dug in one action.
+const TREE_PART = /_(leaves|log|wood)$|^(vine|mangrove_roots|cocoa)$/
+const CANOPY_LEVELS = 12
 // Building blocks dug after swimming to land, matching the dirt carry limit.
 const LAND_BLOCK_STOCK = 16
 // Low-air cutoff in bubbles (the breath handler surfaces at 12); one bubble is 15 ticks of air.
@@ -708,7 +710,7 @@ class SurvivalController {
                     throw new Error('dig cancelled while waiting for ground')
                 }
             }
-            if (block?.boundingBox === 'block' && isUnderFeet(this.bot, block.position) &&
+            if (block?.boundingBox === 'block' && isUnderFeet(this.bot, block.position) && !this.canopyDescent &&
                 !placedOnSupport(this.memory, dimension, this.bot, block)) {
                 await this.stepOffBlock(block)
             }
@@ -3712,32 +3714,78 @@ class SurvivalController {
         const open = p => this.bot.blockAt(p, false)?.boundingBox === 'empty' && !wet(p)
         // Dry pockets below the swamp surface still touch water and never count as land (live 06:15Z).
         const dryStand = feet => open(feet) && open(feet.offset(0, 1, 0)) && SIDES.every(([dx, dz]) => !wet(feet.offset(dx, 0, dz)))
+        if (TREE_PART.test(this.bot.blockAt(this.bot.entity.position.floored().offset(0, -1, 0), false)?.name ?? '')) {
+            await this.descendFromCanopy()
+            if (this.standsOnLand()) {
+                return
+            }
+        }
         const spots = this.bot.findBlocks({ matching: ids, maxDistance: LAND_SEARCH_RADIUS, count: LAND_CANDIDATES,
             useExtraInfo: block => dryStand(block.position.offset(0, 1, 0)) && !this.isBlockedTarget({ position: block.position }) })
         this.landSwam = true
         const signal = this.actionAbort?.signal
-        for (const floor of spots.slice(0, 3)) {
-            this.checkAction(signal)
-            try {
-                this.log.info(`Reach-land goal: heading for ${this.bot.blockAt(floor, false)?.name} at ${floor}.`)
-                await this.gotoWithTimeout(new goals.GoalBlock(floor.x, floor.y + 1, floor.z), 20000, 'reach land')
-                if (this.standsOnLand()) {
-                    return
-                }
-            } catch (error) {
+        // A land trip crosses water by design: at the usual 3 per step a stump in a swamp ran out of
+        // path budget after ~16 cells. The goal never lapses until the bot stands on ground (user, F135).
+        const active = this.bot.pathfinder?.movements
+        const liquidCost = active?.liquidCost
+        if (active) {
+            active.liquidCost = 1
+        }
+        try {
+            for (const floor of spots.slice(0, 3)) {
                 this.checkAction(signal)
-                this.rememberBlockedTarget({ position: floor }, 'land', error)
+                try {
+                    this.log.info(`Reach-land goal: heading for ${this.bot.blockAt(floor, false)?.name} at ${floor}.`)
+                    await this.gotoWithTimeout(new goals.GoalBlock(floor.x, floor.y + 1, floor.z), 20000, 'reach land')
+                    if (this.standsOnLand()) {
+                        return
+                    }
+                } catch (error) {
+                    this.checkAction(signal)
+                    this.rememberBlockedTarget({ position: floor }, 'land', error)
+                }
+            }
+            this.landFailures = (this.landFailures || 0) + 1
+            this.log.warn(`Reach-land attempt ${this.landFailures} found no route${spots.length ? '' : ' (no dry ground loaded)'}; scouting.`)
+            await this.scout(36)
+        } finally {
+            if (active) {
+                active.liquidCost = liquidCost
             }
         }
-        this.landFailures = (this.landFailures || 0) + 1
-        if (this.landFailures >= LAND_ATTEMPTS) {
-            this.landPending = false
-            this.log.warn(`Reach-land goal abandoned after ${LAND_ATTEMPTS} attempts; resuming normal work.`)
-            return
+    }
+
+    // Spawned on a tree (live 06:28Z, oak leaves at y=69 over grass at y=62): safe movements never dig
+    // straight down, so every land route failed. Dig the tree block underfoot while the landing is safe.
+    async descendFromCanopy () {
+        const signal = this.actionAbort?.signal
+        for (let level = 0; level < CANOPY_LEVELS; level++) {
+            this.checkAction(signal)
+            const feet = this.bot.entity.position.floored()
+            const support = this.bot.blockAt(feet.offset(0, -1, 0), false)
+            if (!TREE_PART.test(support?.name ?? '')) {
+                return level
+            }
+            let drop = 0
+            let landing = this.bot.blockAt(feet.offset(0, -2, 0), false)
+            while (landing && landing.boundingBox === 'empty' && !waterFilled(landing) && drop < 6) {
+                drop++
+                landing = this.bot.blockAt(feet.offset(0, -2 - drop, 0), false)
+            }
+            if (!landing || ['lava', 'fire', 'magma_block'].includes(landing.name) || (drop > 3 && !waterFilled(landing))) {
+                throw new Error(`no safe landing below the ${support.name} at ${support.position}`)
+            }
+            this.log.info(`Descending from a tree: digging ${support.name} at ${support.position}.`)
+            const before = this.bot.entity.position.y
+            this.canopyDescent = true
+            try {
+                await this.bot.dig(support, true)
+            } finally {
+                this.canopyDescent = false
+            }
+            await waitUntil(() => this.bot.entity.position.y < before - 0.6, 3000, 50).catch(() => {})
         }
-        if (!spots.length) {
-            await this.scout(36)
-        }
+        return CANOPY_LEVELS
     }
 
     // Six 45 s walking escapes never left -64,-26,-10 (F132); a failed path carves up and away instead.

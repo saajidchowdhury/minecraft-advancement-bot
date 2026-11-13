@@ -20,7 +20,7 @@ to grass at 94,62,-49 in 29 s, `stock_blocks` dug 16 soil blocks in 38 s,
 and then it earned `story/mine_stone`. Not yet seen live: the F135 trunk
 platform, F127 buckets and berries, F129 disposal zones, F130 standoffs,
 F132 sculk exits. The owner kit was verified before each restart.
-Baseline: 546 tests pass.
+Baseline: 548 tests pass.
 
 ## Stable facts and process lessons
 

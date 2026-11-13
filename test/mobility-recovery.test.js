@@ -482,21 +482,67 @@ test('the reach-land goal heads for the nearest dry ground block and clears once
     assert.equal(c.landPending, false)
 })
 
-test('a reach-land goal with no loaded ground scouts, and gives up after six attempts (F135)', async () => {
+test('a reach-land goal with no loaded ground scouts and never lapses until the bot stands on land (F135)', async () => {
     const { c, bot } = landWorld()
     bot.findBlocks = () => []
     let scouts = 0
     c.scout = async () => { scouts++ }
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 20; i++) {
         await c.reachLand()
     }
-    assert.equal(scouts, 5)
-    assert.equal(c.landPending, true)
-    await c.reachLand()
-    assert.equal(c.landPending, false)
+    assert.equal(scouts, 20)
+    assert.equal(c.landPending, true, 'live 06:28Z: a six-attempt cap dropped the goal after 9 s on a tree top')
+    assert.equal(c.needsLand(), true)
     c.bot.game.dimension = 'the_nether'
-    c.landPending = true
     assert.equal(c.needsLand(), false, 'the goal is Overworld-only')
+})
+
+test('land trips swim at cost 1 even from a stump that is not itself in water (F135)', async () => {
+    const { c, bot, Vec3 } = landWorld()
+    Object.assign(bot.entity, { isInWater: false })
+    const movements = { liquidCost: 3 }
+    bot.pathfinder = { movements }
+    let during = null
+    c.gotoWithTimeout = async g => {
+        during = movements.liquidCost
+        Object.assign(bot.entity, { position: new Vec3(g.x + 0.5, g.y, g.z + 0.5), onGround: true })
+    }
+    await c.reachLand()
+    assert.equal(during, 1)
+    assert.equal(movements.liquidCost, 3)
+})
+
+test('a bot spawned on a tree top digs down through leaves and logs to the ground (F135)', async () => {
+    const { c, bot, Vec3 } = landWorld()
+    const registry = bot.registry
+    const Block = require('prismarine-block')(registry)
+    // Live 06:28Z: spawned on oak leaves at y=69; here the grass is at y=61 under a trunk at x=40.
+    const column = new Map([[68, 'oak_leaves'], [67, 'oak_leaves'], [66, 'oak_log'], [65, 'oak_log'], [64, 'oak_log'], [63, 'oak_log'], [62, 'oak_log']])
+    const removed = new Set()
+    const blockAt = bot.blockAt
+    bot.blockAt = at => {
+        const p = at.floored()
+        const name = p.x === 40 && p.z === 0 && !removed.has(p.y) ? column.get(p.y) : null
+        if (!name) {
+            return blockAt(at)
+        }
+        const b = Block.fromStateId(registry.blocksByName[name].defaultState, 0)
+        b.position = p
+        return b
+    }
+    Object.assign(bot.entity, { position: new Vec3(40.5, 69, 0.5), onGround: true, isInWater: false })
+    const dug = []
+    bot.dig = async block => {
+        assert.equal(c.canopyDescent, true)
+        dug.push(block.name)
+        removed.add(block.position.y)
+        bot.entity.position = bot.entity.position.offset(0, -1, 0)
+    }
+    assert.equal(await c.descendFromCanopy(), 7)
+    assert.deepEqual(dug, ['oak_leaves', 'oak_leaves', 'oak_log', 'oak_log', 'oak_log', 'oak_log', 'oak_log'])
+    assert.equal(bot.entity.position.y, 62)
+    assert.equal(c.standsOnLand(), true)
+    assert.equal(c.canopyDescent, false)
 })
 
 test('a dry pocket below the swamp surface is not land; the dry shore is (F135)', async () => {
