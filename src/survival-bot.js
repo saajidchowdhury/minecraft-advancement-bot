@@ -100,6 +100,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     [Actions.EXPLORE]: 60000
 })
 const STRANDED_TIMEOUT_FACTOR = 4
+const DESTROY_DELAY_MS = 250  // 5 ticks at 20 ticks/s
 // Standoff: a melee mob that gains under 0.5 blocks in 4 s is unreachable for 60 s unless it gains 1 block.
 const STANDOFF_WAIT_MS = 4000
 const STANDOFF_APPROACH = 0.5
@@ -666,7 +667,20 @@ class SurvivalController {
                 !placedOnSupport(this.memory, dimension, this.bot, block)) {
                 await this.stepOffBlock(block)
             }
+            // Vanilla clients hold the next break 5 ticks after one that took more than a tick; instant
+            // breaks skip it. Without it Efficiency V netherite cut stone 3.5x faster than the owner (F131).
+            const sinceBreakMs = Date.now() - (this.lastTimedBreakAt ?? -Infinity)
+            if (block && this.bot.game.gameMode !== 'creative' && sinceBreakMs < DESTROY_DELAY_MS) {
+                await sleep(DESTROY_DELAY_MS - sinceBreakMs)
+                if (this.actionAbort?.signal.aborted || this.bot.game.dimension !== dimension) {
+                    throw new Error('dig cancelled during the destroy delay')
+                }
+            }
+            const timed = Boolean(block) && (this.bot.digTime?.(block) ?? 0) > 0
             await dig(block, ...args)
+            if (timed) {
+                this.lastTimedBreakAt = Date.now()
+            }
             if (block && this.bot.game.dimension === dimension) {
                 forgetPlacement(this.memory, dimension, block.position)
                 rememberMiningExposure(this, block)

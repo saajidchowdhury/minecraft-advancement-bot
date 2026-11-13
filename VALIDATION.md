@@ -54,7 +54,7 @@ which leaves little room for more comments there.
 | loot | 2 | chest and chest-minecart looting |
 | memory-random | 2 | seeded rng, atomic world memory |
 | mined-ore-recovery | 10 | confirmed diamond memory, alternate stair approaches, cancellation, hidden water, ore drops |
-| mining-timing | 5 | break times for tier ores, landing before digging, bare-hand stone when stranded, enchanted 26.1 tools |
+| mining-timing | 6 | break times for tier ores, landing before digging, bare-hand stone when stranded, enchanted 26.1 tools, 5-tick destroy delay |
 | mobility-recovery | 17 | unstick, shaft and pillar detection, safe drops, heap guard, sky-bound surface scouts |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |

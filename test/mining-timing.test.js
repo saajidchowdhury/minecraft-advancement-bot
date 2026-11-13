@@ -37,6 +37,8 @@ test('Mineflayer sends finish at the pickaxe break time for tier-restricted ores
     ]) {
         const block = target(name)
         bot.heldItem = held(tool)
+        // Spend the 5-tick destroy delay owed by the previous break (F131).
+        t.mock.timers.tick(250)
         packets.length = 0
         const dig = bot.dig(block, 'ignore')
         t.mock.timers.tick(expectedMs - 1)
@@ -121,4 +123,36 @@ test('an enchanted netherite pickaxe from 26.1 item components digs at its effic
     t.mock.timers.tick(1)
     assert.deepEqual(packets, [['block_dig', 0], ['block_dig', 2]])
     await dig
+})
+
+test('the next break waits the vanilla 5 ticks after a timed break but not after an instant one (F131)', async t => {
+    const { bot, held, target, packets } = diggingBot(t)
+    bot.heldItem = held('stone_pickaxe')
+    const first = bot.dig(target('stone'), 'ignore')
+    t.mock.timers.tick(600)
+    await first
+    packets.length = 0
+    const second = bot.dig(target('stone'), 'ignore')
+    t.mock.timers.tick(249)
+    await Promise.resolve()
+    assert.deepEqual(packets, [])
+    t.mock.timers.tick(1)
+    for (let i = 0; i < 5; i++) { await Promise.resolve() }
+    assert.deepEqual(packets, [['block_dig', 0]])
+    t.mock.timers.tick(600)
+    await second
+    // A 250 ms gap spent elsewhere owes nothing; grass breaks instantly and leaves no delay behind.
+    t.mock.timers.tick(250)
+    packets.length = 0
+    const grass = bot.dig(target('short_grass'), 'ignore')
+    for (let i = 0; i < 5; i++) { await Promise.resolve() }
+    assert.deepEqual(packets.slice(0, 1), [['block_dig', 0]])
+    t.mock.timers.tick(50)
+    await grass
+    packets.length = 0
+    const after = bot.dig(target('short_grass'), 'ignore')
+    for (let i = 0; i < 5; i++) { await Promise.resolve() }
+    assert.deepEqual(packets.slice(0, 1), [['block_dig', 0]])
+    t.mock.timers.tick(50)
+    await after
 })

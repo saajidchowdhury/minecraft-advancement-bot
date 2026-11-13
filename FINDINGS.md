@@ -33,6 +33,8 @@ tests pass.
   `close` event (F078) and an `air_supply` guard so other entities' air is not
   read as the bot's (F099). A prismarine-item patch normalizes 26.1 component
   enchantments to `[{ name, lvl }]`; enchanted tools broke dig timing (F128).
+  Digs wait the vanilla 5 ticks (250 ms) after any break that took more than
+  one tick; instant breaks owe nothing (F131).
 - Launch with `./scripts/run.sh [port]` (Node 22+, `.tools/` runtime).
   `MC_WORLD_ID` labels memory in `.state/`; a changed seed hash clears saved
   coordinates. One unexplained reset on the same world is in F071 (F002).
@@ -412,3 +414,4 @@ Highest risk first.
 - F128 Enchanted tools crashed dig timing on 26.1 item components [live failure + regression]
 - F129 Surface scouts walked down own stairs; placements overlapped the bot; lane tosses re-collected [live failure + staged + regression]
 - F130 Unreachable zombie froze repeated fights [live failure + regression]
+- F131 Vanilla 5-tick destroy delay between timed breaks [user report + regression]

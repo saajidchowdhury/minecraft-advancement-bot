@@ -3060,3 +3060,23 @@ Archers are never stood down, since they shoot across gaps. Regression:
 `test/survival-safety.test.js` fails on the pre-fix source. Not yet seen
 live.
 
+## F131 — Vanilla 5-tick destroy delay between timed breaks
+
+User report: with the same Efficiency V netherite pickaxe, the owner mines
+stone noticeably slower than the bot carves stairs. Per-block break times
+already matched vanilla: Mineflayer uses the game formula (multiplier 9 plus
+level squared plus 1), giving 100 ms for stone, 150 ms for deepslate and
+350 ms airborne. The Java protocol has the client decide when a break
+finishes, and the server only rejects a finish that comes much too early. The
+gap is the vanilla client's `destroyDelay`: after a break that took more
+than one tick, the next block waits 5 ticks (250 ms) while attack is held.
+Mineflayer skips it, so the bot needed about 0.10 s per stone block against
+the player's 0.35 s, about 3.5x faster; the live stairs showed about 20
+blocks in 3.6 s. Instant breaks (where `digTime` returns 0) set no delay,
+as in vanilla. The user asked to match vanilla. The `bot.dig` wrapper now
+waits until 250 ms have passed since the last timed break, and time spent
+walking counts toward the wait. Regression in `test/mining-timing.test.js`
+fails on the pre-fix source. The tier-timing test now lets the delay pass
+between blocks. Expected cost: Efficiency V netherite on stone goes from
+0.10 to 0.35 s per block, and a stone pickaxe from 0.60 to 0.85 s.
+
