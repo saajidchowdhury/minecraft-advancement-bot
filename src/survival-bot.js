@@ -104,7 +104,9 @@ const STRANDED_TIMEOUT_FACTOR = 4
 // Reach-land goal (F135): ground blocks, search radius in blocks and candidates tried per attempt.
 const LAND_GROUND = /^(dirt|coarse_dirt|rooted_dirt|grass_block|podzol|mycelium|mud|clay|moss_block|sand|red_sand|gravel|stone|cobblestone|mossy_cobblestone|deepslate|andesite|diorite|granite|tuff|calcite|sandstone|red_sandstone|snow_block|.*terracotta)$/
 const LAND_SEARCH_RADIUS = 48
-const LAND_CANDIDATES = 32
+const LAND_CANDIDATES = 256
+// Exposed ground blocks a connected land mass needs to count as land rather than an island (user).
+const LARGE_LAND_BLOCKS = 1000
 // Tree blocks dug through to leave a canopy or stump, and the most levels dug in one action.
 const TREE_PART = /_(leaves|log|wood)$|^(vine|mangrove_roots|cocoa)$/
 const CANOPY_LEVELS = 12
@@ -450,6 +452,7 @@ class SurvivalController {
         this.bot.on('spawn', () => {
             this.landPending = true
             this.landFailures = 0
+            this.landMassMemo = null
         })
         this.bot.on('death', () => {
             const endermanDeath = Boolean(this.endermanThreat && this.endermanThreat.dimension === this.bot.game?.dimension)
@@ -3627,8 +3630,51 @@ class SurvivalController {
         }
         const feet = entity.position.floored()
         const body = this.bot.blockAt(feet, false)
-        return !waterFilled(body) &&
-            LAND_GROUND.test(this.bot.blockAt(feet.offset(0, -1, 0), false)?.name ?? '')
+        return !waterFilled(body) && LAND_GROUND.test(this.bot.blockAt(feet.offset(0, -1, 0), false)?.name ?? '') &&
+            this.landMassSize(feet.offset(0, -1, 0)) >= LARGE_LAND_BLOCKS
+    }
+
+    // Exposed ground: a natural ground block under a dry, empty cell.
+    exposedGround (p) {
+        const above = this.bot.blockAt(p.offset(0, 1, 0), false)
+        return LAND_GROUND.test(this.bot.blockAt(p, false)?.name ?? '') && above?.boundingBox === 'empty' &&
+            above.name !== 'lava' && !waterFilled(above)
+    }
+
+    // Iterative DFS over exposed ground joined by faces, edges or corners (26-neighbourhood), stopped at
+    // the large-mass threshold; every visited cell shares the result, so an island is searched once (user, F135).
+    landMassSize (start) {
+        this.landMassMemo ??= new Map()
+        const key = p => `${p.x},${p.y},${p.z}`
+        if (this.landMassMemo.has(key(start))) {
+            return this.landMassMemo.get(key(start))
+        }
+        if (!this.exposedGround(start)) {
+            return 0
+        }
+        const visited = new Set([key(start)])
+        const stack = [start]
+        while (stack.length && visited.size < LARGE_LAND_BLOCKS) {
+            const p = stack.pop()
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dz = -1; dz <= 1; dz++) {
+                        const n = p.offset(dx, dy, dz)
+                        if ((dx || dy || dz) && !visited.has(key(n)) && this.exposedGround(n)) {
+                            visited.add(key(n))
+                            stack.push(n)
+                        }
+                    }
+                }
+            }
+        }
+        if (this.landMassMemo.size > 200000) {
+            this.landMassMemo.clear()
+        }
+        for (const cell of visited) {
+            this.landMassMemo.set(cell, visited.size)
+        }
+        return visited.size
     }
 
     needsLand () {
@@ -3720,8 +3766,10 @@ class SurvivalController {
                 return
             }
         }
+        // A tiny island counted as land (live 06:36Z); only ground joined to 1000 exposed blocks qualifies.
         const spots = this.bot.findBlocks({ matching: ids, maxDistance: LAND_SEARCH_RADIUS, count: LAND_CANDIDATES,
             useExtraInfo: block => dryStand(block.position.offset(0, 1, 0)) && !this.isBlockedTarget({ position: block.position }) })
+            .filter(floor => this.landMassSize(floor) >= LARGE_LAND_BLOCKS)
         this.landSwam = true
         const signal = this.actionAbort?.signal
         // A land trip crosses water by design: at the usual 3 per step a stump in a swamp ran out of

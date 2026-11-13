@@ -639,3 +639,35 @@ test('dirt under seagrass is not land, because seagrass is always full of water 
     await c.reachLand()
     assert.deepEqual([goal.x, goal.y, goal.z], [22, 62, 0])
 })
+
+test('a small island is not land; the goal targets and completes only on a mass of 1000 exposed blocks (F135)', async () => {
+    const { c, bot, Vec3 } = landWorld()
+    const registry = bot.registry
+    const Block = require('prismarine-block')(registry)
+    const blockAt = bot.blockAt
+    // User 06:36Z: the first grass reached was a tiny island. Here a 3x3 grass island tops out at y=62.
+    const island = p => p.x >= 8 && p.x <= 10 && p.z >= -1 && p.z <= 1 && p.y >= 61 && p.y <= 62
+    bot.blockAt = at => {
+        const p = at.floored()
+        if (!island(p)) {
+            return blockAt(at)
+        }
+        const b = Block.fromStateId(registry.blocksByName[p.y === 62 ? 'grass_block' : 'dirt'].defaultState, 0)
+        b.position = p
+        return b
+    }
+    assert.equal(c.landMassSize(new Vec3(9, 62, 0)), 9)
+    assert.equal(c.landMassSize(new Vec3(10, 62, 1)), 9, 'every island cell shares the first search')
+    assert.ok(c.landMassSize(new Vec3(25, 61, 0)) >= 1000)
+    Object.assign(bot.entity, { position: new Vec3(9.5, 63, 0.5), onGround: true, isInWater: false })
+    assert.equal(c.standsOnLand(), false, 'standing on the island does not complete the goal')
+    Object.assign(bot.entity, { position: new Vec3(3.5, 61, 0.5), onGround: false, isInWater: true })
+    let goal = null
+    c.gotoWithTimeout = async g => {
+        goal = g
+        Object.assign(bot.entity, { position: new Vec3(g.x + 0.5, g.y, g.z + 0.5), onGround: true, isInWater: false })
+    }
+    await c.reachLand()
+    assert.ok(goal.x > 20, `targeted the mainland, not the island (goal x=${goal.x})`)
+    assert.equal(c.needsLand(), false)
+})

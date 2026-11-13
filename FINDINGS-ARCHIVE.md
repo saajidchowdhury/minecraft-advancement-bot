@@ -3218,3 +3218,16 @@ trip swims at water cost 1 even when the bot itself is not in water (it was
 on a stump). Regression tests (no lapse, swim cost, canopy descent) fail on
 the pre-fix source.
 
+Update (same session, user direction): the 06:36Z live "land" at 63,62,-4
+was a tiny island. Land now means a ground block in a large land mass.
+`landMassSize` runs an iterative DFS over exposed ground (a ground block
+under a dry, empty cell) joined by faces, edges or corners (26 neighbours).
+It stops at 1000, and every visited cell shares the result, so an island is
+searched only once. Reach-land candidates (now up to 256 within 48 blocks)
+must belong to a mass of at least 1000, and `standsOnLand` requires one too,
+so standing on an island no longer completes the goal. Live inspection
+(`outputs/inspect-land-mass.js`, `outputs/land-mass.log`): 63,62,-4 was in
+a mass of 2 and 68,62,-3 in one of 11. Of 202 candidates near the stump, 118
+lay on large masses; the nearest was 91,62,-53. The search took 727 ms. The
+regression test fails on the pre-fix source.
+

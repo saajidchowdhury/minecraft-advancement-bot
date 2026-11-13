@@ -20,7 +20,7 @@ and the bot ended up on a stump in water. On restart it dug the stump, swam
 to grass at 63,62,-4 in 29 s and started `stock_blocks` (unaided). The owner
 kit was given in full on the new world, then verified. Not yet seen live: the
 F135 trunk platform and full canopy descent, F127 buckets and berries, F129
-disposal zones, F130 standoffs, F132 sculk exits. Baseline: 548 tests pass.
+disposal zones, F130 standoffs, F132 sculk exits. Baseline: 549 tests pass.
 
 ## Stable facts and process lessons
 
