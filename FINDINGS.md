@@ -13,18 +13,19 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-12, session end
 
-AdvancementBot resumed on `a581a73` on LAN port 49503, PID 10912, with logs in
-`outputs/2026-11-12@23.28.48/`. It is rebuilding after the staircase fall
-(F124) and is running the updated cleanup rules (F125). The owner kit was
-verified before restart. Verify the newest process, snapshot and owner kit.
-Baseline: 515 tests pass.
+AdvancementBot resumed on `4a0d52f` on LAN port 49503, PID 13564, with logs in
+`outputs/2026-11-12@23.49.25/`. It is pickless (1 plank, no sticks) in its
+y=31 night shelter at -4,31,-46 and should dig out and carve to the surface by
+hand at dawn (F126). The owner kit was verified before restart. Verify the
+newest process, snapshot and owner kit. Baseline: 521 tests pass.
 
 ## Stable facts and process lessons
 
 - Java 26.1.2, protocol 775. Mineflayer 4.39.0 uses its `26.1` data
   (`src/config.js`). Pinned registry errors are corrected locally for the
   obsidian tool speed (F053) and 108 blocks wrongly tagged
-  `incorrect_for_wooden_tool` (F105). The game rule is `keep_inventory` (F101).
+  `incorrect_for_wooden_tool` (F105). `keep_inventory` is false in the LAN world (queried
+  2026-11-12); staged trials enable it and cleanup restores it (F101).
 - The `patch-package` Mineflayer patch covers mixed-plank crafting, the window
   `close` event (F078) and an `air_supply` guard so other entities' air is not
   read as the bot's (F099).
