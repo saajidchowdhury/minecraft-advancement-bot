@@ -3100,3 +3100,22 @@ treat a zone as off-limits. Regression in `test/sculk-caution.test.js`
 (geometry, a real `mineTunnel` climbing out, flee fallback) fails on the
 pre-fix source. Not yet seen live.
 
+## F133 — Submerged log dig retried after every breath
+
+Live, new world on port 50636, run `outputs/2026-11-13@00.44.57/` (started
+outside this session), 05:45Z. The fresh bot had empty hands, and its nearest
+oak had its trunk under water at 72,61..63,-35. It dug bare-handed while
+submerged. Mineflayer's dig time is 3 s by hand, 5x slower with the eye in
+water and 5x again while floating. The air guard cancelled the dig at 12
+bubbles, `surface_for_air` took a breath, and `gather_wood` chose the same
+log again. This repeated every ~8 s, and the cancelled dig restarted from zero
+each time. A cancel is an abort, so `gatherWood` never blocked the tree.
+Fix: before a collection dig, `collectTarget` compares `bot.digTime` with
+`submergedAirMs`: the bubbles left above the 12-bubble cutoff times 750 ms,
+or Infinity with the eye out of water. A longer dig throws "underwater dig
+... needs Ns", and `gatherWood` then blocks the whole trunk for 120 s like
+any other failure. A stone axe under water (about 3.75 s) still fits within
+6 s of air. Regression in `test/leaf-vision.test.js` fails on the pre-fix
+source. Its world fixture now floors positions, as Mineflayer's `blockAt`
+does. Not yet seen live.
+

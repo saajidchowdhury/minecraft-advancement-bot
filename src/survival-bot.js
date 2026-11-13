@@ -100,6 +100,9 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     [Actions.EXPLORE]: 60000
 })
 const STRANDED_TIMEOUT_FACTOR = 4
+// Low-air cutoff in bubbles (the breath handler surfaces at 12); one bubble is 15 ticks of air.
+const LOW_AIR_BUBBLES = 12
+const BUBBLE_MS = 750
 const DESTROY_DELAY_MS = 250  // 5 ticks at 20 ticks/s
 // Standoff: a melee mob that gains under 0.5 blocks in 4 s is unreachable for 60 s unless it gains 1 block.
 const STANDOFF_WAIT_MS = 4000
@@ -160,6 +163,15 @@ function droppedItemGoal (entity) {
 
 // Steer away from melee inside 2.5 blocks using back/strafe controls relative to the facing set by
 // lookAt, choosing the safest-footed direction most opposed to the threats; null releases controls.
+// Air left before the low-air cutoff; Infinity while the eye is out of water.
+function submergedAirMs (bot) {
+    const eye = bot.blockAt(bot.entity.position.offset(0, 1.62, 0), false)
+    if (eye?.name !== 'water' && eye?.getProperties?.().waterlogged !== true) {
+        return Infinity
+    }
+    return Math.max(0, (bot.oxygenLevel ?? 20) - LOW_AIR_BUBBLES) * BUBBLE_MS
+}
+
 function kite (c, threats, range = 2.5) {
     const bot = c.bot
     const here = bot.entity.position
@@ -620,7 +632,7 @@ class SurvivalController {
             }
         })
         this.bot.on('breath', () => {
-            if (!this.running || this.paused || this.bot.health <= 0 || !(this.bot.oxygenLevel <= 12) ||
+            if (!this.running || this.paused || this.bot.health <= 0 || !(this.bot.oxygenLevel <= LOW_AIR_BUBBLES) ||
                 ['surface_for_air', 'escape_lava', 'clear_head'].includes(this.activeAction) || this.actionAbort?.signal.aborted) {
                 return
             }
@@ -1957,6 +1969,13 @@ class SurvivalController {
                 }
                 if (!block.canHarvest(this.bot.heldItem?.type)) {
                     throw new Error(`missing harvesting tool for ${block.name}`)
+                }
+                // A low-air cancel restarts a dig from zero: a bare-hand oak log under water (5x slower,
+                // 5x again afloat) was retried after every breath (F133). Refusing it blocks the tree.
+                const digMs = this.bot.digTime?.(block) ?? 0
+                const airMs = submergedAirMs(this.bot)
+                if (digMs > airMs) {
+                    throw new Error(`underwater dig of ${block.name} needs ${(digMs / 1000).toFixed(1)}s; ${(airMs / 1000).toFixed(1)}s of air left`)
                 }
                 if (block.material === 'mineable/axe') {
                     this.log.debug?.(`Breaking ${block.name} with ${this.bot.heldItem?.name || 'bare hands'}.`)

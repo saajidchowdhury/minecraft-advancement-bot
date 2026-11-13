@@ -12,7 +12,9 @@ const { SurvivalController } = require('../src/survival-bot')
 
 function leafWorld(entries) {
     const cells = new Map(entries.map(([p, name]) => [p.toString(), name]))
-    const getBlock = p => {
+    // Like Mineflayer's blockAt, fractional positions resolve to their containing cell.
+    const getBlock = at => {
+        const p = at.floored()
         const b = Block.fromStateId(data.blocksByName[cells.get(p.toString()) || 'air'].defaultState, 0)
         b.position = p
         return b
@@ -135,4 +137,39 @@ test('an entity is seen when only a hitbox corner clears a wall, and a block is 
     assert.equal(blockInView(glass.bot, glass.bot.blockAt(new Vec3(3, 65, 0))), true)
     const { canSeeBlock } = require('../src/vision')
     assert.equal(canSeeBlock(glass.bot, glass.bot.blockAt(new Vec3(3, 65, 0))), true)
+})
+
+test('a submerged log is refused when its dig outlasts the air above the low-air cutoff (F133)', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] })
+    // Live 05:45Z: a bare-hand oak log under water was cancelled at 12 bubbles after every breath.
+    const target = new Vec3(2, 65, 0)
+    const water = [new Vec3(0, 64, 0), new Vec3(0, 65, 0), new Vec3(1, 65, 0)].map(p => [p, 'water'])
+    const { bot, cells } = leafWorld([...water, [target, 'oak_log']])
+    bot.heldItem = null
+    bot.oxygenLevel = 20
+    bot.canDigBlock = () => true
+    bot.tool = { equipForBlock: async () => {} }
+    let dug = 0
+    bot.dig = async b => { dug++; cells.set(b.position.toString(), 'air') }
+    const blocked = []
+    const c = { bot, running: true, paused: false, actionAbort: new AbortController(), movements: { safeToBreak: () => true }, log: { debug() {} },
+        visibleDrops: () => [], rememberBlockedTarget: (block, label, error) => blocked.push(error.message),
+        gotoWithTimeout: async () => assert.fail('approached a reachable log') }
+    const collect = async () => {
+        const operation = SurvivalController.prototype.collectTarget.call(c, bot.blockAt(target)).catch(error => error)
+        for (let i = 0; i < 20; i++) { await Promise.resolve(); t.mock.timers.tick(1000) }
+        return operation
+    }
+    bot.digTime = () => 15000
+    const refused = await collect()
+    assert.match(refused?.message ?? '', /underwater dig of oak_log needs 15.0s; 6.0s of air left/)
+    assert.equal(dug, 0)
+    bot.digTime = () => 3750
+    assert.equal(await collect(), undefined)
+    assert.equal(dug, 1)
+    cells.set(target.toString(), 'oak_log')
+    cells.set(new Vec3(0, 65, 0).toString(), 'air')
+    bot.digTime = () => 15000
+    assert.equal(await collect(), undefined, 'a long dig with the eye above water is fine')
+    assert.equal(dug, 2)
 })

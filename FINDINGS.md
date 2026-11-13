@@ -22,7 +22,7 @@ itself by blocking steps; the name "air" suggests the check sees a falling
 block entity over an empty cell. Not yet live-verified: F127 buckets and
 berries, F129 disposal zones and surface scouts, F130 standoffs. The owner
 kit was verified before restart. Verify the newest process, snapshot and
-owner kit. Baseline: 533 tests pass.
+owner kit. Baseline: 534 tests pass.
 
 ## Stable facts and process lessons
 
@@ -418,3 +418,4 @@ Highest risk first.
 - F130 Unreachable zombie froze repeated fights [live failure + regression]
 - F131 Vanilla 5-tick destroy delay between timed breaks [user report + regression]
 - F132 Sculk zone blocked every tunnel step, including the way out [live failure + regression]
+- F133 Submerged log dig retried after every breath [live failure + regression]
