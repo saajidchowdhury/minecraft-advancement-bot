@@ -503,13 +503,22 @@ test('land trips swim at cost 1 even from a stump that is not itself in water (F
     const movements = { liquidCost: 3 }
     bot.pathfinder = { movements, searchRadius: 48 }
     let during = null
-    c.gotoWithTimeout = async g => {
+    let timeoutMs = null
+    c.gotoWithTimeout = async (g, ms) => {
+        timeoutMs = ms
         during = [movements.liquidCost, bot.pathfinder.searchRadius]
-        Object.assign(bot.entity, { position: new Vec3(g.x + 0.5, g.y, g.z + 0.5), onGround: true })
+        Object.assign(bot.entity, { position: new Vec3(g.x + 0.5, g.y, g.z + 0.5), onGround: true, isInWater: false })
     }
     await c.reachLand()
     assert.deepEqual(during, [1, 192], 'cheap water and room for a long swim (live 06:46Z: 42 blocks failed at 48)')
     assert.deepEqual([movements.liquidCost, bot.pathfinder.searchRadius], [3, 48])
+    // Live 06:56Z: a fixed 20 s ran out on arrival after a 32-block swim; trips get 1.2 s a block, 20 s at least.
+    const from = new Vec3(3.5, 61, 0.5)
+    assert.equal(Math.round(timeoutMs), Math.round(Math.max(20000, 1200 * from.distanceTo(new Vec3(22, 61, 0)))))
+    Object.assign(bot.entity, { position: new Vec3(-30.5, 61, 0.5), onGround: false, isInWater: true })
+    c.landPending = true
+    await c.reachLand()
+    assert.ok(timeoutMs >= 1200 * 50, `a ${Math.round(timeoutMs / 1200)}-block swim gets 1.2 s a block`)
 })
 
 test('a bot spawned on a tree top digs down through leaves and logs to the ground (F135)', async () => {

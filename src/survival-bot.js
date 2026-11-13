@@ -105,6 +105,7 @@ const STRANDED_TIMEOUT_FACTOR = 4
 const LAND_GROUND = /^(dirt|coarse_dirt|rooted_dirt|grass_block|podzol|mycelium|mud|clay|moss_block|sand|red_sand|gravel|stone|cobblestone|mossy_cobblestone|deepslate|andesite|diorite|granite|tuff|calcite|sandstone|red_sandstone|snow_block|.*terracotta)$/
 const LAND_SEARCH_RADIUS = 96
 const LAND_PATH_SLACK = 192
+const LAND_TRIP_MS_PER_BLOCK = 1200
 const LAND_CANDIDATES = 256
 // Exposed ground blocks a connected land mass needs to count as land rather than an island (user).
 const LARGE_LAND_BLOCKS = 1000
@@ -3791,7 +3792,9 @@ class SurvivalController {
                 this.checkAction(signal)
                 try {
                     this.log.info(`Reach-land goal: heading for ${this.bot.blockAt(floor, false)?.name} at ${floor}.`)
-                    await this.gotoWithTimeout(new goals.GoalBlock(floor.x, floor.y + 1, floor.z), 20000, 'reach land')
+                    // Swimming covers ~1.5 blocks/s: a fixed 20 s ran out on arrival after a 32-block swim (live 06:56Z).
+                    const ms = Math.max(20000, LAND_TRIP_MS_PER_BLOCK * this.bot.entity.position.distanceTo(floor))
+                    await this.gotoWithTimeout(new goals.GoalBlock(floor.x, floor.y + 1, floor.z), ms, 'reach land')
                     if (this.standsOnLand()) {
                         return
                     }

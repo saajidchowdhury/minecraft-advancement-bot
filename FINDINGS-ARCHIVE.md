@@ -3259,3 +3259,10 @@ mid-jump when `reachLand` checked, so the canopy descent was skipped. It now
 waits up to 1.5 s for the bot to land on ground or water. The regression
 test (real `Movements`) fails on the pre-fix source.
 
+Update (same session). Staged check on `bb6e73b`, port 50902 (teleport into
+the seagrass swamp at 67.5,62,-20.5, then restart): the bot swam from
+72,62,-26 to mainland grass at 93,63,-50, about 32 blocks in 21 s, with no
+stall. The first candidate's fixed 20 s timeout expired on arrival, so a
+land trip now gets 1.2 s per block of straight-line distance, with 20 s as
+the floor.
+

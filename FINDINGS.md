@@ -13,14 +13,12 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13, session end
 
-LAN port 50791. AdvancementBot runs `aca2456`, PID 29420, logs in
-`outputs/2026-11-13@01.49.09/`, Terminal window 592. The reach-land goal
-now needs a 1000-block exposed land mass (F135). On this restart it
-completed on mainland grass at 91,62,-59 and started on wood. An earlier
-42-block land trip stalled while following its path even though a replay
-found the path (F135 archive), so watch long swims. Not yet seen live: the
-F135 trunk platform and full canopy descent, F127 buckets and berries, F129
-disposal zones, F130 standoffs, F132 sculk exits. Baseline: 550 tests pass.
+World remade again; LAN port 50902. A staged swim through the seagrass swamp
+on `bb6e73b` reached mainland in 21 s (F136). The current commit adds
+distance-scaled land-trip timeouts. Restart onto it, then verify the
+process, snapshot and owner kit. Not yet seen live: the F135 trunk platform
+and full canopy descent, F127 buckets and berries, F129 disposal zones, F130
+standoffs, F132 sculk exits. Baseline: 550 tests pass.
 
 ## Stable facts and process lessons
 
