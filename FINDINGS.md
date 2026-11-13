@@ -13,14 +13,14 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13, session end
 
-New world on LAN port 50636. AdvancementBot runs `55f52a4`, PID see
-`outputs/2026-11-13@01.25.28/`, Terminal window 592. Staged check (teleport
-back to its swamp spawn at 73.5,62,-34.5, then restart): `reach_land` swam
-to grass at 94,62,-49 in 29 s, `stock_blocks` dug 16 soil blocks in 38 s,
-and then it earned `story/mine_stone`. Not yet seen live: the F135 trunk
-platform, F127 buckets and berries, F129 disposal zones, F130 standoffs,
-F132 sculk exits. The owner kit was verified before each restart.
-Baseline: 548 tests pass.
+World remade by the user; LAN port 50791. AdvancementBot runs `4cbdbf5`,
+PID 27797, logs in `outputs/2026-11-13@01.35.23/`, Terminal window 592. It
+had spawned on a tree top. Earlier code dropped the reach-land goal after 9 s,
+and the bot ended up on a stump in water. On restart it dug the stump, swam
+to grass at 63,62,-4 in 29 s and started `stock_blocks` (unaided). The owner
+kit was given in full on the new world, then verified. Not yet seen live: the
+F135 trunk platform and full canopy descent, F127 buckets and berries, F129
+disposal zones, F130 standoffs, F132 sculk exits. Baseline: 548 tests pass.
 
 ## Stable facts and process lessons
 
