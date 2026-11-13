@@ -80,7 +80,7 @@ test('a stranded return carves the staircase by hand after the pickaxe-free walk
 test('the pickaxe guard and pathfinder exclusion lift only while stranded', () => {
     const items = stuck([])
     const movements = { bot: { registry: { blocksByName: new Proxy({}, { get: () => ({ id: 1 }) }) }, inventory: { items: () => items } },
-        blocksCantBreak: new Set(), exclusionAreasBreak: [], exclusionAreasStep: [], fences: new Set() }
+        blocksCantBreak: new Set(), exclusionAreasBreak: [], exclusionAreasStep: [], fences: new Set(), liquids: new Set() }
     SurvivalController.prototype.configureSafeMovements.call({}, movements)
     const exclusion = movements.exclusionAreasBreak.at(-1)
     assert.equal(exclusion(rock('stone', new Vec3(0, 0, 0))), 0)

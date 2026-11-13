@@ -671,3 +671,36 @@ test('a small island is not land; the goal targets and completes only on a mass 
     assert.ok(goal.x > 20, `targeted the mainland, not the island (goal x=${goal.x})`)
     assert.equal(c.needsLand(), false)
 })
+
+test('paths treat seagrass and kelp as the water they are, as the physics does (F136)', () => {
+    const { Movements } = require('mineflayer-pathfinder')
+    const { dryMovements } = require('../src/cave-exploration')
+    const { bot, Vec3 } = swampBot()
+    const registry = bot.registry
+    const Block = require('prismarine-block')(registry)
+    const blockAt = bot.blockAt
+    // User 06:51Z: land trips stalled while swimming through seagrass on the swamp floor.
+    bot.blockAt = at => {
+        const p = at.floored()
+        if (p.x >= 0 && p.x <= 20 && p.y === 61) {
+            const b = Block.fromStateId(registry.blocksByName[p.x % 2 ? 'seagrass' : 'kelp_plant'].defaultState, 0)
+            b.position = p
+            return b
+        }
+        return blockAt(at)
+    }
+    const safe = new Movements(bot)
+    assert.equal(safe.getBlock(new Vec3(5, 61, 0), 0, 0, 0).liquid, false, 'the library alone calls seagrass dry')
+    SurvivalController.prototype.configureSafeMovements.call({ memory: {} }, safe)
+    for (const x of [5, 6]) {
+        assert.equal(safe.getBlock(new Vec3(x, 61, 0), 0, 0, 0).liquid, true)
+    }
+    const dry = dryMovements(bot)
+    assert.equal(dry.getBlock(new Vec3(5, 61, 0), 0, 0, 0).liquid, true)
+    assert.ok(dry.blocksToAvoid.has(registry.blocksByName.seagrass.id), 'dry walking avoids it like water')
+    let result = null
+    bot.pathfinder = { movements: safe, goto: async () => { result = swim(safe, bot) } }
+    return SurvivalController.prototype.gotoWithTimeout.call({ bot }, null, 1000, 'test swim').then(() => {
+        assert.equal(result.status, 'success')
+    })
+})

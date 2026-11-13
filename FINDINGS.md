@@ -20,7 +20,7 @@ completed on mainland grass at 91,62,-59 and started on wood. An earlier
 42-block land trip stalled while following its path even though a replay
 found the path (F135 archive), so watch long swims. Not yet seen live: the
 F135 trunk platform and full canopy descent, F127 buckets and berries, F129
-disposal zones, F130 standoffs, F132 sculk exits. Baseline: 549 tests pass.
+disposal zones, F130 standoffs, F132 sculk exits. Baseline: 550 tests pass.
 
 ## Stable facts and process lessons
 
@@ -419,3 +419,4 @@ Highest risk first.
 - F133 Submerged log dig retried after every breath [live failure + regression]
 - F134 Water impassable inside the path cost budget; swamp trees blocked [live failure + inspection + regression]
 - F135 Reach dry land first after every Overworld spawn [user direction + regression]
+- F136 Pathfinder treated seagrass and kelp as air [user report + inspection + regression]

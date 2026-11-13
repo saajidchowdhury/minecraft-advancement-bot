@@ -3241,3 +3241,21 @@ widens the candidate radius to 96 and lands trips' slack to 192 as
 headroom. By the next restart the bot had reached 88,62,-62. It completed the
 goal on grass at 91,62,-59 (a large mass) within 2.5 s and moved on to wood.
 
+## F136 — Pathfinder treated seagrass and kelp as air
+
+User report (run `outputs/2026-11-13@01.50.57/`): land trips stall while the
+bot swims through seagrass. mineflayer-pathfinder `Movements` registers only
+water and lava in `liquids`. Seagrass, tall seagrass, kelp, kelp plant and
+bubble columns have empty collision boxes, so the planner treated them as
+open air and planned walks and jumps through them. prismarine-physics counts
+the same blocks as water (`waterLike`), so the bot was actually swimming,
+could not perform the planned moves, and stalled. This explains the
+unexplained F135 stall, where a replay found the path but the live
+follow-through failed. Fix: `waterPlantsAsWater` adds those blocks to
+`liquids` in `configureSafeMovements` and in `dryMovements`, and
+`dryMovements` also avoids them as it avoids water. Unstick from water lifts
+that avoidance. The same run also spawned the bot on leaves again: it was in
+mid-jump when `reachLand` checked, so the canopy descent was skipped. It now
+waits up to 1.5 s for the bot to land on ground or water. The regression
+test (real `Movements`) fails on the pre-fix source.
+

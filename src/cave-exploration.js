@@ -299,8 +299,21 @@ function findPriorityDiamond(c, range = 16) {
     return block
 }
 
+// The pathfinder knows only water and lava as liquids; seagrass, kelp and bubble columns have empty
+// boxes, so it planned walks and jumps through them while the physics swam, and land trips stalled (F136).
+const WATER_PLANTS = ['seagrass', 'tall_seagrass', 'kelp', 'kelp_plant', 'bubble_column']
+
+function waterPlantsAsWater(movements) {
+    const ids = WATER_PLANTS.map(name => movements.bot.registry.blocksByName[name]?.id).filter(id => id !== undefined)
+    for (const id of ids) {
+        movements.liquids.add(id)
+    }
+    return ids
+}
+
 function dryMovements(bot) {
     const walking = new Movements(bot)
+    const plants = waterPlantsAsWater(walking)
     walking.canDig = false
     walking.allow1by1towers = false
     walking.allowParkour = false
@@ -312,6 +325,9 @@ function dryMovements(bot) {
         if (bot.registry.blocksByName[name]) {
             walking.blocksToAvoid.add(bot.registry.blocksByName[name].id)
         }
+    }
+    if (DANGER.has('water')) {
+        plants.forEach(id => walking.blocksToAvoid.add(id))
     }
     return walking
 }
@@ -428,5 +444,5 @@ async function exploreCave(c, targetY, canEnter = () => true) {
     return moved
 }
 
-module.exports = { safeFooting, findCaveRoute, exploreCave, collectOpportunity, dryMovements, oreSeen, miningSight, minedPassage, visibleMiningHazard,
+module.exports = { waterPlantsAsWater, WATER_PLANTS, safeFooting, findCaveRoute, exploreCave, collectOpportunity, dryMovements, oreSeen, miningSight, minedPassage, visibleMiningHazard,
     rememberMiningExposure, exposedByDig, exposedDiamond, findPriorityDiamond, findPriorityOre, IRON_ORES }

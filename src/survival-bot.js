@@ -14,7 +14,7 @@ const { AdvancementTracker } = require('./advancement-tracker')
 const { installSculkCaution, sculkZoneAt, fleeSculk } = require('./sculk-caution')
 const { FOOD_VALUES, COOKED, furnaceDue, jobDue, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
 const { plankFuelPlan, isFuelPlank } = require('./furnace-fuel')
-const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight, dryMovements, safeFooting,
+const { waterPlantsAsWater, WATER_PLANTS, exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight, dryMovements, safeFooting,
     rememberMiningExposure, exposedByDig, visibleMiningHazard } = require('./cave-exploration')
 const { blockInView, canSeeBlock, sightRay, scanFor } = require('./vision')
 const { findNearbyLoot, lootChest } = require('./loot')
@@ -3479,6 +3479,7 @@ class SurvivalController {
         } else {
             // dryMovements avoids water, which left a bot in a swamp with no first step at all (F134).
             loose.blocksToAvoid.delete(water)
+            WATER_PLANTS.forEach(name => loose.blocksToAvoid.delete(this.bot.registry.blocksByName[name]?.id))
         }
         this.log.warn(`No route out; scouting supported cardinal steps without bridging; maximum drop=${loose.maxDropDown}.`)
         this.bot.pathfinder.setMovements(loose)
@@ -3761,6 +3762,8 @@ class SurvivalController {
         const open = p => this.bot.blockAt(p, false)?.boundingBox === 'empty' && !wet(p)
         // Dry pockets below the swamp surface still touch water and never count as land (live 06:15Z).
         const dryStand = feet => open(feet) && open(feet.offset(0, 1, 0)) && SIDES.every(([dx, dz]) => !wet(feet.offset(dx, 0, dz)))
+        // A bot mid-jump on a canopy has air underfoot and skipped the descent (live 06:51Z).
+        await waitUntil(() => this.bot.entity?.onGround || this.bot.entity?.isInWater, 1500, 50).catch(() => {})
         if (TREE_PART.test(this.bot.blockAt(this.bot.entity.position.floored().offset(0, -1, 0), false)?.name ?? '')) {
             await this.descendFromCanopy()
             if (this.standsOnLand()) {
@@ -3952,6 +3955,7 @@ class SurvivalController {
         // start heuristic, so 50 per water step made a 2-deep swamp impassable from inside it (F134).
         // Land scouting, not this cost, keeps destinations off open ocean.
         movements.liquidCost = SWIM_STEP_COST
+        waterPlantsAsWater(movements)
         movements.infiniteLiquidDropdownDistance = false
     }
 
