@@ -14,14 +14,15 @@ It works on `.js` and `.md` files.
   action. Priorities and alert ranges live here.
 - `src/advancement-plan.js`: route, recipes, `nextAdvancement`, iron reserve cap.
 - `src/advancement-tracker.js`: server advancement packets.
-- `src/survival-bot.js`, class `SurvivalController`, about 3300 lines:
+- `src/survival-bot.js`, class `SurvivalController`, about 4100 lines:
   `bindEvents` (damage, hurt and breath events), `tick`, `observe` (state for
   the planner) and `perform` (action dispatch). Further groups are gathering
   (`gatherWood`, `collectTarget`), furnaces (`smeltIron`, `collectSmelt`),
   combat (`fight`, `fightCreeper`, `takeCover`, `escapeFrom`), endermen,
-  reflexes (`escapeLava`, `surfaceForAir`, `clearHead`), shelter
-  (`makeNightSafe`, `burrow`), stations, and recovery (`unstick`, `scout`,
-  `recoverMobility`).
+  reflexes (`escapeLava`, `surfaceForAir`, `clearHead`), spawn and water
+  (`reachLand`, `landMassSize`, `descendFromCanopy`, `stockBlocks`,
+  `buildLogPlatform`), shelter (`makeNightSafe`, `burrow`), stations, and
+  recovery (`unstick`, `scout`, `recoverMobility`, `fleeSculk`).
 - `src/progression-skills.js`: tunnels (`mineTunnel`, `probeTunnelSides`),
   shafts (`followShaft`, `returnSurface`), buckets and obsidian, the Nether
   portal, disposal (`clearInventory`, `disposalPit`), redstone.
@@ -67,8 +68,9 @@ native portable runtime in `.tools/`, then installed Node, then the Intel
 runtime through Rosetta. `./scripts/bootstrap.sh` downloads and checksums
 Node.js 26.13.0 into `.tools/` and runs `npm ci`. With Node 22 or newer already
 installed, `npm ci` installs the locked dependencies and reapplies the local
-Mineflayer patches, including crafting synchronization and player-only air
-updates.
+patches in `patches/`: Mineflayer (crafting synchronization, player-only air
+updates), mineflayer-pathfinder (landing checks) and prismarine-item (26.1
+component enchantments).
 
 Ctrl-C stops the bot. An ordinary LAN world accepts a distinct offline bot
 username; an authenticated server requires `MC_AUTH=microsoft` and a separate
@@ -142,7 +144,8 @@ Current inventory determines whether lost tools must be rebuilt.
 
 `chooseAction` in `src/decision-engine.js` picks one action per cycle. Food,
 danger, environmental reflexes, recoverable death drops and night protection
-interrupt the route above. A threat cancellation replans after 100 ms, a
+interrupt the route above. After each Overworld spawn, reaching a large land
+mass comes first, after the reflexes (F135). A threat cancellation replans after 100 ms, a
 success after 250 ms, a failure after 1.5 s. Path searches and actions are
 bounded. An operation that refuses cancellation forces a reconnect.
 Minecraft commands for staged tests stay outside the gameplay controller.

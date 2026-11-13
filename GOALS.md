@@ -1,6 +1,6 @@
 # Prioritized development goals
 
-Updated 2026-11-12 (America/New_York). This is a working queue, not a rigid
+Updated 2026-11-13 (America/New_York). This is a working queue, not a rigid
 script. Reorder it when evidence or user instructions change. Keep goal IDs
 stable. When a goal is done, reduce it to one line under "Completed" with its
 evidence reference. Dated session narratives belong in `FINDINGS-ARCHIVE.md`
@@ -10,31 +10,27 @@ playthrough is a test, not the definition of success.
 
 ## Now
 
-1. Live-verify this session's unobserved changes: a revealed-water scoop and
-   `waterInReach` fill (F119), a gravel refill dig and a stopped column fall
-   (F118), night surface work when fully armed (F117), a dig into hidden water
-   followed by a plug (F114). Then cast obsidian toward the portal (G005).
-2. Retreat under ongoing pursuit (F111). A late wave turned a running escape
-   into a wall-refuge search. Rerun `CAVE_SEED=49910 CAVE_MODE=staggered` and the
-   simultaneous creeper cases. Done when both staggered cases end in a kill or
-   a scored escape on the same seed.
-3. Watch natural play for: the creeper duel on poor footing (F112), a furnace job
-   near the iron cap (F108), an unaided dusk descent and stair-side cooking cycle
-   (F120), a diamond approach resumed after a live combat interrupt (F121), and
-   cleanup frequency under the keep rules (F115).
-4. Remaining hidden-data reads: mineflayer-pathfinder's `safeToBreak` still
-   refuses path digs beside hidden liquid (F114). Decide whether to patch it.
-5. Diagnose the inventory loss after warden recovery (F104) and unattributed
-   damage; condense the findings digest back under ~200 lines.
-6. Live-verify the bare-hand escape (F126): the pickless bot in its y=31
-   shelter digs out and carves to the surface for wood. Forced-death
-   respawns are noted in STRATEGY.md for later. The gather_iron "enchantments is not
-   iterable" loop was the user's enchanted pickaxe (fixed, F128). Watch the first natural buckets fill two waters before lava (F127).
-7. Watch live: disposal zones keep the next route off thrown junk (F129),
-   and an unreachable zombie is stood down after 4 s (F130).
-8. Recheck the surface stair at (32,-3,490). The water search deferred after
-   three climb failures. A berry detour preceded a fatal fall. Verify a safe
-   route with the new landing checks (F124).
+1. Fresh-world early game on port 50902 (the world was remade three times on
+   2026-11-13). Watch a natural start end to end with the F133-F136 spawn,
+   water and land handling. Done when a spawn in or near water reaches a
+   large land mass, stocks soil, uses a trunk platform or canopy descent when
+   needed, and matches the F057 pace (ten advancements in 28 min) unaided.
+2. Live-verify the 2026-11-12/13 changes still lacking natural evidence:
+   water buckets before lava and reachable berries (F127), disposal zones and
+   sky-bound surface scouts (F129), melee standoffs (F130), the 5-tick dig
+   delay's cost on throughput (F131), sculk exits (F132), a bare-hand escape
+   (F126). Then cast obsidian toward the portal (G005).
+3. Retreat under ongoing pursuit (F111). Rerun `CAVE_SEED=49910
+   CAVE_MODE=staggered` and the simultaneous creeper cases. Done when both
+   staggered cases end in a kill or a scored escape on the same seed.
+4. Watch natural play for: the creeper duel on poor footing (F112), a furnace
+   job near the iron cap (F108), an unaided dusk descent with stair-side
+   cooking (F120), a diamond approach resumed after combat (F121), cleanup
+   frequency under the keep rules (F115).
+5. Diagnose the self-clearing "falling air above the bot" loop (05:39Z on
+   2026-11-13), the inventory loss after warden recovery (F104) and the
+   unattributed damage. Decide whether to patch the pathfinder's
+   `safeToBreak` reading hidden liquid (F114).
 
 ## Active goals
 

@@ -1,6 +1,6 @@
 # Validation
 
-Updated 2026-11-12 (America/New_York). Host: MacBookPro. Minecraft Java 26.1.2,
+Updated 2026-11-13 (America/New_York). Host: MacBookPro. Minecraft Java 26.1.2,
 LAN protocol 775. Ordinary bot: AdvancementBot. The seeded cave arena uses a
 separate CavePractice player. This file holds the current baseline, what each
 test file covers and the live status of each behavior. Per-change test
@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-515 tests and `npm run check` pass after the F123 armor and F124 landing fixes.
+550 tests and `npm run check` pass after the F126-F136 fixes.
 Run them with the prepared runtime:
 
 ```sh
@@ -22,8 +22,8 @@ or the `# fail 0` line, not a filtered grep (F035, F060). Each regression that
 guards a fix must fail on the pre-fix source. Mocks must mirror the pinned
 library's real shapes (F023). A passing suite never establishes a live
 advancement; only server packets do. Every produced code file stays under 10%
-comment-bearing lines. The highest is `decision-engine.js` at 30/327 (9.2%),
-which leaves little room for more comments there.
+comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
+`decision-engine.js` at 33/346 (9.5%), which leave little room for more there.
 
 ## Test files
 
@@ -99,10 +99,8 @@ none ran during the trial). "Automated" means regression tests only.
 | Shaft climb along a remembered route | live | F033 |
 | Tunnel frontier return and parallel-tunnel merge | live / staged | F088, F098 |
 | Descent merge into an old staircase | automated | F103 |
-| Disposal pit and toss lanes | live | F019, F022 |
-| Clutter cleanup | live | F050 |
+| Disposal pit, toss lanes and clutter cleanup | live | F019, F022, F050 |
 | Keep rules and batch cleanup (1 to 9 free slots in one pass) | live | F115 |
-| Night water-search stall deferred | live | F115 |
 | Line of sight without head turns | automated | F116 |
 | Mining fallback while the water search is deferred | live | F116 |
 | Night surface work when fully armed | automated | F117 |
@@ -114,7 +112,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Staged cave walk with checkpoints and loot | staged | F051 |
 | High-tree pillar | staged | F097 |
 | Water search with a daylight exit | live | F089 |
-| Water-search stall deferral | live | F113 |
+| Water-search stall deferral | live | F113, F115 |
 | Rising staircase crossing its own excavations | automated | F113 |
 | Digging into hidden water and plugging it | live (re-dig loop fixed after, regression only) | F114 |
 | Night water search | automated | F089 |
@@ -140,3 +138,11 @@ none ran during the trial). "Automated" means regression tests only.
 | Continuous ten-obsidian cast, Nether entry and return | not observed | F056, F059 |
 | Take Aim, Enchanter, golem, fishing, breeding | automated | F036, F037, F059 |
 | Redstone demo | automated | G009 |
+| Bare-hand shelter exit and stair carving without a pickaxe | live (out of y=31, six levels) | F126 |
+| Enchanted 26.1 tools at efficiency speed; 5-tick destroy delay | live | F128, F131 |
+| Water buckets before lava, reachable berries, melee standoffs | automated | F127, F130 |
+| Disposal zones, sky-bound surface scouts, self-overlap placement | automated | F129 |
+| Carving out of a sculk zone | live (left the zone 05:39Z) | F132 |
+| Submerged-dig refusal, treading water, swamp swims and logs | live | F133, F134 |
+| Reach land after spawn: large land mass, stump exit, seagrass swim | live stump exit; staged swims | F135, F136 |
+| Trunk platform, full canopy descent, soil stock | automated; stock live | F135 |

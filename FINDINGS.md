@@ -1,6 +1,6 @@
 # Findings
 
-Updated 2026-11-12 (America/New_York). This file is the digest: the current
+Updated 2026-11-13 (America/New_York). This file is the digest: the current
 handoff, stable facts, policies in force, open problems and a one-line index.
 Full evidence for each finding is in `FINDINGS-ARCHIVE.md`; search it by ID
 (`rg -n '^## F112' FINDINGS-ARCHIVE.md`) rather than reading it whole.
@@ -13,273 +13,194 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13, session end
 
-World remade again; LAN port 50902. AdvancementBot runs `331f448`, PID 31317,
-logs in `outputs/2026-11-13@02.00.10/`, Terminal window 592. A staged swim
-through the seagrass swamp on `bb6e73b` reached mainland in 21 s (F136). On
-the latest restart the bot was on grass, completed reach-land at once and is
-going for iron. Verify the newest process, snapshot and owner kit. Not yet seen live: the F135 trunk platform
-and full canopy descent, F127 buckets and berries, F129 disposal zones, F130
-standoffs, F132 sculk exits. Baseline: 550 tests pass.
+The user remade the world three times this session; the latest LAN port is
+50902 (read `MC_PORT` in `.env`). AdvancementBot ran `331f448` (PID 31317, logs
+`outputs/2026-11-13@02.00.10/`, Terminal window 592) on grass, going for iron
+with stone tools. The session fixed stalls from F126 to F136, mostly in
+spawn, water and swamp handling; a staged seagrass swim reached the
+mainland in 21 s (F136). Not yet seen live: the F135 trunk platform and a
+full canopy descent, F127 buckets and berries, F129 disposal zones, F130
+standoffs, F132 sculk exits, F131 pacing over a long dig. Verify the newest
+process, snapshot and owner kit first. Baseline: 550 tests pass.
 
 ## Stable facts and process lessons
 
 - Java 26.1.2, protocol 775. Mineflayer 4.39.0 uses its `26.1` data
-  (`src/config.js`). Pinned registry errors are corrected locally for the
-  obsidian tool speed (F053) and 108 blocks wrongly tagged
-  `incorrect_for_wooden_tool` (F105). `keep_inventory` is false in the LAN world (queried
-  2026-11-12); staged trials enable it and cleanup restores it (F101).
-- The `patch-package` Mineflayer patch covers mixed-plank crafting, the window
-  `close` event (F078) and an `air_supply` guard so other entities' air is not
-  read as the bot's (F099). A prismarine-item patch normalizes 26.1 component
-  enchantments to `[{ name, lvl }]`; enchanted tools broke dig timing (F128).
-  Digs wait the vanilla 5 ticks (250 ms) after any break that took more than
-  one tick; instant breaks owe nothing (F131).
-- Launch with `./scripts/run.sh [port]` (Node 22+, `.tools/` runtime).
-  `MC_WORLD_ID` labels memory in `.state/`; a changed seed hash clears saved
-  coordinates. One unexplained reset on the same world is in F071 (F002).
-- Each run records commit, source hashes, PID, config and UTC events under
-  `outputs/<New York time>/` (F012). A running process never loads later edits.
-  Stop only a verified single bot PID (F021). Do not restart a bot that is
-  standing in water (F065).
-- Only server packets confirm advancements, including AND-of-OR requirements
-  and revocations (F003). Advancements earned with staged supplies are
-  command-assisted, not survival progression (F101, F102).
-- Tests: mocks must mirror the real library's return shapes and container
-  boundaries (F008, F023). `Vec3.normalize` mutates (F090). The pinned
-  pathfinder can resolve an empty no-path as success, so check the final
-  position (F048, F096). `stop()` defers; clear goals with `setGoal(null)` (F004).
-  Gate commits on the `npm test` exit status, not a grep of its output (F035, F060).
-- Staging: space commands 800 ms apart and await replies (F101). Place a floor
-  or glass platform before teleporting (F021, F101). Move observers out
-  before removing structures (F088). Give summoned skeletons an explicit bow
-  (F101). Run staged scripts in the visible Terminal and teleport the owner
-  to a vantage point.
-- Watching: a `Monitor` pipeline ending in `cut` buffers; filter with
-  `grep --line-buffered`. Most diagnoses need only `bot.log` and `state.json`
-  (F060). `state.json` lists carried items, not worn armor (F068).
+  (`src/config.js`). Local registry fixes: obsidian tool speed (F053), 108
+  blocks wrongly tagged `incorrect_for_wooden_tool` (F105). `keep_inventory`
+  is false in the LAN world; staged trials enable it and restore it (F101).
+- `patch-package` patches: Mineflayer (mixed-plank crafting, window `close`
+  F078, `air_supply` guard F099), mineflayer-pathfinder (landing checks), and
+  prismarine-item, which normalizes 26.1 component enchantments to
+  `[{ name, lvl }]` (F128). `patch-package --reverse` reverts every patch;
+  reapply them all afterwards.
+- Pathfinder facts: `searchRadius` (48) is also A*'s cost slack above the start
+  heuristic (F134). Only water and lava are library liquids; seagrass, kelp
+  and bubble columns are added (F136). Movements without `liquids` or
+  `exclusionAreasStep` are not real ones; mocks must carry them.
+- Launch with `./scripts/run.sh [port]`; a changed seed clears saved
+  coordinates (F002, F071). Runs record commit, hashes, PID and events under
+  `outputs/<New York time>/` (F012); a running process never loads later
+  edits. Stop only a verified PID (F021); restart a swimming bot right after a
+  breath (F065, F133).
+- Only server packets confirm advancements (F003). Staged supplies, such as
+  the user's enchanted netherite pickaxe, make progress command-assisted
+  (F101, F102, F128).
+- Tests: mocks mirror the real library: `blockAt` floors positions,
+  `inventory.items()` exists, getPathFromTo is a generator (F008, F023, F133).
+  `Vec3.normalize` mutates (F090). An empty no-path can resolve as success,
+  so check the final position (F048, F096). `stop()` defers; clear goals with
+  `setGoal(null)` (F004). Gate commits on the `npm test` exit status (F035, F060).
+- Staging: space commands 800 ms apart and await replies; place a platform
+  before teleporting; run staged scripts visibly and teleport the owner to a
+  vantage point (F021, F088, F101). Read-only EffectHelper probes replay the
+  bot's path searches on real chunks (F134). Most diagnoses need only
+  `bot.log` and `state.json`, which omits worn armor (F060, F068).
 
 ## Policies in force
 
-Checked against `src/` on 2026-11-12. Named constants are in the cited files.
+Checked against `src/` on 2026-11-13. Named constants are in the cited files.
+
+Spawn, water and land
+- Every Overworld spawn or respawn sets a reach-land goal that never lapses.
+  It ranks after the air, lava, sculk, crowd and melee reflexes and before all
+  work. Land is a ground block (`LAND_GROUND`) under a dry, empty cell, with
+  no water at the feet or beside them, in a land mass of at least 1000
+  exposed blocks joined 26-ways (iterative DFS, `landMassSize`). Candidates
+  come from 96 blocks out, trips swim at water cost 1 with a 192 slack and
+  1.2 s per block, and failures scout. A tree-top or stump spawn digs down
+  through tree blocks onto a safe landing. A bot that swam stocks 16 soil
+  blocks first (F135).
+- Water-filled blocks (water, bubble columns, seagrass, kelp, waterlogged)
+  are water everywhere (`waterFilled`, F135, F136). Water costs 3 per step, or
+  1 while the bot is in water; unstick from water may swim (F134). An idle
+  bot in water holds jump to tread (F134).
+- Collection digs that outlast the air above the 12-bubble cutoff are refused,
+  and a low-air cancel blocks the whole tree (F133, F134). Wood targets only
+  logs that are safe to break; a trunk with no dry footing in reach gets a
+  block on the water surface to stand on (F134, F135).
 
 Planner and gear order
-- The first three ingots make an iron pick at once (F043). After the stone pick
-  come a stone axe and shovel, before ordinary hunting and after rebuilds (F044,
-  F049, F095). No wooden sword (F071). Carried armor and shields equip before
-  tool progression or waiting (F093).
+- The first three ingots make an iron pick (F043). The stone pick is followed
+  by a stone axe and shovel (F044, F049, F095). No wooden sword (F071).
+  Carried armor and shields equip first (F093).
 - Shield, iron sword, then iron-or-better armor before buckets (F071). The
-  first buckets fill two waters before any lava, unless the water search is
-  deferred (F127). A diamond
-  pick at three diamonds and a diamond sword with two spare (F063, F073, F103).
-  Once both tools are ready, craft and equip affordable missing armor before
-  routine work, including during a lava search or diamond detour (F123).
-- Location-bound ingredients (diamonds, obsidian, flint, redstone) precede
-  wood. When a recipe lacks both wood and stone, wood comes first (F021, F057).
-- The iron reserve counts furnace input, raw iron and ingots, and budgets three
-  spare picks, three buckets and missing iron gear (`ironReserveCap`, F108).
-  Visible iron interrupts work below the cap (F071).
-- Daylight mining departure needs 32 log equivalents (`MIN_MINING_WOOD_PLANKS`),
-  then 16 average cooked meats (`MIN_MINING_MEALS`, about 260.5 hunger plus
-  saturation) (F071, F082). An empty-handed bot builds stone tools and an axe
-  before hunting unless food is 6 or less (F104).
+  first buckets fill two waters before lava unless the water search is
+  deferred (F127). A diamond pick at three diamonds, a diamond sword with two
+  spare, then affordable armor before routine work (F063, F073, F103, F123).
+- Location-bound ingredients precede wood; wood precedes stone when a recipe
+  lacks both (F021, F057). The iron reserve counts furnace input and budgets
+  three spare picks, three buckets and missing gear (`ironReserveCap`, F108).
+- Mining departure needs 32 log equivalents and 16 average cooked meats
+  (`MIN_MINING_WOOD_PLANKS`, `MIN_MINING_MEALS`; F071, F082). An empty-handed
+  bot builds stone tools and an axe before hunting unless food is 6 or less (F104).
 
 Mining and tunnels
-- A bot with no pickaxe and too little wood to craft one (`pickaxeStranded`)
-  digs stone, cobblestone and deepslate (hardness <= 3.5, never ore or
-  obsidian) by hand: shelter exit, tunnels, carved return stairs and pathing.
-  Action timeouts scale fourfold while stranded (F126).
-- Targets need line of sight, not field of view (user direction, F116): a line
-  from the eye to any point, edge or corner of the thing that passes no opaque
-  block (leaves and glass are clear), whichever way the bot faces. Searches do
-  not turn the head. Buried ore never steers a tunnel; with
-  no visible iron the bot heads toward Y=16. Ore that its own dig exposed within
-  6 blocks stays a target (F079, F080, F090, F100, F107). A watchdog checks
-  resource walks every 1.5 s for new targets (F073).
-- A confirmed diamond stays a priority within 48 blocks after loss of sight or
-  combat. If dry walking fails, cut toward supported positions on up to four
-  sides. Stand within one block of the ore's height before breaking it so its
-  drop can be reached. A failed round defers the saved target for 120 s (F121).
-- Lava scoops verify a ray from dry ground to the source, including its edges.
-  If a single reachable rock blocks the ray, remove it only from a supported
-  position two or more columns away (F122).
-- Never mine a natural block under the hitbox; step off first. Own placed blocks
-  on sound support are exempt, and pointed dripstone is not a floor (F102).
-- Hazards count only when visible: tunnel steps, probes and exposed ore judge
-  liquid, falling blocks and missing floors by a sight line from the eye
-  (`cellVisible`), never by chunk data behind rock. A dig that opens onto liquid
-  plugs the opening and blocks that step for 120 s (F107, F114), except that
-  water is taken while buckets are short: the bot digs what hides the source,
-  scoops it, then plugs. A visible source in bucket reach outranks iron even
-  while the water search is deferred (`waterInReach`, F119). The pathfinder's
-  own digging (`safeToBreak`) still reads hidden liquid. Gravel and sand matter
-  only above an opened cell: beside a step they are ignored, inside a cell they
-  are dug through, refills are dug again (`settleFalling`), and one seen above
-  the bot's own column refuses the step (F118). Sloped steps blocked by liquid
-  fall back to level side steps (F064).
-  Descents allow at most eight level detours (F094). Digs wait up to 400 ms for
-  footing (F105).
-- A saved frontier and stable heading prevent spirals. Returns reach 48 blocks.
-  Only fresh digs count toward probe spacing, and probe anchors are remembered.
-  Tunnels and staircases merge into parallel old ones (F088, F098, F103).
-- Side probes run every 5 fresh steps, 5 blocks per side (`BOT_PROBE_SPACING`,
-  F052, F087). A stone work pick is required only below 6 iron. Axes and
-  shovels dig their own blocks (F005, F037, F044, F049).
-- Furnaces, barrels and chests are never dug by tunnels or the pathfinder
-  (F042). Stairs through a station are unusable (F062). Survival blocks go on
-  plain supports, or the bot sneaks (F067).
-- Pathfinder jumps must predict a landing on solid ground or in water. Manual
-  stair jumps check the takeoff floor, landing floor and headroom. Berry
-  approaches and pickup use supported dry paths (F124).
-- A completed surface-to-depth descent is stored as a shaft per dimension and
-  climbed cell by cell. A blocked shaft is forgotten (F033).
-- Cave surveys are dry with no digging: 48 steps or 2 min, saved checkpoints,
-  own excavations excluded, torches at least 10 blocks apart (F013, F051, F084, F085).
+- Digs follow vanilla timing plus the 5-tick (250 ms) delay after any break
+  longer than one tick (F131). With no pickaxe and too little wood for one
+  (`pickaxeStranded`), stone and deepslate are dug by hand, never ore or
+  obsidian, with fourfold timeouts (F126).
+- Targets need line of sight, not field of view (F116). Buried ore never steers
+  a tunnel; with no visible iron the bot heads toward Y=16. Ore its own dig
+  exposed within 6 blocks stays a target (F079, F080, F090, F100, F107).
+- A confirmed diamond stays a priority within 48 blocks (F121); lava scoops
+  verify a ray from dry ground (F122). Never mine a natural block under the
+  hitbox except in a canopy descent; a placement overlapping the hitbox
+  centres the bot first (F102, F129, F135).
+- Hazards count only when visible (`cellVisible`). An opened liquid is plugged
+  and blocks that step for 120 s, except water scooped while buckets are
+  short (F107, F114, F119). Gravel matters only above an opened cell (F118).
+  Liquid-blocked slopes take level side steps; descents allow eight level
+  detours (F064, F094).
+- Sculk zones (48 blocks) block steps that do not gain distance from their
+  centre; a failed walking flee carves up and away (F132).
+- Frontiers and merges prevent spirals (F088, F098, F103); probes every 5
+  fresh steps (F052, F087); containers are never dug (F042); shafts are stored
+  (F033); cave surveys are dry and bounded (F013, F051, F084, F085).
 
 Inventory, base and disposal
-- Disposal tries the shielded pit (user technique), then a level or rising toss
-  lane, then retreat, with a 60 s back-off (F019, F022). Cleanup starts at two
-  free slots (`needsCleanup`), merges split stacks, then throws every
-  discardable stack at once (F115). Lane and in-place drops leave a 5 min,
-  radius-3 zone that costs walking routes 20 per step (F129).
-- Carry rules (`src/inventory.js`, F115): at least 64 cobblestone, deepslate or
-  netherrack in total plus 16 dirt; logs 40, fuel 32, gold 8, lapis 8, redstone
-  16, side-goal drops and food; the two best pickaxes, the best other tool of
-  each kind, and armor only if better than what is worn. Cleanup throws wool
-  of every color, leather and wheat seeds (F125), along with other junk such
-  as copper and gunpowder. A full pack with no junk throws
-  one low-priority stack, tries nearby storage, then drops in place (F050).
-- The base is a sealed barrel vault in rock beside a tunnel. Restock needs a
-  carried pickaxe. Carry and restock levels are equal, and side-goal
-  materials stay carried (`src/base.js`, F038, F039, F058, F070). Leather is
-  neither carried nor restocked (F127).
+- Disposal: shielded pit, then toss lane, then retreat; 60 s back-off (F019,
+  F022). Cleanup starts at two free slots and throws every discardable stack
+  (F115). Lane and in-place drops leave a 5 min, radius-3 zone costing walking
+  routes 20 per step (F129).
+- Carry rules (`src/inventory.js`): 64 stone-type blocks plus 16 dirt, logs 40,
+  fuel 32, the two best pickaxes, the best other tool per kind, better armor
+  only. Wool, leather and all seeds are junk (F115, F125, F127).
+- The base is a sealed barrel vault with matching carry and restock levels;
+  leather is neither (F038, F039, F058, F070, F127).
 
 Furnaces, fuel and food
-- Jobs are asynchronous: load everything, keep working, and collect when the fuel
-  runs out (`furnaceDue` from window tick properties) (F037, F103). Memory holds
-  one smelt job and one active cooking job plus parked cooking jobs. Cooking
-  furnaces are not used for iron or charcoal (F103).
-- Smelt and cook jobs are abandoned only beyond 300 blocks. Cooking reach is
-  300 by day on the surface, 64 underground, 8 at night; out-of-reach cooking
-  jobs park (`src/food.js`, F103). A surface cooking job starts only if it
-  finishes before tick 12500. Iron jobs are fetched early only beyond 250
-  blocks. Far returns use normal movement beyond 24 blocks at 400 ms per block
-  and pause after eight failed detours (F104).
-- Carried coal and charcoal come first. Logs become planks only as needed:
-  300 ticks per log or plank, 1600 per charcoal, 200 per item. Charcoal is made
-  up to three at a time (`src/furnace-fuel.js`, F106). A fuel-starved job is
-  ready when carried wood covers it (F103). A dry job without fuel takes its
-  input back (F074).
-- Stocked miners carry raw food to covered ground at Y=47 or lower. New
-  underground cooking furnaces go in a supported recess beside the stair, with
-  room to collect the furnace after breaking it (F120). Urgent meals can cook
-  sooner. Furnace contents count toward the reserve (F103). Underground food
-  taken in passing includes fish, ripe glow berries and up to four stews (F072).
-  A vine counts only with a dry walk of at most 24 moves to a standable cell
-  in reach, found by a 50 ms A* search; others are blocked for 120 s (F127).
-- Hunts prefer axes and wait for charged swings (stone axe 1.25 s). Prey is
-  dropped only after 3 s of terrain occlusion without closing 2 blocks (F095,
-  F103). Low health starts a hunt only below 18 food (F104).
+- Furnace jobs are asynchronous with `furnaceDue`; one smelt job, one active
+  and several parked cooking jobs (F037, F103). Jobs are abandoned beyond 300
+  blocks; cooking reach is 300 by day, 64 underground, 8 at night; surface
+  jobs must finish by tick 12500 (F103, F104).
+- Coal first; logs become planks only as needed; charcoal three at a time
+  (F106); dry jobs take their input back (F074). Underground cooking uses a
+  recess beside the stair (F120). Food in passing: fish, ripe glow berries
+  with a dry walk of at most 24 moves (F127) and up to four stews (F072).
+- Hunts prefer axes and wait for charged swings; prey is dropped after 3 s of
+  occlusion (F095, F103). Low health starts a hunt only below 18 food (F104).
 
 Combat and threats
-- Line-of-sight alerts in any direction: melee 6, creeper 8, archer 12 blocks,
-  with a 100 ms scan (`decision-engine.js`, F109). Attributed hits interrupt work
-  (melee close, archers to 24 blocks); no turn to the bearing is needed (F081, F101, F116).
-- An isolated creeper meets a sword at the edge of reach when HP is at least
-  `CREEPER_DUEL_HP` (12), and the bot backs off farther if it swells (F112).
-  Otherwise it escapes, sealing facing openings, or braces the shield within 4
-  blocks (F020, F062, F109).
-- The bot fights an attacker before eating, rotates between in-reach attackers,
-  and does not eat with melee within 4 (F030, F101). It kites melee-only crowds of up
-  to four when armed, above 10 HP, with no archer within 16 or creeper within 8,
-  and not on a surface night. Three or more visible hostiles otherwise latch a
-  wall-pocket retreat (F094, F101). A cornered escape becomes a fight (F068).
-- A lone archer is charged with the shield cycled 0.6 s up and 0.9 s down
-  (F031, F035, F101). The pillar refuge in `crowd-retreat.js` is not dispatched;
-  it is kept for baiting Nether endermen (F101).
-- Endermen: never face them and never fight; anger or a hit sends the bot to
-  water, a sealed burrow or a side refuge (F086). Sculk or warden alarms record a
-  48-block zone, and the bot sneaks out without drops or breaking sensors (F104).
-- Deaths near crowds, archers or lava skip drop recovery (F029, F069).
+- Line-of-sight alerts: melee 6, creeper 8, archer 12 blocks; attributed hits
+  interrupt work (F081, F101, F109, F116). A lone creeper is duelled at 12 HP
+  or more, otherwise escaped or shielded (F020, F062, F109, F112).
+- The bot fights before eating, rotates swings, kites up to four melee mobs
+  when armed and healthy, and wall-retreats from three or more otherwise
+  (F030, F068, F094, F101). A lone archer is charged with the shield cycled
+  (F031, F035, F101).
+- A melee mob that gains under 0.5 blocks in 4 s while awaited is stood down
+  for 60 s unless it closes 1 block; archers never are (F130).
+- Endermen are avoided, never fought (F086). Deaths near threats or lava skip
+  drop recovery (F029, F069).
 
-Environmental reflexes
-- Lava triggers `escape_lava` (pour water, drive to a dry cell) (F069, F074).
-  Air at 12/20 or less triggers a direct swim until 18 (F065, F091, F099). A
-  block at eye height, or a falling block enclosing the feet, triggers
-  `clear_head` (F069, F118). Critical-health
-  cancellation spares escapes and reflexes (F010, F069). At 6 HP or less the
-  bot rests to 14 when fed and calm (F062).
-- Fall damage, fire, cactus, berry bushes and powder snow have no reflex audit (F069).
-
-Night and shelter
-- No surface work at night unless night-ready: full iron-or-better armor worn,
-  a diamond or netherite sword, a shield equipped and HP above 12
-  (`nightSurfaceReady`, user direction, F117). Such a bot works and searches for
-  water on the surface; a night retreat still shelters it. Underground mining
-  continues at 12 HP as displayed (`state.health >= 11.5`); below that the bot
-  shelters and waits (F071, F104). Other bots' night surface trips shelter
-  underground instead (F035). Long restocks wait for
-  daylight (F070). Surface exploration and water search outdoors are
-  daytime only (F089).
-- Shelters are 1x2 rooms (23-block surface enclosure, burrow, enderman refuge),
-  verified from blocks and rechecked (F009, F102). The bot sleeps only while
-  the configured owner is observably sleeping, Overworld only (F017).
-
-Navigation and recovery
-- Generic scaffolding is off. Escape and pursuit walk dry. Unstick never
-  bridges or digs and never runs with a hostile within 8 (F094, F101). Scouts
-  use `GoalNearXZ` (F025). High logs use eye-based reach and a pillar of at
-  most 5 blocks (F097).
-- A pickless bot climbs to surface level by pathfinding. Failed climbs pause
-  for 30 s, and the surface never starts a lateral scout (F062, F110).
-  `return_surface` never escalates to a drop-down unstick (F070).
-- Path searches and actions are bounded. An operation that refuses cancellation
-  forces a reconnect before the next action starts (F004).
-- Rising tunnel steps may cross old excavations sideways; level and falling steps
-  may not. Three in-place `fill_water_bucket` failures defer the water and portal
-  route for 5 min (`WATER_DEFER_MS`), since that action has no other recovery (F113).
-  While deferred, a bot with nothing else to do mines for diamonds until it holds
-  16 (`DEFERRED_DIAMONDS`, F116).
+Environmental reflexes, night and recovery
+- `escape_lava`, a swim at 12/20 air until 18, and `clear_head` for blocks at
+  eye height (F065, F069, F074, F091, F099, F118). At 6 HP or less the bot rests
+  to 14 when fed and calm (F062). Fall, fire, cactus and powder snow have no
+  reflex audit (F069).
+- Surface work at night needs full iron-or-better armor, a diamond sword, a
+  shield and HP above 12 (`nightSurfaceReady`, F117). Underground mining
+  continues to 12 HP (F071, F104). Shelters are verified 1x2 rooms; sleep only
+  while the owner sleeps (F009, F017, F102).
+- Surface scouts that start under open sky stay there (F129). Unstick never
+  bridges and never runs with a hostile within 8 (F094, F101). High logs use
+  eye-based reach and pillars of at most 5 (F097). Pickless climbs pause 30 s
+  between failures (F062, F110). Three in-place water-search failures defer
+  the water and portal route 5 min (`WATER_DEFER_MS`, F113, F116).
 
 ## Open problems and unverified behavior
 
 Highest risk first.
-0. A night water search at (305,10,-106) hit the 12 s movement watchdog three
-   times with no log line saying what it was doing. The deferral contains it,
-   but it will retry every 5 min (F113). Digging into hidden lava is now
-   possible, as for a player; the plug and the lava reflex are the only
-   defences (F114).
-1. Retreat under pursuit: reinforcements during an escape turned it into a
-   wall-refuge search and one death. The staggered cases were not rerun after
-   the F112 duel (F111).
-2. Creepers in mixed groups: all four simultaneous creeper cases timed out (F111).
+1. Swamp and spawn handling is new and mostly staged: the trunk platform, a
+   full canopy descent and island rejection need natural evidence (F135, F136).
+   A "falling air above the bot" loop (05:39Z) cleared itself, unrecorded.
+2. Retreat under pursuit and creepers in mixed groups failed staged cases
+   (F111). The night water search watchdog stall is contained but unexplained
+   (F113); digging into hidden lava relies on the plug and reflex (F114).
 3. Missing natural evidence: crowd retreat with an obstructed seal (F094), the
-   creeper duel on rough ground (F112), a deep-dark flee (F104), a night burrow,
-   1x2 shelter and `mine_from_shelter` (F102), an axe kill (F095), a high-tree
-   pillar (F097), a cave survey and return (F013, F051).
-4. Unexplained: inventory loss after the warden recovery (F104), an unattributed
-   16 HP hit at 07:59:04Z on 2026-11-11, the F071 memory reset, and a path into
-   lava (F074).
-5. Skeleton shielding should react to blocked arrows, not a timer. The bot also
-   tunnelled perpendicular in a hallway trial (F101).
-6. Regression-only: wood-only furnace jobs and multi-charcoal batches (F106),
-   Take Aim and Enchanter (F059), golem (F037), fishing and breeding (F036), a
-   continuous ten-obsidian cast and Nether entry (F053, F056), base restock
-   after a death (F034, F039).
-7. Unmeasured throughput: probe spacing (F006) and site relocation (G012).
+   creeper duel on rough ground (F112), burrows and `mine_from_shelter` (F102),
+   a high-tree pillar (F097), a cave survey (F013, F051), sculk exits (F132).
+4. Unexplained: inventory loss after the warden recovery (F104), an
+   unattributed 16 HP hit (2026-11-11), the F071 memory reset, a path into lava
+   (F074).
+5. Skeleton shielding should react to blocked arrows, not a timer (F101).
+6. Regression-only: multi-charcoal jobs (F106), Take Aim and Enchanter (F059),
+   golem (F037), fishing and breeding (F036), a ten-obsidian cast and Nether
+   entry (F053, F056), base restock after a death (F034, F039), bare-hand
+   escape over a long climb (F126). Forced-death respawns are only an idea
+   (STRATEGY.md).
 
 ## Progress records
 
-- Fresh world 55502, unaided: ten advancements in 28 min with no deaths, then
-  Diamonds! at about 45 min (F057).
-- A bare rebuild reached full iron in about 29 min, and Cover Me with Diamonds
-  44 min after an empty respawn (F031).
+- Unaided: ten advancements in 28 min, Diamonds! at about 45 min (F057); a
+  bare rebuild to full iron in 29 min (F031).
 - Confirmed live at least once: story root, Stone Age, Getting an Upgrade,
   Acquire Hardware, Isn't It Iron Pick, Suit Up, Hot Stuff, Diamonds!, Cover
   Me with Diamonds, Not Today Thank You, Adventure, Monster Hunter, Husbandry,
   A Seedy Place. Staged only: Sweet Dreams (F017), Ice Bucket Challenge (F053).
-- Deaths come from survival gaps more than missing features: 13 on 2026-11-05
-  (F023–F035) and 13 on 2026-11-06 (F062–F076), then F081, F086, F094, F100,
-  F102, F104, F109 and F111.
+- Deaths come from survival gaps: 13 on 2026-11-05 (F023–F035), 13 on
+  2026-11-06 (F062–F076), then F081 through F124.
 
 ## Index
 
