@@ -111,11 +111,11 @@ const STATIONARY_ACTIONS = new Set([
     'clear_inventory', 'loot_chest', 'smelt_charcoal', 'craft_progression', 'enchant_item', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', Actions.SHELTER
 ])
 
-const OPPORTUNISTIC = new Set(['mine_iron', 'pick_glow_berries', 'hunt_fish', 'gather_mushroom_stew'])
+const OPPORTUNISTIC = new Set(['mine_iron', 'mine_diamond', 'pick_glow_berries', 'hunt_fish', 'gather_mushroom_stew'])
 // Long resource walks that yield when a priority target appears; the user saw the bot walk past
 // iron and glow berries mid-action, and the next decision would have taken them (17:23Z).
 const INTERRUPTIBLE = new Set([Actions.WOOD, Actions.STONE, Actions.COAL, Actions.IRON, Actions.FOOD, Actions.SMELT_IRON,
-    Actions.EXPLORE, 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'return_surface'])
+    Actions.EXPLORE, 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'fill_lava_bucket', 'return_surface'])
 
 // Home anchors surfaceY. A login underground (after a memory reset, 17:11Z at Y=-19) gives a
 // provisional sea-level home that the first open-sky position above Y=50 replaces.
@@ -1886,12 +1886,22 @@ class SurvivalController {
                     continue
                 }
                 const ore = block.name.endsWith('_ore')
+                const diamond = label === 'priority diamond'
                 const aim = () => ore && miningSight(this, block, 4.5)
                 let sight = aim()
-                if (!this.bot.canDigBlock(block) || (!sight && !canSeeBlock(this.bot, block))) {
+                if (!this.bot.canDigBlock(block) || (!sight && !canSeeBlock(this.bot, block)) ||
+                    (diamond && (block.position.y > this.bot.entity.position.y + 1 || isUnderFeet(this.bot, block.position)))) {
                     const view = { raycast: (from, direction, range) => sightRay(this.bot, from, direction, range) }
                     const goal = reachGoal(block.position, view)
-                    await this.gotoWithTimeout(goal, 10000, 'resource approach')
+                    if (diamond) {
+                        const visibleFrom = goal.isEnd.bind(goal)
+                        goal.isEnd = cell => block.position.y <= cell.y + 1 && !cell.offset(0, -1, 0).equals(block.position) &&
+                            safeFooting(this.bot, cell) && visibleFrom(cell)
+                    }
+                    await this.gotoWithTimeout(goal, diamond ? 4000 : 10000, 'resource approach')
+                    if (diamond && !goal.isEnd(this.bot.entity.position.floored())) {
+                        throw new Error('no supported view of the diamond was reached')
+                    }
                     block = this.bot.blockAt(entry.position)
                     if (!block || block.type !== entry.type) {
                         continue
@@ -1946,7 +1956,7 @@ class SurvivalController {
                 await sleep(300)
             }
         } catch (error) {
-            if (!signal?.aborted) {
+            if (!signal?.aborted && label !== 'priority diamond') {
                 this.rememberBlockedTarget(anchor, label, error)
             }
             throw error

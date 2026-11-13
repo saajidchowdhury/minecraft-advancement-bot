@@ -7,6 +7,7 @@ const { storeOverflowAtBase } = require('./base')
 const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight, minedPassage, exposedDiamond, findPriorityDiamond,
     findPriorityOre, IRON_ORES, visibleMiningHazard } = require('./cave-exploration')
 const { scanFor, canSeeBlock, cellVisible } = require('./vision')
+const { isUnderFeet } = require('./under-feet')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
 const { isFuelPlank, isCharcoalLog, furnaceFuelTicks, plankFuelPlan, preparePlankFuel } = require('./furnace-fuel')
 
@@ -418,7 +419,7 @@ async function climbStep(c, target) {
     }
 }
 
-async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
+async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, diamond = null) {
     const bot = c.bot
     const tool = miningPickaxe(c)
     const start = bot.entity.position.floored()
@@ -427,7 +428,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
     }
     await bot.equip(tool, 'hand')
     check(c)
-    if (targetY < start.y && c.memory.surfaceByStaircase) {
+    if (!diamond && targetY < start.y && c.memory.surfaceByStaircase) {
         c.memory.surfaceByStaircase = false
         c.memory.mineRoute = []
     }
@@ -468,6 +469,9 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
     for (let step = 0; step < 4; step++) {
         check(c)
         const feet = bot.entity.position.floored()
+        if (diamond && (feet.equals(heading) || diamond.canMine())) {
+            return
+        }
         let target = null
         const forward = frontier?.direction ?? (c.memory.mineDirection || 0)
         const directionOrder = (heading ? [0, 1, 2, 3] : [0, 1, 3]).map(turn => (forward + turn) % 4)
@@ -499,6 +503,10 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
         for (const [index, dy] of merge ? [] : slopes.flatMap(dy => directionOrder.map(i => [i, dy]))) {
             const [dx, dz] = DIRECTIONS[index]
             const candidate = feet.offset(dx, dy, dz)
+            if (diamond && (candidate.distanceTo(heading) >= feet.distanceTo(heading) ||
+                candidate.offset(0, -1, 0).equals(diamond.position))) {
+                continue
+            }
             if (undergroundOnly && openToSky(bot, candidate.offset(0, dy === 0 ? 2 : 3, 0))) {
                 continue
             }
@@ -547,6 +555,9 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
             : (target.y > feet.y ? [feet.offset(0, 3, 0), feet.offset(0, 2, 0), target.offset(0, 2, 0), target.offset(0, 1, 0), target] : [target.offset(0, 1, 0), target])
         for (const p of cells) {
             check(c)
+            if (diamond?.position.equals(p)) {
+                return
+            }
             if (!safeTunnelStep(bot, feet, target)) {
                 throw new Error('tunnel conditions changed')
             }
@@ -572,7 +583,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
                     }
                     await plugRevealed(c, p, revealed, target)
                 }
-                if (c.findNearestBlock && exposedDiamond(c, p) && c.canPursueDiamond?.() !== false && findPriorityDiamond(c)) {
+                if (!diamond && c.findNearestBlock && exposedDiamond(c, p) && c.canPursueDiamond?.() !== false && findPriorityDiamond(c)) {
                     c.log.info('Tunnel dig exposed diamond ore; yielding to collect it.')
                     return
                 }
@@ -588,6 +599,9 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
                 await climbStep(c, target)
             } else {
                 await c.gotoWithTimeout(new goals.GoalBlock(target.x, target.y, target.z), 8000, 'tunnel step')
+            }
+            if (diamond && !bot.entity.position.floored().equals(target)) {
+                throw new Error('diamond staircase step was not reached')
             }
         } catch (error) {
             c.rememberBlockedTarget?.({ position: target }, 'tunnel step', error)
@@ -609,13 +623,13 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
         if (c.memory.minedCells.size > 4096) {
             c.memory.minedCells.delete(c.memory.minedCells.values().next().value)
         }
-        if (c.activeAction !== 'return_surface' && c.findNearestBlock && c.canPursueDiamond?.() !== false &&
+        if (!diamond && c.activeAction !== 'return_surface' && c.findNearestBlock && c.canPursueDiamond?.() !== false &&
             (findPriorityDiamond(c) || (c.ironWanted && findPriorityOre(c, IRON_ORES)))) {
             c.log.info('Priority ore came into view; leaving the tunnel segment to mine it.')
             return
         }
         // Walking an old tunnel digs nothing and must not re-probe beside earlier probes (01:40Z).
-        if (dugFresh && target.y === feet.y && Math.abs(targetY - target.y) <= 8 && c.probeSpacing > 0) {
+        if (!diamond && dugFresh && target.y === feet.y && Math.abs(targetY - target.y) <= 8 && c.probeSpacing > 0) {
             c.memory.probeSteps = (c.memory.probeSteps || 0) + 1
             if (c.memory.probeSteps >= c.probeSpacing && !nearProbe(c, target)) {
                 c.memory.probeSteps = 0
@@ -630,6 +644,57 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false) {
     c.log.info(`Tunnel: Y ${start.y} -> ${bot.entity.position.y.toFixed(1)}; target Y=${targetY}.`)
     if (bot.entity.position.y < start.y) {
         rememberShaft(c)
+    }
+}
+
+async function mineRememberedDiamond(c, block = findPriorityDiamond(c)) {
+    if (!block) {
+        return
+    }
+    const bot = c.bot
+    const saved = c.memory.diamondTargets[bot.game.dimension]
+    const p = block.position
+    const canMine = () => p.y <= bot.entity.position.y + 1 && !isUnderFeet(bot, p) && bot.canDigBlock(block) &&
+        !visibleMiningHazard(bot, p) && Boolean(miningSight(c, block, 4.5))
+    c.log.info(`Priority diamond: ${block.name} at ${p}.`)
+    bot.pathfinder.setMovements(dryMovements(bot))
+    try {
+        if (canMine() || saved.side == null) {
+            try {
+                await c.collectTarget(block, block, 'priority diamond')
+                return
+            } catch (error) {
+                check(c)
+                c.log.info(`Diamond approach to ${p} failed: ${error.message}`)
+            }
+        }
+        const here = bot.entity.position.floored()
+        const sides = DIRECTIONS.map(([dx, dz]) => p.offset(dx, -1, dz))
+        const first = saved.first ??= sides.reduce((best, point, i) => here.distanceTo(point) < here.distanceTo(sides[best]) ? i : best, 0)
+        const side = saved.side ??= 0
+        const heading = sides[(first + [0, 1, 3, 2][side]) % 4]
+        c.log.info(`Trying diamond staircase ${side + 1}/4 toward ${heading}.`)
+        try {
+            await mineTunnel(c, heading.y, heading, false, { position: p, canMine })
+            if (canMine()) {
+                await c.collectTarget(block, block, 'priority diamond')
+                return
+            }
+            const feet = bot.entity.position.floored()
+            if (!feet.equals(heading) && feet.distanceTo(heading) < here.distanceTo(heading)) {
+                return
+            }
+        } catch (error) {
+            check(c)
+            c.log.info(`Diamond staircase toward ${heading} failed: ${error.message}`)
+        }
+        saved.side++
+        if (saved.side >= 4) {
+            Object.assign(saved, { side: 0, first: null, retryAt: Date.now() + 120000 })
+            c.log.warn(`No safe approach to diamond at ${p}; keeping it for a later retry.`)
+        }
+    } finally {
+        bot.pathfinder.setMovements(c.movements)
     }
 }
 
@@ -761,13 +826,14 @@ async function followShaft(c, direction) {
 async function gatherDeep(c, names) {
     const bot = c.bot
     const feet = bot.entity.position.floored()
-    const block = await scanFor(c, () => c.findNearestBlock(name => names.includes(name), 24, {
+    const diamond = names.includes('diamond_ore')
+    const block = diamond ? findPriorityDiamond(c, 24) : await scanFor(c, () => c.findNearestBlock(name => names.includes(name), 24, {
         sight: b => miningSight(c, b, 24),
         filter: b => (b.position.x !== feet.x || b.position.z !== feet.z) &&
             !visibleMiningHazard(bot, b.position)
     }))
     if (block) {
-        return c.collectTarget(block, block, block.name)
+        return diamond ? mineRememberedDiamond(c, block) : c.collectTarget(block, block, block.name)
     }
     const targetY = bot.game.minY < 0 ? -54 : 11
     if (bot.entity.position.y > targetY + 8 && await followShaft(c, 'down')) {
@@ -1753,15 +1819,14 @@ async function performProgression(c, action, state) {
             return c.bot.equip(c.bestItem(['shield']), 'off-hand')
         case 'fill_lava_bucket': return fillLavaBucket(c)
         case 'fill_water_bucket': return fillWaterBucket(c)
-        case 'mine_diamond':
+        case 'mine_diamond': return mineRememberedDiamond(c)
         case 'mine_iron': {
-            const ore = action.slice(5)
-            const block = ore === 'iron' ? findPriorityOre(c, IRON_ORES) : findPriorityDiamond(c)
+            const block = findPriorityOre(c, IRON_ORES)
             if (!block) {
                 return
             }
-            c.log.info(`Priority ${ore}: ${block.name} at ${block.position}.`)
-            return c.collectTarget(block, block, `priority ${ore}`)
+            c.log.info(`Priority iron: ${block.name} at ${block.position}.`)
+            return c.collectTarget(block, block, 'priority iron')
         }
         case 'gather_diamonds': return gatherDeep(c, ['diamond_ore', 'deepslate_diamond_ore'])
         case 'gather_redstone': return gatherDeep(c, ['redstone_ore', 'deepslate_redstone_ore'])

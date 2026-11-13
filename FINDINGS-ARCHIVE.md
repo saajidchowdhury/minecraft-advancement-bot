@@ -2843,3 +2843,30 @@ furnace. See `outputs/cooking-recess-verified.json` for commands and source
 hashes. Position and supplies were staged. Placement, cooking and collection
 ran without commands. Both focused regressions failed before the fix and all
 509 tests pass. The owner's kit requirement now explicitly covers test logins.
+
+## F121 — A diamond below an overhang was forgotten after failed approaches
+
+LAN 49503, `outputs/2026-11-12@22.14.28/bot.log`. At 03:38:13Z the bot
+selected (150,7,258) from (141,-1,263) and timed out in 10 s after reaching
+(150,3,259). At 03:40:49Z it saw the same ore and got `No path to the goal`.
+Each failure blacklisted the block for 120 s. A creeper interrupted nearby
+work, then the bot collected its iron and resumed lava search. The planner
+remembered the progression objective but had no saved coordinates for the ore.
+
+Inspection found two ore blocks at (150,7,258–259). Real block shapes and
+pathfinder replay on the saved terrain showed that the old approach tried a
+combined climb and dig under the overhang. The exact live jump trace was
+not logged. The planner now saves a confirmed target per dimension through
+occlusion, interruptions and failed approaches. It tries a supported dry walk,
+then bounded stair segments from up to four sides, approaching the ore's
+height before breaking it. After all sides fail, it saves the target and waits
+120 s before retrying. A lava search can yield when the target becomes ready.
+
+On the actual vein, staged position and tools reproduced the lost sight.
+The first trial switched approaches and broke (150,7,258), but the drop
+landed overhead. After adding the height check, the next trial approached
+(150,7,259) from Y=3, reached (151,6,259), broke the second block and picked up
+two diamonds. No commands assisted movement, mining or pickup after setup.
+Evidence: `outputs/diamond-150-first-results.json` and
+`outputs/diamond-150-live-results.json`. Combat cancellation was verified in
+regression, not staged on the live vein.

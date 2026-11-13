@@ -275,7 +275,28 @@ function findPriorityOre(c, ores, range = 16) {
 }
 
 function findPriorityDiamond(c, range = 16) {
-    return findPriorityOre(c, DIAMOND_ORES, range)
+    const bot = c.bot
+    const targets = c.memory.diamondTargets ??= {}
+    const dimension = bot.game.dimension
+    const saved = targets[dimension]
+    if (saved) {
+        const position = new Vec3(saved.x, saved.y, saved.z)
+        const block = bot.blockAt(position, false)
+        if (block && !DIAMOND_ORES.includes(block.name)) {
+            delete targets[dimension]
+        } else if (block && bot.entity.position.distanceTo(position) <= 48 && !(saved.retryAt > Date.now()) &&
+            !c.isBlockedTarget?.(block) && !visibleMiningHazard(bot, position) &&
+            bot.inventory.items().some(item => item.name.endsWith('_pickaxe') && block.canHarvest(item.type))) {
+            return block
+        }
+    }
+    const block = findPriorityOre(c, DIAMOND_ORES, range)
+    if (!block || (saved?.retryAt > Date.now() && block.position.equals(saved))) {
+        return null
+    }
+    const { x, y, z } = block.position
+    targets[dimension] = { x, y, z }
+    return block
 }
 
 function dryMovements(bot) {

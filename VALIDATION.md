@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-509 tests and `npm run check` pass after the F120 cooking fix.
+512 tests and `npm run check` pass after the F121 diamond approach fix.
 Run them with the prepared runtime:
 
 ```sh
@@ -52,7 +52,7 @@ which leaves little room for more comments there.
 | leaf-vision | 8 | leaf-transparent rays, overhead trunks, moving drops |
 | loot | 2 | chest and chest-minecart looting |
 | memory-random | 2 | seeded rng, atomic world memory |
-| mined-ore-recovery | 7 | dig-exposed ore, hidden water, corner approach, out-of-view drops |
+| mined-ore-recovery | 10 | confirmed diamond memory, alternate stair approaches, cancellation, hidden water, ore drops |
 | mining-timing | 3 | break times for tier ores, landing before digging |
 | mobility-recovery | 16 | unstick, shaft and pillar detection, safe drops, heap guard |
 | night-policy | 10 | night work versus shelter, crowds, beds |
@@ -83,6 +83,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Iron pick priority, axe, shovel, rebuild after tool loss | live | F043–F045, F049, F095 |
 | Full iron set, diamond pick/sword, Cover Me with Diamonds | live | F029, F031, F065 |
 | Diamond interrupt, probe-exposed ore, dig-exposed vein ore | live / staged | F031, F054, F079, F100 |
+| Remembered diamond behind an overhang, stair approach and pickup | automated / staged on original vein | F121 |
 | Async smelting, plank fuel, one-charcoal batch | live | F037, F041, F106 |
 | Wood-only cooking job, log-to-plank fuel, multi-charcoal | automated | F106 |
 | Cooking cycle with parking and underground night cooking | live | F103 |

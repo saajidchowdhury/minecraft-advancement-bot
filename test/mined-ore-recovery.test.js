@@ -6,7 +6,8 @@ const { Vec3 } = require('vec3')
 const Block = require('prismarine-block')('26.1')
 const WorldSync = require('prismarine-world/src/worldsync')
 const data = require('minecraft-data')('26.1')
-const { findPriorityOre, IRON_ORES, miningSight, rememberMiningExposure } = require('../src/cave-exploration')
+const { findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight, rememberMiningExposure } = require('../src/cave-exploration')
+const { performProgression } = require('../src/progression-skills')
 const { SurvivalController } = require('../src/survival-bot')
 
 // Inspected live cells at 01:59Z around (371,17,270): a 1-high probe corridor at y=17, x=371,
@@ -26,12 +27,88 @@ function oreWorld(cells = new Map(), position = new Vec3(371.5, 17, 270.5)) {
         inventory: { items: () => [{ name: 'iron_pickaxe', type: data.itemsByName.iron_pickaxe.id }] }
     }
     const c = { bot, memory: {}, isBlockedTarget: () => false }
-    c.findNearestBlock = (match, range, options) => [...cells].filter(([, n]) => n === 'iron_ore')
+    c.findNearestBlock = (match, range, options) => [...cells].filter(([, n]) => match(n))
         .map(([k]) => getBlock(new Vec3(...k.slice(1, -1).split(', ').map(Number))))
         .filter(b => match(b.name) && b.position.distanceTo(bot.entity.position) <= range && options.filter(b) && options.sight(b))
         .sort((a, b) => a.position.distanceTo(bot.entity.position) - b.position.distanceTo(bot.entity.position))[0] || null
     return { c, bot, cells, getBlock, set }
 }
+
+test('a confirmed diamond survives lost sight and dimension changes without revealing other ore', () => {
+    const { c, bot, set } = oreWorld(new Map(), new Vec3(150.5, 5, 260.5))
+    const target = new Vec3(150, 7, 258)
+    set(150, 7, 258, 'diamond_ore')
+    set(150, 7, 259, 'air')
+    set(150, 6, 260, 'air')
+    set(150, 7, 260, 'air')
+    assert.deepEqual(findPriorityDiamond(c)?.position, target)
+    set(150, 7, 259, 'stone')
+    set(150, 7, 257, 'diamond_ore')
+    assert.equal(miningSight(c, bot.blockAt(target), 16), null)
+    assert.deepEqual(findPriorityDiamond(c)?.position, target)
+    bot.game.dimension = 'the_nether'
+    assert.equal(findPriorityDiamond(c), null)
+    bot.game.dimension = 'overworld'
+    assert.deepEqual(findPriorityDiamond(c)?.position, target)
+    set(150, 7, 258, 'air')
+    set(150, 8, 258, 'stone')
+    assert.equal(findPriorityDiamond(c), null)
+})
+
+test('a failed diamond approach tries a different side and keeps the target across retries', async () => {
+    const { c, bot, set } = oreWorld(new Map(), new Vec3(150.5, 3, 259.5))
+    const target = new Vec3(150, 7, 258)
+    set(150, 7, 258, 'diamond_ore')
+    set(150, 7, 259, 'air')
+    set(150, 6, 259, 'air')
+    set(150, 5, 259, 'air')
+    set(150, 4, 259, 'air')
+    set(150, 3, 259, 'air')
+    const headings = []
+    const logs = []
+    Object.assign(c, { running: true, log: { info: line => logs.push(line), warn: line => logs.push(line) }, actionAbort: new AbortController(),
+        collectTarget: async () => { throw new Error('No path to the goal!') } })
+    Object.assign(bot, { health: 20, registry: data, canDigBlock: block => !block.position.equals(target),
+        equip: async () => {},
+        lookAt: async () => { throw new Error('manual jump refused') },
+        pathfinder: { setGoal() {}, setMovements() {} },
+        async dig(block) { set(block.position.x, block.position.y, block.position.z, 'air') } })
+    c.bestItem = names => bot.inventory.items().find(item => names.includes(item.name))
+    c.gotoWithTimeout = async (goal, ms, label) => {
+        if (label === 'prepared stair step') {
+            headings.push([goal.x, goal.y, goal.z])
+            throw new Error('path refused')
+        }
+        throw new Error('No path to the goal!')
+    }
+    assert.deepEqual(findPriorityDiamond(c)?.position, target)
+    await performProgression(c, 'mine_diamond', {})
+    await performProgression(c, 'mine_diamond', {})
+    assert.equal(headings.length, 2, logs.join('\n'))
+    assert.notDeepEqual(headings[0], headings[1])
+    assert.deepEqual(findPriorityDiamond(c)?.position, target)
+})
+
+test('combat cancellation preserves the diamond and its current approach', async () => {
+    const { c, bot, set } = oreWorld(new Map(), new Vec3(150.5, 5, 260.5))
+    const target = new Vec3(150, 7, 258)
+    set(150, 7, 258, 'diamond_ore')
+    set(150, 7, 259, 'air')
+    set(150, 6, 260, 'air')
+    set(150, 7, 260, 'air')
+    Object.assign(bot, { health: 20, registry: data, canDigBlock: () => false,
+        pathfinder: { setMovements() {} } })
+    Object.assign(c, { running: true, actionAbort: new AbortController(), log: { info() {} },
+        async collectTarget() {
+            c.actionAbort.abort('nearby creeper')
+            throw new Error('path cancelled')
+        },
+        bestItem: () => assert.fail('tried a different approach while cancelled') })
+    await assert.rejects(performProgression(c, 'mine_diamond', {}), /cancelled/)
+    assert.deepEqual(c.memory.diamondTargets.overworld, { x: 150, y: 7, z: 258 })
+    set(150, 7, 259, 'stone')
+    assert.deepEqual(findPriorityDiamond(c)?.position, target)
+})
 
 function pitWorld() {
     const world = oreWorld()
