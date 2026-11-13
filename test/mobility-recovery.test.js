@@ -377,3 +377,51 @@ test('swamp wood targets skip trunk logs beside water instead of blocking the tr
     await c.gatherWood()
     assert.deepEqual(collected, [upper])
 })
+
+test('a bot standing in water treads it by holding jump, but not while a path or a dive controls it (F134)', () => {
+    const { EventEmitter } = require('node:events')
+    const { Vec3 } = require('vec3')
+    const bot = new EventEmitter()
+    const controls = {}
+    let moving = false
+    Object.assign(bot, { entity: { position: new Vec3(0.5, 61, 0.5), isInWater: true }, health: 20, world: { raycast: () => null },
+        setControlState: (key, value) => { controls[key] = value }, pathfinder: { isMoving: () => moving } })
+    const c = { bot, running: true, busy: true, activeAction: 'gather_wood', log: { warn() {}, info() {} }, standingOff: () => false,
+        canSee: () => false, cancelCurrentTask() {} }
+    SurvivalController.prototype.bindEvents.call(c)
+    bot.emit('physicsTick')
+    assert.equal(controls.jump, true)
+    moving = true
+    controls.jump = 'pathfinder'
+    bot.emit('physicsTick')
+    assert.equal(controls.jump, false, 'released once for the path')
+    controls.jump = 'pathfinder'
+    bot.emit('physicsTick')
+    assert.equal(controls.jump, 'pathfinder', 'then left to the path')
+    moving = false
+    c.activeAction = 'surface_for_air'
+    bot.emit('physicsTick')
+    assert.equal(controls.jump, 'pathfinder')
+    c.activeAction = 'gather_wood'
+    bot.emit('physicsTick')
+    bot.entity.isInWater = false
+    bot.emit('physicsTick')
+    assert.equal(controls.jump, false)
+})
+
+test('a wood attempt cut off by low air blocks the whole tree (F134)', async () => {
+    const { Vec3 } = require('vec3')
+    const logs = [61, 62, 63].map(y => ({ name: 'oak_log', position: new Vec3(5, y, 0) }))
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, {
+        movements: { safeToBreak: () => true }, actionAbort: new AbortController(), memory: { blockedTargets: new Map() },
+        findNearestBlock: () => logs[1], nearestEntity: () => null,
+        bot: { collectBlock: { findFromVein: () => logs } },
+        async collectTarget() {
+            c.actionAbort.abort('low air supply')
+            throw new Error('collection cancelled')
+        }
+    })
+    await assert.rejects(c.gatherWood(), /collection cancelled/)
+    assert.deepEqual([...c.memory.blockedTargets.keys()].sort(), ['5,61,0', '5,62,0', '5,63,0'])
+})

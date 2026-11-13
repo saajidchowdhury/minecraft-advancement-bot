@@ -3148,3 +3148,17 @@ targets from both the surface and the bottom, and partial paths toward 47,-10.
 Regression in `test/mobility-recovery.test.js` (the real A* on a 20-cell
 2-deep strip, unstick movements, swamp logs) fails on the pre-fix source.
 
+Update (same session, run `outputs/2026-11-13@01.02.05/`): with the path
+fixes loaded, the bot still lost its air every ~8 s. It stood still on the
+swamp floor at 73,61,-35 while it searched and approached, because nothing
+held jump unless a path was moving. The low-air cancel came before the 10 s
+approach timeout, so the tree was not blocked. Following the user's
+suggestion to hold space, a physicsTick handler now holds jump whenever the
+body is in water and no path is moving. Surfacing, lava escape and head
+clearing keep their own control, and jump is released once a path takes
+over. A low-air abort now blocks the whole trunk, like any other wood
+failure. The user also suggested standing on a lily pad or swimming to land.
+`safeFooting` already accepts a lily pad as floor (its 1/16-high collision
+box), and F134's swim fix lets the scout reach land. Regression tests in
+`test/mobility-recovery.test.js` fail on the pre-fix source.
+

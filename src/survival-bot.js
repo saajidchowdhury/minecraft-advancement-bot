@@ -632,6 +632,19 @@ class SurvivalController {
                 this.cancelCurrentTask('nightfall during surface water search')
             }
         })
+        // Tread water: standing still in a 2-deep swamp sank the bot to the floor, so every search or
+        // dig spent its air (F134, user: hold space). Moving paths already swim; dives keep control.
+        let treading = false
+        this.bot.on('physicsTick', () => {
+            const floating = Boolean(this.bot.entity?.isInWater) && !this.bot.pathfinder?.isMoving?.() &&
+                !['surface_for_air', 'escape_lava', 'clear_head'].includes(this.activeAction)
+            if (floating) {
+                this.bot.setControlState('jump', true)
+            } else if (treading) {
+                this.bot.setControlState('jump', false)
+            }
+            treading = floating
+        })
         this.bot.on('breath', () => {
             if (!this.running || this.paused || this.bot.health <= 0 || !(this.bot.oxygenLevel <= LOW_AIR_BUBBLES) ||
                 ['surface_for_air', 'escape_lava', 'clear_head'].includes(this.activeAction) || this.actionAbort?.signal.aborted) {
@@ -1728,8 +1741,9 @@ class SurvivalController {
                 }
             }
             // An unreachable log means an unreachable tree; skip its other logs too. The library's
-            // vein search can revisit a log, so a wider bound covers diagonal acacia trunks.
-            if (!signal?.aborted) {
+            // vein search can revisit a log, so a wider bound covers diagonal acacia trunks. A low-air
+            // cancel counts too: the same tree was retried after every breath (F133, F134).
+            if (!signal?.aborted || /air/.test(String(signal.reason))) {
                 for (const log of [...trunk, ...this.bot.collectBlock.findFromVein(block, 12, 8, 1)]) {
                     this.memory.blockedTargets.set(this.targetKey(log), Date.now() + 120000)
                 }
