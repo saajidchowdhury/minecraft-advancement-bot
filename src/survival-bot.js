@@ -171,10 +171,17 @@ function droppedItemGoal (entity) {
 
 // Steer away from melee inside 2.5 blocks using back/strafe controls relative to the facing set by
 // lookAt, choosing the safest-footed direction most opposed to the threats; null releases controls.
+// Seagrass, kelp and bubble columns are always full of water but carry no waterlogged property; dirt
+// under two seagrass blocks looked like dry land (user, F135).
+const WATER_FILLED = new Set(['water', 'bubble_column', 'seagrass', 'tall_seagrass', 'kelp', 'kelp_plant'])
+
+function waterFilled (block) {
+    return WATER_FILLED.has(block?.name) || block?.getProperties?.().waterlogged === true
+}
+
 // Air left before the low-air cutoff; Infinity while the eye is out of water.
 function submergedAirMs (bot) {
-    const eye = bot.blockAt(bot.entity.position.offset(0, 1.62, 0), false)
-    if (eye?.name !== 'water' && eye?.getProperties?.().waterlogged !== true) {
+    if (!waterFilled(bot.blockAt(bot.entity.position.offset(0, 1.62, 0), false))) {
         return Infinity
     }
     return Math.max(0, (bot.oxygenLevel ?? 20) - LOW_AIR_BUBBLES) * BUBBLE_MS
@@ -3618,7 +3625,7 @@ class SurvivalController {
         }
         const feet = entity.position.floored()
         const body = this.bot.blockAt(feet, false)
-        return body?.name !== 'water' && body?.getProperties?.().waterlogged !== true &&
+        return !waterFilled(body) &&
             LAND_GROUND.test(this.bot.blockAt(feet.offset(0, -1, 0), false)?.name ?? '')
     }
 
@@ -3700,7 +3707,7 @@ class SurvivalController {
         const ids = Object.values(this.bot.registry.blocksByName).filter(block => LAND_GROUND.test(block.name)).map(block => block.id)
         const wet = p => {
             const block = this.bot.blockAt(p, false)
-            return ['water', 'lava', 'bubble_column'].includes(block?.name) || block?.getProperties?.().waterlogged === true
+            return block?.name === 'lava' || waterFilled(block)
         }
         const open = p => this.bot.blockAt(p, false)?.boundingBox === 'empty' && !wet(p)
         // Dry pockets below the swamp surface still touch water and never count as land (live 06:15Z).

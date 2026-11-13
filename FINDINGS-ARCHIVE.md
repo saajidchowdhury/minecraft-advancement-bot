@@ -3194,3 +3194,11 @@ solid side face) and stands on it to chop. With no block carried it throws,
 and the tree is blocked. Regression tests (dry pocket, stock, platform)
 fail on the pre-fix source.
 
+Update (same session, user report): the second staged run still targeted
+swamp-floor dirt at y=60. Its two cells above held seagrass and tall
+seagrass, which are always full of water but have no `waterlogged` property
+and are not named water. `waterFilled` now treats water, bubble columns,
+seagrass, tall seagrass, kelp and kelp plants as water, as well as anything
+waterlogged. The land check, `standsOnLand` and the F133 eye-in-water check
+all use it. The regression test fails on the pre-fix source.
+

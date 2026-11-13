@@ -21,7 +21,7 @@ treading water) it had 0 low-air events, gathered wood, earned
 `story/root` and crafted a wooden pickaxe (06:08Z, unaided). The owner kit
 was given in full on the new world and then verified. Not yet seen live:
 F127 buckets and berries, F129 disposal zones, F130 standoffs, F132 sculk
-exits. Baseline: 545 tests pass.
+exits. Baseline: 546 tests pass.
 
 ## Stable facts and process lessons
 

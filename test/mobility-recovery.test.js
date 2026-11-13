@@ -569,3 +569,27 @@ test('a trunk ringed by water gets a block on the water surface to stand on (F13
     c.bestItem = () => null
     await assert.rejects(c.buildLogPlatform(target), /no block to stand on/)
 })
+
+test('dirt under seagrass is not land, because seagrass is always full of water (F135)', async () => {
+    const { c, bot, Vec3 } = landWorld()
+    const registry = bot.registry
+    const Block = require('prismarine-block')(registry)
+    const blockAt = bot.blockAt
+    // User 06:23Z: the goal targeted swamp-floor dirt with tall seagrass in both cells above it.
+    bot.blockAt = at => {
+        const p = at.floored()
+        if (p.x >= 0 && p.x <= 20 && (p.y === 61 || p.y === 62)) {
+            const b = Block.fromStateId(registry.blocksByName[p.y === 61 ? 'tall_seagrass' : 'seagrass'].defaultState, 0)
+            b.position = p
+            return b
+        }
+        return blockAt(at)
+    }
+    let goal = null
+    c.gotoWithTimeout = async g => {
+        goal = g
+        Object.assign(bot.entity, { position: new Vec3(g.x + 0.5, g.y, g.z + 0.5), onGround: true, isInWater: false })
+    }
+    await c.reachLand()
+    assert.deepEqual([goal.x, goal.y, goal.z], [22, 62, 0])
+})
