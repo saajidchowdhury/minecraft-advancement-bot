@@ -17,7 +17,7 @@ AdvancementBot resumed on `4a0d52f` on LAN port 49503, PID 13564, with logs in
 `outputs/2026-11-12@23.49.25/`. It is pickless (1 plank, no sticks) in its
 y=31 night shelter at -4,31,-46 and should dig out and carve to the surface by
 hand at dawn (F126). The owner kit was verified before restart. Verify the
-newest process, snapshot and owner kit. Baseline: 524 tests pass.
+newest process, snapshot and owner kit. Baseline: 525 tests pass.
 
 ## Stable facts and process lessons
 
@@ -28,7 +28,8 @@ newest process, snapshot and owner kit. Baseline: 524 tests pass.
   2026-11-12); staged trials enable it and cleanup restores it (F101).
 - The `patch-package` Mineflayer patch covers mixed-plank crafting, the window
   `close` event (F078) and an `air_supply` guard so other entities' air is not
-  read as the bot's (F099).
+  read as the bot's (F099). A prismarine-item patch normalizes 26.1 component
+  enchantments to `[{ name, lvl }]`; enchanted tools broke dig timing (F128).
 - Launch with `./scripts/run.sh [port]` (Node 22+, `.tools/` runtime).
   `MC_WORLD_ID` labels memory in `.state/`; a changed seed hash clears saved
   coordinates. One unexplained reset on the same world is in F071 (F002).
@@ -404,3 +405,4 @@ Highest risk first.
 - F125 Cleanup throws wool, leather and wheat seeds [user direction + regression]
 - F126 Pickless bot sealed in night shelter digs out by hand [live failure + user direction + regression]
 - F127 Water buckets before lava; reachable glow berries only; no leather restock [user direction + live failure + regression]
+- F128 Enchanted tools crashed dig timing on 26.1 item components [live failure + regression]

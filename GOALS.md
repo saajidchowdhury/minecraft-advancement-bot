@@ -28,9 +28,8 @@ playthrough is a test, not the definition of success.
    damage; condense the findings digest back under ~200 lines.
 6. Live-verify the bare-hand escape (F126): the pickless bot in its y=31
    shelter digs out and carves to the surface for wood. Forced-death
-   respawns are noted in STRATEGY.md for later. Then fix gather_iron's
-   "enchantments is not iterable" error seen right after the climb, and
-   watch the first natural buckets fill two waters before lava (F127).
+   respawns are noted in STRATEGY.md for later. The gather_iron "enchantments is not
+   iterable" loop was the user's enchanted pickaxe (fixed, F128). Watch the first natural buckets fill two waters before lava (F127).
 7. Recheck the surface stair at (32,-3,490). The water search deferred after
    three climb failures. A berry detour preceded a fatal fall. Verify a safe
    route with the new landing checks (F124).

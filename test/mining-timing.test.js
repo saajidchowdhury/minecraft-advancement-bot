@@ -103,3 +103,22 @@ test('a stranded bot breaks stone bare-handed at the hand break time but still r
     bot.inventory.items = () => [{ name: 'oak_log', count: 3 }]
     await assert.rejects(bot.dig(target('stone'), 'ignore'), /requires a pickaxe/)
 })
+
+test('an enchanted netherite pickaxe from 26.1 item components digs at its efficiency speed', async t => {
+    const { bot, target, packets } = diggingBot(t)
+    const registry = bot.registry
+    const Item = require('prismarine-item')(registry)
+    // Network shape from the 26.1 protocol: an enchantments component of { id, level } entries.
+    const pick = Item.fromNotch({ itemId: registry.itemsByName.netherite_pickaxe.id, itemCount: 1, removeComponents: [],
+        components: [{ type: 'enchantments', data: { enchantments: [
+            { id: registry.enchantmentsByName.efficiency.id, level: 5 },
+            { id: registry.enchantmentsByName.unbreaking.id, level: 3 }] } }] })
+    assert.deepEqual(pick.enchants, [{ name: 'efficiency', lvl: 5 }, { name: 'unbreaking', lvl: 3 }])
+    bot.heldItem = pick
+    const dig = bot.dig(target('deepslate'), 'ignore')
+    t.mock.timers.tick(149)
+    assert.deepEqual(packets, [['block_dig', 0]])
+    t.mock.timers.tick(1)
+    assert.deepEqual(packets, [['block_dig', 0], ['block_dig', 2]])
+    await dig
+})

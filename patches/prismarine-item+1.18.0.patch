@@ -1,0 +1,22 @@
+diff --git a/node_modules/prismarine-item/index.js b/node_modules/prismarine-item/index.js
+index 47a27b0..dcdd4d8 100644
+--- a/node_modules/prismarine-item/index.js
++++ b/node_modules/prismarine-item/index.js
+@@ -258,8 +258,15 @@ function loader (registryOrVersion) {
+       const typeOfEnchantLevelValue = registry.supportFeature('typeOfValueForEnchantLevel')
+       const useStoredEnchantments = registry.supportFeature('booksUseStoredEnchantments') && this.name === 'enchanted_book'
+ 
+-      if (this.componentMap?.has('enchantments')) {
+-        return this.componentMap.get('enchantments').data
++      const componentKey = useStoredEnchantments && this.componentMap?.has('stored_enchantments') ? 'stored_enchantments' : 'enchantments'
++      if (this.componentMap?.has(componentKey)) {
++        // 1.20.5+ components carry { enchantments: [{ id, level }] }; normalize to [{ name, lvl }].
++        const data = this.componentMap.get(componentKey).data
++        const list = Array.isArray(data) ? data : (data?.enchantments ?? [])
++        return list.map(ench => ({
++          lvl: ench.lvl ?? ench.level,
++          name: ench.name ?? registry.enchantments[ench.id]?.name ?? null
++        }))
+       }
+ 
+       if (typeOfEnchantLevelValue === 'short' && enchantNbtKey === 'ench') {

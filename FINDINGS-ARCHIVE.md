@@ -2986,3 +2986,22 @@ source. The inventory test passes on both versions, since F125 already threw
 these items. One lava-search decision fixture now carries two water buckets.
 Not yet checked live.
 
+## F128 — Enchanted tools crashed dig timing on 26.1 item components
+
+Live, `4a0d52f`, run `outputs/2026-11-12@23.49.25/`: once the hand-carved
+stairs reached y=37, the user gave the bot their enchanted netherite pickaxe.
+After that, every `gather_iron` failed with "enchantments is not iterable" (20+
+times). Cause: prismarine-item 1.18.0 `Item.enchants` returned the raw 26.1
+`enchantments` component, `{ enchantments: [{ id, level }] }`. Mineflayer's
+`digTime` passes that object to prismarine-block, which iterates over it. Any
+enchanted held tool therefore threw before a dig started. The same object
+also made `src/enchanting.js` read enchanted items as unenchanted, because an
+object has no `.length`. Fix: `patches/prismarine-item+1.18.0.patch`
+normalizes the component (and `stored_enchantments` for books) to
+`[{ name, lvl }]` through `registry.enchantments[id].name`. Regression: a
+network-shaped Efficiency V / Unbreaking III netherite pickaxe digs deepslate
+at 150 ms, against 500 ms without Efficiency, in `test/mining-timing.test.js`.
+The test fails with the patch reversed. `miningPickaxe` already prefers
+netherite, then diamond, iron, stone and wooden. The pickaxe was supplied by
+the user, so progress made with it is assisted.
+
