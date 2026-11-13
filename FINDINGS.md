@@ -13,12 +13,12 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-12, session end
 
-AdvancementBot resumed on `2906728` on LAN port 49503, PID 8187, with logs in
-`outputs/2026-11-12@23.06.16/`. It resumed the lava search. The staged F121
-trial mined the two missed ore blocks and collected two diamonds. The owner
-kit was verified before restart (`outputs/diamond-150-restart-owner-kit.log`).
-Check the newest snapshot and process before live work. Verify the kit for
-every gameplay login, including trials. Baseline: 512 tests pass.
+AdvancementBot resumed on `6ee25ea` on LAN port 49503, PID 8923, with logs in
+`outputs/2026-11-12@23.13.28/`. It earned Hot Stuff before restart and resumed
+the water search. The original blocked lava scoop passed a staged trial
+(F122). The owner kit was verified before restart
+(`outputs/lava-77-restart-owner-kit.log`). Verify the newest process, snapshot
+and owner kit before live work. Baseline: 513 tests pass.
 
 ## Stable facts and process lessons
 
