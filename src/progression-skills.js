@@ -9,6 +9,7 @@ const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight,
 const { scanFor, canSeeBlock, cellVisible } = require('./vision')
 const { isUnderFeet, soundFloor } = require('./under-feet')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
+const { sculkInward } = require('./sculk-caution')
 const { isFuelPlank, isCharcoalLog, furnaceFuelTicks, plankFuelPlan, preparePlankFuel } = require('./furnace-fuel')
 
 const HAZARDS = new Set(['lava', 'water', 'fire', 'soul_fire', 'sand', 'red_sand', 'gravel', 'bedrock'])
@@ -432,6 +433,12 @@ async function climbStep(c, target) {
     }
 }
 
+// Remembered failures block a step; a sculk zone blocks only steps that do not lead out of it (F132).
+function tunnelStepBlocked(c, from, to) {
+    return c.rememberedBlocked ? c.rememberedBlocked({ position: to }) || sculkInward(c, from, to)
+        : Boolean(c.isBlockedTarget?.({ position: to }))
+}
+
 async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, diamond = null) {
     const bot = c.bot
     const tool = miningPickaxe(c)
@@ -510,7 +517,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
         const freshAhead = [0, 1, ...(rise < 0 ? [2] : [])].some(dy => bot.blockAt(ahead.offset(0, dy, 0), false)?.boundingBox !== 'empty')
         const merge = !heading && rise <= 0 && freshAhead
             ? [[fz, fx], [-fz, -fx]].map(([sx, sz]) => feet.offset(sx, 0, sz))
-                .find(side => tunnelCell(side) && tunnelCell(side.offset(fx, rise, fz)) && !c.isBlockedTarget?.({ position: side }) &&
+                .find(side => tunnelCell(side) && tunnelCell(side.offset(fx, rise, fz)) && !tunnelStepBlocked(c, feet, side) &&
                     safeTunnelStep(bot, feet, side, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt']))))
             : null
         if (merge) {
@@ -531,7 +538,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
             // water ahead plus its own stair and disposal pit beside it froze a climb (live 06:19Z).
             if (!heading && index !== forward && dy <= 0 && minedPassage(c, candidate)) {
                 refused.excavated++
-            } else if (c.isBlockedTarget?.({ position: candidate })) {
+            } else if (tunnelStepBlocked(c, feet, candidate)) {
                 refused.blocked++
             } else if (!safeTunnelStep(bot, feet, candidate, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt'])))) {
                 refused.unsafe++

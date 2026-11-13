@@ -60,7 +60,7 @@ which leaves little room for more comments there.
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
 | progression-skills | 33 | stairs, tunnels, lava scoop rays, portal geometry, frontier, merges |
 | resource-routing | 9 | visible-target searches, support preservation, exits |
-| sculk-caution | 5 | sculk alarms, zone, sneak flee |
+| sculk-caution | 8 | sculk alarms, zone, sneak flee, outward steps and carve fallback |
 | shaft-memory | 11 | shaft recording, following, repair, pickless climb pause |
 | side-probes | 23 | probe reach, spacing, anchors, hazards, descents |
 | smelting | 16 | async smelt jobs, fuel due times, plank fuel, collection |

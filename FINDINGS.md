@@ -415,3 +415,4 @@ Highest risk first.
 - F129 Surface scouts walked down own stairs; placements overlapped the bot; lane tosses re-collected [live failure + staged + regression]
 - F130 Unreachable zombie froze repeated fights [live failure + regression]
 - F131 Vanilla 5-tick destroy delay between timed breaks [user report + regression]
+- F132 Sculk zone blocked every tunnel step, including the way out [live failure + regression]

@@ -3080,3 +3080,23 @@ fails on the pre-fix source. The tier-timing test now lets the delay pass
 between blocks. Expected cost: Efficiency V netherite on stone goes from
 0.10 to 0.35 s per block, and a stone pickaxe from 0.60 to 0.85 s.
 
+## F132 — Sculk zone blocked every tunnel step, including the way out
+
+Live, runs `outputs/2026-11-13@00.24.09/` to `00.34.18/`. At 05:25:52Z sculk
+caution saw a sculk vein at (-76,-44,-13) and recorded a zone of radius 48
+there. `isBlockedTarget` treats every cell in a zone as blocked, and
+`mineTunnel` checks it for each candidate step, so no tunnel step anywhere in
+the zone could be dug, not even one leading out. `flee_sculk` only walks
+(pathfinder, 45 s). It timed out seven times without leaving
+-64,-26,-10, and unstick reported "0 unsafe, 0 already excavated, 6 blocked".
+After two restarts the bot was at -49,-11,-6, still 43 blocks from the
+centre. With caution cleared by the restart, `return_surface` failed the same
+way 18 times. Fix: `mineTunnel` asks `rememberedBlocked` (failures only) plus
+`sculkInward`, which blocks a step only if it does not gain distance from
+every zone that contains it. `fleeSculk` now walks for 20 s, then carves 4
+rising steps toward a point 16 blocks out from the zone centre. Sensors and
+shriekers stay unbreakable on the walking path. Ore and target searches still
+treat a zone as off-limits. Regression in `test/sculk-caution.test.js`
+(geometry, a real `mineTunnel` climbing out, flee fallback) fails on the
+pre-fix source. Not yet seen live.
+

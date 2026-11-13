@@ -13,12 +13,20 @@ const SEEN_RANGE = 16
 const CLEAR_RANGE = 24
 const ZONE_RADIUS = 48
 const QUIET_MS = 30000
+const FLEE_PATH_MS = 20000
 
 const zoneCenter = zone => new Vec3(zone.x, zone.y, zone.z)
 
 function sculkZoneAt(c, position) {
     return (c.memory.sculkZones || []).find(zone => zone.dimension === c.bot.game?.dimension &&
         position.distanceTo(zoneCenter(zone)) <= zone.radius) || null
+}
+
+// A zone blocks cells toward its centre only: a 48-block zone held a bot 43 blocks off with every
+// tunnel step blocked, so a step that gains distance from each zone holding it stays open (F132).
+function sculkInward(c, from, to) {
+    return (c.memory.sculkZones || []).some(zone => zone.dimension === c.bot.game?.dimension &&
+        to.distanceTo(zoneCenter(zone)) <= zone.radius && to.distanceTo(zoneCenter(zone)) <= from.distanceTo(zoneCenter(zone)))
 }
 
 function nearestSculk(bot, range) {
@@ -120,10 +128,10 @@ async function fleeSculk(c) {
     c.log.info(`Sneaking out of the sculk zone around ${zoneCenter(zone)} toward ${goal.x},${goal.z}.`)
     bot.pathfinder.setMovements(moves)
     try {
-        await c.gotoWithTimeout(goal, 45000, 'sculk flee')
+        await c.gotoWithTimeout(goal, FLEE_PATH_MS, 'sculk flee')
     } finally {
         bot.pathfinder.setMovements(c.movements)
     }
 }
 
-module.exports = { SCULK, installSculkCaution, updateSculkCaution, sculkAlarm, sculkZoneAt, fleeSculk }
+module.exports = { SCULK, installSculkCaution, updateSculkCaution, sculkAlarm, sculkZoneAt, sculkInward, fleeSculk }

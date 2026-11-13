@@ -1155,7 +1155,7 @@ class SurvivalController {
     async perform (action, state) {
         switch (action) {
             case 'avoid_enderman': return this.avoidEnderman()
-            case 'flee_sculk': return fleeSculk(this)
+            case 'flee_sculk': return this.fleeSculk()
             case 'mine_diamond': {
                 if (!this.memory.diamondDetour) {
                     const goal = nextAdvancement(state)
@@ -2012,9 +2012,10 @@ class SurvivalController {
         if (!block || !block.position) {
             return false
         }
-        if (sculkZoneAt(this, block.position)) {
-            return true
-        }
+        return Boolean(sculkZoneAt(this, block.position)) || this.rememberedBlocked(block)
+    }
+
+    rememberedBlocked (block) {
         const key = this.targetKey(block)
         const expires = this.memory.blockedTargets.get(key)
         if (!expires) {
@@ -3538,6 +3539,25 @@ class SurvivalController {
             (!options.filter || options.filter(block)) &&
             (options.sight ? options.sight(block) : blockInView(this.bot, block, options.mining && exposedByDig(this, block)))
         return this.bot.findBlock(search)
+    }
+
+    // Six 45 s walking escapes never left -64,-26,-10 (F132); a failed path carves up and away instead.
+    async fleeSculk () {
+        try {
+            await fleeSculk(this)
+        } catch (error) {
+            this.checkAction()
+            const here = this.bot.entity.position.floored()
+            const zone = sculkZoneAt(this, here)
+            if (!zone) {
+                throw error
+            }
+            const away = here.minus(new Vec3(zone.x, here.y, zone.z))
+            const scale = 16 / Math.max(1, Math.hypot(away.x, away.z))
+            const outward = here.offset(Math.round(away.x * scale), 0, Math.round(away.z * scale))
+            this.log.warn(`Sculk flee path failed (${error.message}); carving up and away toward ${outward.x},${outward.z}.`)
+            await mineTunnel(this, here.y + 4, outward)
+        }
     }
 
     nearestEntity (names, maxDistance = 16) {
