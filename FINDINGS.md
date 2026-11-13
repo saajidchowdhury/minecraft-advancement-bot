@@ -13,16 +13,15 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13, session end
 
-AdvancementBot resumed on `de15354` on LAN port 49503, PID 20099, with logs in
-`outputs/2026-11-13@00.38.56/`. It carved out of the F132 sculk zone and
-is climbing a staircase to the surface (y=31 at 05:40Z) with the user's
-enchanted netherite pickaxe (assisted) and the 5-tick destroy delay (F131).
-A brief "falling air above the bot" loop (6 failures at -49,-8,-3) cleared
-itself by blocking steps; the name "air" suggests the check sees a falling
-block entity over an empty cell. Not yet live-verified: F127 buckets and
-berries, F129 disposal zones and surface scouts, F130 standoffs. The owner
-kit was verified before restart. Verify the newest process, snapshot and
-owner kit. Baseline: 539 tests pass.
+New world on LAN port 50636 (seed changed 05:44:57Z; memory cleared).
+AdvancementBot runs `7731fa2`, PID 23763, logs in
+`outputs/2026-11-13@01.06.58/`, Terminal window 592. It spawned in a
+2-deep swamp. After F133 and F134 (swim cost, unstick in water, safe logs,
+treading water) it had 0 low-air events, gathered wood, earned
+`story/root` and crafted a wooden pickaxe (06:08Z, unaided). The owner kit
+was given in full on the new world and then verified. Not yet seen live:
+F127 buckets and berries, F129 disposal zones, F130 standoffs, F132 sculk
+exits. Baseline: 539 tests pass.
 
 ## Stable facts and process lessons
 
