@@ -214,7 +214,7 @@ test('an unreachable smelt furnace is tunneled toward, then forgotten after twel
     Object.assign(c, {
         running: true, paused: false, actionAbort: new AbortController(), memory: { smeltJob: job }, log: { info() {}, warn() {} },
         bot: { health: 20, entity: { position: new Vec3(158.5, 64, -166.5) },
-            pathfinder: { setGoal(g) { goal = g } }, async waitForTicks() {}, inventory: { items: () => [] } },
+            pathfinder: { setGoal(g) { goal = g } }, async waitForTicks() {}, inventory: { items: () => [{ name: 'oak_log', count: 3 }] } },
         bestItem: () => null,
         async gotoWithTimeout() { goal = 'stale'; throw new Error('No path to the goal!') }
     })

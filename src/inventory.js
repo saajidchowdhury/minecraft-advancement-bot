@@ -153,4 +153,25 @@ function inventoryReport(items, worn) {
     return lines
 }
 
-module.exports = { discardableStack, discardableStacks, needsCleanup, overflowStack, inventoryReport }
+// Bare hands break a pickaxe block in 5 s per hardness unit without a drop: stone 7.5 s, deepslate 15 s.
+const BARE_HAND_MAX_HARDNESS = 3.5
+const WOOD_SUFFIXES = ['_log', '_stem', '_wood', '_hyphae']
+
+// No carried pickaxe, and carried wood and stone cannot craft a stone or wooden one.
+function pickaxeStranded(items) {
+    if (items.some(item => item.name.endsWith('_pickaxe'))) {
+        return false
+    }
+    const count = test => items.filter(item => test(item.name)).reduce((n, item) => n + item.count, 0)
+    const planks = count(name => name.endsWith('_planks')) + 4 * count(name => WOOD_SUFFIXES.some(s => name.endsWith(s)))
+    const needed = (count(name => name === 'stick') >= 2 ? 0 : 2) + (count(name => name === 'crafting_table') ? 0 : 4) +
+        (count(name => ['cobblestone', 'cobbled_deepslate', 'blackstone'].includes(name)) >= 3 ? 0 : 3)
+    return planks < needed
+}
+
+// Ores are left alone: a bare-hand break destroys them without a drop.
+function handDiggable(block) {
+    return Boolean(block?.diggable) && block.hardness != null && block.hardness <= BARE_HAND_MAX_HARDNESS && !block.name.endsWith('_ore')
+}
+
+module.exports = { discardableStack, discardableStacks, needsCleanup, overflowStack, inventoryReport, pickaxeStranded, handDiggable }

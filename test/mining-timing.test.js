@@ -15,7 +15,7 @@ function diggingBot(t) {
     const bot = Object.assign(new EventEmitter(), {
         registry, game: { dimension: 'overworld', gameMode: 'survival' },
         entity: { position: new Vec3(0.5, 64, 0.5), eyeHeight: 1.62, onGround: true },
-        inventory: { slots: [] }, getEquipmentDestSlot: () => 5, swingArm() {},
+        inventory: { slots: [], items: () => (bot.heldItem ? [bot.heldItem] : []) }, getEquipmentDestSlot: () => 5, swingArm() {},
         _client: { write: (name, packet) => packets.push([name, packet.status]) },
         blockAt: () => null,
         _updateBlockState: position => bot.emit(`blockUpdate:${position}`, null, { type: 0 })
@@ -88,4 +88,18 @@ test('digging never waits indefinitely for ground and cancels before sending sta
     t.mock.timers.tick(50)
     await assert.rejects(next, /dig cancelled/)
     assert.deepEqual(packets, [])
+})
+
+test('a stranded bot breaks stone bare-handed at the hand break time but still refuses obsidian', async t => {
+    const { bot, target, packets } = diggingBot(t)
+    bot.heldItem = null
+    const dig = bot.dig(target('stone'), 'ignore')
+    t.mock.timers.tick(7499)
+    assert.deepEqual(packets, [['block_dig', 0]])
+    t.mock.timers.tick(1)
+    assert.deepEqual(packets, [['block_dig', 0], ['block_dig', 2]])
+    await dig
+    await assert.rejects(bot.dig(target('obsidian'), 'ignore'), /requires a pickaxe/)
+    bot.inventory.items = () => [{ name: 'oak_log', count: 3 }]
+    await assert.rejects(bot.dig(target('stone'), 'ignore'), /requires a pickaxe/)
 })

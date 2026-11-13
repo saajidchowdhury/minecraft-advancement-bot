@@ -2,7 +2,7 @@
 
 const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
-const { discardableStacks, overflowStack } = require('./inventory')
+const { discardableStacks, overflowStack, pickaxeStranded, handDiggable } = require('./inventory')
 const { storeOverflowAtBase } = require('./base')
 const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight, minedPassage, exposedDiamond, findPriorityDiamond,
     findPriorityOre, IRON_ORES, visibleMiningHazard } = require('./cave-exploration')
@@ -436,10 +436,14 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
     const bot = c.bot
     const tool = miningPickaxe(c)
     const start = bot.entity.position.floored()
-    if (!tool) {
+    // With no pickaxe and nothing to craft one from, carving by hand is the only way out (user, F126).
+    const bare = !tool && pickaxeStranded(bot.inventory?.items() ?? [])
+    if (!tool && !bare) {
         throw new Error('mining requires a pickaxe')
     }
-    await bot.equip(tool, 'hand')
+    if (tool) {
+        await bot.equip(tool, 'hand')
+    }
     check(c)
     if (!diamond && targetY < start.y && c.memory.surfaceByStaircase) {
         c.memory.surfaceByStaircase = false
@@ -580,10 +584,14 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
                     throw new Error('tunnel block out of reach')
                 }
                 const currentTool = tunnelTool(c, block)
-                if (!currentTool) {
-                    throw new Error('mining tool broke; rebuild it before continuing')
+                if (currentTool) {
+                    await bot.equip(currentTool, 'hand')
+                } else if (bare && handDiggable(block)) {
+                    // A held axe or shovel would spend durability without digging faster.
+                    await bot.unequip('hand').catch(() => {})
+                } else {
+                    throw new Error(bare ? `${block.name} cannot be dug by hand` : 'mining tool broke; rebuild it before continuing')
                 }
-                await bot.equip(currentTool, 'hand')
                 await bot.dig(block, true)
                 dugFresh = true
                 await settleFalling(c, p, feet, target)
@@ -600,7 +608,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
                     c.log.info('Tunnel dig exposed diamond ore; yielding to collect it.')
                     return
                 }
-                if (miningPickaxe(c)?.name !== tool.name) {
+                if (miningPickaxe(c)?.name !== tool?.name) {
                     return
                 }
             }
@@ -642,7 +650,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
             return
         }
         // Walking an old tunnel digs nothing and must not re-probe beside earlier probes (01:40Z).
-        if (!diamond && dugFresh && target.y === feet.y && Math.abs(targetY - target.y) <= 8 && c.probeSpacing > 0) {
+        if (!diamond && dugFresh && tool && target.y === feet.y && Math.abs(targetY - target.y) <= 8 && c.probeSpacing > 0) {
             c.memory.probeSteps = (c.memory.probeSteps || 0) + 1
             if (c.memory.probeSteps >= c.probeSpacing && !nearProbe(c, target)) {
                 c.memory.probeSteps = 0
@@ -1523,7 +1531,9 @@ async function returnSurface(c, surfaceY = c.home?.y || 64) {
     }
     const retry = c.picklessReturnRetry
     const dimension = c.bot.game?.dimension
-    if (retry && retry.dimension === dimension && retry.until > Date.now() && !miningPickaxe(c)) {
+    const stranded = pickaxeStranded(c.bot.inventory?.items() ?? [])
+    const retrying = Boolean(retry) && retry.dimension === dimension && retry.until > Date.now()
+    if (retrying && !miningPickaxe(c) && !stranded) {
         return sleep(2000)
     }
     const route = c.memory.mineRoute || []
@@ -1573,19 +1583,25 @@ async function returnSurface(c, surfaceY = c.home?.y || 64) {
             heuristic: node => Math.max(0, surfaceY - 1 - node.y),
             isEnd: node => node.y >= surfaceY - 1 && (!enclosed || openToSky(c.bot, new Vec3(node.x, node.y + 1, node.z)))
         })
-        try {
-            await c.gotoWithTimeout(up, 20000, 'pickaxe-free climb')
-            if (c.bot.entity.position.y >= surfaceY - 1 && (!enclosed || openToSky(c.bot, c.bot.entity.position.floored().offset(0, 1, 0)))) {
-                return
+        // A stranded bot retries the walk only after the hand-carved stairs have had their turn.
+        if (!(stranded && retrying)) {
+            try {
+                await c.gotoWithTimeout(up, 20000, 'pickaxe-free climb')
+                if (c.bot.entity.position.y >= surfaceY - 1 && (!enclosed || openToSky(c.bot, c.bot.entity.position.floored().offset(0, 1, 0)))) {
+                    return
+                }
+            } catch (error) {
+                check(c)
+                if (!/no path|timed out/i.test(error.message)) {
+                    throw error
+                }
             }
-        } catch (error) {
-            check(c)
-            if (!/no path|timed out/i.test(error.message)) {
-                throw error
-            }
+            c.picklessReturnRetry = { dimension, until: Date.now() + 30000 }
         }
-        c.picklessReturnRetry = { dimension, until: Date.now() + 30000 }
-        throw new Error('return stairs blocked and carving requires a pickaxe')
+        if (!stranded) {
+            throw new Error('return stairs blocked and carving requires a pickaxe')
+        }
+        c.log.warn('No pickaxe and too little wood to craft one; carving the staircase by hand.')
     }
     if (!c.memory.surfaceByStaircase) {
         c.log.warn('Known return stairs unavailable. Carving a supported staircase.')

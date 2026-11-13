@@ -76,6 +76,10 @@ Planner and gear order
   before hunting unless food is 6 or less (F104).
 
 Mining and tunnels
+- A bot with no pickaxe and too little wood to craft one (`pickaxeStranded`)
+  digs stone, cobblestone and deepslate (hardness <= 3.5, never ore or
+  obsidian) by hand: shelter exit, tunnels, carved return stairs and pathing.
+  Action timeouts scale fourfold while stranded (F126).
 - Targets need line of sight, not field of view (user direction, F116): a line
   from the eye to any point, edge or corner of the thing that passes no opaque
   block (leaves and glass are clear), whichever way the bot faces. Searches do
@@ -392,3 +396,4 @@ Highest risk first.
 - F123 Diamond armor now interrupts routine work [live delay + regression + staged]
 - F124 Fatal fall during a deferred water search [live failure + regression]
 - F125 Cleanup throws wool, leather and wheat seeds [user direction + regression]
+- F126 Pickless bot sealed in night shelter digs out by hand [live failure + user direction + regression]

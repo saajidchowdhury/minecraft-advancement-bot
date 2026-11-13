@@ -33,6 +33,7 @@ which leaves little room for more comments there.
 | advancement-plan | 26 | route IDs, gear and tool order, rebuilds after loss, iron cap |
 | advancement-tracker | 5 | AND-of-OR requirements, resets, revocation, phantom completions |
 | archery | 5 | Take Aim ballistics, line-of-fire safety, planner gating |
+| bare-hands | 5 | pickaxe-stranded predicate, hand-diggable blocks, hand tunnel, hand return stairs, break exclusion |
 | base | 13 | vault site, deposit/restock levels, migration, sealed-vault access |
 | cave-exploration | 29 | survey routing, checkpoints, footing, torches, reserves, loot interrupt |
 | charcoal | 3 | furnace-window inventory (F008), cooking-job isolation |
@@ -53,7 +54,7 @@ which leaves little room for more comments there.
 | loot | 2 | chest and chest-minecart looting |
 | memory-random | 2 | seeded rng, atomic world memory |
 | mined-ore-recovery | 10 | confirmed diamond memory, alternate stair approaches, cancellation, hidden water, ore drops |
-| mining-timing | 3 | break times for tier ores, landing before digging |
+| mining-timing | 4 | break times for tier ores, landing before digging, bare-hand stone when stranded |
 | mobility-recovery | 16 | unstick, shaft and pillar detection, safe drops, heap guard |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |

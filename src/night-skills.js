@@ -4,6 +4,7 @@ const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { safeFooting } = require('./cave-exploration')
 const { until } = require('./progression-skills')
+const { pickaxeStranded, handDiggable } = require('./inventory')
 
 const PLANTS = new Set(['short_grass', 'tall_grass', 'fern', 'large_fern', 'dead_bush', 'leaf_litter'])
 const BED_SPACE = new Set(['air', 'cave_air', 'void_air', ...PLANTS])
@@ -164,9 +165,14 @@ async function leaveShelter(c) {
         if (!safeFooting(c.bot, beyond) || blocks.some(b => !b || !b.diggable || !c.movements.safeToBreak(b))) {
             continue
         }
+        const bare = pickaxeStranded(c.bot.inventory?.items() ?? [])
         for (const block of blocks) {
             c.checkAction(signal)
-            await c.bot.tool.equipForBlock(block, { requireHarvest: true, getFromChest: false })
+            if (bare && block.material === 'mineable/pickaxe' && handDiggable(block)) {
+                await c.bot.unequip('hand').catch(() => {})
+            } else {
+                await c.bot.tool.equipForBlock(block, { requireHarvest: true, getFromChest: false })
+            }
             c.checkAction(signal)
             await c.bot.dig(block, true)
         }

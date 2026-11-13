@@ -318,8 +318,8 @@ test('a missing pickaxe prevents carving stairs in either direction', async () =
         running: true, memory: {}, bestItem: () => undefined, log: { info() {} },
         bot: {
             health: 20, entity: { position: new Vec3(0, 64, 0) },
-            blockAt: world().blockAt, canDigBlock: () => true,
-            async dig() { assert.fail('dug stone with bare hands') }
+            blockAt: world().blockAt, canDigBlock: () => true, inventory: { items: () => [{ name: 'oak_log', count: 3 }] },
+            async dig() { assert.fail('dug stone with bare hands while wood for a pickaxe was carried') }
         }
     }
     for (const targetY of [68, 60]) {
@@ -570,7 +570,7 @@ test('reaching the home level inside a hill keeps climbing until the sky is open
     const { performProgression } = require('../src/progression-skills')
     for (const [roof, expectClimb] of [[74, true], [null, false]]) {
         const bot = {
-            health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(-33.5, 70, -32.5) },
+            health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(-33.5, 70, -32.5) }, inventory: { items: () => [{ name: 'oak_log', count: 3 }] },
             blockAt: p => ({ name: p.y === roof ? 'stone' : 'air', boundingBox: p.y === roof ? 'block' : 'empty' })
         }
         const c = { bot, running: true, paused: false, home: { y: 69 }, memory: {}, log: { info() {}, warn() {} }, bestItem: () => null,
@@ -614,7 +614,7 @@ test('lava with no walking path is tunneled toward before the source is quaranti
     const c = {
         bot: {
             health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, -54, 0.5) },
-            inventory: { items: () => [{ name: 'bucket', count: 1 }] }
+            inventory: { items: () => [{ name: 'bucket', count: 1 }, { name: 'oak_log', count: 3 }] }
         },
         running: true, paused: false, actionAbort: new AbortController(), memory: {}, log: { info() {}, warn() {} },
         hasItem: name => name === 'bucket', bestItem: () => null,

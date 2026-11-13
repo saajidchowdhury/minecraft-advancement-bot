@@ -2935,3 +2935,26 @@ wheat seeds stayed carried. The keep rules retained at least three wool,
 one leather and sixteen wheat seeds. Removing those limits lets the normal
 cleanup pass throw all four stacks with the other junk. The historical
 inventory and the cleanup action regressions failed before the change.
+
+## F126 — Pickless bot sealed in night shelter digs out by hand
+
+Live, `a581a73`, run `outputs/2026-11-12@23.28.48/`: the wooden pickaxe broke
+during a y=31 tunnel (the stone pick had broken earlier), and the bot sealed a
+night shelter at -4,31,-46. From dawn every `leave_shelter` failed with "no
+safe supported shelter exit" and unstick failed with "mining requires a
+pickaxe", every 2 s. The user thought it could craft a pickaxe; an
+EffectHelper `/data get entity AdvancementBot Inventory` showed 1 oak plank,
+no sticks, 104 cobblestone and 2 crafting tables, so the planner's
+`gather_wood` route was right and nothing could make sticks. User direction:
+when genuinely unable to craft a pickaxe, break stone with bare hands.
+`pickaxeStranded(items)` is true without a carried pickaxe when planks plus
+4 per log fall short of sticks (2 unless carried), a table (4 unless carried)
+and either 3 cobblestone or 3 more planks. While stranded, the dig guard,
+pathfinder break exclusion, shelter exit, `mineTunnel` and `returnSurface`
+accept hand-diggable blocks (hardness <= 3.5, no `_ore`; stone 7.5 s, deepslate
+15 s) with an empty hand; side probes are skipped and action timeouts are
+multiplied by 4. Regression: `test/bare-hands.test.js` and the timing test in
+`test/mining-timing.test.js` fail on the pre-fix source; four older fixtures
+now carry three logs so they keep testing the refuse-while-craftable path.
+Live hand-dig escape is unverified at commit time.
+

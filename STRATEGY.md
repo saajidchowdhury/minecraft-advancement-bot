@@ -68,6 +68,12 @@ balanced_diet, bred_all_animals, complete_catalogue and similar exhaustive goals
 
 ## Open refinements noticed live
 
+- Forced deaths as a tool (user, 2026-11-12, not built): a stranded bot with a weak
+  inventory could suffocate itself with gravel to respawn instead of hand-digging out
+  (F126). More generally, right after a death or after storing valuables in a chest, a
+  deliberate death may beat a long walk or dig. `keep_inventory` is on in the current
+  world (F101), so a forced respawn there costs only position; check the rule before
+  relying on it, since without it the drops are the real cost.
 - Async smelting starts a job at three raw iron, so jobs of 3–5 repeat furnace placement
   and pickup; batching to about eight when the need allows would cut overhead.
 - Enchanter needs a book, an enchanting table (book, two diamonds, four obsidian) and

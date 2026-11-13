@@ -18,7 +18,7 @@ const { exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, I
     rememberMiningExposure, exposedByDig, visibleMiningHazard } = require('./cave-exploration')
 const { blockInView, canSeeBlock, sightRay, scanFor } = require('./vision')
 const { findNearbyLoot, lootChest } = require('./loot')
-const { discardableStack, needsCleanup, inventoryReport } = require('./inventory')
+const { discardableStack, needsCleanup, inventoryReport, pickaxeStranded, handDiggable } = require('./inventory')
 const { baseState, establishBase, migrateBase, depositAtBase, restockAtBase } = require('./base')
 const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnimals } = require('./farming')
 const { archeryState, shootArrow } = require('./archery')
@@ -99,6 +99,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     wake: 10000, sleep: 30000, prepare_bed: 45000, leave_shelter: 20000, mine_iron: 45000, cook_food: 120000, pick_glow_berries: 60000, hunt_fish: 30000, gather_mushroom_stew: 60000,
     [Actions.EXPLORE]: 60000
 })
+const STRANDED_TIMEOUT_FACTOR = 4
 const MELEE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'spider', 'cave_spider', 'vindicator', 'piglin_brute', 'zombified_piglin'])
 const INTERACTIVE = /(^|_)(furnace|smoker|chest|barrel|crafting_table|enchanting_table|anvil|bed|door|trapdoor|fence_gate|button|lever|shulker_box)$/
 const STATIONARY_ACTIONS = new Set([
@@ -637,7 +638,8 @@ class SurvivalController {
         const dig = this.bot.dig.bind(this.bot)
         this.bot.dig = async (block, ...args) => {
             const tool = this.bot.heldItem
-            if (block?.material === 'mineable/pickaxe' && (!tool?.name.endsWith('_pickaxe') || !block.canHarvest(tool.type))) {
+            if (block?.material === 'mineable/pickaxe' && (!tool?.name.endsWith('_pickaxe') || !block.canHarvest(tool.type)) &&
+                !(handDiggable(block) && pickaxeStranded(this.bot.inventory.items()))) {
                 throw new Error(`digging ${block.name} requires a pickaxe`)
             }
             if (block?.material === 'mineable/shovel') {
@@ -1229,7 +1231,9 @@ class SurvivalController {
     }
 
     async performWithTimeout (action, state) {
-        const timeoutMs = ACTION_TIMEOUT_MS[action]
+        // Bare-hand stone takes 7.5 s a block, about five times a stone pickaxe.
+        const baseMs = ACTION_TIMEOUT_MS[action]
+        const timeoutMs = baseMs && baseMs * (pickaxeStranded(this.bot.inventory?.items() ?? []) ? STRANDED_TIMEOUT_FACTOR : 1)
         if (!timeoutMs) {
             return this.perform(action, state)
         }
@@ -1573,10 +1577,11 @@ class SurvivalController {
     async equipStoneDigTool (block) {
         if (block.material === 'mineable/pickaxe') {
             const pick = miningPickaxe(this, block)
-            if (!pick) {
+            if (pick) {
+                await this.bot.equip(pick, 'hand')
+            } else if (!handDiggable(block) || !pickaxeStranded(this.bot.inventory.items())) {
                 throw new Error(`digging ${block.name} requires a pickaxe`)
             }
-            await this.bot.equip(pick, 'hand')
         } else if (block.material === 'mineable/shovel') {
             const shovel = this.bestItem(DIGGING_SHOVELS)
             if (shovel) {
@@ -3531,8 +3536,11 @@ class SurvivalController {
         for (const name of PROTECTED_CONTAINERS) {
             movements.blocksCantBreak.add(movements.bot.registry.blocksByName[name].id)
         }
-        movements.exclusionAreasBreak.push(block => block.material === 'mineable/pickaxe' &&
-            !movements.bot.inventory?.items().some(item => item.name.endsWith('_pickaxe') && block.canHarvest(item.type)) ? 100 : 0)
+        movements.exclusionAreasBreak.push(block => {
+            const items = movements.bot.inventory?.items() ?? []
+            return block.material === 'mineable/pickaxe' && !items.some(item => item.name.endsWith('_pickaxe') && block.canHarvest(item.type)) &&
+                !(handDiggable(block) && pickaxeStranded(items)) ? 100 : 0
+        })
         movements.allow1by1towers = false
         movements.allowParkour = false
         movements.scafoldingBlocks = []

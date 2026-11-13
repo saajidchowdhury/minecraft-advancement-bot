@@ -88,6 +88,8 @@ test('a failed pickaxe-free climb waits before retrying the same blocked exit', 
     const c = shaftWorld(new Vec3(42.5, 48, 12.5), { fail: () => true })
     c.memory.shaft = null
     c.bestItem = () => null
+    // Three logs can make a table and pickaxe, so the bot is not stranded and must not hand-carve.
+    c.bot.inventory = { items: () => [{ name: 'oak_log', count: 3 }] }
     c.bot.blockAt = p => ({ name: 'stone', position: p, boundingBox: 'block' })
     await assert.rejects(performProgression(c, 'return_surface', {}), /requires a pickaxe/)
     const retry = performProgression(c, 'return_surface', {})
