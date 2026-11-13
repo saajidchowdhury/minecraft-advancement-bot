@@ -24,7 +24,7 @@ const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnima
 const { archeryState, shootArrow } = require('./archery')
 const { enchantingState, gatherLeather, enchantItem } = require('./enchanting')
 const { golemState, summonGolem } = require('./golem')
-const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
+const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, openCookingAlcove, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
 const { updateCrowdRetreat, retreatToWall, mineFromRefuge } = require('./crowd-retreat')
 const { reachGoal, treePillar, climbForLog } = require('./tree-climb')
 const { isUnderFeet, rememberPlacement, forgetPlacement, placedOnSupport, stepOffCells, centerIn } = require('./under-feet')
@@ -3159,17 +3159,17 @@ class SurvivalController {
     }
 
     // Smelting skips furnaces holding food: charcoal took back a cooking job's beef and looped (07:06Z).
-    async getFurnace (cooking = false) {
+    async getFurnace (cooking = false, underground = false) {
         const key = p => `${p.x},${p.y},${p.z}`
         const food = new Set([this.memory.cookJob, ...(this.memory.parkedCookJobs || [])].filter(Boolean).map(key))
-        return this.getStation('furnace', cooking ? null : block => !food.has(key(block.position)))
+        return this.getStation('furnace', cooking ? null : block => !food.has(key(block.position)), cooking && underground)
     }
 
     findStation (name, maxDistance = 4, filter = null) {
         return this.mcData ? this.findNearestBlock(candidate => candidate === name, maxDistance, { filter }) : null
     }
 
-    async getStation (name, filter = null) {
+    async getStation (name, filter = null, alcove = false) {
         let station = await scanFor(this, () => this.findStation(name, 4, filter))
         if (station) {
             return station
@@ -3178,7 +3178,7 @@ class SurvivalController {
             throw new Error(`${name.replaceAll('_', ' ')} is missing`)
         }
 
-        const candidates = this.findWorkstationPlacements(5)
+        const candidates = alcove ? [{ target: await openCookingAlcove(this) }] : this.findWorkstationPlacements(5)
         const failures = []
         for (const candidate of candidates.slice(0, 20)) {
             try {
@@ -3207,6 +3207,7 @@ class SurvivalController {
                 }
                 await this.bot.equip(item, 'hand')
                 await this.bot.lookAt(ground.position.offset(0.5, 1, 0.5), true)
+                this.checkAction()
                 try {
                     await this.bot.placeBlock(ground, new Vec3(0, 1, 0))
                 } catch (error) {

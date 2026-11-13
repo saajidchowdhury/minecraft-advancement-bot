@@ -2822,3 +2822,24 @@ while the water search is deferred, and interrupts resource walks. `fill_water_b
 searches 6 blocks underground by day so it finds that source. Three regressions (saved stall
 geometry, water directly above the column, planner priority) fail on the previous source.
 507 tests pass.
+
+## F120 — Cooking furnace blocked the stairs before night shelter [live failure + regression + staged]
+
+On LAN port 49503, `outputs/2026-11-12@22.14.28/bot.log` shows two surface
+batches between 03:22:10Z and 03:23:53Z. After a short descent the bot loaded
+pork at (28,67,238), inside its own stair route. The furnace blocked the return
+stairs. The bot carved another exit, built a shelter at nightfall and failed
+eight attempts to reach the furnace from below. The user reported five lost
+porkchops. The log records four in the batch at that location.
+
+The planner now carries the reserve to covered ground at foot-block Y=47 or
+lower before starting routine Overworld cooking. Urgent meals can still cook
+sooner. New underground cooking furnaces use a supported side recess. The
+first staged trial recovered five supplied porkchops, but the furnace drop
+remained in the single-block recess. The final two-block recess preserved both
+adjacent stair steps. At night the trial bot continued mining at Y=48, selected
+cooking at Y=47, walked to Y=46 and recovered all five cooked porkchops and the
+furnace. See `outputs/cooking-recess-verified.json` for commands and source
+hashes. Position and supplies were staged. Placement, cooking and collection
+ran without commands. Both focused regressions failed before the fix and all
+509 tests pass. The owner's kit requirement now explicitly covers test logins.

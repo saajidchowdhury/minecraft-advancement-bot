@@ -4,6 +4,7 @@ const { nextAdvancement, ironStock, ironReserveCap } = require('./advancement-pl
 const { MIN_MINING_MEALS } = require('./food')
 // User direction (2026-11-06): 32 logs, counting a plank as a quarter log, before a mining trip.
 const MIN_MINING_WOOD_PLANKS = 128
+const COOKING_MAX_Y = 47
 const NIGHT_CARVE_ACTIONS = new Set(['gather_iron', 'gather_coal', 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'fill_lava_bucket'])
 const MELEE_ALERT_RANGE = 6
 const CREEPER_ALERT_RANGE = 8
@@ -135,7 +136,11 @@ function chooseAction (state) {
     // cook what is about to be eaten (raw mutton gave 3.2 of 15.6 meal points, 06:52Z); raw is the fallback.
     const wantsMeal = state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood && !(state.meleeDistance <= 4)
     const rawOnly = state.hasReadyFood === false
-    if (wantsMeal && rawOnly && (state.canCook || state.cookJob?.ready)) {
+    const cookingDepth = (state.dimension && state.dimension !== 'overworld') ||
+        (state.underground && !state.sheltered && state.y < COOKING_MAX_Y + 1)
+    const canWaitForDepth = !cookingDepth && state.hasStonePickaxe && hasMiningWood(state) &&
+        state.mealReserve >= MIN_MINING_MEALS && state.food > 14 && state.health > 10
+    if (wantsMeal && rawOnly && (state.cookJob?.ready || (state.canCook && !canWaitForDepth))) {
         return 'cook_food'
     }
     const urgent = state.cookJob ? state.food <= 6 || state.health <= 6 : state.food <= 14 || state.health <= 10
@@ -264,9 +269,8 @@ function chooseAction (state) {
     const preparingTool = recoveringPick || preparingIronPick || ['stone_axe', 'stone_shovel'].includes(progression.item)
     const action = priorityOre || (preparingTool ? progression.action : state.sideGoal?.action || progression.action)
     const surfaceBound = state.underground && ['gather_wood', 'gather_food', 'gather_leather', 'enter_nether', 'build_redstone'].includes(action)
-    // One furnace serves food before iron; cooking starts once the reserve is gathered or night falls (user).
     if (state.cookJob?.ready || (state.cookJob && action === Actions.SMELT_IRON) ||
-        (state.canCook && !needsDepartureWood && !needsDepartureFood)) {
+        (state.canCook && cookingDepth && !needsDepartureWood && !needsDepartureFood)) {
         return 'cook_food'
     }
     if (!recoveringPick && state.baseMigrate) {

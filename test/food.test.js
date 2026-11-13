@@ -255,6 +255,31 @@ test('a surface cooking job is not started when it would still be cooking at nig
     assert.equal(foodState(c, { ...base }).canCook, true)
 })
 
+test('a stocked miner carries raw food down the stairs and cooks below the entrance at dusk', () => {
+    const { chooseAction } = require('../src/decision-engine')
+    const { c } = kitchen([{ name: 'mutton', count: 5 }, { name: 'beef', count: 5 }, { name: 'porkchop', count: 5 },
+        { name: 'furnace', count: 1 }, { name: 'oak_log', count: 33 }])
+    const miner = { dimension: 'overworld', health: 20, food: 20, hasFood: true, hasReadyFood: false,
+        hostileDistance: Infinity, freeInventorySlots: 10, hasFurnace: true, hasCraftingTable: true,
+        hasWoodenPickaxe: true, hasStonePickaxe: true, hasWoodcuttingAxe: true, hasDiggingShovel: true,
+        logs: 33, planks: 5, sticks: 2, rawIron: 0, ironIngots: 0, surfaceY: 70 }
+    const actionAt = (y, underground, timeOfDay) => {
+        c.bot.entity.position = new Vec3(0.5, y, 0.5)
+        c.bot.time = { timeOfDay }
+        return chooseAction(foodState(c, { ...miner, y, underground, isNight: timeOfDay >= 12500 }))
+    }
+    assert.equal(actionAt(70, false, 9777), 'gather_iron')
+    assert.equal(actionAt(66, true, 12057), 'gather_iron')
+    assert.equal(actionAt(48, true, 12400), 'gather_iron')
+    assert.equal(actionAt(47, true, 12537), 'cook_food')
+    assert.equal(actionAt(47, false, 12400), 'gather_iron', 'an open ravine is still exposed')
+    miner.health = 19
+    miner.food = 18
+    assert.equal(actionAt(70, false, 9777), 'gather_iron', 'minor hunger and damage can wait for the descent')
+    miner.food = 14
+    assert.equal(actionAt(70, false, 9777), 'cook_food', 'an urgent meal can still use a surface furnace')
+})
+
 test('a furnace job is due when its fuel runs out, counted in world ticks including the burning item', async () => {
     const bot = { time: { age: 1000 }, waitForTicks: async () => {} }
     const coal = { fuelItem: () => ({ name: 'coal', count: 1 }) }

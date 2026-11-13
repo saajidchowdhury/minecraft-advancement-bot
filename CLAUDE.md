@@ -63,10 +63,16 @@ Owner preferences for live sessions (the configured `owner` player):
   teleport the owner to a vantage point that shows the whole test area without
   interfering with it, for example on top of a dark stained-glass ceiling over
   the arena. Return them afterwards.
-- Whenever you start or restart the bot, make sure the owner has full enchanted
-  netherite armor and tools, 64 enchanted golden apples and infinite Night
-  Vision and Regeneration. Check first and give only what is missing.
-Use a separate helper login for these commands and record them like any other.
+- Before every live start or restart, use a separate command helper to verify
+  the owner's kit. This applies to the regular bot and every temporary gameplay
+  login, including `CookingTrial`, arena players and one-off staged tests. If
+  `EffectHelper` joins for staging, use that login to check the kit before
+  spawning the trial player or sending any other setup commands.
+- The owner needs all four pieces of enchanted netherite armor, an enchanted
+  netherite sword, pickaxe, axe and shovel, 64 enchanted golden apples and
+  infinite Night Vision and Regeneration. Check worn gear, carried items and
+  effects, give only what is missing, and verify the result before starting
+  gameplay. Record every command and server reply with the test logs.
 
 The user authorizes iterative live testing in the supplied LAN world: run,
 observe, stop a misbehaving bot, diagnose, patch and rerun. Verify PID/process

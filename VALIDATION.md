@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-507 tests and `npm run check` pass at `e7e85b6`.
+509 tests and `npm run check` pass after the F120 cooking fix.
 Run them with the prepared runtime:
 
 ```sh
@@ -46,7 +46,7 @@ which leaves little room for more comments there.
 | enderman | 11 | gaze avoidance, anger, refuge priority and persistence |
 | farming | 6 | A Seedy Place, Fishy Business, breeding |
 | food-gathering | 3 | stew crafting, prey quarantine, watchdog recovery |
-| food | 22 | cooking jobs: reach, parking, far returns, detours, due times |
+| food | 23 | cooking depth, urgent meals, reach, parking, far returns, detours, due times |
 | golem | 3 | Hired Help site, build order, gating |
 | inventory | 20 | keep rules, outclassed gear, batch trigger, stack merge, pits, lanes, full packs |
 | leaf-vision | 8 | leaf-transparent rays, overhead trunks, moving drops |
@@ -63,7 +63,7 @@ which leaves little room for more comments there.
 | shaft-memory | 11 | shaft recording, following, repair, pickless climb pause |
 | side-probes | 23 | probe reach, spacing, anchors, hazards, descents |
 | smelting | 16 | async smelt jobs, fuel due times, plank fuel, collection |
-| station-recovery | 2 | workstation placement relocation |
+| station-recovery | 3 | workstation placement relocation, cooking recess beside a stair |
 | survival-safety | 62 | shelters, critical health, reflexes, threats, combat events |
 | terrain-scout | 4 | land scouting, isolated pillars |
 | tree-climb | 13 | eye-reach approach, tree pillars, scaffold recovery |
@@ -86,6 +86,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Async smelting, plank fuel, one-charcoal batch | live | F037, F041, F106 |
 | Wood-only cooking job, log-to-plank fuel, multi-charcoal | automated | F106 |
 | Cooking cycle with parking and underground night cooking | live | F103 |
+| Dusk descent with raw food, stair-side cooking and furnace pickup | automated / staged on existing stairs | F120 |
 | Two-stage far cooking trip, parked job next day | automated | F103, F104 |
 | Furnace return from a stalled hillside | staged | F096 |
 | Hunting sheep, cows, pigs; out-of-view prey | live | F103 |

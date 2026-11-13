@@ -13,15 +13,11 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-12, session end
 
-AdvancementBot was left running in Terminal window 781 on LAN port 49910, source
-`e7e85b6` (`outputs/2026-11-12@02.29.56/`, Terminal log
-`outputs/water-opportunity-restart-49910.log`). It wears full diamond armor,
-carries an empty and a lava bucket, and was mining for diamonds while the water
-search was deferred (F113–F119). Before each start, `outputs/owner-kit.js`
-checks and tops up the owner's kit. The LAN port changes each time the world is
-opened. Verify the process, connection and newest snapshot before live work.
-Baseline: 507 tests pass. The digest above the index is about 250 lines, over
-its ~200 limit; condense older bullets next session.
+The 22:14 LAN run used `547ada9` on port 49503, with logs in
+`outputs/2026-11-12@22.14.28/`. The F120 fix passed a staged LAN trial on its
+existing staircase. Check the newest snapshot and process before live work.
+Verify the owner's kit before starting any live bot, including test logins.
+Baseline: 509 tests pass. The digest above the index is about 250 lines.
 
 ## Stable facts and process lessons
 
@@ -148,10 +144,11 @@ Furnaces, fuel and food
   up to three at a time (`src/furnace-fuel.js`, F106). A fuel-starved job is
   ready when carried wood covers it (F103). A dry job without fuel takes its
   input back (F074).
-- Cooking waits for a gathered reserve, night or depth. Food about to be eaten is
-  always cooked, and raw food is eaten only when no furnace serves in time.
-  Furnace contents count toward the reserve (F103). Underground food taken in
-  passing: fish near air, ripe glow berries, up to four stews, tropical fish (F072).
+- Stocked miners carry raw food to covered ground at Y=47 or lower. New
+  underground cooking furnaces go in a supported recess beside the stair, with
+  room to collect the furnace after breaking it (F120). Urgent meals can cook
+  sooner. Furnace contents count toward the reserve (F103). Underground food
+  taken in passing includes fish, ripe glow berries and up to four stews (F072).
 - Hunts prefer axes and wait for charged swings (stone axe 1.25 s). Prey is
   dropped only after 3 s of terrain occlusion without closing 2 blocks (F095,
   F103). Low health starts a hunt only below 18 food (F104).
@@ -378,3 +375,4 @@ Highest risk first.
 - F117 Night surface work for a fully armed bot [user direction + regression]
 - F118 A fallen gravel column trapped the bot by the feet; gravel handling [live + regression]
 - F119 Water treated as an opportunity while buckets are short [user direction + regression]
+- F120 Cooking furnace obstructed the stairs and was left outside night shelter [live failure + regression + staged]

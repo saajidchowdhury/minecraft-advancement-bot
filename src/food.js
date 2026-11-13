@@ -35,7 +35,7 @@ const AIR = new Set(['air', 'cave_air'])
 const MAX_STEWS = 4
 const SECONDS_PER_ITEM = 10
 
-// Raw food counts at its cooked value: cooking jobs convert it before the bot leaves.
+// Raw food counts at its cooked value because the miner can cook it after descending.
 function mealReserve(items) {
     return items.reduce((sum, item) => {
         const name = COOKED[item.name] || item.name
@@ -186,7 +186,12 @@ async function startCooking(c, state) {
         await c.ensureItem('furnace', 1, true)
         c.checkAction(signal)
     }
-    const block = await c.getFurnace(true)
+    const block = await c.getFurnace(true, state?.underground).catch(error => {
+        if (!signal?.aborted) {
+            c.memory.cookBlockedUntil = Date.now() + 60000
+        }
+        throw error
+    })
     let furnace = await c.bot.openFurnace(block)
     try {
         // Leftover output (charcoal, ingots) is the bot's own and is collected; foreign input blocks.

@@ -19,8 +19,9 @@ playthrough is a test, not the definition of success.
    simultaneous creeper cases. Done when both staggered cases end in a kill or
    a scored escape on the same seed.
 3. Watch natural play for: the creeper duel on poor footing (F112), a furnace job
-   near the iron cap (F108), cleanup frequency under the keep rules (F115), and
-   whether head turning is gone (F116).
+   near the iron cap (F108), an unaided dusk descent and stair-side cooking cycle
+   (F120), cleanup frequency under the keep rules (F115), and whether head turning
+   is gone (F116).
 4. Remaining hidden-data reads: mineflayer-pathfinder's `safeToBreak` still
    refuses path digs beside hidden liquid (F114). Decide whether to patch it.
 5. Diagnose the inventory loss after warden recovery (F104) and unattributed

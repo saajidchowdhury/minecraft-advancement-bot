@@ -235,6 +235,45 @@ function tunnelTool(c, block) {
     return miningPickaxe(c, block)
 }
 
+async function openCookingAlcove(c) {
+    const bot = c.bot
+    const feet = bot.entity.position.floored()
+    const frontier = c.memory.tunnelFrontier
+    const direction = frontier?.dimension === bot.game.dimension && feet.equals(frontier) ? frontier.direction : c.memory.mineDirection
+    const sides = direction == null ? DIRECTIONS : [DIRECTIONS[(direction + 1) % 4], DIRECTIONS[(direction + 3) % 4]]
+    for (const [dx, dz] of sides) {
+        check(c)
+        const target = feet.offset(dx, 0, dz)
+        const floor = bot.blockAt(target.offset(0, -1, 0), false)
+        const cap = bot.blockAt(target.offset(0, 2, 0), false)
+        const cells = [target.offset(0, 1, 0), target].map(p => bot.blockAt(p, false))
+        const tools = cells.map(block => block && !c.isEmptyPlacementBlock(block) && tunnelTool(c, block))
+        if (floor?.boundingBox !== 'block' || cap?.boundingBox !== 'block' || falls(cap.name) ||
+            PROTECTED_CONTAINERS.has(floor.name) || c.isBlockedTarget?.({ position: target }) ||
+            c.isEmptyPlacementBlock(cells[1]) || cells.some((block, i) => !c.isEmptyPlacementBlock(block) &&
+                (!block?.diggable || PROTECTED_CONTAINERS.has(block.name) || falls(block.name) || !tools[i] || !bot.canDigBlock(block)))) {
+            continue
+        }
+        // Solid wall at foot level keeps the furnace off the stairs. Headroom lets the bot collect its drop.
+        for (const [i, block] of cells.entries()) {
+            if (tools[i]) {
+                await bot.equip(tools[i], 'hand')
+                check(c)
+                await bot.dig(block, true)
+                check(c)
+            }
+            const revealed = revealedHazard(bot, block.position)
+            if (revealed) {
+                await plugRevealed(c, block.position, revealed, target)
+            }
+        }
+        if (safeFooting(bot, target)) {
+            return target
+        }
+    }
+    throw new Error('no supported side wall for a cooking furnace')
+}
+
 async function probeTunnelSides(c, direction) {
     const bot = c.bot
     const anchor = bot.entity.position.clone()
@@ -1738,4 +1777,4 @@ async function performProgression(c, action, state) {
     }
 }
 
-module.exports = { armorUpgrades, coveredAbove, openToSky, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS }
+module.exports = { armorUpgrades, coveredAbove, openToSky, openCookingAlcove, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS }
