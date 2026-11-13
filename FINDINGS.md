@@ -13,14 +13,16 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13, session end
 
-AdvancementBot resumed on `ccb9936` on LAN port 49503, PID 17647, with logs in
-`outputs/2026-11-13@00.24.09/`. It hand-carved out of its pickless y=31
-shelter (F126), then the user gave it an enchanted netherite pickaxe. Progress
-made with that pickaxe is assisted, not survival-earned. F128 and F129 are
-loaded; it is night and it was retreating from a cave crowd at restart. Not yet live-verified: water-before-lava buckets
-and the glow berry path bound (F127). The owner kit was verified before
-restart. Verify the newest process, snapshot and owner kit. Baseline: 525
-tests pass.
+AdvancementBot resumed on `de15354` on LAN port 49503, PID 20099, with logs in
+`outputs/2026-11-13@00.38.56/`. It carved out of the F132 sculk zone and
+is climbing a staircase to the surface (y=31 at 05:40Z) with the user's
+enchanted netherite pickaxe (assisted) and the 5-tick destroy delay (F131).
+A brief "falling air above the bot" loop (6 failures at -49,-8,-3) cleared
+itself by blocking steps; the name "air" suggests the check sees a falling
+block entity over an empty cell. Not yet live-verified: F127 buckets and
+berries, F129 disposal zones and surface scouts, F130 standoffs. The owner
+kit was verified before restart. Verify the newest process, snapshot and
+owner kit. Baseline: 533 tests pass.
 
 ## Stable facts and process lessons
 
