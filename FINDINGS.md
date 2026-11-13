@@ -13,10 +13,11 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13, session end
 
-World remade again; LAN port 50902. A staged swim through the seagrass swamp
-on `bb6e73b` reached mainland in 21 s (F136). The current commit adds
-distance-scaled land-trip timeouts. Restart onto it, then verify the
-process, snapshot and owner kit. Not yet seen live: the F135 trunk platform
+World remade again; LAN port 50902. AdvancementBot runs `331f448`, PID 31317,
+logs in `outputs/2026-11-13@02.00.10/`, Terminal window 592. A staged swim
+through the seagrass swamp on `bb6e73b` reached mainland in 21 s (F136). On
+the latest restart the bot was on grass, completed reach-land at once and is
+going for iron. Verify the newest process, snapshot and owner kit. Not yet seen live: the F135 trunk platform
 and full canopy descent, F127 buckets and berries, F129 disposal zones, F130
 standoffs, F132 sculk exits. Baseline: 550 tests pass.
 
