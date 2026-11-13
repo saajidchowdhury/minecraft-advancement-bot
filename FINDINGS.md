@@ -13,11 +13,11 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13, session end
 
-AdvancementBot resumed on `01d17da` on LAN port 49503, PID 16079, with logs in
-`outputs/2026-11-13@00.06.37/`. It hand-carved out of its pickless y=31
+AdvancementBot resumed on `ccb9936` on LAN port 49503, PID 17647, with logs in
+`outputs/2026-11-13@00.24.09/`. It hand-carved out of its pickless y=31
 shelter (F126), then the user gave it an enchanted netherite pickaxe. Progress
-made with that pickaxe is assisted, not survival-earned. With F128 the bot is
-tunneling to y=16 for iron. Not yet live-verified: water-before-lava buckets
+made with that pickaxe is assisted, not survival-earned. F128 and F129 are
+loaded; it is night and it was retreating from a cave crowd at restart. Not yet live-verified: water-before-lava buckets
 and the glow berry path bound (F127). The owner kit was verified before
 restart. Verify the newest process, snapshot and owner kit. Baseline: 525
 tests pass.
