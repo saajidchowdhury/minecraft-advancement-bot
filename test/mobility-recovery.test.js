@@ -425,3 +425,76 @@ test('a wood attempt cut off by low air blocks the whole tree (F134)', async () 
     await assert.rejects(c.gatherWood(), /collection cancelled/)
     assert.deepEqual([...c.memory.blockedTargets.keys()].sort(), ['5,61,0', '5,62,0', '5,63,0'])
 })
+
+test('after spawning the planner reaches land first, after air and threats (F135)', () => {
+    const { chooseAction } = require('../src/decision-engine')
+    const state = { health: 20, food: 20, hostileDistance: Infinity, needsLand: true, completedAdvancements: new Set() }
+    assert.equal(chooseAction(state), 'reach_land')
+    assert.equal(chooseAction({ ...state, oxygen: 10 }), 'surface_for_air')
+    assert.equal(chooseAction({ ...state, hostileDistance: 3, hasWeapon: true }), 'fight')
+    assert.notEqual(chooseAction({ ...state, needsLand: false }), 'reach_land')
+})
+
+function landWorld() {
+    const { Vec3 } = require('vec3')
+    const registry = require('prismarine-registry')('26.1')
+    const Block = require('prismarine-block')(registry)
+    // Swamp from x=0..20 (water y=61..62 over dirt y=60); grass shore at y=61 from x=21.
+    const name = p => p.y < 60 ? 'stone' : p.y === 60 ? 'dirt' : p.x <= 20 && p.y <= 62 ? 'water' : p.x > 20 && p.y === 61 ? 'grass_block' : 'air'
+    const bot = {
+        registry, game: { dimension: 'overworld' }, entity: { position: new Vec3(3.5, 61, 0.5), onGround: false, isInWater: true },
+        blockAt: at => {
+            const p = at.floored()
+            const b = Block.fromStateId(registry.blocksByName[name(p)].defaultState, 0)
+            b.position = p
+            return b
+        },
+        findBlocks ({ matching, maxDistance, count, useExtraInfo }) {
+            const found = []
+            for (let x = -10; x <= 40; x++) {
+                for (let y = 55; y <= 66; y++) {
+                    const b = bot.blockAt(new Vec3(x, y, 0))
+                    if (matching.includes(b.type) && b.position.distanceTo(bot.entity.position) <= maxDistance && useExtraInfo(b)) {
+                        found.push(b.position)
+                    }
+                }
+            }
+            return found.sort((a, b) => a.distanceTo(bot.entity.position) - b.distanceTo(bot.entity.position)).slice(0, count)
+        }
+    }
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, { bot, landPending: true, landFailures: 0, actionAbort: new AbortController(), log: { info() {}, warn() {} },
+        memory: { blockedTargets: new Map() }, checkAction() {} })
+    return { c, bot, Vec3 }
+}
+
+test('the reach-land goal heads for the nearest dry ground block and clears once standing on it (F135)', async () => {
+    const { c, bot, Vec3 } = landWorld()
+    assert.equal(c.needsLand(), true)
+    let goal = null
+    c.gotoWithTimeout = async g => {
+        goal = g
+        Object.assign(bot.entity, { position: new Vec3(g.x + 0.5, g.y, g.z + 0.5), onGround: true, isInWater: false })
+    }
+    await c.reachLand()
+    assert.deepEqual([goal.x, goal.y, goal.z], [21, 62, 0], 'the shore, not the dirt under the water')
+    assert.equal(c.needsLand(), false)
+    assert.equal(c.landPending, false)
+})
+
+test('a reach-land goal with no loaded ground scouts, and gives up after six attempts (F135)', async () => {
+    const { c, bot } = landWorld()
+    bot.findBlocks = () => []
+    let scouts = 0
+    c.scout = async () => { scouts++ }
+    for (let i = 0; i < 5; i++) {
+        await c.reachLand()
+    }
+    assert.equal(scouts, 5)
+    assert.equal(c.landPending, true)
+    await c.reachLand()
+    assert.equal(c.landPending, false)
+    c.bot.game.dimension = 'the_nether'
+    c.landPending = true
+    assert.equal(c.needsLand(), false, 'the goal is Overworld-only')
+})

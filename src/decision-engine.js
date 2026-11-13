@@ -132,6 +132,11 @@ function chooseAction (state) {
     if (state.hostileDistance <= MELEE_ALERT_RANGE || state.rangedDistance <= ARCHER_ALERT_RANGE) {
         return state.hasWeapon && state.health > 10 && !(state.rangedDistance <= ARCHER_ALERT_RANGE) ? Actions.FIGHT : Actions.ESCAPE
     }
+    // User direction (F135): after spawning in the Overworld, first stand on dry ground; a swamp spawn
+    // otherwise cut logs one by one while treading water.
+    if (state.needsLand) {
+        return 'reach_land'
+    }
     // Eating (1.6 s, not cleanly cancellable) never runs with melee at arm's length (round 9). User 2026-11-11:
     // cook what is about to be eaten (raw mutton gave 3.2 of 15.6 meal points, 06:52Z); raw is the fallback.
     const wantsMeal = state.food < 20 && (state.food <= 14 || state.health < 20) && state.hasFood && !(state.meleeDistance <= 4)

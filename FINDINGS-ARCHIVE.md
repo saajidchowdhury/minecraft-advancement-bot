@@ -3162,3 +3162,20 @@ failure. The user also suggested standing on a lily pad or swimming to land.
 box), and F134's swim fix lets the scout reach land. Regression tests in
 `test/mobility-recovery.test.js` fail on the pre-fix source.
 
+## F135 — Reach dry land first after every Overworld spawn
+
+User direction (2026-11-13). The F134 treading fix worked, but the user found
+it far too slow: in the swamp the bot cut log after log while holding jump
+in water. Rule: after each spawn or respawn in the Overworld, the first goal
+is to stand on a ground block (soil, sand, gravel or rock; the pattern is
+`LAND_GROUND`) with no water in the feet cell. `spawn` sets `landPending`.
+`needsLand()` clears it once the bot is on the ground and out of water. The
+planner returns `reach_land` after the air, lava, sculk, crowd and melee
+reflexes and before any other work. `reachLand` uses `findBlocks` (sorted by
+distance, radius 48) to find ground with two dry, empty cells above it, and
+tries the nearest 3 with a 20 s `GoalBlock` each, blocking any that fail.
+With no ground loaded it scouts, and after 6 attempts it gives up the goal so
+work can resume. In the Nether the goal does nothing. Regression in
+`test/mobility-recovery.test.js` (priority, nearest shore rather than the
+dirt under the water, scout and give-up) fails on the pre-fix source.
+

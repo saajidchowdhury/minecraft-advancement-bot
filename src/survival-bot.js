@@ -95,12 +95,17 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     smelt_charcoal: 45000, craft_progression: 45000, equip_armor: 10000, equip_shield: 10000,
     fill_water_bucket: 90000, fill_lava_bucket: 90000, gather_diamonds: 90000, gather_obsidian: 90000,
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
-    clear_inventory: 30000, mine_diamond: 45000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
+    clear_inventory: 30000, mine_diamond: 45000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, reach_land: 60000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
     wake: 10000, sleep: 30000, prepare_bed: 45000, leave_shelter: 20000, mine_iron: 45000, cook_food: 120000, pick_glow_berries: 60000, hunt_fish: 30000, gather_mushroom_stew: 60000,
     [Actions.EXPLORE]: 60000
 })
 const STRANDED_TIMEOUT_FACTOR = 4
+// Reach-land goal (F135): ground blocks, search radius in blocks, candidates tried and attempts before giving up.
+const LAND_GROUND = /^(dirt|coarse_dirt|rooted_dirt|grass_block|podzol|mycelium|mud|clay|moss_block|sand|red_sand|gravel|stone|cobblestone|mossy_cobblestone|deepslate|andesite|diorite|granite|tuff|calcite|sandstone|red_sandstone|snow_block|.*terracotta)$/
+const LAND_SEARCH_RADIUS = 48
+const LAND_CANDIDATES = 32
+const LAND_ATTEMPTS = 6
 // Low-air cutoff in bubbles (the breath handler surfaces at 12); one bubble is 15 ticks of air.
 const LOW_AIR_BUBBLES = 12
 const BUBBLE_MS = 750
@@ -429,6 +434,11 @@ class SurvivalController {
                     this.scheduleLoop(1000)
                 }
             })
+        })
+        // Every spawn and respawn starts with the reach-land goal (F135); standing on ground clears it.
+        this.bot.on('spawn', () => {
+            this.landPending = true
+            this.landFailures = 0
         })
         this.bot.on('death', () => {
             const endermanDeath = Boolean(this.endermanThreat && this.endermanThreat.dimension === this.bot.game?.dimension)
@@ -1122,6 +1132,7 @@ class SurvivalController {
             underground: Boolean(this.sheltered && this.memory.shelter?.burrowed) ||
                 (this.bot.entity.position.y < (this.home?.y || 64) - 3 && !(this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0))?.skyLight >= 12) &&
                     coveredAbove(this.bot, this.bot.entity.position.floored().offset(0, 1, 0))),
+            needsLand: this.needsLand(),
             portalInProgress: Boolean(this.memory.portalOrigin),
             redstoneInProgress: Boolean(this.memory.redstoneOrigin),
             redstoneRequested: Boolean(this.memory.redstoneRequested)
@@ -1198,6 +1209,7 @@ class SurvivalController {
             case 'go_fish': return goFish(this)
             case 'shoot_arrow': return shootArrow(this)
             case 'surface_for_air': return this.surfaceForAir()
+            case 'reach_land': return this.reachLand()
             case 'escape_lava': return this.escapeLava()
             case 'clear_head': return this.clearHead()
             case 'gather_leather': return gatherLeather(this)
@@ -3589,6 +3601,65 @@ class SurvivalController {
             (!options.filter || options.filter(block)) &&
             (options.sight ? options.sight(block) : blockInView(this.bot, block, options.mining && exposedByDig(this, block)))
         return this.bot.findBlock(search)
+    }
+
+    // Ground for the reach-land goal: natural soil, sand, gravel and rock with no water in the feet cell.
+    standsOnLand () {
+        const entity = this.bot.entity
+        if (!entity?.onGround || entity.isInWater) {
+            return false
+        }
+        const feet = entity.position.floored()
+        const body = this.bot.blockAt(feet, false)
+        return body?.name !== 'water' && body?.getProperties?.().waterlogged !== true &&
+            LAND_GROUND.test(this.bot.blockAt(feet.offset(0, -1, 0), false)?.name ?? '')
+    }
+
+    needsLand () {
+        if (!this.landPending || this.bot.game?.dimension !== 'overworld') {
+            return false
+        }
+        if (this.standsOnLand()) {
+            this.landPending = false
+            this.log.info(`Standing on land at ${this.positionText()}; reach-land goal complete.`)
+            return false
+        }
+        return true
+    }
+
+    // Nearest loaded ground block with two dry, empty cells above it; scouting covers unloaded land.
+    async reachLand () {
+        const ids = Object.values(this.bot.registry.blocksByName).filter(block => LAND_GROUND.test(block.name)).map(block => block.id)
+        const open = p => {
+            const block = this.bot.blockAt(p, false)
+            return block?.boundingBox === 'empty' && !['water', 'lava'].includes(block.name) && block.getProperties?.().waterlogged !== true
+        }
+        const spots = this.bot.findBlocks({ matching: ids, maxDistance: LAND_SEARCH_RADIUS, count: LAND_CANDIDATES,
+            useExtraInfo: block => open(block.position.offset(0, 1, 0)) && open(block.position.offset(0, 2, 0)) &&
+                !this.isBlockedTarget({ position: block.position }) })
+        const signal = this.actionAbort?.signal
+        for (const floor of spots.slice(0, 3)) {
+            this.checkAction(signal)
+            try {
+                this.log.info(`Reach-land goal: heading for ${this.bot.blockAt(floor, false)?.name} at ${floor}.`)
+                await this.gotoWithTimeout(new goals.GoalBlock(floor.x, floor.y + 1, floor.z), 20000, 'reach land')
+                if (this.standsOnLand()) {
+                    return
+                }
+            } catch (error) {
+                this.checkAction(signal)
+                this.rememberBlockedTarget({ position: floor }, 'land', error)
+            }
+        }
+        this.landFailures = (this.landFailures || 0) + 1
+        if (this.landFailures >= LAND_ATTEMPTS) {
+            this.landPending = false
+            this.log.warn(`Reach-land goal abandoned after ${LAND_ATTEMPTS} attempts; resuming normal work.`)
+            return
+        }
+        if (!spots.length) {
+            await this.scout(36)
+        }
     }
 
     // Six 45 s walking escapes never left -64,-26,-10 (F132); a failed path carves up and away instead.

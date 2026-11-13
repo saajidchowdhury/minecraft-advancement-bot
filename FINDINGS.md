@@ -21,7 +21,7 @@ treading water) it had 0 low-air events, gathered wood, earned
 `story/root` and crafted a wooden pickaxe (06:08Z, unaided). The owner kit
 was given in full on the new world and then verified. Not yet seen live:
 F127 buckets and berries, F129 disposal zones, F130 standoffs, F132 sculk
-exits. Baseline: 539 tests pass.
+exits. Baseline: 542 tests pass.
 
 ## Stable facts and process lessons
 
@@ -419,3 +419,4 @@ Highest risk first.
 - F132 Sculk zone blocked every tunnel step, including the way out [live failure + regression]
 - F133 Submerged log dig retried after every breath [live failure + regression]
 - F134 Water impassable inside the path cost budget; swamp trees blocked [live failure + inspection + regression]
+- F135 Reach dry land first after every Overworld spawn [user direction + regression]
