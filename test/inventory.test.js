@@ -210,6 +210,9 @@ test('without a lane, cleanup tosses then retreats beyond pickup range', async (
     assert.ok(c.bot.entity.position.distanceTo(origin) >= 3)
     assert.equal(inventory.length, 1)
     assert.equal(c.activeMovements, c.movements)
+    // The drop spot becomes a zone later routes avoid (F129).
+    const start = origin.floored()
+    assert.deepEqual(c.memory.disposalZones.map(z => [z.x, z.y, z.z]), [[start.x, start.y, start.z]])
 })
 
 test('cleanup refuses to toss in an enclosed cell with no lane or retreat', async () => {
@@ -359,4 +362,23 @@ test('cleanup throws every wool color, leather and every seed type even with rea
         'pumpkin_seeds', 'torchflower_seeds', 'pitcher_pod']
     const items = [...junk, 'cobblestone'].map(name => ({ name, count: 5 }))
     assert.deepEqual(discardableStacks(items, { foods }).map(item => item.name).sort(), [...junk].sort())
+})
+
+test('lane and in-place drops mark a five-minute zone that walking routes pay to avoid (F129)', t => {
+    t.mock.timers.enable({ apis: ['Date'] })
+    const { disposalStepCost } = require('../src/progression-skills')
+    const { SurvivalController } = require('../src/survival-bot')
+    const { Vec3 } = require('vec3')
+    const memory = { disposalZones: [{ x: -54, y: 72, z: -85, dimension: 'overworld', until: Date.now() + 300000 }] }
+    assert.equal(disposalStepCost(memory, 'overworld', new Vec3(-55, 72, -86)), 20)
+    assert.equal(disposalStepCost(memory, 'overworld', new Vec3(-50, 72, -85)), 0)
+    assert.equal(disposalStepCost(memory, 'overworld', new Vec3(-54, 68, -85)), 0)
+    assert.equal(disposalStepCost(memory, 'the_nether', new Vec3(-54, 72, -85)), 0)
+    const movements = { bot: { registry: { blocksByName: new Proxy({}, { get: () => ({ id: 1 }) }) }, game: { dimension: 'overworld' } },
+        blocksCantBreak: new Set(), exclusionAreasBreak: [], exclusionAreasStep: [], fences: new Set() }
+    SurvivalController.prototype.configureSafeMovements.call({ memory }, movements)
+    const step = movements.exclusionAreasStep.at(-1)
+    assert.equal(step({ position: new Vec3(-54, 72, -84) }), 20)
+    t.mock.timers.tick(300001)
+    assert.equal(step({ position: new Vec3(-54, 72, -84) }), 0)
 })

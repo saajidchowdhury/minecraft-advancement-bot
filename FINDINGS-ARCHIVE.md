@@ -3036,3 +3036,27 @@ tosses go through with and without an enchanted netherite pickaxe carried
 stack. So disposal drops need to land where later routes do not pass, or be
 avoided by those routes.
 
+Update (same session): disposal fixed. A lane toss records a zone around its
+landing spot (start + 3 along the lane), and an in-place drop records one at
+the start cell. Each zone lasts the 5 min item despawn time and has a
+3-block radius (within 2 blocks vertically), and `configureSafeMovements`
+charges each walking step inside it a cost of 20. It is a cost rather than a
+ban, so a one-wide tunnel through a drop stays passable. Pit drops lie out
+of pickup reach and record no zone. Regression in `test/inventory.test.js`.
+
+## F130 — Unreachable zombie froze repeated fights
+
+Live, `01d17da`, run `outputs/2026-11-13@00.06.37/`, 05:23:25-05:24:07Z, as
+the user reported: a zombie 5.8 blocks away across a ravine could not reach
+the bot. `fight` awaits a melee mob between 3.1 and 6 blocks off, so the bot
+stood still until the 12 s movement watchdog cancelled it ("fight is
+stuck"). With `hostileDistance <= 6`, the same fight was chosen again four
+times. Fix: while awaiting a melee mob, if it gains less than 0.5 blocks in
+4 s, `rememberStandoff` stores its distance for 60 s and the fight ends
+("not approaching; standing down"). A 5 s unreachable charge records one too.
+While the standoff holds, `nearestEntity` and the nearby-hostile interrupt
+skip that entity unless it comes 1 block closer than the recorded distance.
+Archers are never stood down, since they shoot across gaps. Regression:
+`test/survival-safety.test.js` fails on the pre-fix source. Not yet seen
+live.
+

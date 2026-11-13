@@ -138,7 +138,8 @@ Inventory, base and disposal
 - Disposal tries the shielded pit (user technique), then a level or rising toss
   lane, then retreat, with a 60 s back-off (F019, F022). Cleanup starts at two
   free slots (`needsCleanup`), merges split stacks, then throws every
-  discardable stack at once (F115).
+  discardable stack at once (F115). Lane and in-place drops leave a 5 min,
+  radius-3 zone that costs walking routes 20 per step (F129).
 - Carry rules (`src/inventory.js`, F115): at least 64 cobblestone, deepslate or
   netherrack in total plus 16 dirt; logs 40, fuel 32, gold 8, lapis 8, redstone
   16, side-goal drops and food; the two best pickaxes, the best other tool of
@@ -410,3 +411,4 @@ Highest risk first.
 - F127 Water buckets before lava; reachable glow berries only; no leather restock [user direction + live failure + regression]
 - F128 Enchanted tools crashed dig timing on 26.1 item components [live failure + regression]
 - F129 Surface scouts walked down own stairs; placements overlapped the bot; lane tosses re-collected [live failure + staged + regression]
+- F130 Unreachable zombie froze repeated fights [live failure + regression]

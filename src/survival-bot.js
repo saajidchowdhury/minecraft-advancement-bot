@@ -24,7 +24,7 @@ const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnima
 const { archeryState, shootArrow } = require('./archery')
 const { enchantingState, gatherLeather, enchantItem } = require('./enchanting')
 const { golemState, summonGolem } = require('./golem')
-const { performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, openCookingAlcove, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
+const { disposalStepCost, performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, openCookingAlcove, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
 const { updateCrowdRetreat, retreatToWall, mineFromRefuge } = require('./crowd-retreat')
 const { reachGoal, treePillar, climbForLog } = require('./tree-climb')
 const { isUnderFeet, rememberPlacement, forgetPlacement, placedOnSupport, stepOffCells, centerIn, soundFloor, overlapsBody } = require('./under-feet')
@@ -100,6 +100,10 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     [Actions.EXPLORE]: 60000
 })
 const STRANDED_TIMEOUT_FACTOR = 4
+// Standoff: a melee mob that gains under 0.5 blocks in 4 s is unreachable for 60 s unless it gains 1 block.
+const STANDOFF_WAIT_MS = 4000
+const STANDOFF_APPROACH = 0.5
+const STANDOFF_MS = 60000
 const MELEE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'spider', 'cave_spider', 'vindicator', 'piglin_brute', 'zombified_piglin'])
 const INTERACTIVE = /(^|_)(furnace|smoker|chest|barrel|crafting_table|enchanting_table|anvil|bed|door|trapdoor|fence_gate|button|lever|shulker_box)$/
 const STATIONARY_ACTIONS = new Set([
@@ -544,7 +548,7 @@ class SurvivalController {
             (!this.busy || !this.actionAbort?.signal.aborted) &&
             ![Actions.REFUGE, 'avoid_enderman', 'flee_sculk', 'escape_lava', 'surface_for_air', 'clear_head'].includes(this.activeAction)
         const nearbyThreat = entity => {
-            if (!entity?.isValid || !HOSTILES.has(entity.name) || entity === this.creeperFightTarget) {
+            if (!entity?.isValid || !HOSTILES.has(entity.name) || entity === this.creeperFightTarget || this.standingOff(entity)) {
                 return false
             }
             const creeper = entity.name === 'creeper'
@@ -2185,6 +2189,8 @@ class SurvivalController {
         // Defensive swings rotate over every attacker at arm's length: locking onto one zombie let the
         // other hit freely, and a kill ended the action while the second kept attacking (staged 02:21Z).
         const lastSwing = new Map()
+        let standoffAt = Date.now()
+        let standoffDistance = Infinity
         this.bot.pathfinder.setMovements?.(dryMovements(this.bot))
         try {
             while (Date.now() < deadline) {
@@ -2233,6 +2239,7 @@ class SurvivalController {
                     } else if (!hunt && Date.now() - chaseProgressAt >= 5000) {
                         // A shelter block sealed the hallway between bot and skeleton; the dynamic follow
                         // goal never reports no-path, so the charge froze until the watchdog (round 12).
+                        this.rememberStandoff(entity, distance, 'unreachable for 5s')
                         throw new Error('combat target unreachable for 5s')
                     }
                     if (!following) {
@@ -2262,6 +2269,20 @@ class SurvivalController {
                     }
                     this.bot.pathfinder.setGoal(null)
                     following = false
+                    // A zombie awaited at reach that never closes in (across a ravine, 05:23Z) froze the bot until
+                    // the 12 s watchdog, and the same fight was chosen again four times (F130).
+                    if (!hunt && distance > 3.1) {
+                        if (distance < standoffDistance - STANDOFF_APPROACH) {
+                            standoffDistance = distance
+                            standoffAt = Date.now()
+                        } else if (Date.now() - standoffAt >= STANDOFF_WAIT_MS) {
+                            this.rememberStandoff(entity, distance, `held ${distance.toFixed(1)} blocks off`)
+                            throw new Error('melee target is not approaching; standing down')
+                        }
+                    } else {
+                        standoffDistance = Infinity
+                        standoffAt = Date.now()
+                    }
                     const here = this.bot.entity.position
                     const target = hunt ? entity : [entity, ...Object.values(this.bot.entities || {}).filter(e => e !== entity &&
                         e.isValid && MELEE.has(e.name) && here.distanceTo(e.position) <= 3.1)]
@@ -3509,8 +3530,25 @@ class SurvivalController {
         return this.bot.nearestEntity(entity => {
             const name = entity.name
             return entity.isValid && names.has(name) && this.bot.entity.position.distanceTo(entity.position) <= maxDistance &&
-                (!PREY.has(name) || !this.isBlockedTarget(entity)) && this.canSee(entity, HOSTILES.has(entity.name))
+                (!PREY.has(name) || !this.isBlockedTarget(entity)) && !this.standingOff(entity) && this.canSee(entity, HOSTILES.has(entity.name))
         })
+    }
+
+    // standoffs := entity id -> { distance, until }: a melee mob that cannot reach the bot is no fight
+    // while it stays that far off; archers shoot across gaps and are never stood down.
+    rememberStandoff (entity, distance, reason) {
+        if (!entity?.id || ARCHERS.has(entity.name)) {
+            return
+        }
+        this.standoffs ??= new Map()
+        this.standoffs.set(entity.id, { distance, until: Date.now() + STANDOFF_MS })
+        this.log.warn(`Standing down from ${entity.name} for ${STANDOFF_MS / 1000}s: ${reason}.`)
+    }
+
+    standingOff (entity) {
+        const standoff = this.standoffs?.get(entity.id)
+        return Boolean(standoff && standoff.until > Date.now() && this.bot.entity &&
+            this.bot.entity.position.distanceTo(entity.position) >= standoff.distance - STANDOFF_APPROACH * 2)
     }
 
     bestFood () {
@@ -3559,6 +3597,8 @@ class SurvivalController {
             return block.material === 'mineable/pickaxe' && !items.some(item => item.name.endsWith('_pickaxe') && block.canHarvest(item.type)) &&
                 !(handDiggable(block) && pickaxeStranded(items)) ? 100 : 0
         })
+        // Prototype calls in tests have no controller memory, hence the optional chain.
+        movements.exclusionAreasStep.push(block => block.position ? disposalStepCost(this?.memory, movements.bot.game?.dimension, block.position) : 0)
         movements.allow1by1towers = false
         movements.allowParkour = false
         movements.scafoldingBlocks = []

@@ -49,7 +49,7 @@ which leaves little room for more comments there.
 | food-gathering | 3 | stew crafting, prey quarantine, watchdog recovery |
 | food | 24 | cooking depth, urgent meals, reach, berry path bound, parking, far returns, detours, due times |
 | golem | 3 | Hired Help site, build order, gating |
-| inventory | 21 | keep rules, wool/leather/seed disposal, batch trigger, stack merge, pits, lanes, full packs |
+| inventory | 22 | keep rules, wool/leather/seed disposal, batch trigger, stack merge, pits, lanes, full packs |
 | leaf-vision | 8 | leaf-transparent rays, overhead trunks, moving drops |
 | loot | 2 | chest and chest-minecart looting |
 | memory-random | 2 | seeded rng, atomic world memory |
@@ -65,7 +65,7 @@ which leaves little room for more comments there.
 | side-probes | 23 | probe reach, spacing, anchors, hazards, descents |
 | smelting | 16 | async smelt jobs, fuel due times, plank fuel, collection |
 | station-recovery | 3 | workstation placement relocation, cooking recess beside a stair |
-| survival-safety | 63 | shelters, critical health, reflexes, threats, combat events, self-overlapping placements |
+| survival-safety | 64 | shelters, critical health, reflexes, threats, combat events, self-overlapping placements, melee standoffs |
 | terrain-scout | 4 | land scouting, isolated pillars |
 | tree-climb | 13 | eye-reach approach, tree pillars, scaffold recovery |
 | under-feet | 7 | no digging under the hitbox, own blocks, dripstone |

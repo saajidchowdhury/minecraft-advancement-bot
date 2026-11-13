@@ -16,7 +16,7 @@ test('entity searches ignore unnamed packet placeholders without deprecation tra
     const c = {
         bot: { entity: { position: new Vec3(0, 64, 0) },
             nearestEntity: match => [unnamed, zombie].find(match) || null },
-        canSee: () => true
+        canSee: () => true, standingOff: () => false
     }
     assert.equal(SurvivalController.prototype.nearestEntity.call(c, new Set(['zombie'])), zombie)
     assert.equal(trace.mock.callCount(), 0)

@@ -234,7 +234,7 @@ test('a zombie behind the bot interrupts mining before a hit once a line of sigh
     bot.health = 20
     let occluded = true
     bot.world = { raycast: () => occluded ? {} : null }
-    const c = { bot, running: true, busy: true, activeAction: 'gather_diamonds', log: { warn() {} },
+    const c = { bot, running: true, busy: true, activeAction: 'gather_diamonds', log: { warn() {} }, standingOff: () => false,
         canSee: SurvivalController.prototype.canSee, cancelCurrentTask(reason) { reasons.push(reason) } }
     SurvivalController.prototype.bindEvents.call(c)
     const zombie = { name: 'zombie', isValid: true, position: new Vec3(0, 64, 5.5) }
@@ -258,7 +258,7 @@ test('walking into range of a stationary creeper interrupts work at eight blocks
     const creeper = { name: 'creeper', isValid: true, position: new Vec3(0, 64, 8.5) }
     bot.entities = { 1: creeper }
     const reasons = []
-    const c = { bot, running: true, busy: true, activeAction: 'gather_diamonds', log: { warn() {} },
+    const c = { bot, running: true, busy: true, activeAction: 'gather_diamonds', log: { warn() {} }, standingOff: () => false,
         canSee: SurvivalController.prototype.canSee, cancelCurrentTask(reason) { reasons.push(reason) } }
     SurvivalController.prototype.bindEvents.call(c)
     bot.emit('physicsTick')
@@ -1237,7 +1237,7 @@ test('a charge that cannot close on its target gives up after five seconds inste
     const skeleton = { name: 'skeleton', isValid: true, position: new Vec3(8, 64, 0), height: 1.99 }
     const c = {
         running: true, paused: false, actionAbort: new AbortController(), log: { warn() {} },
-        bestItem: () => ({ name: 'iron_sword' }), rememberBlockedTarget() {},
+        bestItem: () => ({ name: 'iron_sword' }), rememberBlockedTarget() {}, rememberStandoff() {},
         bot: { health: 20, entity: { position: new Vec3(0, 64, 0) }, entities: {}, inventory: { slots: [] },
             equip: async () => {}, lookAt: async () => {}, attack() {}, pathfinder: { setGoal() {} } }
     }
@@ -1286,4 +1286,35 @@ test('a placement cell overlapping the bot hitbox is placed only after centring 
     c.bot.waitForTicks = async () => {}
     await assert.rejects(SurvivalController.prototype.placeSurvivalBlock.call(c, new Vec3(1, 64, 0)), /would overlap the bot/)
     assert.equal(placedAt, null)
+})
+
+test('a zombie held across a gap ends the fight after four seconds and is not fought again (F130)', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+    // Live 05:23Z: a zombie 5.8 blocks off across a ravine froze the fight until the watchdog, four times over.
+    const zombie = { id: 7, name: 'zombie', isValid: true, position: new Vec3(5.8, 64, 0), height: 1.95 }
+    const c = {
+        running: true, paused: false, actionAbort: new AbortController(), log: { warn() {} },
+        bestItem: () => ({ name: 'iron_sword' }), rememberBlockedTarget() {}, canSee: () => true, isBlockedTarget: () => false,
+        bot: { health: 20, entity: { position: new Vec3(0, 64, 0), yaw: 0 }, entities: { 7: zombie }, inventory: { slots: [] },
+            equip: async () => {}, lookAt: async () => {}, attack() { assert.fail('swung at a zombie out of reach') },
+            setControlState() {}, clearControlStates() {}, blockAt: () => null, pathfinder: { setGoal() {} } }
+    }
+    c.bot.nearestEntity = match => Object.values(c.bot.entities).find(match) || null
+    for (const name of ['checkAction', 'visibleThreatCount', 'closeMelee', 'rememberStandoff', 'standingOff', 'nearestEntity']) {
+        c[name] = SurvivalController.prototype[name].bind(c)
+    }
+    let failure = null
+    const operation = SurvivalController.prototype.fight.call(c, zombie).catch(error => { failure = error })
+    for (let i = 0; i < 50 && !failure; i++) { t.mock.timers.tick(100); await Promise.resolve(); await Promise.resolve() }
+    await operation
+    assert.match(failure?.message ?? '', /not approaching; standing down/)
+    const HOSTILE_NAMES = new Set(['zombie', 'skeleton'])
+    assert.equal(c.nearestEntity(HOSTILE_NAMES, 24), null)
+    zombie.position = new Vec3(4.5, 64, 0)
+    assert.equal(c.nearestEntity(HOSTILE_NAMES, 24), zombie)
+    zombie.position = new Vec3(5.8, 64, 0)
+    t.mock.timers.tick(60000)
+    assert.equal(c.nearestEntity(HOSTILE_NAMES, 24), zombie)
+    c.rememberStandoff({ id: 8, name: 'skeleton' }, 10, 'test')
+    assert.equal(c.standingOff({ id: 8, name: 'skeleton', position: new Vec3(10, 64, 0) }), false)
 })

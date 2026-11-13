@@ -1611,6 +1611,25 @@ async function returnSurface(c, surfaceY = c.home?.y || 64) {
     return mineTunnel(c, enclosed ? head.y + 3 : surfaceY)
 }
 
+// Lane and in-place drops stay on the walking level; the next scout re-collected 390 thrown blocks at a
+// stair top (F129). Zones last the 5 min item despawn time; pit drops are out of reach and need none.
+const DISPOSAL_ZONE_MS = 300000
+const DISPOSAL_ZONE_RADIUS = 3
+const DISPOSAL_STEP_COST = 20
+
+function rememberDisposalZone(c, p) {
+    const zones = (c.memory.disposalZones || []).filter(z => z.until > Date.now()).slice(-7)
+    zones.push({ x: p.x, y: p.y, z: p.z, dimension: c.bot.game.dimension, until: Date.now() + DISPOSAL_ZONE_MS })
+    c.memory.disposalZones = zones
+}
+
+// Extra pathfinder cost of stepping on p: finite, so a one-wide tunnel through a drop stays passable.
+function disposalStepCost(memory, dimension, p) {
+    const now = Date.now()
+    return (memory?.disposalZones || []).some(z => z.until > now && z.dimension === dimension && Math.abs(p.y - z.y) <= 2 &&
+        Math.hypot(p.x - z.x, p.z - z.z) <= DISPOSAL_ZONE_RADIUS) ? DISPOSAL_STEP_COST : 0
+}
+
 // Four open feet/head cells carry a level throw about three blocks, beyond the
 // one-block pickup reach; a 45-degree throw up a carved stair lands about two steps up.
 function tossLane(c, start) {
@@ -1759,6 +1778,7 @@ async function clearInventory(c) {
         c.log.info(`Freeing inventory space: throwing ${summary} along an open ${lane.rise ? 'stair' : 'level'} lane; no retreat needed.`)
         await tossAll(c, surplus, bot.entity.position.offset(4 * lane.dx, 1.62 + 4 * lane.rise, 4 * lane.dz), signal)
         c.memory.lastDisposal = { x: start.x + (3 - lane.rise) * lane.dx, z: start.z + (3 - lane.rise) * lane.dz, dimension: bot.game.dimension, at: Date.now() }
+        rememberDisposalZone(c, start.offset(3 * lane.dx, 3 * lane.rise, 3 * lane.dz))
         c.memory.disposalFailures = 0
         return
     }
@@ -1811,6 +1831,7 @@ async function clearInventory(c) {
     c.log.info(`Freeing inventory space: dropping ${summary}; retreating ${retreat.length} steps.`)
     await tossAll(c, surplus, bot.entity.position.offset(away.x, 1.3, away.z), signal)
     c.memory.lastDisposal = { x: start.x, z: start.z, dimension: bot.game.dimension, at: Date.now() }
+    rememberDisposalZone(c, start)
     check(c)
     bot.pathfinder.setMovements(dryMovements(bot))
     try {
@@ -1925,4 +1946,4 @@ async function performProgression(c, action, state) {
     }
 }
 
-module.exports = { armorUpgrades, coveredAbove, openToSky, openCookingAlcove, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS }
+module.exports = { disposalStepCost, armorUpgrades, coveredAbove, openToSky, openCookingAlcove, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS }
