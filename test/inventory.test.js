@@ -352,3 +352,11 @@ test('cleanup merges split partial stacks before choosing what to throw', async 
     assert.equal(big.count, 60)
     assert.equal(c.tossed.length, 0)
 })
+
+test('cleanup throws every wool color, leather and every seed type even with real food data (F125)', () => {
+    const foods = require('prismarine-registry')('26.1').foodsByName
+    const junk = ['white_wool', 'red_wool', 'black_wool', 'leather', 'wheat_seeds', 'beetroot_seeds', 'melon_seeds',
+        'pumpkin_seeds', 'torchflower_seeds', 'pitcher_pod']
+    const items = [...junk, 'cobblestone'].map(name => ({ name, count: 5 }))
+    assert.deepEqual(discardableStacks(items, { foods }).map(item => item.name).sort(), [...junk].sort())
+})

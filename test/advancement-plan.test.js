@@ -81,6 +81,20 @@ test('lava bucket follows iron protection and precedes diamond mining', () => {
     assert.equal(nextAdvancement({ ...state, hasBucket: false, ironIngots: 3 }).item, 'bucket')
 })
 
+test('the first buckets fill two waters before any lava is collected (F127)', () => {
+    const state = { ...established, completedAdvancements: new Set(), ironIngots: 3 }
+    const first = { ...state, waterBuckets: 0, hasBucket: false, hasEmptyBucket: false }
+    assert.equal(nextAdvancement(first).item, 'bucket')
+    assert.equal(nextAdvancement(first).id, 'prep:water bucket')
+    assert.equal(nextAdvancement({ ...first, hasBucket: true, hasEmptyBucket: true }).action, 'fill_water_bucket')
+    assert.equal(nextAdvancement({ ...first, waterBuckets: 1 }).item, 'bucket')
+    assert.equal(nextAdvancement({ ...first, waterBuckets: 1, hasBucket: true, hasEmptyBucket: true }).action, 'fill_water_bucket')
+    const watered = nextAdvancement({ ...first, waterBuckets: 2 })
+    assert.deepEqual([watered.id, watered.item], ['minecraft:story/lava_bucket', 'bucket'])
+    assert.equal(nextAdvancement({ ...first, waterBuckets: 2, hasBucket: true, hasEmptyBucket: true }).action, 'fill_lava_bucket')
+    assert.equal(nextAdvancement({ ...first, hasBucket: true, hasEmptyBucket: true, waterDeferred: true }).action, 'fill_lava_bucket')
+})
+
 test('diamonds are reserved for the pickaxe before obsidian mining', () => {
     assert.equal(nextAdvancement({ ...established, diamonds: 3 }).item, 'diamond_pickaxe')
     assert.equal(nextAdvancement({ ...established, hasDiamondPickaxe: true, gear: diamondSword }).action, 'gather_obsidian')

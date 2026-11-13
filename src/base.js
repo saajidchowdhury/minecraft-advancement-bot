@@ -15,12 +15,12 @@ const CARRY = {
     diamond: 8, redstone: 8, coal: 32, charcoal: 32, torch: 32,
     gold_ingot: 0, raw_gold: 0, lapis_lazuli: 8, emerald: 0, raw_copper: 0, copper_ingot: 0,
     string: 5, bone: 0, gunpowder: 0, ender_pearl: 0, slime_ball: 0, spider_eye: 0, feather: 4,
-    leather: 1, arrow: 16, crafting_table: 1, furnace: 1
+    leather: 0, arrow: 16, crafting_table: 1, furnace: 1
 }
-// Side goals check carried items: string for a rod (2) and bow (3), feathers for arrows,
-// and leather and lapis for the enchanting table and its first enchantment.
+// Side goals check carried items: string for a rod (2) and bow (3), feathers for arrows, and lapis
+// for the first enchantment. Leather is thrown like wool and seeds (F125); library books replace it.
 const RESTOCK = { diamond: 8, iron_ingot: 16, raw_iron: 16, coal: 32, torch: 32, crafting_table: 1, furnace: 1, bucket: 1, obsidian: 64, flint_and_steel: 1,
-    string: 5, feather: 4, leather: 1, lapis_lazuli: 8, arrow: 16 }
+    string: 5, feather: 4, lapis_lazuli: 8, arrow: 16 }
 const FOODS = ['cooked_beef', 'cooked_porkchop', 'cooked_mutton', 'cooked_chicken', 'cooked_rabbit', 'bread', 'baked_potato', 'golden_carrot', 'apple', 'carrot']
 
 function totals(items) {

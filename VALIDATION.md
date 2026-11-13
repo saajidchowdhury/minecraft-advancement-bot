@@ -30,7 +30,7 @@ which leaves little room for more comments there.
 | File | Tests | Covers |
 |---|---|---|
 | action-progress | 4 | what counts as progress for wood, ore and diamond actions |
-| advancement-plan | 26 | route IDs, gear and tool order, rebuilds after loss, iron cap |
+| advancement-plan | 27 | route IDs, gear and tool order, water before lava, rebuilds after loss, iron cap |
 | advancement-tracker | 5 | AND-of-OR requirements, resets, revocation, phantom completions |
 | archery | 5 | Take Aim ballistics, line-of-fire safety, planner gating |
 | bare-hands | 5 | pickaxe-stranded predicate, hand-diggable blocks, hand tunnel, hand return stairs, break exclusion |
@@ -47,9 +47,9 @@ which leaves little room for more comments there.
 | enderman | 11 | gaze avoidance, anger, refuge priority and persistence |
 | farming | 6 | A Seedy Place, Fishy Business, breeding |
 | food-gathering | 3 | stew crafting, prey quarantine, watchdog recovery |
-| food | 23 | cooking depth, urgent meals, reach, parking, far returns, detours, due times |
+| food | 24 | cooking depth, urgent meals, reach, berry path bound, parking, far returns, detours, due times |
 | golem | 3 | Hired Help site, build order, gating |
-| inventory | 20 | keep rules, wool/leather/seed disposal, batch trigger, stack merge, pits, lanes, full packs |
+| inventory | 21 | keep rules, wool/leather/seed disposal, batch trigger, stack merge, pits, lanes, full packs |
 | leaf-vision | 8 | leaf-transparent rays, overhead trunks, moving drops |
 | loot | 2 | chest and chest-minecart looting |
 | memory-random | 2 | seeded rng, atomic world memory |

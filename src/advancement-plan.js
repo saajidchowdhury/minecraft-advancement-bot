@@ -268,6 +268,12 @@ function planAdvancement(state) {
         }
     }
     if (!state.completedAdvancements?.has('minecraft:story/lava_bucket')) {
+        // User direction (F127): two water buckets before lava, so a pool found near y=-54 can be cast
+        // into obsidian on the spot instead of a surface round trip; a deferred water search lets lava go first.
+        if ((state.waterBuckets ?? 0) < 2 && !state.waterDeferred) {
+            return state.hasEmptyBucket ? target('prep:water bucket', 'fill_water_bucket', 'fill two water buckets before lava') :
+                craft(state, 'prep:water bucket', 'bucket')
+        }
         if (!state.hasBucket) {
             return craft(state, 'minecraft:story/lava_bucket', 'bucket')
         }

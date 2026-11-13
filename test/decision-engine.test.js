@@ -286,7 +286,7 @@ test('iron and coal trips also carry a wood reserve for replacement picks', () =
 test('a lava search stocks food before descent and continues if already underground', () => {
     const ready = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true,
         hasFurnace: true, hasIronPickaxe: true, hasIronArmor: true, armorEquipped: true, hasShield: true,
-        shieldEquipped: true, hasBucket: true, logs: 32, mealReserve: 100, gear: new Set(['iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']), })
+        shieldEquipped: true, hasBucket: true, waterBuckets: 2, logs: 32, mealReserve: 100, gear: new Set(['iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']), })
     assert.equal(chooseAction(ready), Actions.FOOD)
     assert.equal(chooseAction({ ...ready, mealReserve: 270 }), 'fill_lava_bucket')
     assert.equal(chooseAction({ ...ready, underground: true }), 'fill_lava_bucket')

@@ -17,7 +17,7 @@ AdvancementBot resumed on `4a0d52f` on LAN port 49503, PID 13564, with logs in
 `outputs/2026-11-12@23.49.25/`. It is pickless (1 plank, no sticks) in its
 y=31 night shelter at -4,31,-46 and should dig out and carve to the surface by
 hand at dawn (F126). The owner kit was verified before restart. Verify the
-newest process, snapshot and owner kit. Baseline: 521 tests pass.
+newest process, snapshot and owner kit. Baseline: 524 tests pass.
 
 ## Stable facts and process lessons
 
@@ -62,7 +62,9 @@ Planner and gear order
   come a stone axe and shovel, before ordinary hunting and after rebuilds (F044,
   F049, F095). No wooden sword (F071). Carried armor and shields equip before
   tool progression or waiting (F093).
-- Shield, iron sword, then iron-or-better armor before buckets (F071). A diamond
+- Shield, iron sword, then iron-or-better armor before buckets (F071). The
+  first buckets fill two waters before any lava, unless the water search is
+  deferred (F127). A diamond
   pick at three diamonds and a diamond sword with two spare (F063, F073, F103).
   Once both tools are ready, craft and equip affordable missing armor before
   routine work, including during a lava search or diamond detour (F123).
@@ -142,7 +144,8 @@ Inventory, base and disposal
   one low-priority stack, tries nearby storage, then drops in place (F050).
 - The base is a sealed barrel vault in rock beside a tunnel. Restock needs a
   carried pickaxe. Carry and restock levels are equal, and side-goal
-  materials stay carried (`src/base.js`, F038, F039, F058, F070).
+  materials stay carried (`src/base.js`, F038, F039, F058, F070). Leather is
+  neither carried nor restocked (F127).
 
 Furnaces, fuel and food
 - Jobs are asynchronous: load everything, keep working, and collect when the fuel
@@ -165,6 +168,8 @@ Furnaces, fuel and food
   room to collect the furnace after breaking it (F120). Urgent meals can cook
   sooner. Furnace contents count toward the reserve (F103). Underground food
   taken in passing includes fish, ripe glow berries and up to four stews (F072).
+  A vine counts only with a dry walk of at most 24 moves to a standable cell
+  in reach, found by a 50 ms A* search; others are blocked for 120 s (F127).
 - Hunts prefer axes and wait for charged swings (stone axe 1.25 s). Prey is
   dropped only after 3 s of terrain occlusion without closing 2 blocks (F095,
   F103). Low health starts a hunt only below 18 food (F104).
@@ -398,3 +403,4 @@ Highest risk first.
 - F124 Fatal fall during a deferred water search [live failure + regression]
 - F125 Cleanup throws wool, leather and wheat seeds [user direction + regression]
 - F126 Pickless bot sealed in night shelter digs out by hand [live failure + user direction + regression]
+- F127 Water buckets before lava; reachable glow berries only; no leather restock [user direction + live failure + regression]

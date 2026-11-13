@@ -2958,3 +2958,31 @@ multiplied by 4. Regression: `test/bare-hands.test.js` and the timing test in
 now carry three logs so they keep testing the refuse-while-craftable path.
 Live hand-dig escape is unverified at commit time.
 
+## F127 — Water buckets before lava; reachable glow berries only; no leather restock
+
+User direction (2026-11-12): fill two water buckets before collecting lava.
+Lava searches run near y=-54, so with the water already carried a large pool
+can be cast into obsidian on the spot, with no surface round trip for water.
+The `lava_bucket` step in `planAdvancement` now crafts or fills water buckets
+until two are carried, then crafts a third bucket for lava. A deferred water
+search still lets lava go first, so the bot does not sit idle.
+
+The user also saw the bot try to pick glow berries that were far out of reach.
+The F124 run (`outputs/2026-11-12@23.13.28`, 04:16:01Z) shows five vines tried
+in 3 s, each one up to about 13 blocks away and failing with "No path" or "kept
+its berries". The fatal 48-block fall came right after the last one. Fix: before
+a vine is offered in `foodOpportunity`, and before `pickLocalGlowBerries`
+approaches one, a single synchronous `getPathFromTo` search runs with dry
+movements, a 50 ms timeout and the approach's own goal (a standable cell within
+4.5 blocks of reach). The vine qualifies only on `success` with at most 24
+moves. Otherwise it is blocked for 120 s.
+
+Cleanup already threw every wool color, leather and all six seed types
+(F125). A test now checks this against the real 26.1 food data. The base
+vault still kept one leather on the bot and restocked one, which cleanup then
+threw, so leather left both its carry and its restock levels.
+Regression: the bucket, glow-berry and base tests fail on the pre-fix
+source. The inventory test passes on both versions, since F125 already threw
+these items. One lava-search decision fixture now carries two water buckets.
+Not yet checked live.
+

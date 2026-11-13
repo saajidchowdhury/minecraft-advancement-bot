@@ -112,6 +112,32 @@ function foodState(c, state) {
     return state
 }
 
+// A vine counts only with a short dry walk to a standable cell within reach (F127): ceiling vines in a
+// lush cave sent the bot after five unreachable vines in 3 s, the last 13 blocks away (F124 run).
+const BERRY_PATH_MOVES = 24
+const BERRY_PATH_MS = 50
+
+function berryGoal(c, vine) {
+    const goal = reachGoal(vine.position, c.bot.world)
+    const reachable = goal.isEnd.bind(goal)
+    goal.isEnd = cell => safeFooting(c.bot, cell) && reachable(cell)
+    return goal
+}
+
+function reachableVine(c, vine) {
+    if (c.bot.canDigBlock(vine) && canSeeBlock(c.bot, vine)) {
+        return true
+    }
+    const search = c.bot.pathfinder.getPathFromTo(dryMovements(c.bot), c.bot.entity.position, berryGoal(c, vine),
+        { timeout: BERRY_PATH_MS, tickTimeout: BERRY_PATH_MS, searchRadius: 2 * BERRY_PATH_MOVES })
+    const result = search.next().value?.result
+    if (result?.status === 'success' && result.path.length <= BERRY_PATH_MOVES) {
+        return true
+    }
+    c.rememberBlockedTarget(vine, 'glow berries', new Error(`no dry walk of ${BERRY_PATH_MOVES} moves within reach (${result?.status})`))
+    return false
+}
+
 // User direction (2026-11-06): while the meal reserve is short, take food found on the way:
 // fish (oceans, rivers and lush caves keep respawning them), glow berries, mushroom stew.
 function foodOpportunity(c, state) {
@@ -128,7 +154,7 @@ function foodOpportunity(c, state) {
     const vine = c.findNearestBlock(name => VINES.includes(name), 16, {
         filter: block => block.getProperties?.().berries === true
     })
-    if (vine) {
+    if (vine && reachableVine(c, vine)) {
         return { action: 'pick_glow_berries', target: vine }
     }
     const canBowl = c.countItems(['bowl']) > 0 || (state.hasCraftingTable && (state.planks >= 3 || state.logs > 0))
@@ -384,15 +410,12 @@ async function pickLocalGlowBerries(c) {
         const vine = c.findNearestBlock(name => VINES.includes(name), picked ? 6 : 16, {
             filter: block => block.getProperties?.().berries === true && (!picked || block.position.distanceTo(origin) <= 12)
         })
-        if (!vine) {
+        if (!vine || !reachableVine(c, vine)) {
             return
         }
         try {
             if (!c.bot.canDigBlock(vine) || !canSeeBlock(c.bot, vine)) {
-                const goal = reachGoal(vine.position, c.bot.world)
-                const reachable = goal.isEnd.bind(goal)
-                goal.isEnd = cell => safeFooting(c.bot, cell) && reachable(cell)
-                await c.gotoWithTimeout(goal, 10000, 'glow berry approach')
+                await c.gotoWithTimeout(berryGoal(c, vine), 10000, 'glow berry approach')
             }
             c.checkAction(signal)
             if (!c.bot.canDigBlock(vine) || !canSeeBlock(c.bot, vine)) {

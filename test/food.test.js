@@ -368,9 +368,23 @@ test('glow berries are picked from ripe vines and a vine that keeps its berries 
     assert.deepEqual([uses, blocked], [2, 1])
 })
 
+// Mirrors mineflayer-pathfinder: getPathFromTo is a generator whose first yield carries { result }.
+function berryPaths(c, result) {
+    const searches = []
+    c.bot.registry = require('minecraft-data')('26.1')
+    c.bot.canDigBlock = () => false
+    c.bot.pathfinder = {
+        * getPathFromTo(movements, start, goal, options) {
+            searches.push({ movements, goal, options })
+            yield { result: result() }
+        }
+    }
+    return searches
+}
+
 function pond(entities, blocks = {}) {
     const c = {
-        memory: {}, log: { info() {} }, isBlockedTarget: () => false, canSee: () => true,
+        memory: {}, log: { info() {} }, isBlockedTarget: () => false, canSee: () => true, rememberBlockedTarget() {},
         countItems: () => 0, findNearestBlock: (predicate, range, options = {}) =>
             Object.values(blocks).find(b => predicate(b.name) && (!options.filter || options.filter(b))) || null,
         bot: { game: { dimension: 'overworld' }, entity: { position: new Vec3(0, 63, 0) }, entities, inventory: { items: () => [] },
@@ -384,6 +398,7 @@ const fish = (name, x, y = 62) => ({ name, isValid: true, position: new Vec3(x, 
 test('food opportunities rank cod and salmon over berries, skip pufferfish and deep fish, then try stew', () => {
     const vine = { name: 'cave_vines', position: new Vec3(3, 66, 0), getProperties: () => ({ berries: true }) }
     const { c, state } = pond({ 1: fish('pufferfish', 2), 2: fish('cod', 9, 50), 3: fish('tropical_fish', 4) }, { vine })
+    berryPaths(c, () => ({ status: 'success', path: [1, 2, 3] }))
     assert.equal(foodState(c, state).foodOpportunity.action, 'pick_glow_berries')
     c.bot.entities[4] = fish('salmon', 12)
     assert.equal(foodState(c, state).foodOpportunity.target.name, 'salmon')
@@ -420,4 +435,29 @@ test('a cooking job that runs out of fuel with none carried takes its food back 
     assert.equal(c.memory.cookJob, null)
     assert.equal(c.countItems(['mutton']), 1)
     assert.equal(furnace.input, null)
+})
+
+test('a vine without a short dry walk to a standable cell in reach is not offered or approached (F127)', async () => {
+    const vine = { name: 'cave_vines', position: new Vec3(10, 70, 4), getProperties: () => ({ berries: true }) }
+    const { c, state } = pond({}, { vine })
+    const blocked = []
+    c.rememberBlockedTarget = (block, label, error) => blocked.push(error.message)
+    let result = { status: 'noPath', path: [] }
+    const searches = berryPaths(c, () => result)
+    assert.equal(foodState(c, state).foodOpportunity, null)
+    assert.equal(searches[0].movements.canDig, false)
+    assert.equal(searches[0].options.timeout, 50)
+    result = { status: 'success', path: new Array(25).fill(0) }
+    assert.equal(foodState(c, state).foodOpportunity, null)
+    result = { status: 'timeout', path: [1] }
+    assert.equal(foodState(c, state).foodOpportunity, null)
+    assert.equal(blocked.length, 3)
+    assert.match(blocked[0], /no dry walk of 24 moves within reach \(noPath\)/)
+    result = { status: 'success', path: new Array(24).fill(0) }
+    assert.equal(foodState(c, state).foodOpportunity.action, 'pick_glow_berries')
+    result = { status: 'noPath', path: [] }
+    Object.assign(c, { checkAction() {}, movements: {}, async gotoWithTimeout() { assert.fail('approached an unreachable vine') } })
+    c.bot.pathfinder.setMovements = () => {}
+    await pickGlowBerries(c)
+    assert.equal(blocked.length, 4)
 })
