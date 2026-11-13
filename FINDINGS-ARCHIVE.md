@@ -3231,3 +3231,13 @@ a mass of 2 and 68,62,-3 in one of 11. Of 202 candidates near the stump, 118
 lay on large masses; the nearest was 91,62,-53. The search took 727 ms. The
 regression test fails on the pre-fix source.
 
+Update (same session): the live restart on `97b850b` scouted from the
+island, then stalled on a 42-block land trip from 67,63,-16 to 94,62,-49
+("is stuck", then "No path"). A replay on the real chunks
+(`outputs/inspect-land-path.js`, `outputs/land-path.log`) found that trip
+at both cost slacks (48 and 192: 35 steps, cost 68), so the stall happened
+while following the path, not in the search; still unexplained. `aca2456`
+widens the candidate radius to 96 and lands trips' slack to 192 as
+headroom. By the next restart the bot had reached 88,62,-62. It completed the
+goal on grass at 91,62,-59 (a large mass) within 2.5 s and moved on to wood.
+
