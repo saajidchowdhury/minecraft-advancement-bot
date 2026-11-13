@@ -31,6 +31,13 @@ playthrough is a test, not the definition of success.
    2026-11-13), the inventory loss after warden recovery (F104) and the
    unattributed damage. Decide whether to patch the pathfinder's
    `safeToBreak` reading hidden liquid (F114).
+6. Flooded caves (user, 2026-11-13; not started). In a large or wide cave whose
+   floor is all water, such as 94,16,-127 in seed -3576454559444207221, the bot
+   swims around for exposed iron, and swimming makes that slow. Preferred fix:
+   detect a water-floored cave and tunnel away from it. The alternative is to
+   pillar cobblestone or dirt up from the cave bottom to the water surface and
+   stand on it; compare throughput before choosing. Done when the bot leaves
+   such a cave promptly, or mines it faster than swimming does.
 
 ## Active goals
 
