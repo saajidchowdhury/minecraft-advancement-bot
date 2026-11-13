@@ -428,9 +428,61 @@ test('a lava source that cannot be scooped is quarantined, but a cancelled trip 
             },
             rememberBlockedTarget: block => blocked.push(block)
         }
-        await assert.rejects(performProgression(c, 'fill_lava_bucket', {}), /lava approach/)
+        await assert.rejects(performProgression(c, 'fill_lava_bucket', {}), cancel ? /cancelled/ : /lava approach/)
         assert.deepEqual(blocked, cancel ? [] : [lava])
     }
+})
+
+test('lava scoops use a clear edge or remove a single safe blocker from dry ground', async () => {
+    const Block = require('prismarine-block')('26.1')
+    const data = require('minecraft-data')('26.1')
+    const WorldSync = require('prismarine-world/src/worldsync')
+    const { performProgression } = require('../src/progression-skills')
+    const source = new Vec3(80, -41, 294)
+    const blocker = new Vec3(79, -41, 294)
+    const feet = new Vec3(77, -42, 293)
+    const cells = new Map([[String(source), 'lava'], [String(blocker), 'deepslate']])
+    const blockAt = p => {
+        p = p.floored()
+        const name = cells.get(String(p)) ?? (p.y < feet.y ? 'deepslate' : 'air')
+        const block = Block.fromStateId(data.blocksByName[name].defaultState, 0)
+        block.position = p
+        return block
+    }
+    const inventory = { bucket: 1, lava_bucket: 0 }
+    let aim
+    const pick = { name: 'diamond_pickaxe', type: data.itemsByName.diamond_pickaxe.id }
+    const bot = { blockAt, health: 20, entity: { position: feet.offset(0.5, 0, 0.5) },
+        world: { raycast: (...args) => WorldSync.prototype.raycast.call({ getBlock: blockAt }, ...args) },
+        inventory: { items: () => [{ name: 'bucket', count: 1 }, pick] }, canDigBlock: () => true,
+        async dig(block) {
+            assert.ok(block.position.equals(blocker), `dug an unrelated block at ${block.position}`)
+            cells.set(String(block.position), 'air')
+        },
+        equip: async () => {}, lookAt: async point => { aim = point }, waitForTicks: async () => {},
+        activateItem() {
+            const eye = bot.entity.position.offset(0, 1.62, 0)
+            const ray = aim.minus(eye)
+            const hit = bot.world.raycast(eye, ray.clone().normalize(), ray.norm(),
+                (block, iter) => block.name === 'lava' || iter.intersect(block.shapes, block.position))
+            assert.ok(hit.position.equals(source), `bucket pointed at ${hit.name} ${hit.position}`)
+            inventory.bucket--
+            inventory.lava_bucket++
+        }, deactivateItem() {} }
+    const c = { bot, running: true, memory: {}, log: { info() {} }, hasItem: name => inventory[name] > 0,
+        bestItem: names => names.includes(pick.name) ? pick : null,
+        countItems: names => names.reduce((total, name) => total + inventory[name], 0),
+        findNearestBlock: matcher => matcher('lava') ? blockAt(source) : null, gotoWithTimeout: async () => {},
+        rememberBlockedTarget() {} }
+    await performProgression(c, 'fill_lava_bucket', {})
+    assert.equal(inventory.lava_bucket, 1)
+    assert.equal(blockAt(blocker).name, 'deepslate')
+    inventory.bucket = 1
+    inventory.lava_bucket = 0
+    bot.entity.position = feet.offset(0.5, 0, 1.5)
+    await performProgression(c, 'fill_lava_bucket', {})
+    assert.equal(inventory.lava_bucket, 1)
+    assert.equal(blockAt(blocker).name, 'air')
 })
 
 test('portal construction stands beside the frame plane, never inside a frame cell', async () => {

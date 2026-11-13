@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-512 tests and `npm run check` pass after the F121 diamond approach fix.
+513 tests and `npm run check` pass after the F122 lava scoop fix.
 Run them with the prepared runtime:
 
 ```sh
@@ -57,7 +57,7 @@ which leaves little room for more comments there.
 | mobility-recovery | 16 | unstick, shaft and pillar detection, safe drops, heap guard |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
-| progression-skills | 32 | stairs, tunnels, portal geometry, frontier, merges |
+| progression-skills | 33 | stairs, tunnels, lava scoop rays, portal geometry, frontier, merges |
 | resource-routing | 9 | visible-target searches, support preservation, exits |
 | sculk-caution | 5 | sculk alarms, zone, sneak flee |
 | shaft-memory | 11 | shaft recording, following, repair, pickless climb pause |
@@ -84,6 +84,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Full iron set, diamond pick/sword, Cover Me with Diamonds | live | F029, F031, F065 |
 | Diamond interrupt, probe-exposed ore, dig-exposed vein ore | live / staged | F031, F054, F079, F100 |
 | Remembered diamond behind an overhang, stair approach and pickup | automated / staged on original vein | F121 |
+| Lava source with an obstructed centre ray | automated / staged at original ledge | F122 |
 | Async smelting, plank fuel, one-charcoal batch | live | F037, F041, F106 |
 | Wood-only cooking job, log-to-plank fuel, multi-charcoal | automated | F106 |
 | Cooking cycle with parking and underground night cooking | live | F103 |

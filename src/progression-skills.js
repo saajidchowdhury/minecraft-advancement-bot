@@ -7,7 +7,7 @@ const { storeOverflowAtBase } = require('./base')
 const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight, minedPassage, exposedDiamond, findPriorityDiamond,
     findPriorityOre, IRON_ORES, visibleMiningHazard } = require('./cave-exploration')
 const { scanFor, canSeeBlock, cellVisible } = require('./vision')
-const { isUnderFeet } = require('./under-feet')
+const { isUnderFeet, soundFloor } = require('./under-feet')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
 const { isFuelPlank, isCharcoalLog, furnaceFuelTicks, plankFuelPlan, preparePlankFuel } = require('./furnace-fuel')
 
@@ -876,15 +876,29 @@ async function fillLavaBucket(c) {
         }
         return mineTunnel(c, targetY)
     }
-    const empty = c.bot.inventory.items().find(item => item.name === 'bucket')
-    if (!empty) {
+    const bot = c.bot
+    if (!bot.inventory.items().some(item => item.name === 'bucket')) {
         throw new Error('lava needs an empty bucket; filled buckets would pour instead')
     }
     try {
         const center = lava.position.offset(0.5, 0.5, 0.5)
+        let aim = lavaScoopAim(bot, lava.position)
         try {
-            await c.gotoWithTimeout(new goals.GoalNear(lava.position.x, lava.position.y, lava.position.z, 3), 12000, 'lava approach')
+            if (!aim) {
+                const guarded = Boolean(bot.pathfinder && c.movements)
+                if (guarded) {
+                    bot.pathfinder.setMovements(dryMovements(bot))
+                }
+                try {
+                    await c.gotoWithTimeout(new goals.GoalNear(lava.position.x, lava.position.y, lava.position.z, 3), 12000, 'lava approach')
+                } finally {
+                    if (guarded) {
+                        bot.pathfinder.setMovements(c.movements)
+                    }
+                }
+            }
         } catch (error) {
+            check(c)
             // Pools seen through rock had no walkable path (01.54.16); tunnel toward one, a few
             // segments at most; the tunnel's liquid checks stop it beside the pool, within reach.
             if (!/no path/i.test(error.message) || c.bot.entity.position.distanceTo(center) > 24) {
@@ -904,17 +918,28 @@ async function fillLavaBucket(c) {
             return mineTunnel(c, lava.position.y + 1, lava.position)
         }
         check(c)
-        if (c.bot.entity.position.distanceTo(lava.position.offset(0.5, 0.5, 0.5)) > 4.5) {
-            throw new Error('lava source is out of reach from dry ground')
+        aim ??= lavaScoopAim(bot, lava.position)
+        if (!aim && dryBucketFooting(bot)) {
+            const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
+            const feet = bot.entity.position.floored()
+            const blocker = eye.distanceTo(center) <= 4.5 && bucketRay(bot, eye, center)
+            const tool = blocker?.material === 'mineable/pickaxe' && miningPickaxe(c, blocker)
+            if (tool && !PROTECTED_CONTAINERS.has(blocker.name) && !isUnderFeet(bot, blocker.position) &&
+                Math.max(Math.abs(blocker.position.x - feet.x), Math.abs(blocker.position.z - feet.z)) >= 2 &&
+                blocker.position.y <= feet.y + 1 && bot.canDigBlock(blocker) &&
+                bucketRay(bot, eye, center, blocker.position)?.position.equals(lava.position)) {
+                await bot.equip(tool, 'hand')
+                check(c)
+                await bot.dig(blocker, true)
+                check(c)
+                aim = lavaScoopAim(bot, lava.position)
+            }
         }
-        await c.bot.equip(empty, 'hand')
-        await c.bot.lookAt(lava.position.offset(0.5, 0.5, 0.5), true)
-        c.bot.activateItem()
-        try {
-            await until(c, () => c.hasItem('lava_bucket'), 4000)
-        } finally {
-            c.bot.deactivateItem()
+        if (!aim) {
+            throw new Error('no clear bucket ray to the lava source from dry ground')
         }
+        await useBucket(c, 'bucket', aim, () => c.hasItem('lava_bucket'), 'fill lava bucket')
+        c.log.info(`Filled a lava bucket at ${lava.position}.`)
     } catch (error) {
         // Ten casts need repeated lava trips; one unreachable source must not absorb every retry.
         if (c.running && !c.paused && !c.actionAbort?.signal.aborted) {
@@ -922,6 +947,35 @@ async function fillLavaBucket(c) {
         }
         throw error
     }
+}
+
+function dryBucketFooting(bot) {
+    const feet = bot.entity.position.floored()
+    return bot.entity.onGround !== false && !bot.entity.isInWater && !bot.entity.isInLava &&
+        soundFloor(bot.blockAt?.(feet.offset(0, -1, 0), false)) &&
+        [feet, feet.offset(0, 1, 0)].every(p => {
+            const block = bot.blockAt(p, false)
+            return block?.boundingBox === 'empty' && !LIQUIDS.has(block.name) && !block.getProperties?.().waterlogged
+        })
+}
+
+function bucketRay(bot, eye, point, removed = null) {
+    const delta = point.minus(eye)
+    const distance = delta.norm()
+    return bot.world?.raycast(eye, delta.normalize(), distance, (block, iter) => (!removed || !block.position.equals(removed)) &&
+        iter.intersect(liquidSource(block, 'lava') || liquidSource(block, 'water') ?
+            [[0, 0, 0, 1, 8 / 9, 1]] : block.shapes, block.position))
+}
+
+function lavaScoopAim(bot, position) {
+    if (!dryBucketFooting(bot) || !liquidSource(bot.blockAt(position, false), 'lava')) {
+        return null
+    }
+    const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
+    const points = [[0.5, 0.5, 0.5], ...[0.05, 0.95].flatMap(x =>
+        [0.1, 0.8].flatMap(y => [0.05, 0.95].map(z => [x, y, z])))]
+    return points.map(([x, y, z]) => position.offset(x, y, z)).find(point => eye.distanceTo(point) <= 4.5 &&
+        bucketRay(bot, eye, point)?.position.equals(position)) ?? null
 }
 
 async function smeltCharcoal(c, state) {

@@ -2870,3 +2870,22 @@ two diamonds. No commands assisted movement, mining or pickup after setup.
 Evidence: `outputs/diamond-150-first-results.json` and
 `outputs/diamond-150-live-results.json`. Combat cancellation was verified in
 regression, not staged on the live vein.
+
+## F122 — Deepslate blocked the bucket ray to a lava source
+
+At 03:45:06Z, the bot timed out after using a bucket on the source at
+(80,-41,294), then blacklisted it and resumed tunneling from (78,-42,293).
+The terrain inspection and ray replay found deepslate at (79,-41,294) on
+the centre ray and a clear ray to the source edge. The approach goal only
+required proximity and the scoop always aimed at the centre.
+
+Lava scoops now verify a ray from dry footing, try the edge, and reuse
+the inventory-verified bucket use. If no ray works, a single reachable
+rock can be dug from a supported position at least two columns away,
+provided its removal opens the ray. Walking uses dry movements.
+The real-block regression failed before the fix and covers both paths.
+
+A staged LAN trial supplied the bucket and position, then filled it at
+(77.5,-42,293.5) with no movement, digging or further commands. The server
+confirmed Hot Stuff. See `outputs/lava-77-live-results.json`. The regular
+bot separately earned Hot Stuff at 04:10:04Z on its original lava search.

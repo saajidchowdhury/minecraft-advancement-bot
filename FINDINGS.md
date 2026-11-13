@@ -88,6 +88,9 @@ Mining and tunnels
   combat. If dry walking fails, cut toward supported positions on up to four
   sides. Stand within one block of the ore's height before breaking it so its
   drop can be reached. A failed round defers the saved target for 120 s (F121).
+- Lava scoops verify a ray from dry ground to the source, including its edges.
+  If a single reachable rock blocks the ray, remove it only from a supported
+  position two or more columns away (F122).
 - Never mine a natural block under the hitbox; step off first. Own placed blocks
   on sound support are exempt, and pointed dripstone is not a floor (F102).
 - Hazards count only when visible: tunnel steps, probes and exposed ore judge
@@ -382,3 +385,4 @@ Highest risk first.
 - F119 Water treated as an opportunity while buckets are short [user direction + regression]
 - F120 Cooking furnace obstructed the stairs and was left outside night shelter [live failure + regression + staged]
 - F121 Diamond under an overhang lost after path failures [live failure + regression + staged]
+- F122 Deepslate blocked a lava bucket's centre ray [live failure + regression + staged]

@@ -54,7 +54,7 @@ without a death cascade.
 Diamonds! and Ice Bucket Challenge are confirmed (staged cast, F053). Remaining:
 a continuous run casting ten obsidian with the third bucket, lava quarantine and
 the portal standing row (F056, F059). Done with server packets and enough
-obsidian for a portal.
+obsidian for a portal. The original blocked lava scoop passes on LAN (F122).
 
 ### G006 — Medium / implemented, not live-verified — Nether entry and return
 
