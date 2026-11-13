@@ -501,15 +501,15 @@ test('land trips swim at cost 1 even from a stump that is not itself in water (F
     const { c, bot, Vec3 } = landWorld()
     Object.assign(bot.entity, { isInWater: false })
     const movements = { liquidCost: 3 }
-    bot.pathfinder = { movements }
+    bot.pathfinder = { movements, searchRadius: 48 }
     let during = null
     c.gotoWithTimeout = async g => {
-        during = movements.liquidCost
+        during = [movements.liquidCost, bot.pathfinder.searchRadius]
         Object.assign(bot.entity, { position: new Vec3(g.x + 0.5, g.y, g.z + 0.5), onGround: true })
     }
     await c.reachLand()
-    assert.equal(during, 1)
-    assert.equal(movements.liquidCost, 3)
+    assert.deepEqual(during, [1, 192], 'cheap water and room for a long swim (live 06:46Z: 42 blocks failed at 48)')
+    assert.deepEqual([movements.liquidCost, bot.pathfinder.searchRadius], [3, 48])
 })
 
 test('a bot spawned on a tree top digs down through leaves and logs to the ground (F135)', async () => {

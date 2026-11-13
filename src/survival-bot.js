@@ -103,7 +103,8 @@ const ACTION_TIMEOUT_MS = Object.freeze({
 const STRANDED_TIMEOUT_FACTOR = 4
 // Reach-land goal (F135): ground blocks, search radius in blocks and candidates tried per attempt.
 const LAND_GROUND = /^(dirt|coarse_dirt|rooted_dirt|grass_block|podzol|mycelium|mud|clay|moss_block|sand|red_sand|gravel|stone|cobblestone|mossy_cobblestone|deepslate|andesite|diorite|granite|tuff|calcite|sandstone|red_sandstone|snow_block|.*terracotta)$/
-const LAND_SEARCH_RADIUS = 48
+const LAND_SEARCH_RADIUS = 96
+const LAND_PATH_SLACK = 192
 const LAND_CANDIDATES = 256
 // Exposed ground blocks a connected land mass needs to count as land rather than an island (user).
 const LARGE_LAND_BLOCKS = 1000
@@ -3776,8 +3777,11 @@ class SurvivalController {
         // path budget after ~16 cells. The goal never lapses until the bot stands on ground (user, F135).
         const active = this.bot.pathfinder?.movements
         const liquidCost = active?.liquidCost
+        const searchRadius = this.bot.pathfinder?.searchRadius
         if (active) {
             active.liquidCost = 1
+            // searchRadius is A*'s cost slack; 48 failed a 42-block swim to the mainland (live 06:46Z).
+            this.bot.pathfinder.searchRadius = LAND_PATH_SLACK
         }
         try {
             for (const floor of spots.slice(0, 3)) {
@@ -3799,6 +3803,7 @@ class SurvivalController {
         } finally {
             if (active) {
                 active.liquidCost = liquidCost
+                this.bot.pathfinder.searchRadius = searchRadius
             }
         }
     }
