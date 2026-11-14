@@ -22,6 +22,7 @@ const MAX_TURNS = 4
 // recorded tunnel or bridge, not by pathfinding or scouting; a single 360-block goal also exceeded A*'s
 // 48-block slack and the fallback crossed open Nether terrain (live 06:42Z).
 const MAX_PATH = 8192
+const REJOIN_STEPS = 96
 const STEP_MS = 4000
 const AIR = new Set(['air', 'cave_air', 'void_air'])
 const HOT = new Set(['lava', 'fire', 'soul_fire', 'magma_block'])
@@ -335,6 +336,26 @@ async function findFortress(c) {
     }
 }
 
+// Off the line with no walkable way back, tunnel or bridge to the cell one axis at a time, never scouting.
+async function rejoin(c, cell) {
+    const bot = c.bot
+    let dir = Math.abs(cell.x - feetOf(bot).x) >= Math.abs(cell.z - feetOf(bot).z) ? (cell.x > feetOf(bot).x ? 0 : 2) : (cell.z > feetOf(bot).z ? 1 : 3)
+    for (let n = 0; n < REJOIN_STEPS; n++) {
+        check(c)
+        const feet = feetOf(bot)
+        if (feet.x === cell.x && feet.z === cell.z) {
+            if (feet.y !== cell.y) {
+                await c.gotoWithTimeout(new goals.GoalBlock(cell.x, cell.y, cell.z), 6000, 'onto the line')
+            }
+            return
+        }
+        dir = heading(feet, cell, dir)
+        const [x, z] = DIRECTIONS[dir]
+        await step(c, feet, new Vec3(x, 0, z), Math.sign(cell.y - feet.y))
+    }
+    throw new Error(`could not rejoin the line at ${cell} in ${REJOIN_STEPS} steps`)
+}
+
 // Walks the recorded line from the nearest recorded cell to index `to` (0 is the portal), cell by cell.
 async function walkPath(c, to) {
     const bot = c.bot
@@ -346,6 +367,11 @@ async function walkPath(c, to) {
     let i = path.reduce((best, p, j) => p.distanceTo(here) < path[best].distanceTo(here) ? j : best, 0)
     if (path[i].distanceTo(here) > 0) {
         await c.gotoWithTimeout(new goals.GoalBlock(path[i].x, path[i].y, path[i].z), 10000, 'back onto the bridge')
+            .catch(error => {
+                check(c)
+                c.log.warn(`${error.message}; tunnelling back to the line at ${path[i]}.`)
+                return rejoin(c, path[i])
+            })
     }
     const delta = Math.sign(to - i)
     if (delta !== 0) {
@@ -353,13 +379,22 @@ async function walkPath(c, to) {
     }
     for (i += delta; delta !== 0 && i !== to + delta; i += delta) {
         check(c)
-        const cell = path[i]
+        let cell = path[i]
+        // A hole or a lost floor on the line (a 2-deep dip trapped the walk at 225,99,-127, 06:58Z) is
+        // floored at the current height and the record updated, so the walk stays level.
+        const from = feetOf(bot)
+        const level = new Vec3(cell.x, from.y, cell.z)
+        if (cell.y <= from.y && open(bot.blockAt(level)) && open(bot.blockAt(level.offset(0, 1, 0))) &&
+            !solid(bot.blockAt(level.offset(0, -1, 0)))) {
+            await placeFloor(c, level.offset(0, -1, 0), new Vec3(Math.sign(cell.x - from.x), 0, Math.sign(cell.z - from.z)))
+            cell = level
+            c.memory.netherBridge.path[i] = [cell.x, cell.y, cell.z]
+        }
         await clearCells(c, [cell, cell.offset(0, 1, 0)])
         if (cell.y !== feetOf(bot).y) {
             await c.gotoWithTimeout(new goals.GoalBlock(cell.x, cell.y, cell.z), 6000, 'bridge stair')
         } else {
             // Sneak on a slab floor unless walls stand at head height on both sides.
-            const from = feetOf(bot)
             const side = new Vec3(cell.z - from.z, 0, cell.x - from.x)
             const walled = [side, side.scaled(-1)].every(s => solid(bot.blockAt(cell.offset(s.x, 1, s.z))))
             await walkTo(c, cell, Boolean(bot.blockAt(cell.offset(0, -1, 0))?.name.endsWith('_slab')) && !walled)

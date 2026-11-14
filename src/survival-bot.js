@@ -1038,6 +1038,11 @@ class SurvivalController {
             if (threatNear) {
                 return
             }
+            // A fortress line rejoins itself by tunnelling or bridging; scouting Nether terrain drew the bot
+            // 17 blocks off its bridge (user: a bug, 06:59Z).
+            if (['find_fortress', 'leave_nether'].includes(action) && this.memory.netherBridge && this.bot.game.dimension === 'the_nether') {
+                return
+            }
             if (count >= 3 && action !== 'return_surface' && !opportunistic && (foodStalled || stalledInPlace || /no path to the goal/i.test(message))) {
                 await this.unstick().catch(unstickError => this.log.warn(`Unstick failed: ${unstickError.message}`))
             } else if (count >= 3 && action !== 'return_surface' && !STATIONARY_ACTIONS.has(action) && !opportunistic) {

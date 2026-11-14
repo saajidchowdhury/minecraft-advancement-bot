@@ -192,9 +192,12 @@ test('a cancelled fortress step lets go well inside the 2 s release window', asy
 
 test('the way home walks every recorded bridge cell back, not a pathfinder route', async () => {
     const { returnAlongPath } = require('../src/nether-fortress')
-    const { bot } = bridgeWorld()
+    const fixture = bridgeWorld()
+    const { bot } = fixture
     // An L-shaped line: east from the portal cell to x=3, then north to z=-2; the bot stands on its end.
     const path = [[0, 70, 0], [1, 70, 0], [2, 70, 0], [3, 70, 0], [3, 70, -1], [3, 70, -2]]
+    const { placed, key } = fixture
+    path.forEach(([x, y, z]) => placed.set(key(new Vec3(x, y - 1, z)), 'cobblestone_slab'))
     bot.entity.position = new Vec3(3.5, 70, -1.5)
     const walked = []
     let aim = null
@@ -271,4 +274,58 @@ test('with no slab blocks left the bridge floor and walls are full netherrack bl
     assert.equal(placed.get(key(new Vec3(2, 69, 0))), 'netherrack', 'floor')
     assert.equal(placed.get(key(new Vec3(3, 71, 1))), 'netherrack', 'head-height wall')
     assert.ok(clicks.every(click => click.half === null), 'full blocks are placed without a slab half')
+})
+
+test('a hole in the recorded line is floored at the walking height instead of stepped into', async () => {
+    const { returnAlongPath } = require('../src/nether-fortress')
+    const { bot, placed, key } = bridgeWorld()
+    // Floor at y=69 under x=0..1 only (the fixture); the recorded cell x=2 dips into a hole at y=68.
+    const path = [[4, 70, 0], [3, 70, 0], [2, 68, 0], [1, 70, 0], [0, 70, 0]].reverse()
+    placed.set(key(new Vec3(3, 69, 0)), 'netherrack')
+    placed.set(key(new Vec3(4, 69, 0)), 'netherrack')
+    bot.entity.position = new Vec3(4.5, 70, 0.5)
+    let aim = null
+    bot.lookAt = async p => { aim = p }
+    bot.setControlState = (control, value) => {
+        if (control === 'forward' && value && aim) {
+            bot.entity.position = new Vec3(aim.x, 70, aim.z)
+        }
+    }
+    const routes = []
+    const memory = { netherBridge: { path: path.map(p => [...p]) } }
+    const c = { bot, running: true, paused: false, actionAbort: new AbortController(), log: { info () {}, warn () {} },
+        memory, gotoWithTimeout: async goal => { routes.push(goal) } }
+    await returnAlongPath(c)
+    assert.equal(placed.get(key(new Vec3(2, 69, 0))), 'cobblestone_slab', 'the hole is floored at walking height')
+    assert.deepEqual(memory.netherBridge.path[2], [2, 70, 0], 'and the record now says so')
+    assert.deepEqual(routes, [], 'no pathfinder stair into the hole')
+    assert.equal(Math.floor(bot.entity.position.x), 0)
+})
+
+test('a bot knocked off its line tunnels or bridges back to it instead of scouting', async () => {
+    const { returnAlongPath } = require('../src/nether-fortress')
+    const fixture = bridgeWorld()
+    const { bot, placed, key } = fixture
+    // A line along z=0 from x=0..3 at feet y=70; the bot stands 3 blocks off it at (3,70,3) on netherrack.
+    const path = [[0, 70, 0], [1, 70, 0], [2, 70, 0], [3, 70, 0]]
+    for (let x = 0; x <= 3; x++) {
+        for (let z = 0; z <= 3; z++) {
+            placed.set(key(new Vec3(x, 69, z)), 'netherrack')
+        }
+    }
+    bot.entity.position = new Vec3(3.5, 70, 3.5)
+    let aim = null
+    bot.lookAt = async p => { aim = p }
+    bot.setControlState = (control, value) => {
+        if (control === 'forward' && value && aim) {
+            bot.entity.position = new Vec3(aim.x, 70, aim.z)
+        }
+    }
+    const scouts = []
+    const c = { bot, running: true, paused: false, actionAbort: new AbortController(), log: { info () {}, warn () {} },
+        memory: { netherBridge: { path } }, scout: async () => scouts.push(1),
+        gotoWithTimeout: async () => { throw new Error('No path to the goal!') } }
+    await returnAlongPath(c)
+    assert.deepEqual(scouts, [])
+    assert.deepEqual(bot.entity.position.floored(), new Vec3(0, 70, 0), 'back on the line and home to its first cell')
 })
