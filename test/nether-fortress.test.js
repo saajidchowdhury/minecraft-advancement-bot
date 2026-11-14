@@ -237,3 +237,38 @@ test('a restocked bot walks its old line out to the frontier and continues in th
     assert.equal(memory.netherBridge.dir, 1, 'then on in the last segment direction (+z)')
     assert.deepEqual(path.slice(0, 4), [[0, 70, 0], [1, 70, 0], [1, 70, 1], [1, 70, 2]], 'the old line is not rewritten')
 })
+
+test('netherrack carries the line on in the Nether but never counts toward the Overworld restock', () => {
+    const nether = changes => nextAdvancement({ ...kit, dimension: 'the_nether', fortressSearch: true, ...changes })
+    assert.equal(nether({ bridgeSupply: 0, netherSupply: 64 }).action, 'find_fortress')
+    assert.equal(nether({ bridgeSupply: 0, netherSupply: 7 }).action, 'leave_nether')
+    assert.equal(nextAdvancement({ ...kit, bridgeSupply: 200, netherSupply: 456 }).action, 'gather_stone')
+})
+
+test('with no slab blocks left the bridge floor and walls are full netherrack blocks', async () => {
+    const { bot, placed, clicks, key } = bridgeWorld()
+    bot.inventory.items().splice(0, 2, { name: 'netherrack', count: 64 })
+    bot.equip = async item => { bot.heldName = item.name }
+    bot._placeBlockWithOptions = async (ref, face, options) => {
+        const at = ref.position.plus(face)
+        clicks.push({ at, half: options.half })
+        placed.set(key(at), bot.heldName)
+    }
+    let walks = 0
+    bot.setControlState = (control, value) => {
+        if (control === 'forward' && value && ++walks % 3 === 0) {
+            bot.entity.position = bot.entity.position.offset(1, 0, 0)
+        }
+    }
+    const memory = { netherBridge: { dimension: 'the_nether', dir: 0, steps: 0, lastCheck: 0, portal: new Vec3(0, 70, 0), target: null, turns: 0 } }
+    const c = { bot, memory, rng: () => 0, log: { info () {}, warn () {} }, running: true, paused: false, actionAbort: new AbortController() }
+    const run = findFortress(c)
+    while (memory.netherBridge.steps < 3) {
+        await new Promise(resolve => setTimeout(resolve, 5))
+    }
+    c.running = false
+    await assert.rejects(run, /cancelled/)
+    assert.equal(placed.get(key(new Vec3(2, 69, 0))), 'netherrack', 'floor')
+    assert.equal(placed.get(key(new Vec3(3, 71, 1))), 'netherrack', 'head-height wall')
+    assert.ok(clicks.every(click => click.half === null), 'full blocks are placed without a slab half')
+})

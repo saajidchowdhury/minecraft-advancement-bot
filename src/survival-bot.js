@@ -1196,6 +1196,8 @@ class SurvivalController {
             portalInProgress: Boolean(this.memory.portalOrigin),
             carriesCraftingTable: this.hasItem('crafting_table'),
             bridgeSupply: bridgeSupply(this.bot),
+            // In the Nether, netherrack carries the line on once the non-flammable blocks are used up.
+            netherSupply: bridgeSupply(this.bot) + this.countItems(['netherrack']),
             netherMealsReady: mealReserve(inventory) >= MIN_MINING_MEALS,
             netherMealsLeft: mealReserve(inventory) >= MIN_MINING_MEALS / 4,
             fortressReached: Boolean(this.memory.netherFortress?.reached),

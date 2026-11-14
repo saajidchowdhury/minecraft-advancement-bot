@@ -3655,3 +3655,10 @@ back, cancellation checks with four-recipe slab batches, the recorded
 path and its return, and resuming at the frontier (df2ff1e, regression
 only). Not yet live: a fortress sighting and entry, a restock round trip,
 the stair steps toward a target.
+
+Follow-up user direction (2026-11-14): instead of smelting netherrack into
+nether brick slabs (about 20 s of furnace time per slab, roughly a minute
+per bridged block), bridge with plain netherrack full blocks once the
+non-flammable slab blocks run out. Posts take netherrack first. The Nether
+return threshold counts carried netherrack; the Overworld restock still
+needs 256 non-flammable blocks. Regression only.

@@ -231,7 +231,7 @@ function expeditionStep(state) {
 
 function planAdvancement(state) {
     if (state.dimension === 'the_nether' && state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
-        const supplied = (state.bridgeSupply ?? 0) >= EXPEDITION_MIN_BLOCKS && state.netherMealsLeft !== false
+        const supplied = (state.netherSupply ?? state.bridgeSupply ?? 0) >= EXPEDITION_MIN_BLOCKS && state.netherMealsLeft !== false
         if (!state.fortressReached && supplied && (state.fortressSearch || !expeditionStep(state))) {
             return target('prep:Nether fortress', 'find_fortress', 'bridge or tunnel one cardinal line until a fortress shows')
         }

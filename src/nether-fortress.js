@@ -130,14 +130,19 @@ async function place(c, target, item, half, refs) {
     return true
 }
 
+// User direction (2026-11-14): once no slab blocks are left, plain netherrack full blocks continue the line;
+// it is dug on the way, so posts take it first and keep slab material for floors and walls.
+const FULL_BLOCKS = ['netherrack', ...BRIDGE_BLOCKS]
 const slabItem = bot => bot.inventory.items().find(i => Object.values(SLABS).includes(i.name))?.name
-const blockItem = bot => bot.inventory.items().find(i => BRIDGE_BLOCKS.includes(i.name))?.name
+const fullItem = bot => FULL_BLOCKS.map(name => bot.inventory.items().find(i => i.name === name)).find(Boolean)?.name
+// piece := [item, half]: a slab in the given half, or a full block where no slab is left.
+const piece = (bot, half) => slabItem(bot) ? [slabItem(bot), half] : [fullItem(bot), null]
 
 // Floor := top-half slab under the next feet cell, clicked high on the side of the block underfoot.
 async function placeFloor(c, floor, dir) {
     const sides = DIRECTIONS.map(([x, z]) => [floor.offset(x, 0, z), new Vec3(-x, 0, -z)])
     const behind = [floor.offset(-dir.x, 0, -dir.z), dir]
-    if (!await place(c, floor, slabItem(c.bot), 'top', [behind, ...sides])) {
+    if (!await place(c, floor, ...piece(c.bot, 'top'), [behind, ...sides])) {
         throw new Error(`no support for a bridge floor at ${floor}`)
     }
 }
@@ -150,16 +155,16 @@ async function placeWall(c, wall, dir, side) {
         return
     }
     const refs = [[wall.offset(-dir.x, 0, -dir.z), dir], [wall.offset(0, -1, 0), new Vec3(0, 1, 0)]]
-    if (await place(c, wall, slabItem(bot), 'bottom', refs)) {
+    if (await place(c, wall, ...piece(bot, 'bottom'), refs)) {
         return
     }
     const sideFloor = wall.offset(0, -2, 0)
     const post = wall.offset(0, -1, 0)
-    if (open(bot.blockAt(sideFloor)) && !await place(c, sideFloor, slabItem(bot), 'top', [[sideFloor.minus(side), side]])) {
+    if (open(bot.blockAt(sideFloor)) && !await place(c, sideFloor, ...piece(bot, 'top'), [[sideFloor.minus(side), side]])) {
         return
     }
-    if (await place(c, post, blockItem(bot), null, [[sideFloor, new Vec3(0, 1, 0)]])) {
-        await place(c, wall, slabItem(bot), 'bottom', [[post, new Vec3(0, 1, 0)]])
+    if (await place(c, post, fullItem(bot), null, [[sideFloor, new Vec3(0, 1, 0)]])) {
+        await place(c, wall, ...piece(bot, 'bottom'), [[post, new Vec3(0, 1, 0)]])
     }
 }
 
@@ -287,9 +292,12 @@ async function findFortress(c) {
     c.log.info(`Fortress search heading ${DIRECTIONS[nb.dir]} from ${feet()} after ${nb.steps} steps.`)
     for (;;) {
         check(c)
-        if (slabCount(bot) < MIN_SLABS) {
+        if (slabCount(bot) < MIN_SLABS && countOf(bot, BRIDGE_BLOCKS) >= 3) {
             const [x, z] = DIRECTIONS[nb.dir]
             await craftSlabs(c, new Vec3(x, 0, z))
+        }
+        if (!slabItem(bot) && !fullItem(bot)) {
+            throw new Error('out of bridge blocks and netherrack')
         }
         if (nb.steps - nb.lastCheck >= CHECK_EVERY) {
             nb.lastCheck = nb.steps
@@ -362,4 +370,4 @@ async function walkPath(c, to) {
 
 const returnAlongPath = c => walkPath(c, 0)
 
-module.exports = { findFortress, returnAlongPath, bridgeSupply, slabCount, heading, chooseTarget, BRIDGE_BLOCKS, SLABS, FORTRESS }
+module.exports = { findFortress, returnAlongPath, bridgeSupply, countOf, slabCount, heading, chooseTarget, BRIDGE_BLOCKS, SLABS, FORTRESS }

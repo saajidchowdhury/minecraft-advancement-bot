@@ -111,7 +111,9 @@ Nether expedition (F149)
   portal. In the Nether: slabs from one stack at a time, one cardinal line,
   fortress check every 16 steps, home along every recorded cell when bridge
   supply falls under 8 blocks or food under a quarter, restock, resume at
-  the line's frontier. Ghasts are not melee hostiles.
+  the line's frontier. Once no slab blocks are left, full netherrack blocks
+  continue floors and walls; netherrack counts toward Nether supply only.
+  Ghasts are not melee hostiles.
 
 Mining and tunnels
 - Digs follow vanilla timing plus the 5-tick (250 ms) delay after any break
