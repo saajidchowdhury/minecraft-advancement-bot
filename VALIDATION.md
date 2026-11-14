@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-560 tests and `npm run check` pass through F141.
+573 tests and `npm run check` pass through F147.
 Run them with the prepared runtime:
 
 ```sh
@@ -22,8 +22,8 @@ or the `# fail 0` line, not a filtered grep (F035, F060). Each regression that
 guards a fix must fail on the pre-fix source. Mocks must mirror the pinned
 library's real shapes (F023). A passing suite never establishes a live
 advancement; only server packets do. Every produced code file stays under 10%
-comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
-`decision-engine.js` at 33/346 (9.5%), which leave little room for more there.
+comment-bearing lines. `under-feet.js` is at 13/134 (9.7%) and
+`decision-engine.js` is at 33/369 (8.9%).
 
 ## Test files
 
@@ -146,6 +146,6 @@ none ran during the trial). "Automated" means regression tests only.
 | Disposal zones, sky-bound surface scouts, self-overlap placement | automated | F129 |
 | Carving out of a sculk zone | live (left the zone 05:39Z) | F132 |
 | Submerged-dig refusal, treading water, swamp swims and logs | live | F133, F134 |
-| Biome exit, mainland after spawn, seagrass swims, tree route limit | live swamp exit; ocean edge staged; tree route automated | F135, F136, F147 |
+| Biome exit, mainland after spawn, seagrass swims, tree route limit | live swamp exit; staged coast travel; coastal landing and tree route automated | F135–F137, F147 |
 | Return to underground iron work after restart; first-time land search climbs and takes safe iron | live restart; initial climb and iron priority automated | F137 |
 | Trunk platform, full canopy descent, soil stock | trunk platform staged, canopy automated, stock live | F135, F145 |

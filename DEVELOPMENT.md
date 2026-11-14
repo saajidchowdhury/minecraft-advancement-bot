@@ -14,7 +14,7 @@ It works on `.js` and `.md` files.
   action. Priorities and alert ranges live here.
 - `src/advancement-plan.js`: route, recipes, `nextAdvancement`, iron reserve cap.
 - `src/advancement-tracker.js`: server advancement packets.
-- `src/survival-bot.js`, class `SurvivalController`, about 4100 lines:
+- `src/survival-bot.js`, class `SurvivalController`:
   `bindEvents` (damage, hurt and breath events), `tick`, `observe` (state for
   the planner) and `perform` (action dispatch). Further groups are gathering
   (`gatherWood`, `collectTarget`), furnaces (`smeltIron`, `collectSmelt`),
@@ -23,6 +23,8 @@ It works on `.js` and `.md` files.
   (`reachLand`, `landMassSize`, `descendFromCanopy`, `stockBlocks`,
   `buildLogPlatform`), shelter (`makeNightSafe`, `burrow`), stations, and
   recovery (`unstick`, `scout`, `recoverMobility`, `fleeSculk`).
+- `src/biome-exit.js` handles cardinal travel, coastline routing and solid
+  footing before the first-spawn mainland search.
 - `src/progression-skills.js`: tunnels (`mineTunnel`, `probeTunnelSides`),
   shafts (`followShaft`, `returnSurface`), buckets and obsidian, the Nether
   portal, disposal (`clearInventory`, `disposalPit`), redstone.
@@ -118,21 +120,25 @@ The implemented route is:
    iron and craft an iron pickaxe.
 4. **Suit Up** — craft and wear an iron chestplate, then prepare a shield,
    an iron sword and the rest of the iron armor.
-5. **Hot Stuff** — collect a lava source in a bucket.
+5. Craft two empty buckets and fill both with water. **Hot Stuff** requires
+   a separate lava scoop. A deferred water search can let the lava scoop
+   happen first.
 6. **Diamonds!** — staircase/branch mining, then a diamond pickaxe.
-7. Fill two water buckets. For **Ice Bucket Challenge**, mine exposed obsidian
-   or cast it by pouring water above lava in a contained basin. A three-cell
-   water trench can refill both buckets between casts.
+7. For **Ice Bucket Challenge**, mine exposed obsidian or cast it by pouring
+   water above lava in an off-path basin. The bot remembers up to ten visible
+   sources near the active pool and can reuse the basin. A three-cell water
+   trench can refill both buckets.
 8. Gather ten obsidian, ignition supplies and food; **We Need to Go Deeper** —
    construct and enter a Nether portal.
 
 After server-confirmed Nether entry, the bot returns to the Overworld, can
 pursue Enchanter if it already has book supplies, and works toward full diamond
 armor. Autonomous fortress, stronghold and dragon progression are not
-implemented. Staged LAN trials verified the diamond
-interrupt, a renewable water source, and one cast with server-confirmed Ice
-Bucket Challenge. A continuous run to ten obsidian and Nether entry is still
-unverified, as is the redstone demo.
+implemented. LAN trials verified the diamond interrupt, a renewable water
+source, and Ice Bucket Challenge. A staged run finished the last two of
+ten obsidian at one pool, then the regular bot built a portal, earned
+server-confirmed Nether entry and returned. A continuous ten-cast run from
+zero and the redstone demo remain unverified (F142, F144, G009).
 
 Equipment and ingredient preparation are objectives, not invented Java
 advancements. Completion announcements come exclusively from server
@@ -144,8 +150,10 @@ Current inventory determines whether lost tools must be rebuilt.
 
 `chooseAction` in `src/decision-engine.js` picks one action per cycle. Food,
 danger, environmental reflexes, recoverable death drops and night protection
-interrupt the route above. After each Overworld spawn, reaching a large land
-mass comes first, after the reflexes (F135). A threat cancellation replans after 100 ms, a
+interrupt the route above. After reflexes, surface travel leaves water-heavy
+biomes and stops on solid footing in a different biome (F147). A new player
+then seeks a large land mass if the world's initial land milestone is pending
+(F135, F137). A threat cancellation replans after 100 ms, a
 success after 250 ms, a failure after 1.5 s. Path searches and actions are
 bounded. An operation that refuses cancellation forces a reconnect.
 Minecraft commands for staged tests stay outside the gameplay controller.

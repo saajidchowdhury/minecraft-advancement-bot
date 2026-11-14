@@ -10,15 +10,12 @@ playthrough is a test, not the definition of success.
 
 ## Now
 
-1. Fresh-world early game. Watch a natural start end to end with the F133–F137
-   spawn, water and land handling. The water-ringed trunk platform passed a
-   staged LAN trial (F145). The empty-handed bot left its stuck swamp canopy
-   and stopped on forest ground in the original world (F147). Done when a
-   first spawn in or near water reaches a large land mass, stocks soil, uses a trunk platform or canopy
-   descent when needed, and matches the F057 pace (ten advancements in 28 min)
-   unaided. Separately check a first-time land seeker underground for safe
-   iron pickups and positive elevation gain. The returning-player restart
-   passed on port 51391 (F137).
+1. Fresh-world early game. Verify a wet-biome exit onto solid ground, including
+   an ocean-edge route, then the separate mainland search and soil stock.
+   The natural swamp exit and staged trunk platform passed (F145, F147).
+   Compare a full unaided start with F057 (ten advancements in 28 min).
+   Separately verify that an underground first-time land seeker gains
+   elevation and collects safe visible iron (F137).
 2. Live-verify the 2026-11-12/13 changes still lacking natural evidence:
    a timed-out diamond pickup retry (F140), natural staircase flood
    recovery (F141), reachable berries (F127), disposal zones and

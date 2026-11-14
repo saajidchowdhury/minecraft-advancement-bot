@@ -15,10 +15,11 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 AdvancementBot is on port 51391 (PID 27956, Terminal window 2250, logs
 `outputs/2026-11-13@23.40.12/`). It left the stuck swamp canopy and gathered
-wood on forest ground without a teleport. The river-mouth trials verified
-coastal travel through beach biomes and continued movement while afloat
-in a different biome (F147). The regular bot is rebuilding underground.
-Baseline: 573 tests pass.
+wood on forest ground without a teleport (F147). At 23:42 ET it was
+returning upward near 150,32,-58 at full health with eight raw iron,
+one plank and no pickaxe. It switched to hand excavation after its stone
+pick broke. Its startup Git revision predates the biome commit, but the
+startup source hashes match the committed code. Baseline: 573 tests pass.
 
 ## Stable facts and process lessons
 
@@ -56,15 +57,13 @@ Baseline: 573 tests pass.
 
 ## Policies in force
 
-- Leave swamps, mangrove swamps, rivers, frozen rivers, oceans, and sandy
-  beach biomes before looking for mainland. Hold one cardinal heading and
-  follow the coast when the heading meets ocean. Stop on verified solid
-  footing in a different biome. Skip tree approaches that require a
-  continuous swim of more than eight blocks (F147).
-
 Checked against `src/` on 2026-11-13. Named constants are in the cited files.
 
 Spawn, water and land
+- Leave swamps, mangrove swamps, rivers, frozen rivers, oceans, and sandy
+  beaches before looking for mainland. Hold one cardinal heading and follow
+  the ocean edge when reached. Finish on solid footing in a different biome.
+  Skip trees whose approach requires over eight consecutive swim blocks (F147).
 - A new Overworld player seeks dry land until it reaches it once (F137).
   Existing progress migrates old saves; the milestone survives death and
   restarts. The initial land seeker uses the surface-return skill while
@@ -81,8 +80,8 @@ Spawn, water and land
   bot in water holds jump to tread (F134).
 - Collection digs that outlast the air above the 12-bubble cutoff are refused,
   and a low-air cancel blocks the whole tree (F133, F134). Wood targets only
-  logs that are safe to break; a trunk with no dry footing in reach gets a
-  block on the water surface to stand on (F134, F135).
+  logs that are safe to break. A four-sided water-bound trunk gets a
+  low-cost platform at the waterline even with a dry bank nearby (F145).
 
 Planner and gear order
 - The first three ingots make an iron pick (F043). The stone pick is followed
@@ -188,9 +187,8 @@ Environmental reflexes, night and recovery
 ## Open problems and unverified behavior
 
 Highest risk first.
-1. Swamp and spawn handling is new and mostly staged: the trunk platform passed
-   at a natural oak from a staged dry start (F145). Full canopy descent and
-   island rejection still need natural evidence (F135, F136).
+1. Full coastal landing, first-spawn mainland selection and a natural
+   trunk-platform approach still need live evidence (F135–F137, F145, F147).
    A "falling air above the bot" loop (05:39Z) cleared itself, unrecorded.
 2. Retreat under pursuit and creepers in mixed groups failed staged cases
    (F111). The night water search watchdog stall is contained but unexplained
@@ -203,9 +201,9 @@ Highest risk first.
    (F074).
 5. Skeleton shielding should react to blocked arrows, not a timer (F101).
 6. Regression-only: multi-charcoal jobs (F106), Take Aim and Enchanter (F059),
-   golem (F037), fishing and breeding (F036), a ten-obsidian cast and Nether
-   entry (F053, F056), base restock after a death (F034, F039), bare-hand
-   escape over a long climb (F126). Forced-death respawns are only an idea
+   golem (F037), fishing and breeding (F036), base restock after a death
+   (F034, F039), and a long bare-hand climb (F126). Casting ten obsidian
+   from zero remains open (F142). Forced-death respawns are only an idea
    (STRATEGY.md).
 
 ## Progress records
@@ -215,7 +213,8 @@ Highest risk first.
 - Confirmed live at least once: story root, Stone Age, Getting an Upgrade,
   Acquire Hardware, Isn't It Iron Pick, Suit Up, Hot Stuff, Diamonds!, Cover
   Me with Diamonds, Not Today Thank You, Adventure, Monster Hunter, Husbandry,
-  A Seedy Place. Staged only: Sweet Dreams (F017), Ice Bucket Challenge (F053).
+  A Seedy Place, Ice Bucket Challenge, We Need to Go Deeper and Nether
+  root (F142, F144). Staged only: Sweet Dreams (F017).
 - Deaths come from survival gaps: 13 on 2026-11-05 (F023–F035), 13 on
   2026-11-06 (F062–F076), then F081 through F124.
 
