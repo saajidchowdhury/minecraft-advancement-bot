@@ -205,10 +205,40 @@ function nextAdvancement(state) {
     return fresh
 }
 
+// User direction (2026-11-14): a fortress expedition carries four stacks of non-flammable slab blocks for
+// bridging, 16 cooked meats' worth of food and ingots for two spare iron pickaxes (plus sticks and a table).
+const EXPEDITION_BLOCKS = 256
+const EXPEDITION_IRON = { ironIngots: 2 * RECIPES.iron_pickaxe.ironIngots, sticks: 2 * RECIPES.iron_pickaxe.sticks }
+// Below this many blocks' worth of bridge or a quarter of the food, the bot walks back to restock.
+const EXPEDITION_MIN_BLOCKS = 8
+
+function expeditionStep(state) {
+    if (!state.carriesCraftingTable) {
+        return craft(state, 'prep:expedition crafting table', 'crafting_table', 'craft_table')
+    }
+    if ((state.bridgeSupply ?? 0) < EXPEDITION_BLOCKS) {
+        return target('prep:Nether bridge blocks', 'gather_stone', 'four stacks of non-flammable blocks for bridging')
+    }
+    const iron = resourceAction(state, EXPEDITION_IRON)
+    if (iron) {
+        return target('prep:spare pickaxe iron', iron, 'ingots for two spare iron pickaxes')
+    }
+    if (!state.netherMealsReady) {
+        return target('prep:expedition food', 'gather_food', "16 cooked meats' worth of food")
+    }
+    return null
+}
+
 function planAdvancement(state) {
-    // No Nether skills or gold armor yet: return through the portal once entry is confirmed.
     if (state.dimension === 'the_nether' && state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
-        return target('prep:return from the Nether', 'leave_nether', 'step back through the portal to the Overworld')
+        const supplied = (state.bridgeSupply ?? 0) >= EXPEDITION_MIN_BLOCKS && state.netherMealsLeft !== false
+        if (!state.fortressReached && supplied && (state.fortressSearch || !expeditionStep(state))) {
+            return target('prep:Nether fortress', 'find_fortress', 'bridge or tunnel one cardinal line until a fortress shows')
+        }
+        if (!state.fortressReached) {
+            return target('prep:return from the Nether', 'leave_nether', 'step back through the portal to the Overworld')
+        }
+        return target('survival:fortress reached', 'wait', 'fortress reached; blaze and wither skeleton skills come next')
     }
     if (!state.hasCraftingTable) {
         return craft(state, 'minecraft:story/root', 'crafting_table', 'craft_table')
@@ -322,6 +352,9 @@ function planAdvancement(state) {
         }
         return target('minecraft:story/enter_the_nether', 'enter_nether', 'build, light and enter a portal')
     }
+    if (entered && !state.fortressReached && state.dimension === 'overworld') {
+        return expeditionStep(state) ?? target('prep:Nether fortress', 'enter_nether', 'return through the portal to search for a fortress')
+    }
     // User direction: no sugar-cane farming for enchanting; serious enchanting waits for a stronghold
     // library. A book or its paper found along the way (chest loot) still earns Enchanter cheaply.
     const bookInHand = (state.books ?? 0) >= 1 || (state.paper ?? 0) + (state.sugarCane ?? 0) >= 3
@@ -342,5 +375,5 @@ function planAdvancement(state) {
     return target('survival:established', 'wait', 'supported advancement route complete; use !come or !redstone')
 }
 
-module.exports = { EARLY_ADVANCEMENTS, RECIPES, ARMOR_TIERS, nextAdvancement, ironStock, ironReserveCap, plankPotential, resourceAction,
+module.exports = { EXPEDITION_BLOCKS, EARLY_ADVANCEMENTS, RECIPES, ARMOR_TIERS, nextAdvancement, ironStock, ironReserveCap, plankPotential, resourceAction,
     ironPickPlankFuel, WATER_BUCKET_TARGET, canFillWaterBuckets }

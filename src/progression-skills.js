@@ -1739,6 +1739,17 @@ async function enterNether(c) {
         return until(c, () => c.advancements.completed.has('minecraft:story/enter_the_nether'), 5000)
     }
     let portal = await scanFor(c, () => c.findNearestBlock(name => name === 'nether_portal', 32))
+    const known = c.memory.overworldPortal
+    if (!portal && known) {
+        // A return trip walks back to the portal it last used before building anything.
+        const distance = bot.entity.position.distanceTo(new Vec3(known.x, known.y, known.z))
+        await c.gotoWithTimeout(new goals.GoalNear(known.x, known.y, known.z, 2), Math.max(15000, distance * 700), 'portal return trip')
+        portal = await scanFor(c, () => c.findNearestBlock(name => name === 'nether_portal', 8))
+        if (!portal) {
+            c.memory.overworldPortal = null
+            throw new Error(`remembered portal at ${known.x},${known.y},${known.z} is gone`)
+        }
+    }
     if (!portal) {
         if (bot.entity.isInWater) {
             return c.reachLand()
@@ -1791,6 +1802,7 @@ async function enterNether(c) {
         portal = bot.blockAt(origin.offset(1, 1, 0))
     }
     check(c)
+    c.memory.overworldPortal = { x: portal.position.x, y: portal.position.y, z: portal.position.z }
     await c.gotoWithTimeout(new goals.GoalBlock(portal.position.x, portal.position.y, portal.position.z), 15000, 'portal entry')
     await until(c, () => bot.game.dimension === 'the_nether', 10000)
     c.log.info('Entered the Nether. The supported route ends here; waiting near the portal.')
@@ -2239,6 +2251,12 @@ async function leaveNether(c) {
         return
     }
     const occupied = bot.blockAt(bot.entity.position.floored())
+    const home = c.memory?.netherBridge?.portal
+    if (occupied?.name !== 'nether_portal' && home && !c.findNearestBlock(name => name === 'nether_portal', 16)) {
+        // A fortress search walks back along its own bridge to the arrival portal.
+        const distance = bot.entity.position.distanceTo(new Vec3(home.x, home.y, home.z))
+        await c.gotoWithTimeout(new goals.GoalNear(home.x, home.y, home.z, 2), Math.max(15000, distance * 700), 'bridge return')
+    }
     const portal = occupied?.name === 'nether_portal'
         ? occupied : await scanFor(c, () => c.findNearestBlock(name => name === 'nether_portal', 16))
     if (!portal) {

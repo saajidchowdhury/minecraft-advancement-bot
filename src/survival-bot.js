@@ -5,6 +5,7 @@ const { plugin: collectBlockPlugin } = require('mineflayer-collectblock')
 const { Vec3 } = require('vec3')
 const { createRng } = require('./random')
 const { dropCaution } = require('./drop-caution')
+const { findFortress, bridgeSupply } = require('./nether-fortress')
 const { Actions, chooseAction, canSustainFight, outnumbered, hasMiningWood,
     MELEE_ALERT_RANGE, CREEPER_ALERT_RANGE, CREEPER_DUEL_HP, ARCHER_ALERT_RANGE } = require('./decision-engine')
 const { RECIPES, nextAdvancement, ironPickPlankFuel, ironStock, ironReserveCap, canFillWaterBuckets } = require('./advancement-plan')
@@ -37,8 +38,9 @@ const HOSTILES = new Set([
     'zombie', 'husk', 'drowned', 'skeleton', 'stray', 'creeper', 'spider',
     'cave_spider', 'witch', 'pillager', 'vindicator', 'evoker', 'ravager',
     'slime', 'magma_cube', 'phantom', 'guardian', 'elder_guardian',
-    'warden', 'blaze', 'ghast', 'piglin_brute', 'hoglin', 'zoglin', 'wither_skeleton'
+    'warden', 'blaze', 'piglin_brute', 'hoglin', 'zoglin', 'wither_skeleton'
 ])
+// No ghast: melee cannot reach one, and chasing or fleeing it off a Nether bridge is worse than its fireballs.
 
 const PREY = new Set(['cow', 'pig', 'sheep', 'chicken', 'rabbit'])
 const SWORDS = ['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword']
@@ -98,8 +100,8 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     [Actions.CRAFT_IRON_PICKAXE]: 30000,
     smelt_charcoal: 45000, craft_progression: 45000, equip_armor: 10000, equip_shield: 10000,
     fill_water_bucket: 90000, fill_lava_bucket: 90000, gather_diamonds: 90000, gather_obsidian: 90000,
-    gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
-    clear_inventory: 30000, mine_diamond: 95000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, reach_land: 60000, stock_blocks: 30000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
+    gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000, find_fortress: 600000,
+    clear_inventory: 30000, mine_diamond: 95000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, reach_land: 60000, stock_blocks: 30000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 300000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
     recover_diamond_drop: 60000,
     leave_flooded_tunnel: 24000, leave_wet_biome: 65000,
@@ -1061,7 +1063,9 @@ class SurvivalController {
 
     inventoryContext () {
         const worn = [5, 6, 7, 8, 45].map(slot => this.bot.inventory.slots?.[slot]?.name).filter(Boolean)
-        return { worn, foods: this.bot.registry?.foodsByName || {} }
+        // A fortress expedition carries four stacks of bridge blocks and their slabs.
+        const expedition = this.advancements?.completed?.has('minecraft:story/enter_the_nether') && !this.memory?.netherFortress?.reached
+        return { worn, foods: this.bot.registry?.foodsByName || {}, limits: expedition ? { building: 320, slabs: 512 } : {} }
     }
 
     observe () {
@@ -1190,6 +1194,12 @@ class SurvivalController {
             needsLand: (!this.biomeExit || this.bot.game.dimension !== 'overworld') && this.needsLand(),
             stockBlocks: this.needsBlockStock(),
             portalInProgress: Boolean(this.memory.portalOrigin),
+            carriesCraftingTable: this.hasItem('crafting_table'),
+            bridgeSupply: bridgeSupply(this.bot),
+            netherMealsReady: mealReserve(inventory) >= MIN_MINING_MEALS,
+            netherMealsLeft: mealReserve(inventory) >= MIN_MINING_MEALS / 4,
+            fortressReached: Boolean(this.memory.netherFortress?.reached),
+            fortressSearch: Boolean(this.memory.netherBridge) && this.bot.game.dimension === 'the_nether',
             redstoneInProgress: Boolean(this.memory.redstoneOrigin),
             redstoneRequested: Boolean(this.memory.redstoneRequested)
         }
@@ -1250,6 +1260,7 @@ class SurvivalController {
     async perform (action, state) {
         switch (action) {
             case 'avoid_enderman': return this.avoidEnderman()
+            case 'find_fortress': return findFortress(this)
             case 'flee_sculk': return this.fleeSculk()
             case 'leave_flooded_tunnel': return leaveFloodedTunnel(this)
             case 'recover_diamond_drop': return this.recoverDiamondDrop()

@@ -4,9 +4,9 @@
 // limit is met, so a rule keeps at least its limit. Items with no rule have no planned use and are thrown;
 // copper and gunpowder are junk on purpose.
 // Seals and shelters want blast-resistant stone; dirt (resistance 0.5) is kept apart for pillars.
-const BUILDING = ['cobblestone', 'cobbled_deepslate', 'netherrack']
+const BUILDING = ['cobblestone', 'cobbled_deepslate', 'blackstone', 'netherrack']
 const GROUPS = [
-    { key: 'building', match: name => BUILDING.includes(name), limit: 64 },
+    { key: 'building', match: name => BUILDING.includes(name), limit: 64, order: name => Number(name === 'netherrack') },
     { key: 'logs', match: name => /_(log|wood|stem|hyphae)$/.test(name), limit: 40 },
     { key: 'planks', match: name => name.endsWith('_planks'), limit: 64 },
     { key: 'fuel', match: name => name === 'coal' || name === 'charcoal', limit: 32 },
@@ -32,14 +32,14 @@ const gearTier = name => GEAR_TIERS.indexOf(name.split('_')[0])
 const remaining = item => (item.maxDurability || 0) - (item.durabilityUsed || 0)
 
 // rule := [group key, limit, sort] for an item; limit 0 throws every stack.
-function rule(name, worn, foods) {
+function rule(name, worn, foods, limits = {}) {
     const piece = name.split('_').at(-1)
     if (Object.hasOwn(SINGLE, name)) {
         return [name, SINGLE[name]]
     }
     const group = GROUPS.find(g => g.match(name))
     if (group) {
-        return [group.key, group.limit, group.order]
+        return [group.key, limits[group.key] ?? group.limit, group.order]
     }
     if (KEEP_ALL.has(name)) {
         return [name, Infinity]
@@ -58,10 +58,10 @@ function rule(name, worn, foods) {
 }
 
 // Stacks to throw: junk, gear outclassed by better gear carried or worn, and stacks beyond carry limits.
-function discardableStacks(items, { worn = [], foods = {} } = {}) {
+function discardableStacks(items, { worn = [], foods = {}, limits = {} } = {}) {
     const groups = new Map()
     for (const item of items) {
-        const [key, limit, order, gear, wornTier] = rule(item.name, worn, foods)
+        const [key, limit, order, gear, wornTier] = rule(item.name, worn, foods, limits)
         if (!groups.has(key)) {
             groups.set(key, { limit, order, gear, wornTier, stacks: [] })
         }
