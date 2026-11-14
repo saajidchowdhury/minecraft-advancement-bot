@@ -96,7 +96,8 @@ test('an own tower block on a sound block is mined from on top; a natural or uns
 test('pathfinder movements treat a stalactite as no floor', () => {
     const blocksByName = new Proxy({}, { get: (_, name) => ({ id: name === 'pointed_dripstone' ? 7 : 1 }) })
     const movements = { bot: { registry: { blocksByName } }, blocksCantBreak: new Set(),
-        exclusionAreasBreak: [], exclusionAreasStep: [], fences: new Set(), liquids: new Set() }
+        exclusionAreasBreak: [], exclusionAreasStep: [], fences: new Set(), liquids: new Set(),
+        getMoveDiagonal () {}, getMoveJumpUp () {} }
     const c = {}
     SurvivalController.prototype.configureSafeMovements.call(c, movements)
     assert.equal(movements.fences.has(7), true)

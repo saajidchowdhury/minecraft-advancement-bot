@@ -3545,3 +3545,33 @@ segments, and continued after entering windswept savanna while afloat.
 The bounded live runs ended before confirming an on-foot coastal exit.
 The regression tests verify that completion, heading continuity, beach
 handling, and the tree-route limit.
+
+## F148 — Perch caution after a 22-block dig-then-diagonal-jump fall
+
+Live failure, `outputs/2026-11-14@00.06.16/bot.log` 05:10:39Z: during a
+gather_wood land scout from -7,79,-110 toward 7,79,-143 the bot fell to
+-7,57,-112 and died at full health (hp 20 to 0, no threats). The user saw
+it dig dirt to make a landing block and then jump diagonally. Inspection:
+`getMoveDiagonal` in mineflayer-pathfinder 2.4.5 emits a jump-up-by-one
+diagonal that breaks corner and headroom blocks, and the movement monitor
+then sprint-jumps or walk-jumps it with no check on what lies beside the
+route. Parkour was already off.
+
+User direction: be careful with jumps and digging pathfinding when the
+tallest non-air block within ±2 in x and z (first ±5, reduced so navigation
+does not slow) is well below the bot. Taken literally, the jump target
+itself is in that window at foot height, so the rule could never flag a
+jump-up. The check therefore ignores the move's own columns: the start,
+the landing and, for diagonals, both corners. A column counts as tall when
+any block from 4 below the feet to 2 above them is non-air or unloaded. A
+perch drops diagonal moves from or onto it, cardinal jump-ups with blocks
+to break, and sprinting (the `allowSprinting` getter reads the bot's
+current block each tick). Plain cardinal jumps, walks and drops stay.
+Applied to `configureSafeMovements` and `dryMovements`.
+
+Cost, MacBookPro, Node 24.12.0, synthetic rolling hills with mock blocks,
+A* to 8 goals 40 blocks away, 5 interleaved repetitions after warm-up:
+48.9 ± 9.3 ms unguarded versus 53.5 ± 10.1 ms guarded (n = 40 each), with
+identical paths. Regression only; no live trial yet. Uncertainty: whether
+-7,79,-110 met the perch test was not probed in the world. A cliff edge
+with high ground within 2 blocks behind the bot is not a perch.

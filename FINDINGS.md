@@ -34,8 +34,12 @@ startup source hashes match the committed code. Baseline: 573 tests pass.
   reapply them all afterwards.
 - Pathfinder facts: `searchRadius` (48) is also A*'s cost slack above the start
   heuristic (F134). Only water and lava are library liquids; seagrass, kelp
-  and bubble columns are added (F136). Movements without `liquids` or
-  `exclusionAreasStep` are not real ones; mocks must carry them.
+  and bubble columns are added (F136). Movements without `liquids`,
+  `exclusionAreasStep`, `getMoveDiagonal` or `getMoveJumpUp` are not real
+  ones; mocks must carry them.
+- Perch caution (`src/perch-caution.js`, F148): where every column within ±2
+  in x and z, except the move's own, tops out 4+ blocks below the support,
+  A* drops diagonals from or onto it and digging jump-ups, and sprint is off.
 - Launch with `./scripts/run.sh [port]`; a changed seed clears saved
   coordinates (F002, F071). Runs record commit, hashes, PID and events under
   `outputs/<New York time>/` (F012); a running process never loads later
@@ -367,3 +371,4 @@ Highest risk first.
 - F145 Stand on a surface-water platform before cutting a water-ringed trunk [user direction + staged + regression]
 - F146 Use swimming routes for combat and retreat [live failure + staged + regression]
 - F147 Leave water-heavy surface biomes before seeking mainland or wood [live + staged + regression]
+- F148 Perch caution after a 22-block dig-then-diagonal-jump fall [live failure + user direction + regression]

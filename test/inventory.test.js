@@ -375,7 +375,8 @@ test('lane and in-place drops mark a five-minute zone that walking routes pay to
     assert.equal(disposalStepCost(memory, 'overworld', new Vec3(-54, 68, -85)), 0)
     assert.equal(disposalStepCost(memory, 'the_nether', new Vec3(-54, 72, -85)), 0)
     const movements = { bot: { registry: { blocksByName: new Proxy({}, { get: () => ({ id: 1 }) }) }, game: { dimension: 'overworld' } },
-        blocksCantBreak: new Set(), exclusionAreasBreak: [], exclusionAreasStep: [], fences: new Set(), liquids: new Set() }
+        blocksCantBreak: new Set(), exclusionAreasBreak: [], exclusionAreasStep: [], fences: new Set(), liquids: new Set(),
+        getMoveDiagonal () {}, getMoveJumpUp () {} }
     SurvivalController.prototype.configureSafeMovements.call({ memory }, movements)
     const step = movements.exclusionAreasStep.at(-1)
     assert.equal(step({ position: new Vec3(-54, 72, -84) }), 20)

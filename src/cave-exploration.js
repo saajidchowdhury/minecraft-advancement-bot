@@ -4,6 +4,7 @@ const { Vec3 } = require('vec3')
 const { Movements, goals } = require('mineflayer-pathfinder')
 const { sightRay } = require('./vision')
 const { ironStock, ironReserveCap } = require('./advancement-plan')
+const { perchCaution } = require('./perch-caution')
 
 const RAILS = new Set(['rail', 'powered_rail', 'detector_rail', 'activator_rail'])
 const AIR = new Set(['air', 'cave_air', 'void_air', 'torch', 'wall_torch', ...RAILS])
@@ -336,7 +337,7 @@ function dryMovements(bot, allowSwimming = false) {
     if (!allowSwimming && DANGER.has('water')) {
         plants.forEach(id => walking.blocksToAvoid.add(id))
     }
-    return walking
+    return perchCaution(walking)
 }
 
 async function exploreCave(c, targetY, canEnter = () => true) {

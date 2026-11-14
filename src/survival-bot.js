@@ -4,6 +4,7 @@ const { pathfinder, Movements, goals } = require('mineflayer-pathfinder')
 const { plugin: collectBlockPlugin } = require('mineflayer-collectblock')
 const { Vec3 } = require('vec3')
 const { createRng } = require('./random')
+const { perchCaution } = require('./perch-caution')
 const { Actions, chooseAction, canSustainFight, outnumbered, hasMiningWood,
     MELEE_ALERT_RANGE, CREEPER_ALERT_RANGE, CREEPER_DUEL_HP, ARCHER_ALERT_RANGE } = require('./decision-engine')
 const { RECIPES, nextAdvancement, ironPickPlankFuel, ironStock, ironReserveCap, canFillWaterBuckets } = require('./advancement-plan')
@@ -4167,6 +4168,7 @@ class SurvivalController {
         movements.liquidCost = SWIM_STEP_COST
         waterPlantsAsWater(movements)
         movements.infiniteLiquidDropdownDistance = false
+        perchCaution(movements)
     }
 
     inventorySummary () {
