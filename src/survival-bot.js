@@ -111,6 +111,7 @@ const STRANDED_TIMEOUT_FACTOR = 4
 const LAND_GROUND = /^(dirt|coarse_dirt|rooted_dirt|grass_block|podzol|mycelium|mud|clay|moss_block|sand|red_sand|gravel|stone|cobblestone|mossy_cobblestone|deepslate|andesite|diorite|granite|tuff|calcite|sandstone|red_sandstone|snow_block|.*terracotta)$/
 const LAND_SEARCH_RADIUS = 96
 const TREE_SWIM_LIMIT = 8
+const TREE_APPROACH_MS = 1000
 const LAND_PATH_SLACK = 192
 const LAND_TRIP_MS_PER_BLOCK = 1200
 const LAND_CANDIDATES = 256
@@ -1789,12 +1790,12 @@ class SurvivalController {
         // whole tree, so only logs that are safe to break are targets; the rest of the trunk stays reachable (F134).
         const breakable = log => this.movements?.safeToBreak?.(log) ?? true
         const rejected = new Set()
-        const block = await scanFor(this, () => {
+        const block = await scanFor(this, async () => {
             for (let attempt = 0; attempt < 6; attempt++) {
                 const log = this.findNearestBlock(name => LOG_SUFFIXES.some(suffix => name.endsWith(suffix)) &&
                     !name.includes('stripped_'), 48, { mining: true,
                     filter: b => breakable(b) && !rejected.has(`${b.position.x},${b.position.z}`) })
-                if (!log || this.treeApproach(log)) {
+                if (!log || await this.treeApproach(log)) {
                     return log
                 }
                 rejected.add(`${log.position.x},${log.position.z}`)
@@ -1841,7 +1842,7 @@ class SurvivalController {
         }
     }
 
-    treeApproach (log) {
+    async treeApproach (log) {
         const bot = this.bot
         const start = bot.entity?.position
         const trunk = log.position
@@ -1851,13 +1852,21 @@ class SurvivalController {
         const goal = reachGoal(trunk, { raycast: (from, direction, range) => sightRay(bot, from, direction, range) })
         const walking = dryMovements(bot, true)
         walking.liquidCost = this.movements?.liquidCost ?? SWIM_STEP_COST
-        const { value } = bot.pathfinder.getPathFromTo(walking, start, goal, { timeout: 75, tickTimeout: 75, optimizePath: false }).next()
-        if (value?.result.status !== 'success') {
+        walking.canDig = Boolean(this.movements?.canDig)
+        // One blocking 75 ms slice rejected a reachable tree 30 blocks off by staircase (F148): search in
+        // yielding slices, and after the budget judge the best partial route; only exhaustion rejects.
+        const search = bot.pathfinder.getPathFromTo(walking, start, goal, { timeout: TREE_APPROACH_MS, tickTimeout: 40, optimizePath: false })
+        let result = search.next().value?.result
+        while (result?.status === 'partial') {
+            await new Promise(resolve => setImmediate(resolve))
+            result = search.next().value?.result
+        }
+        if (!result || result.status === 'noPath') {
             return false
         }
         let swim = 0
         let previous = start.floored()
-        for (const node of value.result.path) {
+        for (const node of result.path) {
             const cell = new Vec3(node.x, node.y, node.z)
             swim = waterFilled(bot.blockAt(cell, false)) ? swim + Math.hypot(cell.x - previous.x, cell.z - previous.z) : 0
             if (swim > TREE_SWIM_LIMIT) {

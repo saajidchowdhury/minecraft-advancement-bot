@@ -403,6 +403,31 @@ test('wood gathering skips a nearer tree across a broad swim and picks the next 
     await c.gatherWood()
 })
 
+test('a tree approach keeps searching past one slice and judges a timed-out route by its partial path (F148)', async () => {
+    const { c, bot, Vec3 } = landWorld()
+    bot.canDigBlock = () => false
+    bot.entity.position = new Vec3(30.5, 62, 0.5)
+    const log = { name: 'oak_log', position: new Vec3(40, 62, 0) }
+    const dry = Array.from({ length: 6 }, (_, i) => new Vec3(31 + i, 62, 0))
+    const wet = Array.from({ length: 12 }, (_, i) => new Vec3(19 - i, 62, 0))
+    const run = async (...results) => {
+        let options = null
+        bot.pathfinder = { *getPathFromTo (movements, _, __, opts) {
+            options = { ...opts, canDig: movements.canDig }
+            yield* results.map(result => ({ result }))
+        } }
+        return { ok: await c.treeApproach(log), options }
+    }
+    c.movements = { canDig: true, liquidCost: 1 }
+    const slow = await run({ status: 'partial', path: dry.slice(0, 2) }, { status: 'partial', path: dry.slice(0, 4) }, { status: 'success', path: dry })
+    assert.equal(slow.ok, true)
+    assert.ok(slow.options.timeout >= 1000 && slow.options.tickTimeout < 75 && slow.options.canDig)
+    assert.equal((await run({ status: 'timeout', path: dry })).ok, true)
+    assert.equal((await run({ status: 'noPath', path: dry })).ok, false)
+    bot.entity.position = new Vec3(20.5, 62, 0.5)
+    assert.equal((await run({ status: 'timeout', path: wet })).ok, false)
+})
+
 test('a bot standing in water treads it by holding jump, but not while a path or a dive controls it (F134)', () => {
     const { EventEmitter } = require('node:events')
     const { Vec3 } = require('vec3')
