@@ -77,7 +77,8 @@ casting ten from zero. The original blocked lava scoop passes on LAN (F122).
 F144 verified portal entry and return. F149 adds the fortress expedition:
 staged prep, a 363-step slab bridge line and a return along the recorded
 path work. Next: a run that sights and enters a fortress, a restock round
-trip resuming at the frontier, gold boots against piglins, ghast fireballs,
+trip resuming at the frontier (frontier walk and netherrack fallback now live),
+golden boots worn in the Nether so piglins stay neutral, ghast fireballs,
 and faster 256-block stone gathering. Portal search needs sight within 32
 blocks; a hidden portal triggered a failed rebuild (F149).
 

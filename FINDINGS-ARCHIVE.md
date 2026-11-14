@@ -3662,3 +3662,21 @@ per bridged block), bridge with plain netherrack full blocks once the
 non-flammable slab blocks run out. Posts take netherrack first. The Nether
 return threshold counts carried netherrack; the Overworld restock still
 needs 256 non-flammable blocks. Regression only.
+
+Resume trials (`outputs/2026-11-14@01.56.07-*`, `outputs/2026-11-14@02.01.12-*`,
+probes `outputs/probe-f149-death.json`): the run-3 bridge was measured cell by
+cell (360 at y=101, dips at 99 and 98) and seeded as the recorded path; the
+bot started at the portal with 9 cobblestone and 96 netherrack. The first
+attempt stepped into the 2-deep dip at 225,99,-127, failed its pathfinder hop
+back and, through repeated-failure unstick scouting, drifted 17 blocks off
+the bridge (user: a bug). Fixed in 0bffb2d: holes are floored at walking
+height, a failed hop tunnels or bridges back, and unstick never runs for a
+fortress line in the Nether. The rerun (0bffb2d, armor equipped by command
+before the portal) walked 361 cells to the frontier in about 87 s with no
+sample off the line, continued north in the last segment's direction, used
+its 18 slabs and then 17 netherrack full blocks (user-confirmed), and died
+at 225,101,-198 to a piglin standing on the bridge, which it ignored:
+piglins were not hostile in `HOSTILES`. Piglins now count as hostile melee
+attackers (regression only). keep_inventory restored to false, owner
+returned each time.
+

@@ -38,9 +38,10 @@ const HOSTILES = new Set([
     'zombie', 'husk', 'drowned', 'skeleton', 'stray', 'creeper', 'spider',
     'cave_spider', 'witch', 'pillager', 'vindicator', 'evoker', 'ravager',
     'slime', 'magma_cube', 'phantom', 'guardian', 'elder_guardian',
-    'warden', 'blaze', 'piglin_brute', 'hoglin', 'zoglin', 'wither_skeleton'
+    'warden', 'blaze', 'piglin', 'piglin_brute', 'hoglin', 'zoglin', 'wither_skeleton'
 ])
 // No ghast: melee cannot reach one, and chasing or fleeing it off a Nether bridge is worse than its fireballs.
+// Piglins attack a player without gold armor; one ignored on the bridge killed NetherTrial (07:04Z).
 
 const PREY = new Set(['cow', 'pig', 'sheep', 'chicken', 'rabbit'])
 const SWORDS = ['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword']
@@ -132,7 +133,7 @@ const DESTROY_DELAY_MS = 250  // 5 ticks at 20 ticks/s
 const STANDOFF_WAIT_MS = 4000
 const STANDOFF_APPROACH = 0.5
 const STANDOFF_MS = 60000
-const MELEE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'spider', 'cave_spider', 'vindicator', 'piglin_brute', 'zombified_piglin'])
+const MELEE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'spider', 'cave_spider', 'vindicator', 'piglin', 'piglin_brute', 'zombified_piglin'])
 const INTERACTIVE = /(^|_)(furnace|smoker|chest|barrel|crafting_table|enchanting_table|anvil|bed|door|trapdoor|fence_gate|button|lever|shulker_box)$/
 const STATIONARY_ACTIONS = new Set([
     'avoid_enderman',

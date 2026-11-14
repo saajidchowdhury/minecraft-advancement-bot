@@ -329,3 +329,10 @@ test('a bot knocked off its line tunnels or bridges back to it instead of scouti
     assert.deepEqual(scouts, [])
     assert.deepEqual(bot.entity.position.floored(), new Vec3(0, 70, 0), 'back on the line and home to its first cell')
 })
+
+test('piglins count as hostile attackers, ghasts and zombified piglins do not', () => {
+    const { HOSTILES } = require('../src/survival-bot')
+    assert.equal(HOSTILES.has('piglin'), true, 'an ignored piglin killed the bot on its bridge')
+    assert.equal(HOSTILES.has('ghast'), false)
+    assert.equal(HOSTILES.has('zombified_piglin'), false)
+})
