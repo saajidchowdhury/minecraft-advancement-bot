@@ -694,7 +694,7 @@ class SurvivalController {
         // dig spent its air (F134, user: hold space). Moving paths already swim; dives keep control.
         let treading = false
         this.bot.on('physicsTick', () => {
-            const floating = Boolean(this.bot.entity?.isInWater) && !this.bot.pathfinder?.isMoving?.() &&
+            const floating = Boolean(this.bot.entity?.isInWater) && !this.bot.pathfinder?.isMoving?.() && !this.divingForFish &&
                 !['surface_for_air', 'escape_lava', 'clear_head', 'leave_flooded_tunnel'].includes(this.activeAction)
             if (floating) {
                 this.bot.setControlState('jump', true)
@@ -2064,17 +2064,23 @@ class SurvivalController {
                 this.rememberBlockedTarget(fish, 'fish', new Error(`fish pursuit stalled for 8s at ${this.bot.entity.position.floored()}, fish ${fish.position.floored()}`))
                 break
             }
-            if (distance > 2.8) {
-                this.bot.pathfinder.setGoal(new GoalFollow(fish, 2), true)
-            } else if (Date.now() >= nextSwingAt) {
-                this.bot.pathfinder.setGoal(null)
+            // The pathfinder never plans underwater, and physics has no pitch swimming: steer flat toward the
+            // fish, hold jump only while it is above, and otherwise sink under water gravity.
+            const here = this.bot.entity.position
+            const flat = Math.hypot(fish.position.x - here.x, fish.position.z - here.z)
+            const rise = fish.position.y + (fish.height || 0.4) / 2 - (here.y + 0.9)
+            this.bot.setControlState('forward', flat > 1.2)
+            this.bot.setControlState('sprint', flat > 3)
+            this.bot.setControlState('jump', rise > 0.5)
+            await this.bot.lookAt(new Vec3(fish.position.x, here.y + (this.bot.entity.eyeHeight ?? 1.62), fish.position.z), true)
+            if (distance <= 3 && Date.now() >= nextSwingAt) {
                 await this.bot.lookAt(fish.position.offset(0, (fish.height || 0.4) / 2, 0), true)
                 this.bot.attack(fish)
                 nextSwingAt = Date.now() + cooldownMs
             }
-            await sleep(100)
+            await sleep(80)
         }
-        this.bot.pathfinder.setGoal(null)
+        this.bot.clearControlStates()
         return !fish.isValid
     }
 

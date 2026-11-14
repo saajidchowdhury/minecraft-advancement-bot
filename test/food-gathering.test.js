@@ -121,7 +121,7 @@ test('with no prey in sight, visible fish are killed one by one with a trip to t
         registry, version: '26.1', health: 20, oxygenLevel: 20, game: { dimension: 'overworld' },
         entity: { position: new Vec3(0, 50, 0), isInWater: true }, entities: Object.fromEntries(fish.map(f => [f.id, f])),
         inventory: { items: () => [], slots: [] }, blockAt: () => ({ name: 'water', boundingBox: 'empty' }),
-        pathfinder: { setGoal() {}, setMovements() {} }, equip: async () => {}, lookAt: async () => {},
+        pathfinder: { setGoal() {}, setMovements() {} }, setControlState() {}, clearControlStates() {}, equip: async () => {}, lookAt: async () => {},
         attack: target => { events.push(`kill ${target.id}`); target.isValid = false; c.bot.oxygenLevel = 16 }
     }
     assert.equal(await c.diveForFish(), true)
