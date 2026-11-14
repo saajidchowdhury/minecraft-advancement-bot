@@ -107,3 +107,10 @@ test('safe and dry movement builders both carry the drop guard', () => {
         assert.equal(movements.allowSprinting, false)
     }
 })
+
+test('resource approaches get time for the longer cautious route to a distant target', () => {
+    const { resourceApproachMs } = require('../src/survival-bot')
+    assert.equal(resourceApproachMs(5, false), 10000)
+    assert.equal(resourceApproachMs(5, true), 15000)
+    assert.ok(resourceApproachMs(29.6, false) >= 20000)
+})

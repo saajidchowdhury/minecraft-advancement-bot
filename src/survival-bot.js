@@ -269,6 +269,11 @@ function kiteableCrowd (c) {
         near.filter(e => here.distanceTo(e.position) <= 6).length <= 4
 }
 
+// A cautious route around drops can double the walk; a fixed 10 s gave up mid-staircase 30 blocks out (F148).
+function resourceApproachMs (distance, diamond) {
+    return Math.max(diamond ? 15000 : 10000, Math.ceil(distance * 700))
+}
+
 function pathfinderDropLimitForLanding (surfaceDrop) {
     return Math.min(4, surfaceDrop + 1)
 }
@@ -2072,7 +2077,7 @@ class SurvivalController {
                         goal.isEnd = cell => block.position.y <= cell.y + 1 && !cell.offset(0, -1, 0).equals(block.position) &&
                             safeFooting(this.bot, cell) && visibleFrom(cell)
                     }
-                    await this.gotoWithTimeout(goal, diamond ? 15000 : 10000, 'resource approach')
+                    await this.gotoWithTimeout(goal, resourceApproachMs(this.bot.entity.position.distanceTo(block.position), diamond), 'resource approach')
                     if (diamond && !goal.isEnd(this.bot.entity.position.floored())) {
                         throw new Error('no supported view of the diamond was reached')
                     }
@@ -4302,6 +4307,6 @@ class SurvivalController {
 module.exports = {
     SurvivalController, HOSTILES, PREY, FOOD_VALUES, actionMadeProgress, smeltJobState, updateHome,
     shouldRelocateAfterStationFailure, mobilityRecoveryKind,
-    pathfinderDropLimitForLanding, SAFE_PATHFINDER_DROP, kite,
+    pathfinderDropLimitForLanding, SAFE_PATHFINDER_DROP, kite, resourceApproachMs,
     heapPressureExceeded, PATH_SEARCH_RADIUS, HEAP_GUARD_BYTES, coveredAbove
 }
