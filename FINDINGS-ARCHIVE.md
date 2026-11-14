@@ -3576,5 +3576,31 @@ Cost, MacBookPro, Node 24.12.0, synthetic rolling hills with mock blocks,
 A* to 8 goals 40 blocks away, 5 interleaved repetitions after warm-up,
 n = 40 each, two runs: 51.0 ± 10.9 vs 58.4 ± 12.2 ms and 49.3 ± 9.5 vs
 56.0 ± 10.5 ms (unguarded vs guarded), identical paths. Results are cached
-per column and per spot for 1 s. Regression only; no live trial yet. Not
-probed in the world: the drop beside -7,79,-110.
+per column and per spot for 1 s. Not probed in the world: the drop beside
+-7,79,-110.
+
+Staged trial (`outputs/stage-f148-drop.js`, logs and JSON under
+`outputs/2026-11-14@00.37.28-*` and `outputs/2026-11-14@00.41.04-*`).
+Commands: owner kit check via EffectHelper (gave boots, sword and other
+missing pieces, then 2 golden apples), `/time set 1000`, arena fills at
+corner 160,100,-260 over open air (natural terrain below y=98), owner
+teleported to a black-glass platform at y=140 over the arena centre and
+returned afterwards. Arena: 40x40 glass-walled floor at y=100; start mesa A
+(top 113) and tree mesa B (top 112, oak trunk at 191,113..116,-233) joined
+by a ridge of 1x1 pillars connected only corner to corner, plus 2-wide
+stairs off A and onto B with a dirt cap over a low step. DropTrial got a
+stone axe, pickaxe and shovel; `treeApproach` was bypassed (its 75 ms dry
+pre-check times out on this route) and the log search was limited to the
+target trunk. The unguarded plan from A took the ridge (24 nodes, 20
+diagonals beside drops); the guarded plan took the stairs (48 nodes, 0
+risky diagonals, one dig-jump away from drops, 504-551 ms).
+
+Run 1 (63c583a): the bot walked down the stairs but the fixed 10 s
+resource approach expired mid-route, the trunk was blacklisted and two
+fallback scouts dug into the ridge and a stair. Fix 4f2dee6: the approach
+allows 700 ms per block of distance with the 10 s and 15 s floors. Run 2
+(4f2dee6): first attempt, 21.9 s, dug the cap at 185,105,-240, climbed onto
+B and cut 4 logs at full health. Across 14 path updates: 0 diagonals or
+dig-jumps beside drops (38 diagonals elsewhere); 113 of 452 ticks beside
+drops with 0 sprinting there (241 sprint ticks elsewhere); the only fall
+was the planned 1.9-block step off the stairs. Staged, not unaided.
