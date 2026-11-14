@@ -72,6 +72,22 @@ test('portal blueprint uses ten distinct obsidian blocks around a clear 2x3 inte
     }
 })
 
+test('portal preparation in open water heads for dry land before scouting a building site', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    let shoreTrips = 0
+    const c = {
+        bot: {
+            game: { dimension: 'overworld' }, entity: { position: new Vec3(0, 62, 0), isInWater: true },
+            blockAt: () => assert.fail('searched for a dry portal platform while swimming')
+        },
+        findNearestBlock: () => null,
+        memory: {},
+        reachLand: async () => { shoreTrips++ }
+    }
+    await performProgression(c, 'enter_nether', {})
+    assert.equal(shoreTrips, 1)
+})
+
 test('redstone request prepares materials without replacing the main advancement route', () => {
     const state = { logs: 4, planks: 0, sticks: 4, cobblestone: 8, ironIngots: 1, redstone: 0, items: {} }
     assert.equal(redstonePlan(state).action, 'gather_redstone')
@@ -119,7 +135,8 @@ test('a carried lava bucket is poured and cooled from above, and both water buck
         health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) },
         inventory: { items: () => Object.entries(inventory).filter(([, count]) => count).map(([name, count]) => ({ name, count })) },
         blockAt(position) {
-            const name = blocks.get(position.toString()) ?? (position.y < 64 ? 'stone' : 'air')
+            const inTunnel = position.x === 0 && position.y >= 64
+            const name = blocks.get(position.toString()) ?? (inTunnel ? 'air' : 'stone')
             return { position, name, boundingBox: name === 'stone' || name === 'obsidian' ? 'block' : 'empty',
                 getProperties: () => ({ level: 0 }) }
         },
@@ -165,6 +182,62 @@ test('a carried lava bucket is poured and cooled from above, and both water buck
     assert.equal(inventory.water_bucket, 2)
     assert.equal(inventory.lava_bucket, 0)
     assert.equal(c.memory.obsidianCast, undefined)
+    assert.equal(bot.blockAt(new Vec3(0, 63, 1)).name, 'stone', 'the approach floor stayed intact')
+})
+
+test('obsidian work remembers up to ten visible sources and refills from memory after losing sight', async () => {
+    const Block = require('prismarine-block')('26.1')
+    const data = require('minecraft-data')('26.1')
+    const WorldSync = require('prismarine-world/src/worldsync')
+    const { performProgression } = require('../src/progression-skills')
+    const sources = new Set(Array.from({ length: 12 }, (_, i) => String(new Vec3(2, 63, i))))
+    const distant = new Vec3(50, 63, 0)
+    const feet = new Vec3(0, 64, 0)
+    const inventory = { bucket: 1, lava_bucket: 0, water_bucket: 2, obsidian: 8 }
+    let aim
+    let canDiscover = true
+    const blockAt = p => {
+        p = p.floored()
+        const name = sources.has(String(p)) || p.equals(distant) ? 'lava' : p.y < 64 ? 'stone' : 'air'
+        const block = Block.fromStateId(data.blocksByName[name].defaultState, 0)
+        block.position = p
+        return block
+    }
+    const bot = {
+        blockAt, health: 20, game: { dimension: 'overworld' }, registry: data, entity: { position: feet.offset(0.5, 0, 0.5) },
+        world: { raycast: (...args) => WorldSync.prototype.raycast.call({ getBlock: blockAt }, ...args) },
+        canSeeBlock: block => canDiscover || block.position.equals(distant),
+        inventory: { items: () => Object.entries(inventory).filter(([, n]) => n).map(([name, count]) => ({ name, count })) },
+        findBlocks(options) {
+            return [...Array.from({ length: 12 }, (_, i) => new Vec3(2, 63, i)), distant]
+                .filter(p => p.distanceTo(options.point) <= options.maxDistance && options.useExtraInfo(blockAt(p)))
+                .slice(0, options.count)
+        },
+        equip: async () => {}, lookAt: async point => { aim = point }, waitForTicks: async () => {},
+        activateItem() {
+            assert.ok(sources.delete(String(aim.floored())), `attempted to scoop outside the pool at ${aim}`)
+            inventory.bucket--
+            inventory.lava_bucket++
+        },
+        deactivateItem() {}
+    }
+    const c = {
+        bot, running: true, memory: { waterPool: { dimension: 'overworld' } }, log: { info() {}, warn() {} },
+        hasItem: name => inventory[name] > 0,
+        countItems: names => names.reduce((sum, name) => sum + (inventory[name] || 0), 0),
+        findNearestBlock: match => match('lava') ? blockAt(canDiscover ? new Vec3(2, 63, 0) : distant) : null,
+        gotoWithTimeout: async () => assert.fail('did not use a known source within reach'),
+        rememberBlockedTarget: (_, __, error) => { throw error }
+    }
+    await performProgression(c, 'gather_obsidian', {})
+    assert.equal(c.memory.lavaPool.sources.length, 10)
+    assert.equal(inventory.lava_bucket, 1)
+    canDiscover = false
+    inventory.bucket = 1
+    inventory.lava_bucket = 0
+    await performProgression(c, 'gather_obsidian', {})
+    assert.equal(inventory.lava_bucket, 1)
+    assert.equal(sources.size, 10)
 })
 
 test('a completed night shelter remains occupied even if its walls resemble a shaft', () => {
@@ -236,6 +309,40 @@ test('ascending across an open cave places attached stair supports before walkin
     await mineTunnel(c, 68)
     assert.equal(bot.entity.position.y, 68)
     assert.equal(placed.size, 7)
+})
+
+test('a return staircase sidesteps a shared ceiling plug through a partially dug dry passage', async () => {
+    const start = new Vec3(0, 19, 0)
+    const plug = start.offset(0, 2, 0)
+    const side = start.offset(0, 0, 1)
+    const air = new Set([String(start), String(start.offset(0, 1, 0)), String(side.offset(0, 1, 0))])
+    const visits = []
+    const bot = {
+        health: 20, game: { dimension: 'overworld' }, entity: { position: start.offset(0.5, 0, 0.5) },
+        blockAt(p) {
+            const open = air.has(String(p))
+            return { name: open ? 'air' : 'stone', position: p, boundingBox: open ? 'empty' : 'block',
+                diggable: true, canHarvest: () => true }
+        },
+        equip: async () => {}, canDigBlock: () => true,
+        async dig(block) {
+            assert.ok(!block.position.equals(plug), 'must keep the plug in place')
+            air.add(String(block.position))
+        }
+    }
+    const c = {
+        bot, running: true, activeAction: 'return_surface', log: { info() {} },
+        memory: { liquidPlugs: new Set([`overworld:${plug}`]), excavatedCells: new Set([`overworld:${side.offset(0, 1, 0)}`]) },
+        bestItem: () => ({ name: 'diamond_pickaxe' }),
+        rememberedBlocked: block => block.position.equals(start.offset(1, 0, 0)) || block.position.equals(start.offset(0, 0, -1)),
+        async gotoWithTimeout(goal) {
+            visits.push(new Vec3(goal.x, goal.y, goal.z))
+            bot.entity.position = visits.at(-1).offset(0.5, 0, 0.5)
+        }
+    }
+    await mineTunnel(c, 22)
+    assert.deepEqual(visits[0], side)
+    assert.equal(bot.entity.position.y, 22)
 })
 
 test('tunneling uses the strongest available pick that can harvest the block', () => {

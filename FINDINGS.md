@@ -13,14 +13,13 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13 evening
 
-AdvancementBot is on port 51391 (PID 21342, Terminal window 2250, logs
-`outputs/2026-11-13@22.15.56/`). The restart loaded F141 after the owner
-kit check. A staged player plugged and escaped the original current, then
-EffectHelper restored the inlet seal and verified downstream drainage. The
-bot has two water buckets and reached obsidian casting before the restart.
-Remaining checks include natural flood recovery, first-time underground
-land search, trunk platforms, berries, melee standoffs and sculk exits.
-Baseline: 560 tests pass.
+AdvancementBot is on port 51391 (PID 24125, Terminal window 2250, logs
+`outputs/2026-11-13@22.58.12/`). In a staged retry at the second pool it
+collected the last two obsidian using one side pit (F142). A restart at its
+actual stuck position verified a route around the ceiling plugs to the
+ocean surface (F143). It used the startup swim to get ashore, built a portal,
+earned We Need to Go Deeper, and returned to the Overworld (F144).
+A full ten-cast run from zero remains open. Baseline: 563 tests pass.
 
 ## Stable facts and process lessons
 
@@ -115,6 +114,10 @@ Mining and tunnels
   verified plugs in the openings, including extra cuts made for a scoop.
   Keep those plugs intact. A flooded staircase is abandoned, with a nearby
   reachable upstream plug tried before leaving the current (F141).
+- Keep up to ten visible lava sources from the active pool and replenish
+  the list as the pool opens up. Cast in a reusable side pit off the
+  walking floor (F142). Reject stair steps crossing known plugs before
+  choosing a target, and allow lateral return detours into earlier cuts (F143).
   Gravel matters only above an opened cell (F118).
   Liquid-blocked slopes take level side steps; descents allow eight level
   detours (F064, F094).
@@ -351,3 +354,6 @@ Highest risk first.
 - F139 Cave diamonds needed a longer supported walk and independent cooldowns [live + replay + regression]
 - F140 Mined diamonds get a longer pickup and a separate retry [user direction + regression]
 - F141 Seal staircase leaks and abandon flooded routes [user direction + staged + regression]
+- F142 Remember lava sources and reuse a casting pit off the path [user direction + staged + regression]
+- F143 Route around sealed ceiling plugs when returning to the surface [live + regression]
+- F144 Swim to dry ground when portal preparation starts in water [live + regression]

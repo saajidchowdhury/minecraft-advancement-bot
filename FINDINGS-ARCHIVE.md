@@ -3398,3 +3398,67 @@ between those actions. EffectHelper then restored the inlet plug at
 -172,4,-35 and verified that the downstream staircase drained. Commands
 and positions are in `outputs/f141-live-source.json`. All 560 tests pass.
 
+## F142 — Remember lava sources and reuse a casting pit off the path
+
+At the first pool, the bot picked up obsidian four and filled a bucket again
+at -245,-55,-43. Then the first geometrically suitable casting bank had no
+walking path. Three errors triggered generic relocation with the full lava
+bucket. At the second pool, the eighth pickup left the bot at -237,-56,-109.
+The next search saw no source from that position and started another tunnel.
+Spectator inspection found 73 and 78 source blocks in the two surveyed
+volumes, including blocks behind rock. Evidence is in
+`outputs/2026-11-13@22.15.56/bot.log` and `outputs/f142-lava-inspection.json`.
+
+Remember up to ten nearby visible level-zero lava cells in dimension-scoped
+world memory, recheck them before use, and replenish the list as cells are
+scooped. Prefer a dry bank with a verified bucket ray and try other sources
+in the pool on path failure. Find a reachable contained side pit that leaves
+the walking floor intact. Scoop the cooling water, pick up the obsidian, then
+use the existing one-block pillar step to get back to the bank. Reuse the pit
+and its support for the next cast.
+
+The first staging teleport put the bot above a floor opening and led to a
+lava death during startup. EffectHelper recovered 14 dropped entities and
+restored missing items from the prior snapshot, including eight obsidian.
+The retry placed the bot on confirmed dry deepslate at -238,-54,-109. It
+remembered ten visible sources, scooped two without further commands and
+cast both at -236,-57,-110. It ended with ten obsidian and both water
+buckets at -237,-55,-110. See `outputs/2026-11-13@22.33.58/bot.log` lines
+144–158 and `outputs/f142-lava-{live-setup,recovery,retry}.json`. A full
+ten-cast run from zero remains unverified.
+
+## F143 — Route around sealed ceiling plugs when returning to the surface
+
+After reaching ten obsidian the bot cut a new staircase. Water kept entering
+it around Y=19. The bot sealed those openings and eventually stalled at
+-229,19,-186. Every rising direction required cutting a known ceiling plug
+in its current column. The planner discovered the plug only after selecting a
+step and repeatedly quarantined innocent neighboring steps. It also rejected
+side passages marked as excavated even when only the head cell had been dug.
+
+Use the same clearance cells for planning and digging. Reject any step whose
+cut intersects a known plug, keep the execution guard, and let a surfacing bot
+use other dry level cells while excluding the immediate previous step. The
+focused regression reproduces the shared plug and partially dug detour.
+
+After the owner kit check, the bot restarted at the exact stuck position.
+It took the south-side detour, sealed two newly revealed leaks, gained
+elevation on the east dry staircase, and kept all ten obsidian. No teleport
+or terrain command assisted its return. See `outputs/f143-return-inspection.json`
+and `outputs/2026-11-13@22.55.02/bot.log`.
+
+## F144 — Swim to dry ground when portal preparation starts in water
+
+F143 cleared the Y=19 blockage and reached the ocean surface at -203,62,-184
+with ten obsidian and full health. The portal task found no dry platform and
+called the general land scout, which repeatedly rejected all open-water routes.
+With no known portal and the bot in water, portal preparation now calls the
+same `reachLand` routine used by the first-spawn objective. It uses the existing
+dry-ground and land-mass checks and the swimming path budget. World startup
+still honors its one-time land milestone. The focused test fails on the old
+portal code and passes after the change. After the owner-kit check, the live
+bot restarted in the same water, swam roughly 29 blocks and stood on sand at
+-192,63,-211 at 22:58:30 ET. It used the ten obsidian to build the portal,
+earned the server-confirmed We Need to Go Deeper advancement, and returned
+to the Overworld through the portal, all at full health. See
+`outputs/owner-kit-f144.json` and `outputs/2026-11-13@22.58.12/bot.log`.

@@ -58,7 +58,7 @@ comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
 | mobility-recovery | 35 | unstick, shaft and pillar detection, safe drops, heap guard, sky-bound surface scouts, swamp swims, logs and treading, initial land milestone, cave exclusion, canopy descent, 1000-block land mass, soil stock, trunk platforms, water plants as liquid |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
-| progression-skills | 34 | stairs, tunnels, verified liquid plugs, lava scoop rays, portal geometry, frontier, merges |
+| progression-skills | 37 | stairs, tunnels, verified liquid plugs, lava scoop rays, pool memory, side casting, portal approach and geometry |
 | resource-routing | 9 | visible-target searches, support preservation, exits |
 | sculk-caution | 8 | sculk alarms, zone, sneak flee, outward steps and carve fallback |
 | shaft-memory | 11 | shaft recording, following, repair, pickless climb pause |
@@ -135,7 +135,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Pickless climb to the surface | live | F062, F110 |
 | Not Today Thank You, A Seedy Place | live | F036, F046 |
 | Ice Bucket Challenge, obsidian casting | staged | F053 |
-| Continuous ten-obsidian cast, Nether entry and return | not observed | F056, F059 |
+| Same-pool cast from 8 to 10, dry reroute, swim ashore, Nether entry and return | staged casting, live recovery and portal | F142, F143, F144 |
 | Take Aim, Enchanter, golem, fishing, breeding | automated | F036, F037, F059 |
 | Redstone demo | automated | G009 |
 | Bare-hand shelter exit and stair carving without a pickaxe | live (out of y=31, six levels) | F126 |

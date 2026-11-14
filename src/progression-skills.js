@@ -8,6 +8,7 @@ const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight,
     findPriorityOre, IRON_ORES, visibleMiningHazard } = require('./cave-exploration')
 const { scanFor, canSeeBlock, cellVisible } = require('./vision')
 const { isUnderFeet, soundFloor, overlapsBody } = require('./under-feet')
+const { towerStep } = require('./tree-climb')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction, WATER_BUCKET_TARGET, canFillWaterBuckets } = require('./advancement-plan')
 const { sculkInward } = require('./sculk-caution')
 const { isFuelPlank, isCharcoalLog, furnaceFuelTicks, plankFuelPlan, preparePlankFuel } = require('./furnace-fuel')
@@ -19,6 +20,8 @@ const falls = name => /^(sand|red_sand|gravel|suspicious_sand|suspicious_gravel)
 const WOODCUTTING_AXES = ['netherite_axe', 'diamond_axe', 'iron_axe', 'copper_axe', 'stone_axe']
 const DIGGING_SHOVELS = ['netherite_shovel', 'diamond_shovel', 'iron_shovel', 'stone_shovel']
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
+const LAVA_POOL_RADIUS = 16
+const LAVA_POOL_LIMIT = 10
 const FACES = [[1, 0, 0], [-1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -155,6 +158,14 @@ function seenLiquid(bot, p) {
     return Boolean(LIQUIDS.has(bot.blockAt(p, false)?.name) && cellVisible(bot, p))
 }
 
+function tunnelClearance(feet, target) {
+    const head = target.offset(0, 1, 0)
+    if (target.y > feet.y) {
+        return [feet.offset(0, 3, 0), feet.offset(0, 2, 0), target.offset(0, 2, 0), head, target]
+    }
+    return target.y < feet.y ? [target.offset(0, 2, 0), head, target] : [head, target]
+}
+
 function safeTunnelStep(bot, feet, target, allowFloorPlacement = false) {
     const floor = bot.blockAt(target.offset(0, -1, 0), false)
     const floorPosition = target.offset(0, -1, 0)
@@ -171,16 +182,10 @@ function safeTunnelStep(bot, feet, target, allowFloorPlacement = false) {
             return false
         }
     }
-    const cells = [target, target.offset(0, 1, 0)]
-    if (target.y < feet.y) {
-        cells.push(target.offset(0, 2, 0))
-    } else if (target.y > feet.y) {
-        cells.push(feet.offset(0, 2, 0), feet.offset(0, 3, 0), target.offset(0, 2, 0))
-    }
     // Gravel and sand fall only into the cell below them (F118): beside a step they are harmless, inside a
     // cell they are dug through, and above an opened cell they refill it, which settleFalling digs again.
     // Only a falling block seen above the bot's own column would land on the bot.
-    for (const p of cells) {
+    for (const p of tunnelClearance(feet, target)) {
         const block = bot.blockAt(p, false)
         if (!block || seenLiquid(bot, p) || block.name === 'bedrock' || PROTECTED_CONTAINERS.has(block.name) ||
             (block.boundingBox !== 'empty' && !block.diggable)) {
@@ -642,6 +647,8 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
         // The wanted slope first; when liquid or falling blocks touch all four, a level step (or, on a
         // level tunnel, one step up or down) routes around the hazard (live 02.02.15, 02.29.19).
         const rise = Math.sign(targetY - feet.y)
+        const ascending = rise > 0 && c.activeAction === 'return_surface'
+        const behind = c.memory.mineRoute?.at(-1)
         const slopes = rise ? (rise < 0 && frontier?.levelSteps >= 8 ? [rise] : [rise, 0]) : [0, 1, -1]
         // Fresh rock ahead beside an old tunnel or staircase running the same way would cut a parallel
         // duplicate (live 01:42Z dug z=269 along z=270; 07:37Z a lava descent beside the y=-54 stairs):
@@ -649,10 +656,12 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
         const [fx, fz] = DIRECTIONS[forward]
         const ahead = feet.offset(fx, Math.min(rise, 0), fz)
         const tunnelCell = p => c.memory.minedCells?.has(`${bot.game.dimension}:${p}`)
+        const isPlug = p => c.memory.liquidPlugs?.has(`${bot.game.dimension}:${p}`)
         const freshAhead = [0, 1, ...(rise < 0 ? [2] : [])].some(dy => bot.blockAt(ahead.offset(0, dy, 0), false)?.boundingBox !== 'empty')
         const merge = !heading && rise <= 0 && freshAhead
             ? [[fz, fx], [-fz, -fx]].map(([sx, sz]) => feet.offset(sx, 0, sz))
                 .find(side => tunnelCell(side) && tunnelCell(side.offset(fx, rise, fz)) && !tunnelStepBlocked(c, feet, side) &&
+                    !tunnelClearance(feet, side).some(isPlug) &&
                     safeTunnelStep(bot, feet, side, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt']))))
             : null
         if (merge) {
@@ -669,11 +678,10 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
             if (undergroundOnly && openToSky(bot, candidate.offset(0, dy === 0 ? 2 : 3, 0))) {
                 continue
             }
-            // A rising step gains height, so climbing sideways through old cells cannot spiral (F088);
-            // water ahead plus its own stair and disposal pit beside it froze a climb (live 06:19Z).
-            if (!heading && index !== forward && dy <= 0 && minedPassage(c, candidate)) {
+            const backtrack = candidate.x === behind?.x && candidate.y === behind?.y && candidate.z === behind?.z
+            if (!heading && dy <= 0 && (ascending ? backtrack : index !== forward && minedPassage(c, candidate))) {
                 refused.excavated++
-            } else if (tunnelStepBlocked(c, feet, candidate)) {
+            } else if (tunnelStepBlocked(c, feet, candidate) || tunnelClearance(feet, candidate).some(isPlug)) {
                 refused.blocked++
             } else if (!safeTunnelStep(bot, feet, candidate, Boolean(c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt'])))) {
                 refused.unsafe++
@@ -709,16 +717,12 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
             await placeFloor()
         }
         let dugFresh = false
-        const cells = target.y < feet.y
-            ? [target.offset(0, 2, 0), target.offset(0, 1, 0), target]
-            : (target.y > feet.y ? [feet.offset(0, 3, 0), feet.offset(0, 2, 0), target.offset(0, 2, 0), target.offset(0, 1, 0), target] : [target.offset(0, 1, 0), target])
-        for (const p of cells) {
+        for (const p of tunnelClearance(feet, target)) {
             check(c)
             if (inTunnelCurrent(bot)) {
                 return leaveFloodedTunnel(c)
             }
-            if (c.memory.liquidPlugs?.has(`${bot.game.dimension}:${p}`)) {
-                c.rememberBlockedTarget?.({ position: target }, 'sealed tunnel step', new Error('water plug'))
+            if (isPlug(p)) {
                 throw new Error(`leaving liquid plug intact at ${p}`)
             }
             if (diamond?.position.equals(p)) {
@@ -1054,23 +1058,84 @@ async function craftProgression(c, item, count = 1) {
     await c.ensureItem(item, count, item !== 'flint_and_steel')
 }
 
-async function fillLavaBucket(c) {
+function lavaPoolSources(c, first = null) {
+    const bot = c.bot
+    let pool = c.memory.lavaPool
+    if (pool?.dimension !== bot.game.dimension) {
+        pool = null
+    }
+    if (!pool && first) {
+        pool = c.memory.lavaPool = { dimension: bot.game.dimension, origin: first.position, sources: [] }
+    }
+    if (!pool) {
+        return []
+    }
+    const origin = new Vec3(pool.origin.x, pool.origin.y, pool.origin.z)
+    const known = new Map()
+    const add = p => {
+        const block = bot.blockAt(p, false)
+        if (liquidSource(block, 'lava') && !c.isBlockedTarget?.(block)) {
+            known.set(String(p), block)
+        }
+    }
+    for (const { x, y, z } of pool.sources) {
+        add(new Vec3(x, y, z))
+    }
+    if (first) {
+        add(first.position)
+    }
+    if (known.size < LAVA_POOL_LIMIT && bot.entity.position.distanceTo(origin) <= 2 * LAVA_POOL_RADIUS) {
+        for (const p of bot.findBlocks({
+            matching: bot.registry.blocksByName.lava.id, point: origin, maxDistance: LAVA_POOL_RADIUS,
+            count: LAVA_POOL_LIMIT,
+            useExtraInfo: block => liquidSource(block, 'lava') && !known.has(String(block.position)) &&
+                !c.isBlockedTarget?.(block) && canSeeBlock(bot, block)
+        })) {
+            add(p)
+        }
+    }
+    const sources = [...known.values()].slice(0, LAVA_POOL_LIMIT)
+    pool.sources = sources.map(block => block.position)
+    return sources
+}
+
+async function fillLavaBucket(c, forObsidian = false) {
     if (c.hasItem('lava_bucket')) {
         return until(c, () => c.advancements.completed.has('minecraft:story/lava_bucket'), 5000)
     }
-    const lava = await scanFor(c, () => c.findNearestBlock(name => name === 'lava', 32, {
-        filter: b => Number(b.getProperties().level) === 0
-    }))
+    const bot = c.bot
+    const nearest = () => c.findNearestBlock(name => name === 'lava', 32, { filter: b => liquidSource(b, 'lava') })
+    let sources = forObsidian ? lavaPoolSources(c) : []
+    let lava = sources.find(block => lavaScoopAim(bot, block.position)) ||
+        sources.sort((a, b) => bot.entity.position.distanceTo(a.position) - bot.entity.position.distanceTo(b.position))[0]
     if (!lava) {
+        if (forObsidian) {
+            delete c.memory.lavaPool
+        }
+        lava = nearest()
+    }
+    if (!lava) {
+        if (forObsidian) {
+            try {
+                await prepareWaterPool(c)
+            } catch (error) {
+                check(c)
+                c.log.warn(`Could not prepare a renewable water pool: ${error.message}`)
+            }
+        }
         const targetY = c.bot.game.minY < 0 ? -54 : 11
         if (await exploreCave(c, targetY)) {
             return
         }
         return mineTunnel(c, targetY)
     }
-    const bot = c.bot
     if (!bot.inventory.items().some(item => item.name === 'bucket')) {
         throw new Error('lava needs an empty bucket; filled buckets would pour instead')
+    }
+    const rememberPool = forObsidian || typeof bot.findBlocks === 'function'
+    if (rememberPool && !sources.length && (!c.memory.lavaPool || forObsidian)) {
+        sources = lavaPoolSources(c, lava)
+        c.log.info(`Working lava pool at ${lava.position} with ${sources.length} visible source(s) remembered.`)
     }
     try {
         const center = lava.position.offset(0.5, 0.5, 0.5)
@@ -1082,7 +1147,10 @@ async function fillLavaBucket(c) {
                     bot.pathfinder.setMovements(dryMovements(bot))
                 }
                 try {
-                    await c.gotoWithTimeout(new goals.GoalNear(lava.position.x, lava.position.y, lava.position.z, 3), 12000, 'lava approach')
+                    const positions = forObsidian ? scoopBanks(bot, lava.position) : []
+                    const goal = positions.length ? new goals.GoalCompositeAny(positions.map(p => new goals.GoalBlock(p.x, p.y, p.z)))
+                        : new goals.GoalNear(lava.position.x, lava.position.y, lava.position.z, 3)
+                    await c.gotoWithTimeout(goal, 12000, 'lava approach')
                 } finally {
                     if (guarded) {
                         bot.pathfinder.setMovements(c.movements)
@@ -1093,7 +1161,8 @@ async function fillLavaBucket(c) {
             check(c)
             // Pools seen through rock had no walkable path (01.54.16); tunnel toward one, a few
             // segments at most; the tunnel's liquid checks stop it beside the pool, within reach.
-            if (!/no path/i.test(error.message) || c.bot.entity.position.distanceTo(center) > 24) {
+            if (!/no path/i.test(error.message) || c.bot.entity.position.distanceTo(center) > 24 ||
+                (forObsidian && sources.length > 1)) {
                 throw error
             }
             const tunnels = c.memory.lavaTunnels ??= {}
@@ -1132,10 +1201,18 @@ async function fillLavaBucket(c) {
         }
         await useBucket(c, 'bucket', aim, () => c.hasItem('lava_bucket'), 'fill lava bucket')
         c.log.info(`Filled a lava bucket at ${lava.position}.`)
+        if (rememberPool && c.memory.lavaPool?.dimension === bot.game.dimension) {
+            c.memory.lavaPool.sources = c.memory.lavaPool.sources.filter(p =>
+                p.x !== lava.position.x || p.y !== lava.position.y || p.z !== lava.position.z)
+            lavaPoolSources(c)
+        }
     } catch (error) {
         // Ten casts need repeated lava trips; one unreachable source must not absorb every retry.
         if (c.running && !c.paused && !c.actionAbort?.signal.aborted) {
             c.rememberBlockedTarget(lava, 'lava source', error)
+            if (forObsidian) {
+                return
+            }
         }
         throw error
     }
@@ -1159,15 +1236,30 @@ function bucketRay(bot, eye, point, removed = null) {
             [[0, 0, 0, 1, 8 / 9, 1]] : block.shapes, block.position))
 }
 
-function lavaScoopAim(bot, position) {
-    if (!dryBucketFooting(bot) || !liquidSource(bot.blockAt(position, false), 'lava')) {
+function lavaScoopAim(bot, position, from = null) {
+    if ((!from && !dryBucketFooting(bot)) || !liquidSource(bot.blockAt?.(position, false), 'lava')) {
         return null
     }
-    const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
+    const eye = (from ?? bot.entity.position).offset(0, bot.entity.eyeHeight ?? 1.62, 0)
     const points = [[0.5, 0.5, 0.5], ...[0.05, 0.95].flatMap(x =>
         [0.1, 0.8].flatMap(y => [0.05, 0.95].map(z => [x, y, z])))]
     return points.map(([x, y, z]) => position.offset(x, y, z)).find(point => eye.distanceTo(point) <= 4.5 &&
         bucketRay(bot, eye, point)?.position.equals(position)) ?? null
+}
+
+function scoopBanks(bot, source) {
+    const banks = []
+    for (let dx = -4; dx <= 4; dx++) {
+        for (let dz = -4; dz <= 4; dz++) {
+            for (const dy of [0, 1, 2]) {
+                const p = source.offset(dx, dy, dz)
+                if (safeFooting(bot, p) && lavaScoopAim(bot, source, p.offset(0.5, 0, 0.5))) {
+                    banks.push(p)
+                }
+            }
+        }
+    }
+    return banks
 }
 
 async function smeltCharcoal(c, state) {
@@ -1404,16 +1496,23 @@ async function approachBasin(c, findAt) {
     if (here) {
         return here
     }
-    const site = c.findWorkstationPlacements(4).find(({ target }) => safeFooting(bot, target) && findAt(target))
-    if (!site) {
+    const sites = c.findWorkstationPlacements(4).map(({ target }) => target).filter(p => safeFooting(bot, p) && findAt(p))
+    if (!sites.length) {
         return null
     }
-    const p = site.target
     bot.pathfinder.setMovements(dryMovements(bot))
     try {
-        await c.gotoWithTimeout(new goals.GoalBlock(p.x, p.y, p.z), 8000, 'basin bank')
+        const goal = new goals.GoalCompositeAny(sites.map(p => new goals.GoalBlock(p.x, p.y, p.z)))
+        await c.gotoWithTimeout(goal, 8000, 'basin bank')
         check(c)
-        return bot.entity.position.floored().equals(p) ? findAt(p) : null
+        const p = bot.entity.position.floored()
+        return goal.isEnd(p) ? findAt(p) : null
+    } catch (error) {
+        check(c)
+        if (!/no path|timed out/i.test(error.message)) {
+            throw error
+        }
+        return null
     } finally {
         bot.pathfinder.setGoal(null)
         bot.pathfinder.setMovements(c.movements)
@@ -1459,13 +1558,63 @@ async function prepareWaterPool(c) {
     }
 }
 
+function castingSite(c, bank) {
+    const bot = c.bot
+    const saved = c.memory.obsidianCastingSite
+    const sites = DIRECTIONS.map(([dx, dz]) => bank.offset(dx, -2, dz)).filter(p => {
+        const upper = p.offset(0, 1, 0)
+        if (!safeCastingBasin(bot, p) || !containedBasin(bot, [upper], false)) {
+            return false
+        }
+        const known = saved?.dimension === bot.game.dimension && p.x === saved.x && p.y === saved.y && p.z === saved.z
+        const access = p.offset(0, 2, 0)
+        if (!known && c.isEmptyPlacementBlock(bot.blockAt(access))) {
+            return false
+        }
+        return [p, upper, access, p.offset(0, 3, 0)].every(cell => {
+            const block = bot.blockAt(cell)
+            return c.isEmptyPlacementBlock(block) || (soundFloor(block) && c.movements.safeToBreak(block) &&
+                !PROTECTED_CONTAINERS.has(block.name))
+        }) && DIRECTIONS.every(([dx, dz]) => [0, 1].every(dy => {
+            const edge = access.offset(dx, dy, dz)
+            return edge.x === bank.x && edge.z === bank.z || soundFloor(bot.blockAt(edge))
+        }))
+    })
+    return sites[0] ?? null
+}
+
+async function leaveCastingBasin(c, basin, bank) {
+    const bot = c.bot
+    if (!bank || !bot.entity.position.floored().equals(basin)) {
+        return
+    }
+    await towerStep(c, c.actionAbort?.signal)
+    await climbStep(c, bank)
+    check(c)
+    if (!bot.entity.position.floored().equals(bank)) {
+        throw new Error(`casting bank at ${bank} was not reached`)
+    }
+}
+
 async function gatherObsidian(c) {
     const bot = c.bot
     let feet = bot.entity.position.floored()
     const saved = c.memory.obsidianCast
     const savedBasin = saved && new Vec3(saved.x, saved.y, saved.z)
+    const site = c.memory.obsidianCastingSite
+    if (site?.dimension === bot.game.dimension && site.bank) {
+        const pit = new Vec3(site.x, site.y, site.z)
+        const bank = new Vec3(site.bank.x, site.bank.y, site.bank.z)
+        if (feet.equals(pit) && c.isEmptyPlacementBlock(bot.blockAt(pit))) {
+            return leaveCastingBasin(c, pit, bank)
+        }
+        if (feet.equals(pit.offset(0, 1, 0))) {
+            return climbStep(c, bank)
+        }
+    }
     let basin = saved?.dimension === bot.game.dimension && savedBasin.offset(0, 2, 0).distanceTo(feet) <= 1 &&
         ['lava', 'obsidian'].includes(bot.blockAt(savedBasin)?.name) ? savedBasin : null
+    let bank = saved?.bank && new Vec3(saved.bank.x, saved.bank.y, saved.bank.z)
     if (!basin) {
         delete c.memory.obsidianCast
     }
@@ -1475,28 +1624,53 @@ async function gatherObsidian(c) {
             !DIRECTIONS.some(([dx, dz]) => ['lava', 'water'].includes(c.bot.blockAt(block.position.offset(dx, 0, dz))?.name)) &&
             c.bot.blockAt(block.position.offset(0, -1, 0))?.boundingBox === 'block'
     })
-    if (!basin && exposed) {
-        return c.collectTarget(exposed, exposed, 'obsidian')
+    if (!basin && exposed && (!c.memory.lavaPool || exposed.position.distanceTo(new Vec3(
+        c.memory.lavaPool.origin.x, c.memory.lavaPool.origin.y, c.memory.lavaPool.origin.z)) <= LAVA_POOL_RADIUS)) {
+        try {
+            return await c.collectTarget(exposed, exposed, 'obsidian')
+        } catch (error) {
+            check(c)
+            c.log.warn(`Could not collect exposed obsidian at ${exposed.position}: ${error.message}`)
+        }
     }
     if (!basin && !c.hasItem('lava_bucket')) {
-        await prepareWaterPool(c)
-        return fillLavaBucket(c)
+        return fillLavaBucket(c, true)
     }
     if (!basin) {
         if (c.countItems(['water_bucket']) < 2) {
             return fillWaterBucket(c)
         }
-        basin = await approachBasin(c, bank => DIRECTIONS.map(([dx, dz]) => bank.offset(dx, -2, dz)).find(p =>
-            safeCastingBasin(bot, p) && safeCastingBasin(bot, p.offset(0, 1, 0)) &&
-            c.isEmptyPlacementBlock(bot.blockAt(p.offset(0, 2, 0))) &&
-            [p, p.offset(0, 1, 0)].every(cell => c.movements.safeToBreak(bot.blockAt(cell)))))
+        basin = await approachBasin(c, bank => castingSite(c, bank))
         if (!basin) {
+            const pool = c.memory.lavaPool
+            if (pool?.dimension === bot.game.dimension && (pool.castDetours ?? 0) < 4) {
+                pool.castDetours = (pool.castDetours ?? 0) + 1
+                const { x, z } = pool.origin
+                const [dx, dz] = DIRECTIONS[pool.castDetours - 1]
+                try {
+                    return await mineTunnel(c, feet.y, new Vec3(x + 5 * dx, feet.y, z + 5 * dz))
+                } catch (error) {
+                    check(c)
+                    c.log.warn(`Local casting approach failed: ${error.message}`)
+                    return
+                }
+            }
+            if (pool?.dimension === bot.game.dimension) {
+                c.log.warn('No safe casting site after four approaches near the lava pool.')
+                delete c.memory.lavaPool
+            }
             return c.scout(8)
         }
-        feet = bot.entity.position.floored()
+        bank = feet = bot.entity.position.floored()
+        await digBasinCell(c, basin.offset(0, 3, 0))
+        await digBasinCell(c, basin.offset(0, 2, 0))
         await digBasinCell(c, basin.offset(0, 1, 0))
         await digBasinCell(c, basin)
-        c.memory.obsidianCast = { dimension: bot.game.dimension, x: basin.x, y: basin.y, z: basin.z }
+        c.memory.obsidianCastingSite = c.memory.obsidianCast =
+            { dimension: bot.game.dimension, x: basin.x, y: basin.y, z: basin.z, bank }
+        if (c.memory.lavaPool) {
+            c.memory.lavaPool.castDetours = 0
+        }
         await useBucket(c, 'lava_bucket', basin.offset(0.5 + 0.4 * (basin.x - feet.x), -0.01, 0.5 + 0.4 * (basin.z - feet.z)),
             () => liquidSource(bot.blockAt(basin), 'lava'), 'pour casting lava')
     }
@@ -1520,6 +1694,7 @@ async function gatherObsidian(c) {
     c.log.info(`Cast obsidian at ${basin}.`)
     await c.collectTarget(block, block, 'cast obsidian')
     delete c.memory.obsidianCast
+    await leaveCastingBasin(c, basin, bank)
 }
 
 function portalFrame(origin) {
@@ -1565,6 +1740,9 @@ async function enterNether(c) {
     }
     let portal = await scanFor(c, () => c.findNearestBlock(name => name === 'nether_portal', 32))
     if (!portal) {
+        if (bot.entity.isInWater) {
+            return c.reachLand()
+        }
         if (!c.memory.portalOrigin) {
             const here = bot.entity.position.floored()
             for (let dx = -6; dx <= 6 && !c.memory.portalOrigin; dx++) {

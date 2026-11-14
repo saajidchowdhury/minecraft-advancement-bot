@@ -66,16 +66,15 @@ without a death cascade.
 
 ### G005 — High / live retry loop — Diamonds and obsidian
 
-Diamonds! and Ice Bucket Challenge are confirmed (staged cast, F053). Remaining:
-a continuous run casting ten obsidian with the third bucket, lava quarantine and
-the portal standing row (F056, F059). Done with server packets and enough
-obsidian for a portal. The original blocked lava scoop passes on LAN (F122).
+Diamonds! and Ice Bucket Challenge are confirmed (F053). A staged 8-to-10 run
+used the same pool and casting pit twice (F142). Still verify an unaided run
+casting ten from zero. The original blocked lava scoop passes on LAN (F122).
 
-### G006 — Medium / implemented, not live-verified — Nether entry and return
+### G006 — Medium / entry and return live — Nether portal reliability
 
-Validate partial-frame resumption, ignition, the dimension change, stepping
-out and back (F037) and a remembered route home. Do not let an unprepared bot
-loose in the Nether. Add gold boots before any longer stay (piglins).
+F144 verified ignition, server-confirmed entry, and return through the
+portal. Partial-frame resumption and the route home remain open. Add gold
+boots before any longer stay (piglins).
 
 ### G010 — High / implemented, full survey pending — Caves and parallel preparation
 
