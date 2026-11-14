@@ -189,3 +189,22 @@ test('a cancelled fortress step lets go well inside the 2 s release window', asy
     await assert.rejects(run, /cancelled/)
     assert.ok(Date.now() - started < 1000, `released after ${Date.now() - started} ms`)
 })
+
+test('the way home walks the bridge trail back crumb by crumb from the nearest one', async () => {
+    const { performProgression } = require('../src/progression-skills')
+    const trail = [{ x: 0, y: 70, z: 0 }, { x: 16, y: 70, z: 0 }, { x: 30, y: 70, z: 0 }, { x: 30, y: 70, z: -16 }, { x: 30, y: 70, z: -32 }]
+    const goals = []
+    const bot = { game: { dimension: 'the_nether' }, entity: { position: new Vec3(30.5, 70, -30.5) }, health: 20,
+        blockAt: () => ({ name: 'air' }), waitForTicks: async () => {} }
+    const c = { bot, running: true, paused: false, memory: { netherBridge: { portal: trail[0], trail } },
+        findNearestBlock: () => null, log: { info () {} },
+        gotoWithTimeout: async goal => {
+            goals.push([goal.x, goal.z])
+            bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5)
+            if (goal.x === 0 && goal.z === 0) {
+                c.findNearestBlock = () => ({ name: 'nether_portal', position: new Vec3(0, 70, 1) })
+            }
+        } }
+    await assert.rejects(performProgression(c, 'leave_nether', {}))
+    assert.deepEqual(goals.slice(0, 5), [[30, -32], [30, -16], [30, 0], [16, 0], [0, 0]])
+})

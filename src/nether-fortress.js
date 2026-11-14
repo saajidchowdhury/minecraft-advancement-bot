@@ -18,6 +18,10 @@ const SIGHT_RANGE = 96
 const SIGHT_CANDIDATES = 64
 const MIN_SLABS = 6 // one bridged step with both walls bootstrapped uses five
 const MAX_TURNS = 4
+// trail := feet positions from the portal outward, one per check and per turn. A 360-block L-shaped
+// bridge cost more than A*'s 48-block slack over the straight-line estimate, so the way home is walked
+// crumb by crumb (live 06:42Z).
+const MAX_TRAIL = 256
 const STEP_MS = 4000
 const AIR = new Set(['air', 'cave_air', 'void_air'])
 const HOT = new Set(['lava', 'fire', 'soul_fire', 'magma_block'])
@@ -256,6 +260,14 @@ async function findFortress(c) {
     const feet = () => feetOf(bot)
     const nb = c.memory.netherBridge ??= { dimension: bot.game.dimension, dir: Math.floor(c.rng() * 4), steps: 0,
         lastCheck: -Infinity, portal: feet(), target: null, turns: 0 }
+    nb.trail ??= [nb.portal]
+    const crumb = () => {
+        const here = feet()
+        const last = nb.trail.at(-1)
+        if (nb.trail.length < MAX_TRAIL && !(last && here.equals(vec(last)))) {
+            nb.trail.push({ x: here.x, y: here.y, z: here.z })
+        }
+    }
     if (bot.blockAt(feet())?.name === 'nether_portal') {
         const out = DIRECTIONS.map(([x, z]) => feet().offset(x, 0, z)).find(p => open(bot.blockAt(p)) &&
             open(bot.blockAt(p.offset(0, 1, 0))) && solid(bot.blockAt(p.offset(0, -1, 0))))
@@ -273,6 +285,7 @@ async function findFortress(c) {
         }
         if (nb.steps - nb.lastCheck >= CHECK_EVERY) {
             nb.lastCheck = nb.steps
+            crumb()
             const target = chooseTarget(feet(), visibleFortress(c))
             if (target && !(nb.target && vec(nb.target).equals(target))) {
                 c.log.info(`Fortress block in sight at ${target}; bridging toward it.`)
@@ -289,7 +302,11 @@ async function findFortress(c) {
             return
         }
         const target = nb.target ? vec(nb.target) : null
-        nb.dir = heading(feet(), target, nb.dir)
+        const turned = heading(feet(), target, nb.dir)
+        if (turned !== nb.dir) {
+            crumb()
+        }
+        nb.dir = turned
         const [x, z] = DIRECTIONS[nb.dir]
         try {
             await step(c, feet(), new Vec3(x, 0, z), target ? Math.sign(target.y - feet().y) : 0)
@@ -299,6 +316,7 @@ async function findFortress(c) {
             if (!(error instanceof LavaAhead) || ++nb.turns > MAX_TURNS) {
                 throw error
             }
+            crumb()
             nb.dir = (nb.dir + (c.rng() < 0.5 ? 1 : 3)) % 4
             nb.target = null
             c.log.warn(`${error.message}; turning to ${DIRECTIONS[nb.dir]}.`)
