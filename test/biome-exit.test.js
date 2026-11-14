@@ -24,7 +24,7 @@ test('water-dominant biome names include all Java oceans and sandy beaches', () 
     for (const name of Object.keys(registry.biomesByName).filter(name => /ocean|river|swamp/.test(name))) {
         assert.ok(wetBiome(name), name)
     }
-    for (const name of ['beach', 'snowy_beach', 'snowy_plains']) {
+    for (const name of ['beach', 'snowy_beach', 'snowy_plains', 'ice_spikes']) {
         assert.equal(wetBiome(name), true)
     }
     for (const name of [null, 'stony_shore', 'forest', 'mushroom_fields']) {
