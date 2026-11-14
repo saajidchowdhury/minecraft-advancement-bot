@@ -5,7 +5,7 @@ const { goals } = require('mineflayer-pathfinder')
 const { dryMovements } = require('./cave-exploration')
 const { soundFloor } = require('./under-feet')
 
-const WET = new Set(['swamp', 'mangrove_swamp', 'river', 'frozen_river'])
+const WET = new Set(['swamp', 'mangrove_swamp', 'river', 'frozen_river', 'snowy_plains'])
 const OCEAN = /(?:^|_)ocean$/
 const BEACH = new Set(['beach', 'snowy_beach'])
 const SIDES = [[1, 0], [0, 1], [-1, 0], [0, -1]]
