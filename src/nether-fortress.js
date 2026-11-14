@@ -18,10 +18,10 @@ const SIGHT_RANGE = 96
 const SIGHT_CANDIDATES = 64
 const MIN_SLABS = 6 // one bridged step with both walls bootstrapped uses five
 const MAX_TURNS = 4
-// trail := feet positions from the portal outward, one per check and per turn. A 360-block L-shaped
-// bridge cost more than A*'s 48-block slack over the straight-line estimate, so the way home is walked
-// crumb by crumb (live 06:42Z).
-const MAX_TRAIL = 256
+// path := every feet cell [x, y, z] from the portal outward. User direction (2026-11-14): go home along the
+// recorded tunnel or bridge, not by pathfinding or scouting; a single 360-block goal also exceeded A*'s
+// 48-block slack and the fallback crossed open Nether terrain (live 06:42Z).
+const MAX_PATH = 8192
 const STEP_MS = 4000
 const AIR = new Set(['air', 'cave_air', 'void_air'])
 const HOT = new Set(['lava', 'fire', 'soul_fire', 'magma_block'])
@@ -260,14 +260,15 @@ async function findFortress(c) {
     const feet = () => feetOf(bot)
     const nb = c.memory.netherBridge ??= { dimension: bot.game.dimension, dir: Math.floor(c.rng() * 4), steps: 0,
         lastCheck: -Infinity, portal: feet(), target: null, turns: 0 }
-    nb.trail ??= [nb.portal]
-    const crumb = () => {
+    nb.path ??= [[nb.portal.x, nb.portal.y, nb.portal.z]]
+    const record = () => {
         const here = feet()
-        const last = nb.trail.at(-1)
-        if (nb.trail.length < MAX_TRAIL && !(last && here.equals(vec(last)))) {
-            nb.trail.push({ x: here.x, y: here.y, z: here.z })
+        const last = nb.path.at(-1)
+        if (nb.path.length < MAX_PATH && !(last && here.equals(new Vec3(...last)))) {
+            nb.path.push([here.x, here.y, here.z])
         }
     }
+    record()
     if (bot.blockAt(feet())?.name === 'nether_portal') {
         const out = DIRECTIONS.map(([x, z]) => feet().offset(x, 0, z)).find(p => open(bot.blockAt(p)) &&
             open(bot.blockAt(p.offset(0, 1, 0))) && solid(bot.blockAt(p.offset(0, -1, 0))))
@@ -285,7 +286,6 @@ async function findFortress(c) {
         }
         if (nb.steps - nb.lastCheck >= CHECK_EVERY) {
             nb.lastCheck = nb.steps
-            crumb()
             const target = chooseTarget(feet(), visibleFortress(c))
             if (target && !(nb.target && vec(nb.target).equals(target))) {
                 c.log.info(`Fortress block in sight at ${target}; bridging toward it.`)
@@ -302,21 +302,17 @@ async function findFortress(c) {
             return
         }
         const target = nb.target ? vec(nb.target) : null
-        const turned = heading(feet(), target, nb.dir)
-        if (turned !== nb.dir) {
-            crumb()
-        }
-        nb.dir = turned
+        nb.dir = heading(feet(), target, nb.dir)
         const [x, z] = DIRECTIONS[nb.dir]
         try {
             await step(c, feet(), new Vec3(x, 0, z), target ? Math.sign(target.y - feet().y) : 0)
             nb.steps++
             nb.turns = 0
+            record()
         } catch (error) {
             if (!(error instanceof LavaAhead) || ++nb.turns > MAX_TURNS) {
                 throw error
             }
-            crumb()
             nb.dir = (nb.dir + (c.rng() < 0.5 ? 1 : 3)) % 4
             nb.target = null
             c.log.warn(`${error.message}; turning to ${DIRECTIONS[nb.dir]}.`)
@@ -324,4 +320,34 @@ async function findFortress(c) {
     }
 }
 
-module.exports = { findFortress, bridgeSupply, slabCount, heading, chooseTarget, BRIDGE_BLOCKS, SLABS, FORTRESS }
+// Walks the recorded line back to the portal cell by cell, from the nearest recorded cell.
+async function returnAlongPath(c) {
+    const bot = c.bot
+    const path = (c.memory.netherBridge?.path ?? []).map(p => new Vec3(...p))
+    if (path.length === 0) {
+        return false
+    }
+    const here = feetOf(bot)
+    let i = path.reduce((best, p, j) => p.distanceTo(here) < path[best].distanceTo(here) ? j : best, 0)
+    if (path[i].distanceTo(here) > 0) {
+        await c.gotoWithTimeout(new goals.GoalBlock(path[i].x, path[i].y, path[i].z), 10000, 'back onto the bridge')
+    }
+    c.log.info(`Returning along ${i} recorded bridge cells to the portal.`)
+    for (i--; i >= 0; i--) {
+        check(c)
+        const cell = path[i]
+        await clearCells(c, [cell, cell.offset(0, 1, 0)])
+        if (cell.y !== feetOf(bot).y) {
+            await c.gotoWithTimeout(new goals.GoalBlock(cell.x, cell.y, cell.z), 6000, 'bridge stair')
+        } else {
+            // Sneak on a slab floor unless walls stand at head height on both sides.
+            const from = feetOf(bot)
+            const side = new Vec3(cell.z - from.z, 0, cell.x - from.x)
+            const walled = [side, side.scaled(-1)].every(s => solid(bot.blockAt(cell.offset(s.x, 1, s.z))))
+            await walkTo(c, cell, Boolean(bot.blockAt(cell.offset(0, -1, 0))?.name.endsWith('_slab')) && !walled)
+        }
+    }
+    return true
+}
+
+module.exports = { findFortress, returnAlongPath, bridgeSupply, slabCount, heading, chooseTarget, BRIDGE_BLOCKS, SLABS, FORTRESS }

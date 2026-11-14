@@ -5,7 +5,7 @@ const { plugin: collectBlockPlugin } = require('mineflayer-collectblock')
 const { Vec3 } = require('vec3')
 const { createRng } = require('./random')
 const { dropCaution } = require('./drop-caution')
-const { findFortress, bridgeSupply } = require('./nether-fortress')
+const { findFortress, returnAlongPath, bridgeSupply } = require('./nether-fortress')
 const { Actions, chooseAction, canSustainFight, outnumbered, hasMiningWood,
     MELEE_ALERT_RANGE, CREEPER_ALERT_RANGE, CREEPER_DUEL_HP, ARCHER_ALERT_RANGE } = require('./decision-engine')
 const { RECIPES, nextAdvancement, ironPickPlankFuel, ironStock, ironReserveCap, canFillWaterBuckets } = require('./advancement-plan')
@@ -101,7 +101,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     smelt_charcoal: 45000, craft_progression: 45000, equip_armor: 10000, equip_shield: 10000,
     fill_water_bucket: 90000, fill_lava_bucket: 90000, gather_diamonds: 90000, gather_obsidian: 90000,
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000, find_fortress: 600000,
-    clear_inventory: 30000, mine_diamond: 95000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, reach_land: 60000, stock_blocks: 30000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 300000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
+    clear_inventory: 30000, mine_diamond: 95000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, reach_land: 60000, stock_blocks: 30000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 900000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
     recover_diamond_drop: 60000,
     leave_flooded_tunnel: 24000, leave_wet_biome: 65000,
@@ -1261,6 +1261,12 @@ class SurvivalController {
         switch (action) {
             case 'avoid_enderman': return this.avoidEnderman()
             case 'find_fortress': return findFortress(this)
+            case 'leave_nether':
+                // A fortress search goes home along its recorded line before looking for the portal.
+                if (this.bot.game.dimension === 'the_nether' && !this.findNearestBlock(name => name === 'nether_portal', 16)) {
+                    await returnAlongPath(this)
+                }
+                return performProgression(this, action, state)
             case 'flee_sculk': return this.fleeSculk()
             case 'leave_flooded_tunnel': return leaveFloodedTunnel(this)
             case 'recover_diamond_drop': return this.recoverDiamondDrop()

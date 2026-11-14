@@ -2251,18 +2251,6 @@ async function leaveNether(c) {
         return
     }
     const occupied = bot.blockAt(bot.entity.position.floored())
-    const bridge = c.memory?.netherBridge
-    if (occupied?.name !== 'nether_portal' && bridge?.portal && !c.findNearestBlock(name => name === 'nether_portal', 16)) {
-        // A fortress search walks back along its own bridge, crumb by crumb from the nearest one.
-        const trail = (bridge.trail ?? [bridge.portal]).map(p => new Vec3(p.x, p.y, p.z))
-        const here = bot.entity.position
-        let i = trail.reduce((best, p, j) => p.distanceTo(here) < trail[best].distanceTo(here) ? j : best, 0)
-        for (; i >= 0; i--) {
-            check(c)
-            const p = trail[i]
-            await c.gotoWithTimeout(new goals.GoalNear(p.x, p.y, p.z, 1), Math.max(15000, bot.entity.position.distanceTo(p) * 700), 'bridge return')
-        }
-    }
     const portal = occupied?.name === 'nether_portal'
         ? occupied : await scanFor(c, () => c.findNearestBlock(name => name === 'nether_portal', 16))
     if (!portal) {

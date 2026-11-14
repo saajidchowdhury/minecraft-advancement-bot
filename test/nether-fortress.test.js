@@ -190,21 +190,25 @@ test('a cancelled fortress step lets go well inside the 2 s release window', asy
     assert.ok(Date.now() - started < 1000, `released after ${Date.now() - started} ms`)
 })
 
-test('the way home walks the bridge trail back crumb by crumb from the nearest one', async () => {
-    const { performProgression } = require('../src/progression-skills')
-    const trail = [{ x: 0, y: 70, z: 0 }, { x: 16, y: 70, z: 0 }, { x: 30, y: 70, z: 0 }, { x: 30, y: 70, z: -16 }, { x: 30, y: 70, z: -32 }]
-    const goals = []
-    const bot = { game: { dimension: 'the_nether' }, entity: { position: new Vec3(30.5, 70, -30.5) }, health: 20,
-        blockAt: () => ({ name: 'air' }), waitForTicks: async () => {} }
-    const c = { bot, running: true, paused: false, memory: { netherBridge: { portal: trail[0], trail } },
-        findNearestBlock: () => null, log: { info () {} },
-        gotoWithTimeout: async goal => {
-            goals.push([goal.x, goal.z])
-            bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5)
-            if (goal.x === 0 && goal.z === 0) {
-                c.findNearestBlock = () => ({ name: 'nether_portal', position: new Vec3(0, 70, 1) })
-            }
-        } }
-    await assert.rejects(performProgression(c, 'leave_nether', {}))
-    assert.deepEqual(goals.slice(0, 5), [[30, -32], [30, -16], [30, 0], [16, 0], [0, 0]])
+test('the way home walks every recorded bridge cell back, not a pathfinder route', async () => {
+    const { returnAlongPath } = require('../src/nether-fortress')
+    const { bot } = bridgeWorld()
+    // An L-shaped line: east from the portal cell to x=3, then north to z=-2; the bot stands on its end.
+    const path = [[0, 70, 0], [1, 70, 0], [2, 70, 0], [3, 70, 0], [3, 70, -1], [3, 70, -2]]
+    bot.entity.position = new Vec3(3.5, 70, -1.5)
+    const walked = []
+    let aim = null
+    bot.lookAt = async p => { aim = p }
+    bot.setControlState = (control, value) => {
+        if (control === 'forward' && value && aim) {
+            bot.entity.position = new Vec3(aim.x, 70, aim.z)
+            walked.push([Math.floor(aim.x), Math.floor(aim.z)])
+        }
+    }
+    const routes = []
+    const c = { bot, running: true, paused: false, actionAbort: new AbortController(), log: { info () {} },
+        memory: { netherBridge: { path } }, gotoWithTimeout: async goal => { routes.push(goal) } }
+    assert.equal(await returnAlongPath(c), true)
+    assert.deepEqual(routes, [], 'no pathfinder goal while already on the line')
+    assert.deepEqual(walked, [[3, -1], [3, 0], [2, 0], [1, 0], [0, 0]], 'from the end cell (3,-2) back to the portal cell')
 })
