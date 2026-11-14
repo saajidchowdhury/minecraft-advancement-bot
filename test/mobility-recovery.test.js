@@ -443,6 +443,7 @@ function landWorld() {
     const name = p => p.y < 60 ? 'stone' : p.y === 60 ? 'dirt' : p.x <= 20 && p.y <= 62 ? 'water' : p.x > 20 && p.y === 61 ? 'grass_block' : 'air'
     const bot = {
         registry, game: { dimension: 'overworld' }, entity: { position: new Vec3(3.5, 61, 0.5), onGround: false, isInWater: true },
+        inventory: { items: () => [], slots: [] },
         blockAt: at => {
             const p = at.floored()
             const b = Block.fromStateId(registry.blocksByName[name(p)].defaultState, 0)
@@ -463,7 +464,7 @@ function landWorld() {
         }
     }
     const c = Object.create(SurvivalController.prototype)
-    Object.assign(c, { bot, landPending: true, landFailures: 0, actionAbort: new AbortController(), log: { info() {}, warn() {} },
+    Object.assign(c, { bot, advancements: { summary: () => [] }, landFailures: 0, actionAbort: new AbortController(), log: { info() {}, warn() {} },
         memory: { blockedTargets: new Map() }, checkAction() {} })
     return { c, bot, Vec3 }
 }
@@ -479,7 +480,26 @@ test('the reach-land goal heads for the nearest dry ground block and clears once
     await c.reachLand()
     assert.deepEqual([goal.x, goal.y, goal.z], [22, 62, 0], 'dry shore one cell from the water, not the dirt under it')
     assert.equal(c.needsLand(), false)
-    assert.equal(c.landPending, false)
+    assert.equal(c.memory.landReached, true)
+})
+
+test('a returning player uses saved land progress or existing survival progress', () => {
+    const { c, bot, Vec3 } = landWorld()
+    bot.entity.position = new Vec3(3.5, 16, 0.5)
+    assert.equal(c.needsLand(), true, 'a fresh player starts the land goal')
+    assert.equal(c.memory.landReached, false)
+    c.advancements.summary = () => ['minecraft:story/mine_stone']
+    assert.equal(c.needsLand(), true, 'new progress does not cancel an already pending goal')
+
+    delete c.memory.landReached
+    assert.equal(c.needsLand(), false, 'server-confirmed progress migrates an existing player')
+    const { c: restarted } = landWorld()
+    restarted.memory = c.memory
+    assert.equal(restarted.needsLand(), false, 'an empty inventory after respawn still uses the saved milestone')
+
+    const { c: equipped, bot: equippedBot } = landWorld()
+    equippedBot.inventory.slots[6] = { name: 'iron_chestplate' }
+    assert.equal(equipped.needsLand(), false, 'existing equipped gear also identifies a returning player')
 })
 
 test('a reach-land goal with no loaded ground scouts and never lapses until the bot stands on land (F135)', async () => {
@@ -491,10 +511,38 @@ test('a reach-land goal with no loaded ground scouts and never lapses until the 
         await c.reachLand()
     }
     assert.equal(scouts, 20)
-    assert.equal(c.landPending, true, 'live 06:28Z: a six-attempt cap dropped the goal after 9 s on a tree top')
     assert.equal(c.needsLand(), true)
+    assert.equal(c.memory.landReached, false, 'live 06:28Z: a six-attempt cap dropped the goal after 9 s on a tree top')
     c.bot.game.dimension = 'the_nether'
     assert.equal(c.needsLand(), false, 'the goal is Overworld-only')
+})
+
+test('a large dry cave floor cannot complete the reach-land goal or become a land destination', async () => {
+    const { c, bot, Vec3 } = landWorld()
+    const Block = require('prismarine-block')(bot.registry)
+    const blockAt = bot.blockAt
+    bot.blockAt = at => {
+        const p = at.floored()
+        if (p.y < 19 || p.y > 21) {
+            return blockAt(at)
+        }
+        const b = Block.fromStateId(bot.registry.blocksByName.cave_air.defaultState, 0)
+        b.position = p
+        return b
+    }
+    const floor = new Vec3(3, 18, 0)
+    Object.assign(bot.entity, { position: floor.offset(0.5, 1, 0.5), onGround: true, isInWater: false })
+    assert.ok(c.landMassSize(floor) >= 1000)
+    assert.equal(c.needsLand(), true)
+    bot.findBlocks = ({ useExtraInfo }) => [floor, new Vec3(22, 61, 0)].filter(p => useExtraInfo(bot.blockAt(p)))
+    let goal
+    c.gotoWithTimeout = async g => {
+        goal = g
+        bot.entity.position = new Vec3(g.x + 0.5, g.y, g.z + 0.5)
+    }
+    await c.reachLand()
+    assert.deepEqual([goal.x, goal.y, goal.z], [22, 62, 0])
+    assert.equal(c.needsLand(), false)
 })
 
 test('land trips swim at cost 1 even from a stump that is not itself in water (F135)', async () => {
@@ -516,7 +564,6 @@ test('land trips swim at cost 1 even from a stump that is not itself in water (F
     const from = new Vec3(3.5, 61, 0.5)
     assert.equal(Math.round(timeoutMs), Math.round(Math.max(20000, 1200 * from.distanceTo(new Vec3(22, 61, 0)))))
     Object.assign(bot.entity, { position: new Vec3(-30.5, 61, 0.5), onGround: false, isInWater: true })
-    c.landPending = true
     await c.reachLand()
     assert.ok(timeoutMs >= 1200 * 50, `a ${Math.round(timeoutMs / 1200)}-block swim gets 1.2 s a block`)
 })

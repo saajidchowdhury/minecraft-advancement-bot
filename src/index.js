@@ -84,6 +84,8 @@ function connect () {
         process.exitCode = 1
         return
     }
+    let landFile
+    let savedLandReached
     bot._client.on('login', packet => {
         const seed = packet.worldState?.hashedSeed ?? packet.hashedSeed
         if (seed == null) {
@@ -99,11 +101,20 @@ function connect () {
             log.warn('World seed changed; cleared coordinates and mining routes from the previous world.')
         }
         survivalMemory.worldSeedFingerprint = fingerprint
+        if (!memoryFile) {
+            landFile = path.join('.state', 'land', encodeURIComponent(config.connection.username), `${fingerprint}.json`)
+            savedLandReached = loadMemory(landFile).landReached
+            survivalMemory.landReached = savedLandReached
+        }
     })
     controller = new SurvivalController(bot, {
         owner: config.owner, seed: config.seed, probeSpacing: config.probeSpacing, log, memory: survivalMemory, runStats,
         onState: (state, action) => {
             saveMemory(memoryFile, survivalMemory)
+            if (landFile && survivalMemory.landReached !== savedLandReached) {
+                saveMemory(landFile, { landReached: survivalMemory.landReached })
+                savedLandReached = survivalMemory.landReached
+            }
             const goal = nextAdvancement(state)
             const position = bot.entity.position
             fs.writeFileSync(path.join(runDir, 'state.json'), JSON.stringify({

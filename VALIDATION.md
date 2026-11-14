@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-550 tests and `npm run check` pass after the F126-F136 fixes.
+553 tests and `npm run check` pass through F137.
 Run them with the prepared runtime:
 
 ```sh
@@ -40,7 +40,7 @@ comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
 | combat-navigation | 10 | creeper duel, hunting with axes, out-of-view prey and drops |
 | config | 1 | LAN port bounds, 26.1.2 protocol data |
 | crowd-retreat | 11 | crowd latch, wall-pocket retreat and seal, pillar refuge |
-| decision-engine | 58 | planner priorities: danger, food, armor, night, threats, reflexes |
+| decision-engine | 59 | planner priorities, including iron and climbing while seeking initial land underground |
 | dependency-patches | 5 | crafting, furnace close, entity air, pathfinder jump landings |
 | drowning | 6 | low-air interrupt, direct swim rescue, dry station pickup |
 | enchanting | 5 | Enchanter gating, offer choice, zero-level wait |
@@ -55,7 +55,7 @@ comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
 | memory-random | 2 | seeded rng, atomic world memory |
 | mined-ore-recovery | 10 | confirmed diamond memory, alternate stair approaches, cancellation, hidden water, ore drops |
 | mining-timing | 6 | break times for tier ores, landing before digging, bare-hand stone when stranded, enchanted 26.1 tools, 5-tick destroy delay |
-| mobility-recovery | 33 | unstick, shaft and pillar detection, safe drops, heap guard, sky-bound surface scouts, swamp swims, logs and treading, reach land on spawn (no lapse, canopy descent, 1000-block land mass), soil stock, trunk platforms, water plants as liquid |
+| mobility-recovery | 35 | unstick, shaft and pillar detection, safe drops, heap guard, sky-bound surface scouts, swamp swims, logs and treading, initial land milestone, cave exclusion, canopy descent, 1000-block land mass, soil stock, trunk platforms, water plants as liquid |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
 | progression-skills | 33 | stairs, tunnels, lava scoop rays, portal geometry, frontier, merges |
@@ -145,4 +145,5 @@ none ran during the trial). "Automated" means regression tests only.
 | Carving out of a sculk zone | live (left the zone 05:39Z) | F132 |
 | Submerged-dig refusal, treading water, swamp swims and logs | live | F133, F134 |
 | Reach land after spawn: large land mass, stump exit, seagrass swim | live stump exit; staged swims | F135, F136 |
+| Return to underground iron work after restart; first-time land search climbs and takes safe iron | live restart; initial climb and iron priority automated | F137 |
 | Trunk platform, full canopy descent, soil stock | automated; stock live | F135 |

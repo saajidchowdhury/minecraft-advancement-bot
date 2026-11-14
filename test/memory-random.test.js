@@ -22,7 +22,7 @@ test('seeded exploration is repeatable with finite samples in [0, 1)', () => {
 test('world memory round trips coordinates, routes, sets and maps atomically', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'minecraft-memory-'))
     const file = path.join(directory, 'memory.json')
-    const memory = { home: { x: 1, y: 64, z: 2 }, mineRoute: [{ x: 4, y: 61, z: 2 }],
+    const memory = { landReached: true, home: { x: 1, y: 64, z: 2 }, mineRoute: [{ x: 4, y: 61, z: 2 }],
         blockedTargets: new Map([['1,2,3', 2000]]), minedCells: new Set(['1,2,3']), redstoneOrigin: new Vec3(1, 2, 3) }
     try {
         saveMemory(file, memory)

@@ -10,11 +10,13 @@ playthrough is a test, not the definition of success.
 
 ## Now
 
-1. Fresh-world early game on port 50902 (the world was remade three times on
-   2026-11-13). Watch a natural start end to end with the F133-F136 spawn,
-   water and land handling. Done when a spawn in or near water reaches a
-   large land mass, stocks soil, uses a trunk platform or canopy descent when
-   needed, and matches the F057 pace (ten advancements in 28 min) unaided.
+1. Fresh-world early game. Watch a natural start end to end with the F133–F137
+   spawn, water and land handling. Done when a first spawn in or near water
+   reaches a large land mass, stocks soil, uses a trunk platform or canopy
+   descent when needed, and matches the F057 pace (ten advancements in 28 min)
+   unaided. Separately check a first-time land seeker underground for safe
+   iron pickups and positive elevation gain. The returning-player restart
+   passed on port 51391 (F137).
 2. Live-verify the 2026-11-12/13 changes still lacking natural evidence:
    water buckets before lava and reachable berries (F127), disposal zones and
    sky-bound surface scouts (F129), melee standoffs (F130), the 5-tick dig

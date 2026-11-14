@@ -182,7 +182,8 @@ Set `MC_WORLD_ID` to a unique label to retain home, mining routes, cave
 checkpoints, chest visits, failure memory and pause/follow state across script
 restarts. Keep the label when only the LAN port changes. Use a different label
 for a different world; a changed server seed hash also clears saved
-coordinates. Leave the field empty for memory limited to the current process.
+coordinates. With the label empty, the initial dry-land milestone is saved by
+bot username and server seed hash. Other memory lasts for the current process.
 Advancement completion always comes from the server, never the coordinate
 cache. Saved memory lives in `.state/` and writes through a temporary file and
 rename.

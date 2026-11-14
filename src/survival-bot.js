@@ -450,9 +450,7 @@ class SurvivalController {
                 }
             })
         })
-        // Every spawn and respawn starts with the reach-land goal (F135); standing on ground clears it.
         this.bot.on('spawn', () => {
-            this.landPending = true
             this.landFailures = 0
             this.landMassMemo = null
         })
@@ -3634,7 +3632,7 @@ class SurvivalController {
         const feet = entity.position.floored()
         const body = this.bot.blockAt(feet, false)
         return !waterFilled(body) && LAND_GROUND.test(this.bot.blockAt(feet.offset(0, -1, 0), false)?.name ?? '') &&
-            this.landMassSize(feet.offset(0, -1, 0)) >= LARGE_LAND_BLOCKS
+            openToSky(this.bot, feet.offset(0, 1, 0)) && this.landMassSize(feet.offset(0, -1, 0)) >= LARGE_LAND_BLOCKS
     }
 
     // Exposed ground: a natural ground block under a dry, empty cell.
@@ -3681,11 +3679,16 @@ class SurvivalController {
     }
 
     needsLand () {
-        if (!this.landPending || this.bot.game?.dimension !== 'overworld') {
+        if (this.bot.game?.dimension !== 'overworld') {
+            return false
+        }
+        // Older saves can already have a geared player without a recorded land milestone.
+        this.memory.landReached ??= this.advancements.summary().length > 0 || this.bot.inventory.slots.some(Boolean)
+        if (this.memory.landReached) {
             return false
         }
         if (this.standsOnLand()) {
-            this.landPending = false
+            this.memory.landReached = true
             // User (F135): a bot that had to swim stocks soil first, to stand beside water-bound trunks.
             this.blockStockPending = Boolean(this.landSwam)
             this.landSwam = false
@@ -3773,7 +3776,8 @@ class SurvivalController {
         }
         // A tiny island counted as land (live 06:36Z); only ground joined to 1000 exposed blocks qualifies.
         const spots = this.bot.findBlocks({ matching: ids, maxDistance: LAND_SEARCH_RADIUS, count: LAND_CANDIDATES,
-            useExtraInfo: block => dryStand(block.position.offset(0, 1, 0)) && !this.isBlockedTarget({ position: block.position }) })
+            useExtraInfo: block => dryStand(block.position.offset(0, 1, 0)) &&
+                openToSky(this.bot, block.position.offset(0, 2, 0)) && !this.isBlockedTarget(block) })
             .filter(floor => this.landMassSize(floor) >= LARGE_LAND_BLOCKS)
         this.landSwam = true
         const signal = this.actionAbort?.signal

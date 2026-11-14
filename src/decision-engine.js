@@ -134,7 +134,7 @@ function chooseAction (state) {
     }
     // User direction (F135): after spawning in the Overworld, first stand on dry ground; a swamp spawn
     // otherwise cut logs one by one while treading water.
-    if (state.needsLand) {
+    if (state.needsLand && !state.underground) {
         return 'reach_land'
     }
     if (state.stockBlocks) {
@@ -238,6 +238,13 @@ function chooseAction (state) {
     }
     if (mustFreeSlot) {
         return 'clear_inventory'
+    }
+    if (state.needsLand) {
+        if (!state.hasWoodenPickaxe && [Actions.CRAFT_TABLE, Actions.CRAFT_WOODEN_PICKAXE, Actions.STONE].includes(progression.action)) {
+            return progression.action
+        }
+        return state.ironInView && state.health > 10 && state.hostileDistance > MELEE_ALERT_RANGE && state.freeInventorySlots > 0
+            ? 'mine_iron' : 'return_surface'
     }
     if (progression.id === 'minecraft:story/shiny_gear' && progression.action === 'craft_progression') {
         return progression.action

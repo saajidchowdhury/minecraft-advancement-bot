@@ -11,17 +11,16 @@ To record a finding, append its full entry to the archive, add one index line
 below, and edit the digest bullets it changes. Replace the current handoff
 instead of adding another. Keep everything above the index under ~200 lines.
 
-## Current handoff — 2026-11-13, session end
+## Current handoff — 2026-11-13 evening
 
-The user remade the world three times this session; the latest LAN port is
-50902 (read `MC_PORT` in `.env`). AdvancementBot ran `331f448` (PID 31317, logs
-`outputs/2026-11-13@02.00.10/`, Terminal window 592) on grass, going for iron
-with stone tools. The session fixed stalls from F126 to F136, mostly in
-spawn, water and swamp handling; a staged seagrass swim reached the
-mainland in 21 s (F136). Not yet seen live: the F135 trunk platform and a
-full canopy descent, F127 buckets and berries, F129 disposal zones, F130
-standoffs, F132 sculk exits, F131 pacing over a long dig. Verify the newest
-process, snapshot and owner kit first. Baseline: 550 tests pass.
+AdvancementBot resumed iron work at Y=16 on port 51391 (PID 17028, Terminal
+window 2250, `outputs/2026-11-13@21.28.28/`). The dry-land milestone migrated
+and was saved. The restart used the F137 source hashes in `session.json`.
+The preceding run mistook a cave for land and spent two picks (F137). Owner
+kit verified with no items added. Still to validate live: a first-time land
+search from underground, F135 trunk platform and full canopy descent, F127
+buckets and berries, F129 disposal zones, F130 standoffs, F132 sculk exits
+and F131 pacing over a long dig. Baseline: 553 tests pass.
 
 ## Stable facts and process lessons
 
@@ -62,11 +61,12 @@ process, snapshot and owner kit first. Baseline: 550 tests pass.
 Checked against `src/` on 2026-11-13. Named constants are in the cited files.
 
 Spawn, water and land
-- Every Overworld spawn or respawn sets a reach-land goal that never lapses.
-  It ranks after the air, lava, sculk, crowd and melee reflexes and before all
-  work. Land is a ground block (`LAND_GROUND`) under a dry, empty cell, with
-  no water at the feet or beside them, in a land mass of at least 1000
-  exposed blocks joined 26-ways (iterative DFS, `landMassSize`). Candidates
+- A new Overworld player seeks dry land until it reaches it once (F137).
+  Existing progress migrates old saves; the milestone survives death and
+  restarts. The initial land seeker uses the surface-return skill while
+  underground and collects safe visible iron within the reserve cap. A land
+  destination has open sky, dry feet and head, dry horizontal neighbours and
+  at least 1000 exposed ground blocks joined 26-ways (`landMassSize`). Candidates
   come from 96 blocks out, trips swim at water cost 1 with a 192 slack and
   1.2 s per block, and failures scout. A tree-top or stump spawn digs down
   through tree blocks onto a safe landing. A bot that swam stocks 16 soil
@@ -340,3 +340,4 @@ Highest risk first.
 - F134 Water impassable inside the path cost budget; swamp trees blocked [live failure + inspection + regression]
 - F135 Reach dry land first after every Overworld spawn [user direction + regression]
 - F136 Pathfinder treated seagrass and kelp as air [user report + inspection + regression]
+- F137 Returning underground players no longer repeat the initial land search [live + regression]

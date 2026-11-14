@@ -43,6 +43,17 @@ test('healthy armed bot fights a nearby hostile', () => {
     assert.equal(chooseAction(state({ health: 18, hostileDistance: 3, hasWeapon: true })), Actions.FIGHT)
 })
 
+test('an underground land seeker takes safe iron detours and otherwise returns to the surface', () => {
+    const miner = state({ needsLand: true, underground: true, y: 16, surfaceY: 64,
+        hasStonePickaxe: true, hasWoodenPickaxe: true, hasIronPickaxe: true, hasWeapon: true, freeInventorySlots: 4 })
+    assert.equal(chooseAction(miner), 'return_surface')
+    assert.equal(chooseAction({ ...miner, ironInView: true }), 'mine_iron')
+    assert.equal(chooseAction({ ...miner, ironInView: true, hostileDistance: 3 }), Actions.FIGHT)
+    assert.equal(chooseAction({ ...miner, ironInView: true, freeInventorySlots: 0, inventoryFull: true }), 'clear_inventory')
+    assert.equal(chooseAction({ ...miner, ironInView: true, food: 10, hasFood: true }), Actions.EAT)
+    assert.equal(chooseAction({ ...miner, ironInView: true, underground: false }), 'reach_land')
+})
+
 test('eating outranks night shelter when food is low', () => {
     assert.equal(chooseAction(state({ food: 10, hasFood: true, isNight: true })), Actions.EAT)
 })

@@ -3266,3 +3266,32 @@ stall. The first candidate's fixed 20 s timeout expired on arrival, so a
 land trip now gets 1.2 s per block of straight-line distance, with 20 s as
 the floor.
 
+## F137 — Returning underground players no longer repeat the initial land search
+
+On port 51391, `136b1c2` logged in with eight confirmed advancements and
+stone and iron picks at 52,16,-95. `spawn` re-armed `landPending`. Land
+scouting used an XZ-only goal and carved near Y=16 through repeated 25 s
+timeouts. It never selected the `mine_iron` detour while seeking land. The
+old run eventually chose deepslate at Y=-4 and reported success at
+53,-3,-55, still underground (`outputs/2026-11-13@21.17.15/bot.log`).
+
+User clarification: dry land is the first goal for a fresh player. Once
+completed it survives death, reconnects and script restarts on that world.
+`landReached` is saved with world memory and resets with a changed seed.
+Without `MC_WORLD_ID`, the milestone alone persists by username and server
+seed hash. Existing saves migrate from completed non-recipe advancements or
+items in player slots, including worn gear. An explicitly pending milestone
+survives later pickups or advancements until the bot stands on land. The
+land search rejects covered destinations and requires open sky to complete.
+An underground land seeker uses the existing surface-return skill and can
+collect visible safe iron between climb segments. Threats, meals, tool
+rebuilds and a necessary inventory clear take precedence underground.
+
+Live restart on 51391 in Terminal window 2250 at 21:28:28 ET. The bot resumed
+`gather_iron` at 1,16,-57 and wrote `landReached: true` to the existing world
+save. The owner-kit helper checked eight enchanted items, 64 enchanted golden
+apples and both infinite effects (`outputs/f137-owner-kit.log`). It added
+nothing. There were no gameplay setup commands. Fresh underground climbing
+and iron selection are covered by regressions. All three new regressions
+failed before their fixes, and the full 553-test suite and syntax checks passed.
+
