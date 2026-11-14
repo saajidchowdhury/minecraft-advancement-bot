@@ -112,3 +112,67 @@ test('bridging over a void lays a top-half floor and head-height bottom-half wal
         assert.equal(placed.has(key(new Vec3(3, 70, z))), false, 'no feet-level block once walls chain')
     }
 })
+
+test('on soul sand the bot steps ahead at its real feet level instead of digging its floor', async () => {
+    const { bot, placed, key } = bridgeWorld()
+    const registry = bot.registry
+    const Block = require('prismarine-block')(registry)
+    const blockAt = bot.blockAt
+    // Soul sand floor at y=69 under the bot and ahead; the bot's feet sink to 69.875.
+    bot.blockAt = p => {
+        const q = p.floored()
+        if (q.y === 69 && q.z === 0 && !placed.has(key(q))) {
+            const b = Block.fromStateId(registry.blocksByName.soul_sand.defaultState, 0)
+            b.position = q
+            return b
+        }
+        return blockAt(p)
+    }
+    bot.entity.position = new Vec3(0.5, 69.875, 0.5)
+    const dug = []
+    bot.dig = async block => { dug.push(block.position); await new Promise(resolve => setImmediate(resolve)) }
+    bot.setControlState = (control, value) => {
+        if (control === 'forward' && value) {
+            bot.entity.position = bot.entity.position.offset(1, 0, 0)
+        }
+    }
+    const memory = { netherBridge: { dimension: 'the_nether', dir: 0, steps: 0, lastCheck: 0, portal: new Vec3(0, 70, 0), target: null, turns: 0 } }
+    const c = { bot, memory, rng: () => 0, log: { info () {}, warn () {} }, running: true, paused: false, actionAbort: new AbortController() }
+    const run = findFortress(c)
+    while (memory.netherBridge.steps < 2) {
+        await new Promise(resolve => setTimeout(resolve, 5))
+    }
+    c.running = false
+    await assert.rejects(run, /cancelled/)
+    assert.deepEqual(dug, [], 'nothing dug: the cells ahead at y=70 are open')
+    assert.equal(Math.floor(bot.entity.position.y), 69)
+})
+
+test('slab crafting puts the table beside the line and takes it back', async () => {
+    const { bot, placed, key } = bridgeWorld()
+    bot.inventory.items().push({ name: 'crafting_table', count: 1 })
+    bot.inventory.items()[0].count = 0
+    bot.blockAt = (original => p => {
+        const q = p.floored()
+        if (placed.get(key(q)) === 'crafting_table') {
+            return { name: 'crafting_table', position: q, boundingBox: 'block' }
+        }
+        return original(p)
+    })(bot.blockAt)
+    bot._placeBlockWithOptions = async (ref, face) => { placed.set(key(ref.position.plus(face)), bot.heldName) }
+    bot.equip = async item => { bot.heldName = item.name }
+    // Netherrack floor all around so every side spot is valid; the line heads +x.
+    const ground = bot.blockAt
+    bot.blockAt = p => (p.floored().y === 69 && !placed.has(key(p.floored())) ? { ...ground(new Vec3(0, 69, 0)), position: p.floored() } : ground(p))
+    const dug = []
+    bot.dig = async block => { dug.push(block.position); placed.delete(key(block.position)) }
+    let crafted = null
+    const c = { bot, memory: {}, log: { info () {}, warn () {} }, running: true, paused: false, actionAbort: new AbortController(),
+        craftItem: async (name, count) => { crafted = [name, count, [...placed.entries()].find(([, v]) => v === 'crafting_table')?.[0]] } }
+    const memory = { netherBridge: { dimension: 'the_nether', dir: 0, steps: 0, lastCheck: 0, portal: new Vec3(0, 70, 0), target: null, turns: 0 } }
+    c.memory = memory
+    bot.setControlState = () => { c.running = false }
+    await assert.rejects(findFortress(c))
+    assert.deepEqual(crafted, ['cobblestone_slab', 126, '0,70,1'])
+    assert.deepEqual(dug.map(p => key(p)), ['0,70,1'])
+})

@@ -1805,7 +1805,7 @@ async function enterNether(c) {
     c.memory.overworldPortal = { x: portal.position.x, y: portal.position.y, z: portal.position.z }
     await c.gotoWithTimeout(new goals.GoalBlock(portal.position.x, portal.position.y, portal.position.z), 15000, 'portal entry')
     await until(c, () => bot.game.dimension === 'the_nether', 10000)
-    c.log.info('Entered the Nether. The supported route ends here; waiting near the portal.')
+    c.log.info('Entered the Nether.')
 }
 
 function redstonePlan(state) {

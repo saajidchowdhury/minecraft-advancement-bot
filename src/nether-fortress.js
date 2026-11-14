@@ -28,17 +28,42 @@ const slabCount = bot => countOf(bot, Object.values(SLABS))
 // Bridge supply in blocks: a slab is half of one.
 const bridgeSupply = bot => countOf(bot, BRIDGE_BLOCKS) + slabCount(bot) / 2
 const vec = p => new Vec3(p.x, p.y, p.z)
+// Soul sand (7/8 high) floors the feet at 100.875: rounding down took the floor for the cell ahead and
+// dug three levels into a soul sand valley (live 06:23Z), so feet round from 0.2 above.
+const feetOf = bot => {
+    const p = bot.entity.position
+    return new Vec3(Math.floor(p.x), Math.floor(p.y + 0.2), Math.floor(p.z))
+}
 const open = block => Boolean(block) && AIR.has(block.name)
 const solid = block => Boolean(block) && block.boundingBox === 'block' && !HOT.has(block.name)
 
-async function craftSlabs(c) {
+// The table goes beside or behind the line, never ahead: one placed in the path was dug as an obstacle
+// and lost (live 06:23Z). Crafting then reclaims it; a table left behind as a drop is walked to.
+async function craftSlabs(c, dir) {
     const bot = c.bot
     const [name, have] = BRIDGE_BLOCKS.map(n => [n, countOf(bot, [n])]).sort((a, b) => b[1] - a[1])[0]
     const blocks = Math.min(63, have - have % 3)
     if (blocks < 3) {
         throw new Error('out of bridge blocks for slabs')
     }
+    const feet = feetOf(bot)
+    const spots = [new Vec3(dir.z, 0, dir.x), new Vec3(-dir.z, 0, -dir.x), dir.scaled(-1)].map(s => feet.plus(s))
+    const spot = spots.find(p => open(bot.blockAt(p)) && solid(bot.blockAt(p.offset(0, -1, 0))))
+    if (spot && countOf(bot, ['crafting_table']) > 0) {
+        await place(c, spot, 'crafting_table', null, [[spot.offset(0, -1, 0), new Vec3(0, 1, 0)]])
+    }
     await c.craftItem(SLABS[name], 2 * blocks, true)
+    const table = spot && bot.blockAt(spot)?.name === 'crafting_table' ? bot.blockAt(spot) : null
+    if (table) {
+        await bot.dig(table, true)
+        await bot.waitForTicks(6)
+    }
+    const drop = Object.values(bot.entities ?? {}).find(e => e.name === 'item' && e.getDroppedItem?.()?.name === 'crafting_table' &&
+        e.position.distanceTo(bot.entity.position) < 8)
+    if (drop && countOf(bot, ['crafting_table']) === 0) {
+        const p = drop.position.floored()
+        await c.gotoWithTimeout(new goals.GoalNear(p.x, p.y, p.z, 0), 5000, 'crafting table pickup').catch(() => {})
+    }
 }
 
 // Cells next to p, other than `except`, that hold lava: digging p would let it flow into the path.
@@ -215,7 +240,7 @@ function fortressBeside(bot, feet) {
 
 async function findFortress(c) {
     const bot = c.bot
-    const feet = () => bot.entity.position.floored()
+    const feet = () => feetOf(bot)
     const nb = c.memory.netherBridge ??= { dimension: bot.game.dimension, dir: Math.floor(c.rng() * 4), steps: 0,
         lastCheck: -Infinity, portal: feet(), target: null, turns: 0 }
     if (bot.blockAt(feet())?.name === 'nether_portal') {
@@ -232,7 +257,8 @@ async function findFortress(c) {
             throw new Error('action cancelled')
         }
         if (slabCount(bot) < MIN_SLABS) {
-            await craftSlabs(c)
+            const [x, z] = DIRECTIONS[nb.dir]
+            await craftSlabs(c, new Vec3(x, 0, z))
         }
         if (nb.steps - nb.lastCheck >= CHECK_EVERY) {
             nb.lastCheck = nb.steps

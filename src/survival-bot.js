@@ -4107,7 +4107,8 @@ class SurvivalController {
     // standoffs := entity id -> { distance, until }: a melee mob that cannot reach the bot is no fight
     // while it stays that far off; archers shoot across gaps and are never stood down.
     rememberStandoff (entity, distance, reason) {
-        if (!entity?.id || ARCHERS.has(entity.name)) {
+        // In the Nether a skeleton across a soul sand valley drew seven futile charges off the bridge line (06:24Z).
+        if (!entity?.id || (ARCHERS.has(entity.name) && this.bot.game?.dimension !== 'the_nether')) {
             return
         }
         this.standoffs ??= new Map()
