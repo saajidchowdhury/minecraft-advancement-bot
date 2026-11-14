@@ -98,3 +98,32 @@ test('repeated food watchdog cancellations enter mobility recovery instead of sc
     assert.equal(recoveries, 1)
     assert.equal(scouts, 0)
 })
+
+test('with no prey in sight, visible fish are killed one by one with a trip to the surface after each', async () => {
+    const registry = require('prismarine-registry')('26.1')
+    const c = Object.create(SurvivalController.prototype)
+    const events = []
+    const fish = [1, 2].map(id => ({ id, name: 'cod', isValid: true, height: 0.3, position: new Vec3(id, 50, 0) }))
+    c.running = true
+    c.actionAbort = new AbortController()
+    c.memory = { blockedTargets: new Map() }
+    c.log = { info() {}, warn() {} }
+    c.canSee = () => true
+    c.bestItem = () => ({ name: 'iron_sword' })
+    c.visibleThreatCount = () => 0
+    c.visibleDrops = () => []
+    c.movements = {}
+    c.surfaceForAir = async full => { events.push(`surface ${full}`); c.bot.oxygenLevel = 20 }
+    c.scout = async () => assert.fail('scouted with fish in sight')
+    c.nearestEntity = () => null
+    c.mcData = registry
+    c.bot = {
+        registry, version: '26.1', health: 20, oxygenLevel: 20, game: { dimension: 'overworld' },
+        entity: { position: new Vec3(0, 50, 0), isInWater: true }, entities: Object.fromEntries(fish.map(f => [f.id, f])),
+        inventory: { items: () => [], slots: [] }, blockAt: () => ({ name: 'water', boundingBox: 'empty' }),
+        pathfinder: { setGoal() {}, setMovements() {} }, equip: async () => {}, lookAt: async () => {},
+        attack: target => { events.push(`kill ${target.id}`); target.isValid = false; c.bot.oxygenLevel = 16 }
+    }
+    assert.equal(await c.diveForFish(), true)
+    assert.deepEqual(events, ['kill 1', 'surface 20', 'kill 2', 'surface 20'])
+})

@@ -166,6 +166,14 @@ function foodOpportunity(c, state) {
     return fish[0] ? { action: 'hunt_fish', target: fish[0] } : null
 }
 
+// Every catchable fish in sight underwater at any depth, cod and salmon before tropical fish, then nearest.
+function visibleFish(c, range = 24) {
+    const here = c.bot.entity.position
+    return Object.values(c.bot.entities || {}).filter(e => e.isValid && FISH.includes(e.name) && here.distanceTo(e.position) <= range &&
+        !c.isBlockedTarget(e) && c.bot.blockAt(e.position.floored(), false)?.name === 'water' && (c.canSee?.(e) ?? true))
+        .sort((a, b) => FISH.indexOf(a.name) - FISH.indexOf(b.name) || here.distanceTo(a.position) - here.distanceTo(b.position))
+}
+
 // Shallow-water melee: the fight follows the fish and collects its drop; the guard surfaces early.
 async function huntFish(c, target) {
     if (!target?.isValid) {
@@ -444,4 +452,4 @@ async function pickLocalGlowBerries(c) {
     }
 }
 
-module.exports = { FOODS, FOOD_VALUES, COOKED, MIN_MINING_MEALS, mealReserve, foodState, cookFood, furnaceDue, jobDue, pickGlowBerries, huntFish, waitForFish, foodOpportunity }
+module.exports = { FOODS, FOOD_VALUES, COOKED, MIN_MINING_MEALS, mealReserve, foodState, cookFood, furnaceDue, jobDue, pickGlowBerries, huntFish, waitForFish, foodOpportunity, visibleFish }

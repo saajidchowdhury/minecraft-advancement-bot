@@ -15,7 +15,7 @@ const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-
 const { prepareBed, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
 const { installSculkCaution, sculkZoneAt, fleeSculk } = require('./sculk-caution')
-const { FOOD_VALUES, COOKED, furnaceDue, jobDue, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
+const { FOOD_VALUES, COOKED, furnaceDue, jobDue, MIN_MINING_MEALS, mealReserve, foodState, foodOpportunity, visibleFish, cookFood, pickGlowBerries, huntFish, waitForFish } = require('./food')
 const { plankFuelPlan, isFuelPlank } = require('./furnace-fuel')
 const { waterPlantsAsWater, WATER_PLANTS, exploreCave, collectOpportunity, findPriorityDiamond, findPriorityOre, IRON_ORES, miningSight, dryMovements, safeFooting,
     rememberMiningExposure, exposedByDig, visibleMiningHazard } = require('./cave-exploration')
@@ -128,6 +128,7 @@ const LAND_BLOCK_STOCK = 16
 // Low-air cutoff in bubbles (the breath handler surfaces at 12); one bubble is 15 ticks of air.
 const LOW_AIR_BUBBLES = 12
 const BUBBLE_MS = 750
+const DIVE_SURFACE_BUBBLES = 15
 const DESTROY_DELAY_MS = 250  // 5 ticks at 20 ticks/s
 // Standoff: a melee mob that gains under 0.5 blocks in 4 s is unreachable for 60 s unless it gains 1 block.
 const STANDOFF_WAIT_MS = 4000
@@ -1966,6 +1967,9 @@ class SurvivalController {
             this.log.info(`Hunting ${target.name} ${this.bot.entity.position.distanceTo(target.position).toFixed(1)} blocks away at ${target.position.floored()}.`)
             return this.fight(target, true)
         }
+        if (await this.diveForFish()) {
+            return
+        }
         if (state.foodOpportunity) {
             return this.perform(state.foodOpportunity.action, state)
         }
@@ -1973,6 +1977,78 @@ class SurvivalController {
             return
         }
         await this.scout(28)
+    }
+
+    // Swim to each visible fish, kill it, take the drop, then surface for full air before the next one.
+    async diveForFish () {
+        const signal = this.actionAbort?.signal
+        const safe = () => this.bot.health >= 12 && this.visibleThreatCount(12) === 0
+        if (!safe() || !visibleFish(this).length) {
+            return false
+        }
+        const weapon = this.bestItem([...SWORDS, ...WOODCUTTING_AXES])
+        if (weapon) {
+            await this.bot.equip(weapon, 'hand')
+        }
+        const cooldownMs = HUNT_AXE_COOLDOWN_MS[weapon?.name] || 650
+        const swim = dryMovements(this.bot, true)
+        swim.liquidCost = 1
+        this.bot.pathfinder.setMovements(swim)
+        const deadline = Date.now() + 120000
+        let caught = 0
+        try {
+            while (caught < 8 && Date.now() < deadline && safe()) {
+                this.checkAction(signal)
+                const fish = visibleFish(this)[0]
+                if (!fish) {
+                    break
+                }
+                this.log.info(`Diving for ${fish.name} at ${fish.position.floored()} (air ${this.bot.oxygenLevel ?? 20}/20).`)
+                const killed = await this.chaseFish(fish, cooldownMs, safe)
+                if (killed) {
+                    await pickUpKnownDrops(this, this.visibleDrops(fish.position, 6, false), 'hunted', 'fish', signal)
+                    caught++
+                }
+                if ((this.bot.oxygenLevel ?? 20) < 20 && swimmingAtSurface(this.bot)) {
+                    await this.surfaceForAir(20)
+                }
+            }
+        } finally {
+            this.bot.pathfinder.setGoal(null)
+            this.bot.pathfinder.setMovements(this.movements)
+        }
+        this.log.info(`Fish dive ended with ${caught} fish caught.`)
+        return true
+    }
+
+    async chaseFish (fish, cooldownMs, safe) {
+        const signal = this.actionAbort?.signal
+        const end = Date.now() + 20000
+        let nextSwingAt = 0
+        let progressAt = Date.now()
+        let best = Infinity
+        while (fish.isValid && Date.now() < end && safe() && (this.bot.oxygenLevel ?? 20) > DIVE_SURFACE_BUBBLES) {
+            this.checkAction(signal)
+            const distance = this.bot.entity.position.distanceTo(fish.position)
+            if (distance < best - 0.5) {
+                best = distance
+                progressAt = Date.now()
+            } else if (Date.now() - progressAt >= 8000) {
+                this.rememberBlockedTarget(fish, 'fish', new Error('fish pursuit stalled for 8s'))
+                break
+            }
+            if (distance > 2.8) {
+                this.bot.pathfinder.setGoal(new GoalFollow(fish, 2), true)
+            } else if (Date.now() >= nextSwingAt) {
+                this.bot.pathfinder.setGoal(null)
+                await this.bot.lookAt(fish.position.offset(0, (fish.height || 0.4) / 2, 0), true)
+                this.bot.attack(fish)
+                nextSwingAt = Date.now() + cooldownMs
+            }
+            await sleep(100)
+        }
+        this.bot.pathfinder.setGoal(null)
+        return !fish.isValid
     }
 
     async gatherMushroomStew (state) {
@@ -3077,7 +3153,7 @@ class SurvivalController {
             this.bot.entity.position.distanceTo(origin.position) < 1.2 && this.nearestEntity?.(MELEE, 2.5))
     }
 
-    async surfaceForAir () {
+    async surfaceForAir (fullAir = 18) {
         const bot = this.bot
         const air = new Set(['air', 'cave_air', 'void_air'])
         const passable = p => {
@@ -3090,7 +3166,7 @@ class SurvivalController {
         const deadline = Date.now() + 6000
         let next = null
         try {
-            for (let tick = 0; tick < 120 && Date.now() < deadline && (bot.oxygenLevel ?? 20) < 18; tick++) {
+            for (let tick = 0; tick < 120 && Date.now() < deadline && (bot.oxygenLevel ?? 20) < fullAir; tick++) {
                 this.checkAction()
                 if (tick % 4 === 0) {
                     const feet = bot.entity.position.floored()
