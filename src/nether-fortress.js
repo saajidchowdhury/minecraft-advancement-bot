@@ -268,7 +268,6 @@ async function findFortress(c) {
             nb.path.push([here.x, here.y, here.z])
         }
     }
-    record()
     if (bot.blockAt(feet())?.name === 'nether_portal') {
         const out = DIRECTIONS.map(([x, z]) => feet().offset(x, 0, z)).find(p => open(bot.blockAt(p)) &&
             open(bot.blockAt(p.offset(0, 1, 0))) && solid(bot.blockAt(p.offset(0, -1, 0))))
@@ -277,6 +276,14 @@ async function findFortress(c) {
         }
         await c.gotoWithTimeout(new goals.GoalBlock(out.x, out.y, out.z), 6000, 'portal exit')
     }
+    // A restocked bot walks its old line out to the frontier and carries on in the last segment's direction.
+    if (nb.path.length > 1 && !feet().equals(new Vec3(...nb.path.at(-1)))) {
+        await walkPath(c, nb.path.length - 1)
+        const [a, b] = nb.path.slice(-2).map(p => new Vec3(...p))
+        const last = DIRECTIONS.findIndex(([x, z]) => x === Math.sign(b.x - a.x) && z === Math.sign(b.z - a.z))
+        nb.dir = last >= 0 ? last : nb.dir
+    }
+    record()
     c.log.info(`Fortress search heading ${DIRECTIONS[nb.dir]} from ${feet()} after ${nb.steps} steps.`)
     for (;;) {
         check(c)
@@ -320,8 +327,8 @@ async function findFortress(c) {
     }
 }
 
-// Walks the recorded line back to the portal cell by cell, from the nearest recorded cell.
-async function returnAlongPath(c) {
+// Walks the recorded line from the nearest recorded cell to index `to` (0 is the portal), cell by cell.
+async function walkPath(c, to) {
     const bot = c.bot
     const path = (c.memory.netherBridge?.path ?? []).map(p => new Vec3(...p))
     if (path.length === 0) {
@@ -332,8 +339,11 @@ async function returnAlongPath(c) {
     if (path[i].distanceTo(here) > 0) {
         await c.gotoWithTimeout(new goals.GoalBlock(path[i].x, path[i].y, path[i].z), 10000, 'back onto the bridge')
     }
-    c.log.info(`Returning along ${i} recorded bridge cells to the portal.`)
-    for (i--; i >= 0; i--) {
+    const delta = Math.sign(to - i)
+    if (delta !== 0) {
+        c.log.info(`Walking ${Math.abs(to - i)} recorded bridge cells toward ${to === 0 ? 'the portal' : 'the frontier'}.`)
+    }
+    for (i += delta; delta !== 0 && i !== to + delta; i += delta) {
         check(c)
         const cell = path[i]
         await clearCells(c, [cell, cell.offset(0, 1, 0)])
@@ -349,5 +359,7 @@ async function returnAlongPath(c) {
     }
     return true
 }
+
+const returnAlongPath = c => walkPath(c, 0)
 
 module.exports = { findFortress, returnAlongPath, bridgeSupply, slabCount, heading, chooseTarget, BRIDGE_BLOCKS, SLABS, FORTRESS }

@@ -212,3 +212,28 @@ test('the way home walks every recorded bridge cell back, not a pathfinder route
     assert.deepEqual(routes, [], 'no pathfinder goal while already on the line')
     assert.deepEqual(walked, [[3, -1], [3, 0], [2, 0], [1, 0], [0, 0]], 'from the end cell (3,-2) back to the portal cell')
 })
+
+test('a restocked bot walks its old line out to the frontier and continues in the last direction', async () => {
+    const { bot } = bridgeWorld()
+    const path = [[0, 70, 0], [1, 70, 0], [1, 70, 1], [1, 70, 2]]
+    bot.entity.position = new Vec3(0.5, 70, 0.5)
+    const walked = []
+    let aim = null
+    bot.lookAt = async p => { aim = p }
+    const memory = { netherBridge: { dimension: 'the_nether', dir: 0, steps: 3, lastCheck: 0, portal: { x: 0, y: 70, z: 0 }, target: null, turns: 0, path } }
+    const c = { bot, memory, rng: () => 0, log: { info () {}, warn () {} }, running: true, paused: false, actionAbort: new AbortController(),
+        gotoWithTimeout: async () => {} }
+    bot.setControlState = (control, value) => {
+        if (control === 'forward' && value && aim) {
+            bot.entity.position = new Vec3(aim.x, 70, aim.z)
+            walked.push([Math.floor(aim.x), Math.floor(aim.z)])
+            if (walked.length >= 4) {
+                c.running = false
+            }
+        }
+    }
+    await assert.rejects(findFortress(c))
+    assert.deepEqual(walked.slice(0, 3), [[1, 0], [1, 1], [1, 2]], 'out along the recorded line first')
+    assert.equal(memory.netherBridge.dir, 1, 'then on in the last segment direction (+z)')
+    assert.deepEqual(path.slice(0, 4), [[0, 70, 0], [1, 70, 0], [1, 70, 1], [1, 70, 2]], 'the old line is not rewritten')
+})
