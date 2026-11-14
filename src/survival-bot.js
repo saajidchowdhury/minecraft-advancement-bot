@@ -2043,7 +2043,37 @@ class SurvivalController {
                 await this.surfaceForAir(20)
             }
             this.combatLiveAt = Date.now()
-            await pickUpKnownDrops(this, [drop], 'hunted', 'fish', signal)
+            if (waterFilled(this.bot.blockAt(drop.position.floored(), false))) {
+                await this.swimToDrop(drop)
+            } else {
+                await pickUpKnownDrops(this, [drop], 'hunted', 'fish', signal)
+            }
+        }
+    }
+
+    // The pathfinder never plans underwater and physics has no pitch swimming: steer flat toward the point,
+    // hold jump only while it is above the body, and otherwise sink under water gravity.
+    async steerSwimming (point, stopFlat) {
+        const here = this.bot.entity.position
+        const flat = Math.hypot(point.x - here.x, point.z - here.z)
+        this.bot.setControlState('forward', flat > stopFlat)
+        this.bot.setControlState('sprint', flat > 3)
+        this.bot.setControlState('jump', point.y - (here.y + 0.9) > 0.5)
+        await this.bot.lookAt(new Vec3(point.x, here.y + (this.bot.entity.eyeHeight ?? 1.62), point.z), true)
+    }
+
+    async swimToDrop (drop) {
+        const signal = this.actionAbort?.signal
+        const end = Date.now() + 12000
+        try {
+            while (drop.isValid && Date.now() < end && (this.bot.oxygenLevel ?? 20) > 6) {
+                this.checkAction(signal)
+                this.combatLiveAt = Date.now()
+                await this.steerSwimming(drop.position, 0.3)
+                await sleep(80)
+            }
+        } finally {
+            this.bot.clearControlStates()
         }
     }
 
@@ -2064,15 +2094,7 @@ class SurvivalController {
                 this.rememberBlockedTarget(fish, 'fish', new Error(`fish pursuit stalled for 8s at ${this.bot.entity.position.floored()}, fish ${fish.position.floored()}`))
                 break
             }
-            // The pathfinder never plans underwater, and physics has no pitch swimming: steer flat toward the
-            // fish, hold jump only while it is above, and otherwise sink under water gravity.
-            const here = this.bot.entity.position
-            const flat = Math.hypot(fish.position.x - here.x, fish.position.z - here.z)
-            const rise = fish.position.y + (fish.height || 0.4) / 2 - (here.y + 0.9)
-            this.bot.setControlState('forward', flat > 1.2)
-            this.bot.setControlState('sprint', flat > 3)
-            this.bot.setControlState('jump', rise > 0.5)
-            await this.bot.lookAt(new Vec3(fish.position.x, here.y + (this.bot.entity.eyeHeight ?? 1.62), fish.position.z), true)
+            await this.steerSwimming(fish.position.offset(0, (fish.height || 0.4) / 2, 0), 1.2)
             if (distance <= 3 && Date.now() >= nextSwingAt) {
                 await this.bot.lookAt(fish.position.offset(0, (fish.height || 0.4) / 2, 0), true)
                 this.bot.attack(fish)
