@@ -1,6 +1,6 @@
 # Prioritized development goals
 
-Updated 2026-11-13 (America/New_York). This is a working queue, not a rigid
+Updated 2026-11-14 (America/New_York). This is a working queue, not a rigid
 script. Reorder it when evidence or user instructions change. Keep goal IDs
 stable. When a goal is done, reduce it to one line under "Completed" with its
 evidence reference. Dated session narratives belong in `FINDINGS-ARCHIVE.md`
@@ -72,11 +72,14 @@ Diamonds! and Ice Bucket Challenge are confirmed (F053). A staged 8-to-10 run
 used the same pool and casting pit twice (F142). Still verify an unaided run
 casting ten from zero. The original blocked lava scoop passes on LAN (F122).
 
-### G006 — Medium / entry and return live — Nether portal reliability
+### G006 — High / staged — Nether fortress expedition
 
-F144 verified ignition, server-confirmed entry, and return through the
-portal. Partial-frame resumption and the route home remain open. Add gold
-boots before any longer stay (piglins).
+F144 verified portal entry and return. F149 adds the fortress expedition:
+staged prep, a 363-step slab bridge line and a return along the recorded
+path work. Next: a run that sights and enters a fortress, a restock round
+trip resuming at the frontier, gold boots against piglins, ghast fireballs,
+and faster 256-block stone gathering. Portal search needs sight within 32
+blocks; a hidden portal triggered a failed rebuild (F149).
 
 ### G010 — High / implemented, full survey pending — Caves and parallel preparation
 
@@ -114,6 +117,22 @@ bartering), blaze rods (a fortress, with full iron, food and a route back via
 G006), eyes of ender to triangulate, then the library's shelves. Done with
 server-confirmed Eye Spy and a level-30 enchant on the diamond pick. Starts only
 after G006 is live-verified.
+
+### G017 — High / not started — Keep mining out of sculk biomes
+
+User direction (2026-11-14): until the dragon is dead, never mine in deep dark
+or windswept hills ("extreme hills"), where sculk generates. On entering one,
+sneak (as `flee_sculk` does) several dozen blocks the opposite way, confirm a
+safer biome, then mine onward in that direction. Done when a staged deep-dark
+entry exits sneaking and resumes mining outside it (extends F132).
+
+### G018 — Medium / not started — Side probes survive unimportant ore
+
+User direction (2026-11-14): an exposed ore halts a side excursion only when the
+bot wants to mine it now; mine it, then resume. Any other exposed ore, whether
+unimportant (copper) or important but not wanted now (capped iron or coal,
+an unsafe diamond), no longer ends the probe. Done with a regression and one
+live probe that passes such an ore (F052, F087).
 
 ### G008 — Lower / measurements needed — Mining and resource economics
 

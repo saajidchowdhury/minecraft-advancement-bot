@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-580 tests and `npm run check` pass through F148.
+591 tests and `npm run check` pass through F149.
 Run them with the prepared runtime:
 
 ```sh
@@ -44,6 +44,7 @@ comment-bearing lines. `under-feet.js` is at 13/134 (9.7%) and
 | decision-engine | 61 | planner priorities, initial land underground, biome exit, swimming combat and retreat |
 | dependency-patches | 5 | crafting, furnace close, entity air, pathfinder jump landings |
 | drop-caution | 7 | 10-block drop test, cliff edges, no diagonal or dig-jump beside drops, sprint off, builders wired, approach time |
+| nether-fortress | 10 | expedition prep, in-Nether rules, carry limits, axis approach, slab bridge and walls, soul sand feet, table beside line, cancellation, path return and resume |
 | drowning | 6 | low-air interrupt, direct swim rescue, dry station pickup |
 | enchanting | 5 | Enchanter gating, offer choice, zero-level wait |
 | enderman | 11 | gaze avoidance, anger, refuge priority and persistence |
@@ -88,6 +89,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Crafting and wearing diamond armor before Hot Stuff | automated / staged | F123 |
 | Rejecting unsupported jump landings; dry berry approaches and pickup | automated | F124 |
 | Drop caution: no diagonals, dig-jumps or sprinting beside 10+ block drops | automated / staged arena | F148 |
+| Nether fortress line: prep, slab bridge, 363 steps, return along recorded path | staged (no fortress seen yet) | F149 |
 | Diamond interrupt, probe-exposed ore, dig-exposed vein ore | live / staged | F031, F054, F079, F100 |
 | Remembered diamond behind an overhang, stair approach and pickup | automated / staged on original vein | F121 |
 | Lava source with an obstructed centre ray | automated / staged at original ledge | F122 |

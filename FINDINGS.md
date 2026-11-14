@@ -105,6 +105,14 @@ Planner and gear order
   (`MIN_MINING_WOOD_PLANKS`, `MIN_MINING_MEALS`; F071, F082). An empty-handed
   bot builds stone tools and an axe before hunting unless food is 6 or less (F104).
 
+Nether expedition (F149)
+- After the first entry: carried table, 256 bridge blocks, ingots and sticks
+  for two iron picks, 16 average meals, then back through the remembered
+  portal. In the Nether: slabs from one stack at a time, one cardinal line,
+  fortress check every 16 steps, home along every recorded cell when bridge
+  supply falls under 8 blocks or food under a quarter, restock, resume at
+  the line's frontier. Ghasts are not melee hostiles.
+
 Mining and tunnels
 - Digs follow vanilla timing plus the 5-tick (250 ms) delay after any break
   longer than one tick (F131). With no pickaxe and too little wood for one
@@ -375,3 +383,4 @@ Highest risk first.
 - F146 Use swimming routes for combat and retreat [live failure + staged + regression]
 - F147 Leave water-heavy surface biomes before seeking mainland or wood [live + staged + regression]
 - F148 Drop caution after a 22-block dig-then-diagonal-jump fall [live failure + user direction + staged + regression]
+- F149 Nether fortress expedition: prepare, bridge one cardinal line, return along it [user direction + staged + regression]

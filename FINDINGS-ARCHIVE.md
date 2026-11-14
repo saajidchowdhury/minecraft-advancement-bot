@@ -3604,3 +3604,54 @@ B and cut 4 logs at full health. Across 14 path updates: 0 diagonals or
 dig-jumps beside drops (38 diagonals elsewhere); 113 of 452 ticks beside
 drops with 0 sprinting there (241 sprint ticks elsewhere); the only fall
 was the planned 1.9-block step off the stairs. Staged, not unaided.
+
+## F149 — Nether fortress expedition: prepare, bridge one cardinal line, return along it
+
+User direction (2026-11-14): after We Need to Go Deeper, carry four stacks of
+non-flammable slab blocks, 16 cooked meats' worth of food, ingots for two
+spare iron pickaxes and a crafting table. In the Nether, turn a stack into
+slabs, hold one random cardinal direction, tunnel through rock and bridge
+gaps on top-half slab floors with head-height bottom-half slab walls, and
+look for fortress blocks every 16 steps. A sighted block is approached one
+axis at a time and dug into. Go home along the recorded line, restock in
+the Overworld, then walk the line back to its frontier and continue.
+
+Implementation: `src/nether-fortress.js` (`findFortress`, `walkPath`),
+planner `expeditionStep` and in-Nether rule in `src/advancement-plan.js`,
+expedition carry limits (building 320, slabs 512) in `src/inventory.js`,
+remembered Overworld portal in `enterNether`. Bridge supply counts
+cobblestone, cobbled deepslate, blackstone and half of each slab. A wall
+without an earlier wall to click starts from a side floor slab and a full
+post. Lava at or beside a cell to dig turns the line. Ghasts are no longer
+melee hostiles; unreachable archers may stand down in the Nether.
+
+Staged trials, all by NetherTrial on the F148 arena floor (160,100,-260)
+with a commanded obsidian portal at 175..178,101..105,-225, supplied iron
+armor, shield, diamond sword and pickaxe, 256 cobblestone, 6 ingots,
+sticks, planks, 32 logs, 24 cooked beef, coal, a furnace and a table, and
+granted the story advancements through enter_the_nether and shiny_gear.
+keep_inventory was enabled and restored to false; the owner watched from
+beside the portal and was teleported behind the bot every 45 s.
+- Run 1 (f861a5c, `outputs/2026-11-14@01.22.28-*`): the arrival portal
+  opened into a soul sand valley. Feet rounded down from 100.875 took the
+  floor for the cell ahead and dug three levels; the slab table, placed in
+  the path, was dug and lost; an unreachable skeleton drew seven charges.
+  A probe (`outputs/probe-f149-bridge.json`) mapped the dig.
+- Run 2 (f15517f): a skeleton interrupt during the first steps outlived
+  the 2 s release window and shut the controller down.
+- Run 3 (7d065b1, `outputs/2026-11-14@01.34.17-*`): 363 steps east then
+  north (lava turn at 226,101,-28) at about 1 block/s, four stacks used
+  (about 3 slabs per bridged step), no fortress in sight, full health.
+  The return then failed: one 360-block goal exceeded A*'s 48-block slack
+  and the fallback scouted across terrain; the bot still reached the
+  Overworld.
+- Return trial (2d6d1ef, `outputs/2026-11-14@01.47.27-*`): the run-3
+  bridge seeded as a recorded path; the bot walked home cell by cell at
+  about 4 blocks/s and reached the Overworld at full health in 110 s. All
+  off-line samples sat where the seeded flat path disagreed with the real
+  bridge height near z=-127. A skeleton at the portal caused one fight.
+Fixes in between: feet from 0.2 above, table beside the line and taken
+back, cancellation checks with four-recipe slab batches, the recorded
+path and its return, and resuming at the frontier (df2ff1e, regression
+only). Not yet live: a fortress sighting and entry, a restock round trip,
+the stair steps toward a target.
