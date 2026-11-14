@@ -1116,7 +1116,7 @@ class SurvivalController {
         const shaft = this.memory.shaft
         const feet = this.bot.entity.position.floored()
         const biome = this.bot.game.dimension === 'overworld' ? surfaceBiome(this.bot, feet) : null
-        if (wetBiome(biome)) {
+        if (wetBiome(biome) && !this.divingForFish) {
             this.biomeExit ??= { direction: null, visited: [], coast: null }
         } else if (this.biomeExit && this.bot.entity.onGround && !this.bot.entity.isInWater && solidExit(this.bot, feet, biome)) {
             this.log.info(`Exited the water-dominant biome onto solid footing in ${biome} at ${feet}.`)
@@ -1451,7 +1451,7 @@ class SurvivalController {
                 attempts.push(new Promise(resolve => {
                     opportunityWatchdog = setInterval(() => {
                         const seen = this.priorityTargetInView(allowOre)
-                        if (seen && seen !== initial) {
+                        if (seen && seen !== initial && !this.divingForFish) {
                             clearInterval(opportunityWatchdog)
                             cancelledByGuard = true
                             resolve()
@@ -1996,6 +1996,7 @@ class SurvivalController {
         this.bot.pathfinder.setMovements(swim)
         const deadline = Date.now() + 120000
         let caught = 0
+        this.divingForFish = true
         try {
             while (caught < 8 && Date.now() < deadline && safe()) {
                 this.checkAction(signal)
@@ -2014,6 +2015,7 @@ class SurvivalController {
                 }
             }
         } finally {
+            this.divingForFish = false
             this.bot.pathfinder.setGoal(null)
             this.bot.pathfinder.setMovements(this.movements)
         }
@@ -2029,12 +2031,13 @@ class SurvivalController {
         let best = Infinity
         while (fish.isValid && Date.now() < end && safe() && (this.bot.oxygenLevel ?? 20) > DIVE_SURFACE_BUBBLES) {
             this.checkAction(signal)
+            this.combatLiveAt = Date.now()
             const distance = this.bot.entity.position.distanceTo(fish.position)
             if (distance < best - 0.5) {
                 best = distance
                 progressAt = Date.now()
             } else if (Date.now() - progressAt >= 8000) {
-                this.rememberBlockedTarget(fish, 'fish', new Error('fish pursuit stalled for 8s'))
+                this.rememberBlockedTarget(fish, 'fish', new Error(`fish pursuit stalled for 8s at ${this.bot.entity.position.floored()}, fish ${fish.position.floored()}`))
                 break
             }
             if (distance > 2.8) {
