@@ -3680,3 +3680,21 @@ piglins were not hostile in `HOSTILES`. Piglins now count as hostile melee
 attackers (regression only). keep_inventory restored to false, owner
 returned each time.
 
+
+## F150 Dive for visible fish when no prey is in sight [user direction + staged + regression]
+
+User direction (2026-11-14): when gathering food, fish in sight and no land prey in sight, swim to each fish,
+kill it, take the drop (diving if it sank), surface for air, then take the next fish.
+Implementation: `diveForFish`, `chaseFish`, `swimToDrop` and `steerSwimming` in `src/survival-bot.js`,
+`visibleFish` in `src/food.js`. mineflayer-pathfinder never plans underwater (movements.js "dont go
+underwater") and prismarine-physics has no pitch swimming, so underwater travel is hand steering: forward
+toward the target, jump only while it is above, otherwise sink. While a dive runs, `divingForFish` blocks the
+opportunity interrupt, biome-exit creation and the low-air cancel above 6 bubbles; the bot surfaces itself at
+15 bubbles (chase) or 10 (drop trips).
+Staged test at 829/65/612 (cold_ocean/river/stony_shore), commands issued by `outputs/stage-fish-dive.js`
+via EffectHelper: owner kit check, `/time set day`, `/kill` of cow/pig/sheep/chicken/rabbit and cod/salmon within
+64, `/clear Bot` of all food, `/summon` of 2 cod and 2 salmon in water of depth >= 4, `/tp` of Bot and owner to the
+shore. Fish and drops were staged; pathfinder swimming, interrupts and drop pickup failures were found in
+four restarts (run logs `outputs/fish-dive-run*.log`). Last run: meal points 78 -> 148 from caught fish
+(not survival-unaided: food cleared, fish summoned, daytime set). Uncertain: the 35 s dive budget (cut from 50 s
+after a 60 s gather_food timeout) was not rerun live; drowned attacks in the river ended one trip.

@@ -354,3 +354,4 @@ Highest risk first.
 - F147 Leave water-heavy surface biomes before seeking mainland or wood [live + staged + regression]
 - F148 Drop caution after a 22-block dig-then-diagonal-jump fall [live failure + user direction + staged + regression]
 - F149 Nether fortress expedition: prepare, bridge one cardinal line, return along it [user direction + staged + regression]
+- F150 Dive for visible fish when no prey is in sight, steering by hand underwater [user direction + staged + regression]

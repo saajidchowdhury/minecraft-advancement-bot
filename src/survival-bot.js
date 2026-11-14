@@ -1998,7 +1998,7 @@ class SurvivalController {
         swim.infiniteLiquidDropdownDistance = true
         swim.maxDropDown = 16
         this.bot.pathfinder.setMovements(swim)
-        const deadline = Date.now() + 50000
+        const deadline = Date.now() + 35000
         let caught = 0
         this.divingForFish = true
         this.biomeExit = null
