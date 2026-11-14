@@ -3462,3 +3462,24 @@ bot restarted in the same water, swam roughly 29 blocks and stood on sand at
 earned the server-confirmed We Need to Go Deeper advancement, and returned
 to the Overworld through the portal, all at full health. See
 `outputs/owner-kit-f144.json` and `outputs/2026-11-13@22.58.12/bot.log`.
+
+## F145 — Stand on a surface-water platform before cutting a water-ringed trunk
+
+An upper log selected from dry ground bypassed the platform trigger because
+its bottom neighbor was another log. The previous platform search also gave
+up when a nearby dry bank was within reach. The regression calls the normal
+wood action from a nearby bank and checks placement and footing before
+collection. It fails on the previous version.
+
+Check the vertical log column for a four-sided surface-water ring. Use a
+cardinal surface cell against that log face and a low-cost solid block such
+as dirt, cobblestone or planks. Approach and mount with a swimming path that
+cannot dig. Verify the block and dry grounded footing before chopping.
+A bot-placed platform beside three remaining wet sides can be reused.
+
+TrunkTrial was supplied an axe, oak logs and planks and placed on the bank
+near a natural swamp oak. No terrain commands were used. The wood action
+placed planks at 77,62,2 beside the stump at 77,62,1. It was dry and
+grounded at 77,63,2 during all three recorded cuts. One drop landed out of
+reach. See `outputs/f145-tree-trial.json` and
+`outputs/2026-11-13@23.06.47/tree-platform.log`.

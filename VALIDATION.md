@@ -55,7 +55,7 @@ comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
 | memory-random | 2 | seeded rng, atomic world memory |
 | mined-ore-recovery | 13 | diamond memory, longer dry approaches, independent cooldowns, alternate stairs, cancellation, hidden water, bounded diamond pickup retry |
 | mining-timing | 6 | break times for tier ores, landing before digging, bare-hand stone when stranded, enchanted 26.1 tools, 5-tick destroy delay |
-| mobility-recovery | 35 | unstick, shaft and pillar detection, safe drops, heap guard, sky-bound surface scouts, swamp swims, logs and treading, initial land milestone, cave exclusion, canopy descent, 1000-block land mass, soil stock, trunk platforms, water plants as liquid |
+| mobility-recovery | 36 | unstick, shaft and pillar detection, safe drops, heap guard, sky-bound surface scouts, swamp swims, logs and treading, initial land milestone, cave exclusion, canopy descent, 1000-block land mass, soil stock, trunk platforms, water plants as liquid |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
 | progression-skills | 37 | stairs, tunnels, verified liquid plugs, lava scoop rays, pool memory, side casting, portal approach and geometry |
@@ -147,4 +147,4 @@ none ran during the trial). "Automated" means regression tests only.
 | Submerged-dig refusal, treading water, swamp swims and logs | live | F133, F134 |
 | Reach land after spawn: large land mass, stump exit, seagrass swim | live stump exit; staged swims | F135, F136 |
 | Return to underground iron work after restart; first-time land search climbs and takes safe iron | live restart; initial climb and iron priority automated | F137 |
-| Trunk platform, full canopy descent, soil stock | automated; stock live | F135 |
+| Trunk platform, full canopy descent, soil stock | trunk platform staged, canopy automated, stock live | F135, F145 |

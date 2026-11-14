@@ -13,13 +13,15 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13 evening
 
-AdvancementBot is on port 51391 (PID 24125, Terminal window 2250, logs
-`outputs/2026-11-13@22.58.12/`). In a staged retry at the second pool it
+AdvancementBot is on port 51391 (PID 25033, Terminal window 2250, logs
+`outputs/2026-11-13@23.08.11/`). In a staged retry at the second pool it
 collected the last two obsidian using one side pit (F142). A restart at its
 actual stuck position verified a route around the ceiling plugs to the
 ocean surface (F143). It used the startup swim to get ashore, built a portal,
 earned We Need to Go Deeper, and returned to the Overworld (F144).
-A full ten-cast run from zero remains open. Baseline: 563 tests pass.
+A natural four-sided swamp oak was cut from a plank placed in surface
+water during a staged approach (F145). A full ten-cast run from zero
+remains open. Baseline: 564 tests pass.
 
 ## Stable facts and process lessons
 
@@ -181,8 +183,9 @@ Environmental reflexes, night and recovery
 ## Open problems and unverified behavior
 
 Highest risk first.
-1. Swamp and spawn handling is new and mostly staged: the trunk platform, a
-   full canopy descent and island rejection need natural evidence (F135, F136).
+1. Swamp and spawn handling is new and mostly staged: the trunk platform passed
+   at a natural oak from a staged dry start (F145). Full canopy descent and
+   island rejection still need natural evidence (F135, F136).
    A "falling air above the bot" loop (05:39Z) cleared itself, unrecorded.
 2. Retreat under pursuit and creepers in mixed groups failed staged cases
    (F111). The night water search watchdog stall is contained but unexplained
@@ -357,3 +360,4 @@ Highest risk first.
 - F142 Remember lava sources and reuse a casting pit off the path [user direction + staged + regression]
 - F143 Route around sealed ceiling plugs when returning to the surface [live + regression]
 - F144 Swim to dry ground when portal preparation starts in water [live + regression]
+- F145 Stand on a surface-water platform before cutting a water-ringed trunk [user direction + staged + regression]

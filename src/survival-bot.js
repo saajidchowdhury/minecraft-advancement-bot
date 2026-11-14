@@ -48,6 +48,7 @@ const CREEPERS = new Set(['creeper'])
 const ARCHERS = new Set(['skeleton', 'stray', 'bogged', 'pillager'])
 const WATER_BLOCKS = new Set(['water', 'bubble_column', 'kelp', 'kelp_plant', 'seagrass', 'tall_seagrass'])
 const BUILDING_BLOCKS = ['cobblestone', 'cobbled_deepslate', 'dirt', 'netherrack']
+const LOG_PLATFORM_BLOCKS = [...BUILDING_BLOCKS, 'planks', 'stone', 'deepslate', 'tuff']
 // Two-cell surface shelter: 20 ring walls, one roof seat and two roof blocks.
 const SHELTER_BLOCKS = 23
 const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]]
@@ -1767,14 +1768,16 @@ class SurvivalController {
         const trunk = this.bot.collectBlock.findFromVein(block, 3, 6, 1)
             .filter(log => log.position.equals(block.position) || (breakable(log) && blockInView(this.bot, log, exposedByDig(this, log))))
         const signal = this.actionAbort?.signal
+        const waterline = this.ringedTrunkWaterline(block)
+        let onPlatform = false
         try {
-            if (this.bot.entity?.isInWater || this.bot.blockAt(block.position.offset(0, -1, 0), false)?.name === 'water') {
-                await this.buildLogPlatform(block)
+            if (waterline || this.bot.entity?.isInWater || this.bot.blockAt(block.position.offset(0, -1, 0), false)?.name === 'water') {
+                onPlatform = await this.buildLogPlatform(block, waterline)
             }
             await this.collectTarget(trunk.length > 0 ? trunk : block, block, 'tree')
         } catch (error) {
             // Remaining logs above standing reach (live 01:07Z, oak at -24,69,194) need a short pillar.
-            if (!signal?.aborted && /no path|timed out|not visible or reachable/i.test(error.message) &&
+            if ((!waterline || onPlatform) && !signal?.aborted && /no path|timed out|not visible or reachable/i.test(error.message) &&
                 !this.nearestEntity(HOSTILES, 16) && treePillar(this.bot, block)) {
                 try {
                     if (await climbForLog(this, block) > 0) {
@@ -3231,7 +3234,7 @@ class SurvivalController {
         }
     }
 
-    async placeSurvivalBlock (target) {
+    async placeSurvivalBlock (target, materials = BUILDING_BLOCKS, support = null) {
         const signal = this.actionAbort?.signal
         this.checkAction(signal)
         await clearPlants(this, [target])
@@ -3240,7 +3243,7 @@ class SurvivalController {
         if (!this.isEmptyPlacementBlock(existing) && !['water', 'lava'].includes(existing?.name)) {
             return
         }
-        const item = this.bestItem(BUILDING_BLOCKS)
+        const item = this.bestItem(materials)
         if (!item) {
             throw new Error('out of shelter blocks')
         }
@@ -3259,7 +3262,7 @@ class SurvivalController {
         const interactive = name => PROTECTED_CONTAINERS.has(name) || INTERACTIVE.test(name)
         const references = [[0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]]
             .map(([dx, dy, dz]) => ({ face: new Vec3(-dx, -dy, -dz), ref: this.bot.blockAt(target.offset(dx, dy, dz)) }))
-            .filter(({ ref }) => ref?.boundingBox === 'block')
+            .filter(({ ref }) => ref?.boundingBox === 'block' && (!support || support.equals(ref.position)))
             .sort((a, b) => interactive(a.ref.name) - interactive(b.ref.name))
         const choice = references[0]
         if (!choice) {
@@ -3770,41 +3773,88 @@ class SurvivalController {
         await this.collectTarget(soil, soil, 'soil')
     }
 
-    // A trunk with no dry footing in reach gets a block on the water surface beside it to stand on (F135).
-    async buildLogPlatform (log) {
+    ringedTrunkWaterline (log) {
+        const bot = this.bot
+        const at = p => bot.blockAt(p, false)
+        for (let p = log.position; at(p)?.name === log.name; p = p.offset(0, -1, 0)) {
+            const sides = SIDES.map(([dx, dz]) => p.offset(dx, 0, dz))
+            const wet = sides.filter(side => waterFilled(at(side)))
+            const supported = side => this.memory.placedBlocks?.some(([dimension, x, y, z, name]) =>
+                dimension === bot.game?.dimension && x === side.x && y === side.y && z === side.z &&
+                name === at(side)?.name && soundFloor(at(side)))
+            if (wet.length >= 3 && wet.every(side => !waterFilled(at(side.offset(0, 1, 0)))) &&
+                sides.every(side => waterFilled(at(side)) || supported(side))) {
+                return p
+            }
+        }
+        return null
+    }
+
+    async buildLogPlatform (log, waterline = this.ringedTrunkWaterline(log)) {
+        const bot = this.bot
         const eye = cell => cell.offset(0.5, 1.62, 0.5)
         const inReach = cell => eye(cell).distanceTo(log.position.offset(0.5, 0.5, 0.5)) <= 4.5
-        const near = []
-        for (let dx = -4; dx <= 4; dx++) {
-            for (let dz = -4; dz <= 4; dz++) {
-                for (let dy = -5; dy <= 1; dy++) {
-                    const cell = log.position.offset(dx, dy, dz)
-                    if (inReach(cell) && safeFooting(this.bot, cell)) {
-                        return false
+        const at = p => bot.blockAt(p, false)
+        const dry = p => {
+            const block = at(p)
+            return this.isEmptyPlacementBlock(block) && !waterFilled(block)
+        }
+        const near = waterline ? SIDES.map(([dx, dz]) => waterline.offset(dx, 1, dz)) : []
+        if (!waterline) {
+            for (let dx = -4; dx <= 4; dx++) {
+                for (let dz = -4; dz <= 4; dz++) {
+                    for (let dy = -5; dy <= 1; dy++) {
+                        const cell = log.position.offset(dx, dy, dz)
+                        if (inReach(cell) && safeFooting(bot, cell)) {
+                            return false
+                        }
+                        near.push(cell)
                     }
-                    near.push(cell)
                 }
             }
         }
-        if (!this.bestItem(BUILDING_BLOCKS)) {
-            throw new Error('no block to stand on beside a water-bound trunk')
-        }
-        const at = p => this.bot.blockAt(p, false)
-        const here = this.bot.entity.position
-        const stand = near.filter(cell => inReach(cell) && at(cell.offset(0, -1, 0))?.name === 'water' &&
-            at(cell)?.boundingBox === 'empty' && at(cell)?.name !== 'water' && at(cell.offset(0, 1, 0))?.boundingBox === 'empty' &&
-            SIDES.some(([dx, dz]) => at(cell.offset(dx, -1, dz))?.boundingBox === 'block'))
-            .sort((a, b) => a.distanceTo(here) - b.distanceTo(here))[0]
+        near.sort((a, b) => a.distanceTo(bot.entity.position) - b.distanceTo(bot.entity.position))
+        const open = cell => dry(cell) && dry(cell.offset(0, 1, 0))
+        const existing = waterline && near.find(cell => open(cell) && soundFloor(at(cell.offset(0, -1, 0))))
+        const stand = existing || near.find(cell => open(cell) && (waterline || inReach(cell)) &&
+            at(cell.offset(0, -1, 0))?.name === 'water' &&
+            SIDES.some(([dx, dz]) => soundFloor(at(cell.offset(dx, -1, dz)))))
         if (!stand) {
             throw new Error('no water-surface cell beside the trunk to build on')
         }
         const signal = this.actionAbort?.signal
-        this.log.info(`No dry footing near ${log.name} at ${log.position}; placing a block at ${stand.offset(0, -1, 0)} to stand on.`)
-        await this.gotoWithTimeout(new goals.GoalNear(stand.x, stand.y, stand.z, 3), 15000, 'log platform approach')
-        this.checkAction(signal)
-        await this.placeSurvivalBlock(stand.offset(0, -1, 0))
-        this.checkAction(signal)
-        await this.gotoWithTimeout(new goals.GoalBlock(stand.x, stand.y, stand.z), 8000, 'log platform')
+        const platform = stand.offset(0, -1, 0)
+        const previous = bot.pathfinder?.movements
+        if (previous) {
+            const swimming = new Movements(bot)
+            this.configureSafeMovements(swimming)
+            swimming.canDig = false
+            swimming.liquidCost = 1
+            bot.pathfinder.setMovements(swimming)
+        }
+        try {
+            if (!existing) {
+                if (!this.bestItem(LOG_PLATFORM_BLOCKS)) {
+                    throw new Error('no block to stand on beside a water-bound trunk')
+                }
+                this.log.info(`Placing a block at ${platform} beside the water-bound trunk.`)
+                const approach = new goals.GoalNear(stand.x, stand.y, stand.z, 3)
+                const nearby = approach.isEnd.bind(approach)
+                approach.isEnd = node => nearby(node) && (node.x !== stand.x || node.z !== stand.z)
+                await this.gotoWithTimeout(approach, 15000, 'log platform approach')
+                this.checkAction(signal)
+                await this.placeSurvivalBlock(platform, LOG_PLATFORM_BLOCKS, waterline)
+            }
+            this.checkAction(signal)
+            await this.gotoWithTimeout(new goals.GoalBlock(stand.x, stand.y, stand.z), 8000, 'log platform')
+            await until(this, () => bot.entity.onGround && !bot.entity.isInWater &&
+                bot.entity.position.floored().equals(stand) && soundFloor(at(platform)), 1500)
+        } finally {
+            if (previous) {
+                bot.pathfinder.setGoal(null)
+                bot.pathfinder.setMovements(previous)
+            }
+        }
         return true
     }
 

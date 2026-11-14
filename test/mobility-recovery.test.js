@@ -644,23 +644,29 @@ test('after swimming to land the bot stocks sixteen soil blocks before wood (F13
 
 test('a trunk ringed by water gets a block on the water surface to stand on (F135)', async () => {
     const { c, bot, Vec3 } = landWorld()
+    const placed = []
     const blockAt = bot.blockAt
     const trunk = p => p.x === 5 && p.z === 0 && p.y >= 61 && p.y <= 66
     bot.blockAt = at => {
         const p = at.floored()
-        if (trunk(p)) {
+        if (trunk(p) || placed.includes(String(p))) {
             const registry = bot.registry
-            const b = require('prismarine-block')(registry).fromStateId(registry.blocksByName.oak_log.defaultState, 0)
+            const b = require('prismarine-block')(registry).fromStateId(registry.blocksByName[trunk(p) ? 'oak_log' : 'dirt'].defaultState, 0)
             b.position = p
             return b
         }
         return blockAt(at)
     }
-    const placed = []
     const visits = []
-    Object.assign(c, { bestItem: () => ({ name: 'dirt' }),
+    bot.health = 20
+    Object.assign(c, { running: true, bestItem: () => ({ name: 'dirt' }),
         async placeSurvivalBlock(p) { placed.push(p.toString()) },
-        async gotoWithTimeout(g, ms, label) { visits.push([label, g.x, g.y, g.z]) } })
+        async gotoWithTimeout(g, ms, label) {
+            visits.push([label, g.x, g.y, g.z])
+            if (label === 'log platform') {
+                Object.assign(bot.entity, { position: new Vec3(g.x + 0.5, g.y, g.z + 0.5), onGround: true, isInWater: false })
+            }
+        } })
     const target = bot.blockAt(new Vec3(5, 64, 0))
     assert.equal(await c.buildLogPlatform(target), true)
     assert.equal(placed.length, 1)
@@ -669,7 +675,60 @@ test('a trunk ringed by water gets a block on the water surface to stand on (F13
     assert.equal(Math.abs(x - 5) + Math.abs(z), 1, 'beside the trunk')
     assert.deepEqual(visits.at(-1), ['log platform', x, 63, z])
     c.bestItem = () => null
+    placed.length = 0
     await assert.rejects(c.buildLogPlatform(target), /no block to stand on/)
+})
+
+test('wood gathering stands on a plank beside a ringed trunk even when a dry bank is in reach', async () => {
+    const { c, bot, Vec3 } = landWorld()
+    const Block = require('prismarine-block')(bot.registry)
+    const blockAt = bot.blockAt
+    const trunk = new Vec3(19, 62, 0)
+    const filled = new Map()
+    let platform
+    const placed = []
+    let collected = false
+    bot.blockAt = at => {
+        const p = at.floored()
+        const name = filled.get(String(p)) ?? (p.x === trunk.x && p.z === trunk.z && p.y >= 61 && p.y <= 65
+            ? 'oak_log' : p.x >= 21 && p.y === 62 ? 'dirt' : null)
+        if (!name) {
+            return blockAt(at)
+        }
+        const block = Block.fromStateId(bot.registry.blocksByName[name].defaultState, 0)
+        block.position = p
+        return block
+    }
+    Object.assign(bot.entity, { position: new Vec3(21.5, 63, 0.5), onGround: true, isInWater: false })
+    bot.health = 20
+    c.running = true
+    bot.inventory.items = () => [{ name: 'oak_log', count: 4 }, { name: 'oak_planks', count: 1 }]
+    const upper = bot.blockAt(trunk.offset(0, 2, 0))
+    bot.collectBlock = { findFromVein: () => [upper] }
+    bot.equip = async item => { bot.heldItem = item }
+    bot.placeBlock = async (ref, face) => {
+        assert.equal(bot.heldItem.name, 'oak_planks')
+        platform = ref.position.plus(face)
+        assert.ok(ref.position.equals(trunk))
+        assert.equal(bot.blockAt(platform).name, 'water')
+        placed.push(platform)
+        filled.set(String(platform), 'oak_planks')
+    }
+    c.findNearestBlock = () => upper
+    c.gotoWithTimeout = async (goal, timeoutMs, label) => {
+        if (label === 'log platform') {
+            Object.assign(bot.entity, { position: new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5), onGround: true, isInWater: false })
+        }
+    }
+    c.collectTarget = async () => {
+        assert.ok(platform, 'no block placed before chopping')
+        assert.ok(bot.entity.position.floored().equals(platform.offset(0, 1, 0)))
+        assert.equal(bot.blockAt(platform).name, 'oak_planks')
+        collected = true
+    }
+    await c.gatherWood()
+    assert.equal(placed.length, 1)
+    assert.equal(collected, true)
 })
 
 test('dirt under seagrass is not land, because seagrass is always full of water (F135)', async () => {
