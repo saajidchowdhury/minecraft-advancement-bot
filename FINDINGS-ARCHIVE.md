@@ -3483,3 +3483,36 @@ placed planks at 77,62,2 beside the stump at 77,62,1. It was dry and
 grounded at 77,63,2 during all three recorded cuts. One drop landed out of
 reach. See `outputs/f145-tree-trial.json` and
 `outputs/2026-11-13@23.06.47/tree-platform.log`.
+
+## F146 — Use swimming routes for combat and retreat
+
+On port 51391, combat began at 20 HP near -96,21,-257. After dropping into
+a submerged cave, the bot stayed near -96,16,-257 under skeleton arrows.
+The charge used movements that rejected water. Retreat then installed the
+same dry movements and tried unsupported cover placements while the bot
+treaded water. It died at -98,16,-255. See
+`outputs/2026-11-13@23.08.11/bot.log` at 23:10:36–23:11:04 ET.
+
+Water fights use non-digging movements that admit water and aquatic plants,
+strike visible mobs already in sword reach and use unobstructed swimming
+lanes to kite. A stalled charge or a wounded retreat can swim away.
+A retreat that gained at least three blocks can return to the planner when
+there is no path farther. The air reflex still takes priority. The three
+focused regressions fail on the old source and pass with the change.
+
+The staged LAN pond rounds used an iron-armored trial player with a diamond
+sword and shield. The lone drowned died with 20 HP remaining. The skeleton
+and bogged both died with 16.03 HP remaining. A mixed drowned and skeleton
+round landed seven swings in water and finished at 19.12 HP. In the first
+wounded round it swam four blocks without losing HP, then the tank wall
+blocked the next leg. The owner returned to the saved position and the
+temporary arena was removed. Setup commands, movement, and attacks are in
+`outputs/f146-water-combat-first.json` and
+`outputs/f146-water-combat-second.json`.
+
+The next wounded round moved 4.5 blocks at 7 HP with no further damage or
+path error. A healthy round exposed a one-tick dry-physics reading while the
+feet cell still held water. The final controller treats either signal as
+swimming. This last adjustment has a focused regression and was loaded by
+the regular bot at 23:20:28 ET. The terrain at the original cave death
+location was not replayed. See `outputs/f146-water-combat-final.json`.

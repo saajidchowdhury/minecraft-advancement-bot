@@ -40,7 +40,7 @@ comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
 | combat-navigation | 10 | creeper duel, hunting with axes, out-of-view prey and drops |
 | config | 1 | LAN port bounds, 26.1.2 protocol data |
 | crowd-retreat | 11 | crowd latch, wall-pocket retreat and seal, pillar refuge |
-| decision-engine | 59 | planner priorities, including iron and climbing while seeking initial land underground |
+| decision-engine | 60 | planner priorities, initial land underground, swimming combat and retreat |
 | dependency-patches | 5 | crafting, furnace close, entity air, pathfinder jump landings |
 | drowning | 6 | low-air interrupt, direct swim rescue, dry station pickup |
 | enchanting | 5 | Enchanter gating, offer choice, zero-level wait |
@@ -65,7 +65,7 @@ comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
 | side-probes | 23 | probe reach, spacing, anchors, hazards, descents |
 | smelting | 16 | async smelt jobs, fuel due times, plank fuel, collection |
 | station-recovery | 3 | workstation placement relocation, cooking recess beside a stair |
-| survival-safety | 64 | shelters, critical health, reflexes, threats, combat events, self-overlapping placements, melee standoffs |
+| survival-safety | 66 | shelters, health, reflexes, combat targeting and retreat on land and in water, self-overlapping placements |
 | terrain-scout | 4 | land scouting, isolated pillars |
 | tree-climb | 13 | eye-reach approach, tree pillars, scaffold recovery |
 | under-feet | 7 | no digging under the hitbox, own blocks, dripstone |
@@ -141,7 +141,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Bare-hand shelter exit and stair carving without a pickaxe | live (out of y=31, six levels) | F126 |
 | Enchanted 26.1 tools at efficiency speed; 5-tick destroy delay | live | F128, F131 |
 | Crafting two empty buckets before the first water search | live | F138 |
-| Water buckets before lava, reachable berries, melee standoffs | automated | F127, F130 |
+| Water buckets before lava, reachable berries, melee standoffs, water combat | automated; water combat staged | F127, F130, F146 |
 | Disposal zones, sky-bound surface scouts, self-overlap placement | automated | F129 |
 | Carving out of a sculk zone | live (left the zone 05:39Z) | F132 |
 | Submerged-dig refusal, treading water, swamp swims and logs | live | F133, F134 |

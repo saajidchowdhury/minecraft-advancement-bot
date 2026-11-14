@@ -43,6 +43,15 @@ test('healthy armed bot fights a nearby hostile', () => {
     assert.equal(chooseAction(state({ health: 18, hostileDistance: 3, hasWeapon: true })), Actions.FIGHT)
 })
 
+test('swimming combat engages two nearby archers while healthy and withdraws when hurt', () => {
+    const threatened = state({ inWater: true, health: 18, armorPoints: 15, hasWeapon: true,
+        hostileDistance: 5, rangedDistance: 5, visibleHostiles: 2, closeHostiles: 1 })
+    assert.equal(chooseAction(threatened), Actions.FIGHT)
+    assert.equal(chooseAction({ ...threatened, health: 7 }), Actions.ESCAPE)
+    assert.equal(chooseAction({ ...threatened, creeperDistance: 4 }), Actions.ESCAPE)
+    assert.equal(chooseAction({ ...threatened, oxygen: 10 }), 'surface_for_air')
+})
+
 test('an underground land seeker takes safe iron detours and otherwise returns to the surface', () => {
     const miner = state({ needsLand: true, underground: true, y: 16, surfaceY: 64,
         hasStonePickaxe: true, hasWoodenPickaxe: true, hasIronPickaxe: true, hasWeapon: true, freeInventorySlots: 4 })

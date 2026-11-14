@@ -189,6 +189,10 @@ function waterFilled (block) {
     return WATER_FILLED.has(block?.name) || block?.getProperties?.().waterlogged === true
 }
 
+function swimmingAtSurface (bot) {
+    return Boolean(bot.entity?.isInWater || (bot.entity?.position && waterFilled(bot.blockAt?.(bot.entity.position, false))))
+}
+
 // Air left before the low-air cutoff; Infinity while the eye is out of water.
 function submergedAirMs (bot) {
     if (!waterFilled(bot.blockAt(bot.entity.position.offset(0, 1.62, 0), false))) {
@@ -218,7 +222,11 @@ function kite (c, threats, range = 2.5) {
             const unit = dir.scaled(1 / Math.hypot(dir.x, dir.z))
             const score = unit.x * away.x + unit.z * away.z
             const cell = here.plus(unit).floored()
-            const level = !cell.equals(feet) && (safeFooting(bot, cell) || safeFooting(bot, cell.offset(0, -1, 0)))
+            const swim = bot.entity.isInWater && [cell, cell.offset(0, 1, 0)].every(p => {
+                const block = bot.blockAt(p, false)
+                return block?.boundingBox === 'empty' && (waterFilled(block) || ['air', 'cave_air', 'void_air'].includes(block.name))
+            })
+            const level = !cell.equals(feet) && (swim || safeFooting(bot, cell) || safeFooting(bot, cell.offset(0, -1, 0)))
             // Rising ground behind needs a jump; it is slower, so a level cell is preferred (user note).
             const rise = !level && !cell.equals(feet) && safeFooting(bot, cell.offset(0, 1, 0)) &&
                 bot.blockAt(feet.offset(0, 2, 0), false)?.boundingBox === 'empty'
@@ -588,6 +596,7 @@ class SurvivalController {
             }
             previousHealth = this.bot.health
             if (this.bot.health <= 6 && this.busy && ![Actions.ESCAPE, Actions.REFUGE, 'avoid_enderman', 'flee_sculk', 'escape_lava', 'surface_for_air', 'clear_head'].includes(action) &&
+                !(action === Actions.FIGHT && swimmingAtSurface(this.bot) && canSustainFight(this.bot.health, wornArmorPoints(this.bot))) &&
                 (tookDamage || ![Actions.EAT, Actions.SHELTER].includes(action)) && !this.actionAbort?.signal.aborted) {
                 this.cancelCurrentTask('critical health')
             }
@@ -1102,6 +1111,7 @@ class SurvivalController {
             creeperDuelBlocked: Boolean(creeper && this.creeperDuelRetry?.target === creeper && this.creeperDuelRetry.until > Date.now()),
             ranged: archer,
             rangedDistance: archer ? this.bot.entity.position.distanceTo(archer.position) : Infinity,
+            inWater: swimmingAtSurface(this.bot),
             hasSword: Boolean(this.bestItem(SWORDS)),
             hasWeapon: Boolean(this.bestItem([...SWORDS, ...WOODCUTTING_AXES, 'golden_axe', 'wooden_axe'])),
             hasFood: Boolean(this.bestFood()),
@@ -2311,7 +2321,8 @@ class SurvivalController {
         const lastSwing = new Map()
         let standoffAt = Date.now()
         let standoffDistance = Infinity
-        this.bot.pathfinder.setMovements?.(dryMovements(this.bot))
+        let swimming = !hunt && swimmingAtSurface(this.bot)
+        this.bot.pathfinder.setMovements?.(dryMovements(this.bot, swimming))
         try {
             while (Date.now() < deadline) {
                 if (!entity.isValid && !hunt) {
@@ -2321,12 +2332,24 @@ class SurvivalController {
                     break
                 }
                 this.checkAction(signal)
+                const wet = !hunt && swimmingAtSurface(this.bot)
+                if (wet !== swimming) {
+                    swimming = wet
+                    this.bot.pathfinder.setGoal(null)
+                    this.bot.pathfinder.setMovements?.(dryMovements(this.bot, swimming))
+                    following = false
+                }
                 const reason = guard?.()
                 if (reason) {
                     throw new Error(reason)
                 }
+                const here = this.bot.entity.position
+                const close = swimming && Object.values(this.bot.entities || {}).filter(e => e.isValid &&
+                    (MELEE.has(e.name) || ARCHERS.has(e.name)) && here.distanceTo(e.position) <= 3 && this.canSee(e))
+                    .sort((a, b) => here.distanceTo(a.position) - here.distanceTo(b.position))[0]
                 // Twelve or more armor points make a lone melee duel safer than running (F030).
-                if (!hunt && !cornered && !canSustainFight(this.bot.health, wornArmorPoints(this.bot))) {
+                if (!hunt && !cornered && (!canSustainFight(this.bot.health, wornArmorPoints(this.bot)) ||
+                    (swimming && this.bot.health <= 10 && !close))) {
                     this.urgentReplan = true
                     throw new Error('combat health too low; replanning escape')
                 }
@@ -2336,7 +2359,7 @@ class SurvivalController {
                     this.urgentReplan = true
                     throw new Error('outnumbered in combat; replanning escape')
                 }
-                const distance = this.bot.entity.position.distanceTo(entity.position)
+                const distance = here.distanceTo(entity.position)
                 // Occlusion only, held 3 s without closing 2 blocks: the bot turns to its prey just before
                 // swinging (an adjacent cow failed the view cone, 06:37Z), hilltop rays to prey 40+ blocks off
                 // flicker (06:49Z), and a pig over a crest was lost while the bot closed 26 blocks (06:58Z).
@@ -2347,7 +2370,7 @@ class SurvivalController {
                     throw new Error('prey went out of view')
                 }
                 // An approaching zombie is awaited at reach, not walked into (we back off to stay out of its reach).
-                if (distance > 3.1 && (hunt || !MELEE.has(entity.name) || distance > 6)) {
+                if (!close && distance > 3.1 && (hunt || swimming || !MELEE.has(entity.name) || distance > 6)) {
                     kite(this, null)
                     if (!following || this.bot.targetDigBlock || chasePosition.distanceTo(this.bot.entity.position) >= 0.75) {
                         chasePosition = this.bot.entity.position.clone()
@@ -2360,6 +2383,12 @@ class SurvivalController {
                         // A shelter block sealed the hallway between bot and skeleton; the dynamic follow
                         // goal never reports no-path, so the charge froze until the watchdog (round 12).
                         this.rememberStandoff(entity, distance, 'unreachable for 5s')
+                        if (swimming) {
+                            this.urgentReplan = true
+                            this.bot.deactivateItem?.()
+                            await this.escapeFrom(entity, Math.min(24, distance + 4))
+                            return
+                        }
                         throw new Error('combat target unreachable for 5s')
                     }
                     if (!following) {
@@ -2370,6 +2399,10 @@ class SurvivalController {
                     // (Not Today, Thank You; F027, F031). A held shield slows us to sneaking speed and a
                     // hallway skeleton backed off as fast (user report): raise 0.6 s, lower 0.9 s to close in.
                     if (ARCHERS.has(entity.name) && this.bot.inventory?.slots[45]?.name === 'shield') {
+                        if (swimming) {
+                            await this.bot.lookAt(entity.position.offset(0, 1.4, 0), true)
+                            this.checkAction(signal)
+                        }
                         const phase = Date.now() - shieldPhaseAt
                         if (!shielding && (shieldPhaseAt === 0 || phase >= 900)) {
                             this.bot.activateItem(true)
@@ -2391,7 +2424,7 @@ class SurvivalController {
                     following = false
                     // A zombie awaited at reach that never closes in (across a ravine, 05:23Z) froze the bot until
                     // the 12 s watchdog, and the same fight was chosen again four times (F130).
-                    if (!hunt && distance > 3.1) {
+                    if (!close && !hunt && distance > 3.1) {
                         if (distance < standoffDistance - STANDOFF_APPROACH) {
                             standoffDistance = distance
                             standoffAt = Date.now()
@@ -2403,17 +2436,16 @@ class SurvivalController {
                         standoffDistance = Infinity
                         standoffAt = Date.now()
                     }
-                    const here = this.bot.entity.position
-                    const target = hunt ? entity : [entity, ...Object.values(this.bot.entities || {}).filter(e => e !== entity &&
+                    const target = close || (hunt ? entity : [entity, ...Object.values(this.bot.entities || {}).filter(e => e !== entity &&
                         e.isValid && MELEE.has(e.name) && here.distanceTo(e.position) <= 3.1)]
-                        .reduce((a, b) => (lastSwing.get(b.id) ?? 0) < (lastSwing.get(a.id) ?? 0) ? b : a)
+                        .reduce((a, b) => (lastSwing.get(b.id) ?? 0) < (lastSwing.get(a.id) ?? 0) ? b : a))
                     await this.bot.lookAt(target.position.offset(0, Math.min(target.height || 1, 1.4), 0), true)
                     this.checkAction(signal)
                     // A zombie's reach (~1.5 blocks) is half ours and it is slower than a walking player:
                     // back off whenever melee is inside 2.5 blocks while swinging at 3 (user kiting advice).
                     const moving = hunt ? null : kite(this, Object.values(this.bot.entities || {}).filter(e =>
                         e.isValid && MELEE.has(e.name) && here.distanceTo(e.position) <= 4))
-                    if (Date.now() < nextHuntAttackAt || here.distanceTo(target.position) > 3) {
+                    if (Date.now() < nextHuntAttackAt || here.distanceTo(target.position) > 3 || (swimming && !this.canSee(target))) {
                         await sleep(Math.max(20, Math.min(100, nextHuntAttackAt - Date.now())))
                         continue
                     }
@@ -2428,6 +2460,9 @@ class SurvivalController {
                         }
                     }
                     if (!target.isValid) {
+                        continue
+                    }
+                    if (swimming && (this.bot.entity.position.distanceTo(target.position) > 3 || !this.canSee(target))) {
                         continue
                     }
                     this.bot.attack(target)
@@ -2586,14 +2621,15 @@ class SurvivalController {
         const away = here.minus(entity.position)
         const length = Math.max(Math.sqrt(away.x * away.x + away.z * away.z), 0.01)
         let goal
-        if (clearDistance) {
-            goal = separationGoal(entity.position, Math.min(clearDistance + 2, length + 4))
+        const swimming = swimmingAtSurface(this.bot)
+        if (clearDistance || swimming) {
+            goal = separationGoal(entity.position, Math.min((clearDistance ?? 24) + 2, length + 4))
         } else {
             const x = Math.floor(here.x + (away.x / length) * 16)
             const z = Math.floor(here.z + (away.z / length) * 16)
             goal = new GoalNear(x, Math.floor(here.y), z, 3)
         }
-        this.bot.pathfinder.setMovements(dryMovements(this.bot))
+        this.bot.pathfinder.setMovements(dryMovements(this.bot, swimming))
         try {
             await this.gotoWithTimeout(goal, 6000, 'combat escape')
         } finally {
@@ -2809,6 +2845,8 @@ class SurvivalController {
     // while digging rarely works underground. Seal a narrow passage facing it, otherwise flee.
     async takeCover (threat, clearDistance = 10) {
         const signal = this.actionAbort?.signal
+        const start = this.bot.entity.position.clone()
+        const swimming = swimmingAtSurface(this.bot)
         const feet = this.bot.entity.position.floored()
         const toward = threat.position.minus(this.bot.entity.position)
         const openings = []
@@ -2823,7 +2861,7 @@ class SurvivalController {
                 }
             }
         }
-        if (openings.length && openings.length <= 4 && this.countItems(BUILDING_BLOCKS) >= openings.length) {
+        if (!swimming && openings.length && openings.length <= 4 && this.countItems(BUILDING_BLOCKS) >= openings.length) {
             for (const cell of openings) {
                 this.checkAction(signal)
                 await this.placeSurvivalBlock(cell).catch(error => this.log.warn(`Cover placement failed at ${cell}: ${error.message}`))
@@ -2840,12 +2878,22 @@ class SurvivalController {
         if (brace()) {
             return this.braceAgainst(threat)
         }
-        this.log.info(`Fleeing ${threat.name} at ${threat.position.floored()}; ${openings.length} facing opening(s) could not be sealed.`)
+        this.log.info(swimming ? `Swimming away from ${threat.name} at ${threat.position.floored()}.`
+            : `Fleeing ${threat.name} at ${threat.position.floored()}; ${openings.length} facing opening(s) could not be sealed.`)
         // Pausing between single legs let a following creeper close in and explode (F027).
         for (let leg = 0; leg < 4 && threat.isValid !== false && this.canSee(threat, true) &&
             this.bot.entity.position.distanceTo(threat.position) < clearDistance; leg++) {
             this.checkAction(signal)
-            await this.escapeFrom(threat, threat.name === 'creeper' ? clearDistance : undefined)
+            try {
+                await this.escapeFrom(threat, threat.name === 'creeper' ? clearDistance : undefined)
+            } catch (error) {
+                this.checkAction(signal)
+                if (swimming && /no path|timed out/i.test(error.message) &&
+                    this.bot.entity.position.distanceTo(start) >= 3) {
+                    return
+                }
+                throw error
+            }
             if (brace()) {
                 return this.braceAgainst(threat)
             }

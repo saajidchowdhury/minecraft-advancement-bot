@@ -13,15 +13,13 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13 evening
 
-AdvancementBot is on port 51391 (PID 25033, Terminal window 2250, logs
-`outputs/2026-11-13@23.08.11/`). In a staged retry at the second pool it
-collected the last two obsidian using one side pit (F142). A restart at its
-actual stuck position verified a route around the ceiling plugs to the
-ocean surface (F143). It used the startup swim to get ashore, built a portal,
-earned We Need to Go Deeper, and returned to the Overworld (F144).
-A natural four-sided swamp oak was cut from a plank placed in surface
-water during a staged approach (F145). A full ten-cast run from zero
-remains open. Baseline: 564 tests pass.
+AdvancementBot is on port 51391 (PID 26045, Terminal window 2250, logs
+`outputs/2026-11-13@23.20.28/`). It respawned after the submerged archer
+death and resumed with the F146 patch. The live practice rounds covered a
+drowned, two archers, a mixed pair, and wounded retreat. The regular bot
+still encounters water-bound trunks while rebuilding with an empty
+inventory. F142–F145 records the obsidian, surface, portal and trunk trials.
+Baseline: 567 tests pass.
 
 ## Stable facts and process lessons
 
@@ -160,6 +158,8 @@ Combat and threats
   when armed and healthy, and wall-retreats from three or more otherwise
   (F030, F068, F094, F101). A lone archer is charged with the shield cycled
   (F031, F035, F101).
+- Water combat can swim to close, strike a visible enemy already in range,
+  and swim away when hurt. Air and lava reflexes take priority (F146).
 - A melee mob that gains under 0.5 blocks in 4 s while awaited is stood down
   for 60 s unless it closes 1 block; archers never are (F130).
 - Endermen are avoided, never fought (F086). Deaths near threats or lava skip
@@ -361,3 +361,4 @@ Highest risk first.
 - F143 Route around sealed ceiling plugs when returning to the surface [live + regression]
 - F144 Swim to dry ground when portal preparation starts in water [live + regression]
 - F145 Stand on a surface-water platform before cutting a water-ringed trunk [user direction + staged + regression]
+- F146 Use swimming routes for combat and retreat [live failure + staged + regression]

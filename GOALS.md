@@ -62,6 +62,9 @@ facing away from it; dig a 2x1 dent, lure zombies away, return and seal;
 time skeleton shield blocks from blocked arrows. Build focused skeleton
 scenarios (open room, tunnel, skeleton with zombies) before relying on
 charge-and-shield.
+F146 passed staged swimming fights against a drowned, two archers, and a
+drowned with a skeleton. The natural submerged archer encounter still
+needs a follow-up run.
 Done when a live bare respawn at night and a natural cave crowd pass
 without a death cascade.
 

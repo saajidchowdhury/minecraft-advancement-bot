@@ -696,6 +696,61 @@ test('charging an archer keeps the shield raised and lowers it only to strike', 
     assert.equal(events.at(-1), 'lower')
 })
 
+test('a swimming archer charge allows water and strikes a closer visible mob first', async () => {
+    const skeleton = { id: 1, name: 'skeleton', isValid: true, position: new Vec3(6, 64, 0) }
+    const drowned = { id: 2, name: 'drowned', isValid: true, position: new Vec3(2, 64, 0) }
+    const registry = require('prismarine-registry')('26.1')
+    const attacks = []
+    const original = {}
+    let movement
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, {
+        running: true, memory: {}, movements: original, actionAbort: new AbortController(), canSee: () => true,
+        bestItem: () => ({ name: 'iron_sword' }),
+        bot: { registry, health: 20, entity: { position: new Vec3(0, 64, 0), isInWater: false },
+            entities: { 1: skeleton, 2: drowned }, inventory: { slots: Object.assign([], { 6: { name: 'iron_chestplate' }, 7: { name: 'iron_leggings' } }) },
+            blockAt: () => ({ name: 'water', boundingBox: 'empty' }),
+            equip: async () => {}, lookAt: async () => {},
+            attack(target) { attacks.push(target.name); target.isValid = false },
+            pathfinder: {
+                setMovements(next) { movement = next },
+                setGoal(goal) {
+                    if (goal) {
+                        assert.equal(movement.blocksToAvoid.has(registry.blocksByName.water.id), false)
+                        assert.equal(movement.canDig, false)
+                        assert.deepEqual(attacks, ['drowned'])
+                        c.bot.entity.position = new Vec3(4, 64, 0)
+                    }
+                }
+            }
+        }
+    })
+    await c.fight(skeleton)
+    assert.deepEqual(attacks, ['drowned', 'skeleton'])
+    assert.equal(movement, original)
+})
+
+test('archer retreat from open water skips unsupported cover and swims away', async () => {
+    const c = creeperWorld(() => true)
+    c.bot.entity.isInWater = true
+    const skeleton = { name: 'skeleton', isValid: true, position: c.bot.entity.position.offset(3, 0, 0) }
+    c.countItems = () => 64
+    let placed = false
+    let legs = 0
+    c.placeSurvivalBlock = async () => { placed = true }
+    c.canSee = () => true
+    c.escapeFrom = async target => {
+        assert.equal(target, skeleton)
+        if (++legs > 1) {
+            throw new Error('No path to the goal!')
+        }
+        c.bot.entity.position = c.bot.entity.position.offset(-4, 0, 0)
+    }
+    await SurvivalController.prototype.takeCover.call(c, skeleton, 24)
+    assert.equal(placed, false)
+    assert.equal(legs, 2)
+})
+
 test('a visible archer joining ends an unarmored melee fight before the next attack', async () => {
     // A second zombie alone is now fought with kiting (staged rounds 4-5); an archer still forces a withdrawal.
     const zombie = { name: 'zombie', isValid: true, position: new Vec3(1, 64, 0) }

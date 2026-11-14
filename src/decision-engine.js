@@ -90,6 +90,13 @@ function chooseAction (state) {
     if (state.sculkCaution && state.inSculkZone) {
         return 'flee_sculk'
     }
+    if (state.inWater && (state.hostileDistance <= MELEE_ALERT_RANGE || state.rangedDistance <= ARCHER_ALERT_RANGE ||
+        state.creeperDistance <= CREEPER_ALERT_RANGE)) {
+        const canFight = state.hasWeapon && !(state.creeperDistance <= CREEPER_ALERT_RANGE) &&
+            !outnumbered(state.closeHostiles, state.armorPoints, meleeOnlyFight(state)) &&
+            (state.health > 10 || (state.hostileDistance <= 3 && canSustainFight(state.health, state.armorPoints)))
+        return canFight ? Actions.FIGHT : Actions.ESCAPE
+    }
     // Melee-only crowds are kited rather than refuged; a pillar refuge needs five blocks of headroom
     // and one skeleton ruins it (user), and wall refuges failed to seal against close zombies (round 5).
     // Surface nights keep the retreat: more zombies keep spawning there.

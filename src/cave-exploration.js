@@ -318,7 +318,7 @@ function waterPlantsAsWater(movements) {
     return ids
 }
 
-function dryMovements(bot) {
+function dryMovements(bot, allowSwimming = false) {
     const walking = new Movements(bot)
     const plants = waterPlantsAsWater(walking)
     walking.canDig = false
@@ -329,11 +329,11 @@ function dryMovements(bot) {
     walking.allowFreeMotion = false
     walking.infiniteLiquidDropdownDistance = false
     for (const name of DANGER) {
-        if (bot.registry.blocksByName[name]) {
+        if ((!allowSwimming || name !== 'water') && bot.registry.blocksByName[name]) {
             walking.blocksToAvoid.add(bot.registry.blocksByName[name].id)
         }
     }
-    if (DANGER.has('water')) {
+    if (!allowSwimming && DANGER.has('water')) {
         plants.forEach(id => walking.blocksToAvoid.add(id))
     }
     return walking
