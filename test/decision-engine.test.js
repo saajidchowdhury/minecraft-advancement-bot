@@ -43,6 +43,15 @@ test('healthy armed bot fights a nearby hostile', () => {
     assert.equal(chooseAction(state({ health: 18, hostileDistance: 3, hasWeapon: true })), Actions.FIGHT)
 })
 
+test('a surface swamp exits before solid ground or gathering wood, including after a respawn', () => {
+    const swamp = state({ wetBiome: 'swamp', needsLand: true })
+    assert.equal(chooseAction(swamp), 'leave_wet_biome')
+    assert.equal(chooseAction({ ...swamp, needsLand: false }), 'leave_wet_biome')
+    assert.equal(chooseAction({ ...swamp, oxygen: 10 }), 'surface_for_air')
+    assert.equal(chooseAction({ ...swamp, hasWeapon: true, hostileDistance: 3 }), Actions.FIGHT)
+    assert.equal(chooseAction({ ...swamp, wetBiome: null }), 'reach_land')
+})
+
 test('swimming combat engages two nearby archers while healthy and withdraws when hurt', () => {
     const threatened = state({ inWater: true, health: 18, armorPoints: 15, hasWeapon: true,
         hostileDistance: 5, rangedDistance: 5, visibleHostiles: 2, closeHostiles: 1 })

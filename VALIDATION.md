@@ -35,12 +35,13 @@ comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
 | archery | 5 | Take Aim ballistics, line-of-fire safety, planner gating |
 | bare-hands | 5 | pickaxe-stranded predicate, hand-diggable blocks, hand tunnel, hand return stairs, break exclusion |
 | base | 13 | vault site, deposit/restock levels, migration, sealed-vault access |
+| biome-exit | 4 | biome classification, cardinal travel, coastal routing, solid footing |
 | cave-exploration | 29 | survey routing, checkpoints, footing, torches, reserves, loot interrupt |
 | charcoal | 3 | furnace-window inventory (F008), cooking-job isolation |
 | combat-navigation | 10 | creeper duel, hunting with axes, out-of-view prey and drops |
 | config | 1 | LAN port bounds, 26.1.2 protocol data |
 | crowd-retreat | 11 | crowd latch, wall-pocket retreat and seal, pillar refuge |
-| decision-engine | 60 | planner priorities, initial land underground, swimming combat and retreat |
+| decision-engine | 61 | planner priorities, initial land underground, biome exit, swimming combat and retreat |
 | dependency-patches | 5 | crafting, furnace close, entity air, pathfinder jump landings |
 | drowning | 6 | low-air interrupt, direct swim rescue, dry station pickup |
 | enchanting | 5 | Enchanter gating, offer choice, zero-level wait |
@@ -55,7 +56,7 @@ comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
 | memory-random | 2 | seeded rng, atomic world memory |
 | mined-ore-recovery | 13 | diamond memory, longer dry approaches, independent cooldowns, alternate stairs, cancellation, hidden water, bounded diamond pickup retry |
 | mining-timing | 6 | break times for tier ores, landing before digging, bare-hand stone when stranded, enchanted 26.1 tools, 5-tick destroy delay |
-| mobility-recovery | 36 | unstick, shaft and pillar detection, safe drops, heap guard, sky-bound surface scouts, swamp swims, logs and treading, initial land milestone, cave exclusion, canopy descent, 1000-block land mass, soil stock, trunk platforms, water plants as liquid |
+| mobility-recovery | 37 | unstick, shafts and pillars, safe drops, heap guard, surface scouts, swamp swims, tree approach limit, land milestone, canopy descent, land mass and soil stock |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
 | progression-skills | 37 | stairs, tunnels, verified liquid plugs, lava scoop rays, pool memory, side casting, portal approach and geometry |
@@ -145,6 +146,6 @@ none ran during the trial). "Automated" means regression tests only.
 | Disposal zones, sky-bound surface scouts, self-overlap placement | automated | F129 |
 | Carving out of a sculk zone | live (left the zone 05:39Z) | F132 |
 | Submerged-dig refusal, treading water, swamp swims and logs | live | F133, F134 |
-| Reach land after spawn: large land mass, stump exit, seagrass swim | live stump exit; staged swims | F135, F136 |
+| Biome exit, mainland after spawn, seagrass swims, tree route limit | live swamp exit; ocean edge staged; tree route automated | F135, F136, F147 |
 | Return to underground iron work after restart; first-time land search climbs and takes safe iron | live restart; initial climb and iron priority automated | F137 |
 | Trunk platform, full canopy descent, soil stock | trunk platform staged, canopy automated, stock live | F135, F145 |

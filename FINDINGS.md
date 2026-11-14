@@ -13,13 +13,12 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13 evening
 
-AdvancementBot is on port 51391 (PID 26045, Terminal window 2250, logs
-`outputs/2026-11-13@23.20.28/`). It respawned after the submerged archer
-death and resumed with the F146 patch. The live practice rounds covered a
-drowned, two archers, a mixed pair, and wounded retreat. The regular bot
-still encounters water-bound trunks while rebuilding with an empty
-inventory. F142–F145 records the obsidian, surface, portal and trunk trials.
-Baseline: 567 tests pass.
+AdvancementBot is on port 51391 (PID 27956, Terminal window 2250, logs
+`outputs/2026-11-13@23.40.12/`). It left the stuck swamp canopy and gathered
+wood on forest ground without a teleport. The river-mouth trials verified
+coastal travel through beach biomes and continued movement while afloat
+in a different biome (F147). The regular bot is rebuilding underground.
+Baseline: 573 tests pass.
 
 ## Stable facts and process lessons
 
@@ -56,6 +55,12 @@ Baseline: 567 tests pass.
   `bot.log` and `state.json`, which omits worn armor (F060, F068).
 
 ## Policies in force
+
+- Leave swamps, mangrove swamps, rivers, frozen rivers, oceans, and sandy
+  beach biomes before looking for mainland. Hold one cardinal heading and
+  follow the coast when the heading meets ocean. Stop on verified solid
+  footing in a different biome. Skip tree approaches that require a
+  continuous swim of more than eight blocks (F147).
 
 Checked against `src/` on 2026-11-13. Named constants are in the cited files.
 
@@ -362,3 +367,4 @@ Highest risk first.
 - F144 Swim to dry ground when portal preparation starts in water [live + regression]
 - F145 Stand on a surface-water platform before cutting a water-ringed trunk [user direction + staged + regression]
 - F146 Use swimming routes for combat and retreat [live failure + staged + regression]
+- F147 Leave water-heavy surface biomes before seeking mainland or wood [live + staged + regression]

@@ -8,6 +8,7 @@ const { Actions, chooseAction, canSustainFight, outnumbered, hasMiningWood,
     MELEE_ALERT_RANGE, CREEPER_ALERT_RANGE, CREEPER_DUEL_HP, ARCHER_ALERT_RANGE } = require('./decision-engine')
 const { RECIPES, nextAdvancement, ironPickPlankFuel, ironStock, ironReserveCap, canFillWaterBuckets } = require('./advancement-plan')
 const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
+const { surfaceBiome, wetBiome, solidExit, leaveWetBiome } = require('./biome-exit')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
 const { prepareBed, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
 const { AdvancementTracker } = require('./advancement-tracker')
@@ -100,7 +101,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     clear_inventory: 30000, mine_diamond: 95000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, reach_land: 60000, stock_blocks: 30000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
     recover_diamond_drop: 60000,
-    leave_flooded_tunnel: 24000,
+    leave_flooded_tunnel: 24000, leave_wet_biome: 65000,
     wake: 10000, sleep: 30000, prepare_bed: 45000, leave_shelter: 20000, mine_iron: 45000, cook_food: 120000, pick_glow_berries: 60000, hunt_fish: 30000, gather_mushroom_stew: 60000,
     [Actions.EXPLORE]: 60000
 })
@@ -108,6 +109,7 @@ const STRANDED_TIMEOUT_FACTOR = 4
 // Reach-land goal (F135): ground blocks, search radius in blocks and candidates tried per attempt.
 const LAND_GROUND = /^(dirt|coarse_dirt|rooted_dirt|grass_block|podzol|mycelium|mud|clay|moss_block|sand|red_sand|gravel|stone|cobblestone|mossy_cobblestone|deepslate|andesite|diorite|granite|tuff|calcite|sandstone|red_sandstone|snow_block|.*terracotta)$/
 const LAND_SEARCH_RADIUS = 96
+const TREE_SWIM_LIMIT = 8
 const LAND_PATH_SLACK = 192
 const LAND_TRIP_MS_PER_BLOCK = 1200
 const LAND_CANDIDATES = 256
@@ -138,7 +140,8 @@ const STATIONARY_ACTIONS = new Set([
     'clear_inventory', 'loot_chest', 'smelt_charcoal', 'craft_progression', 'enchant_item', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', Actions.SHELTER
 ])
 
-const OPPORTUNISTIC = new Set(['mine_iron', 'mine_diamond', 'recover_diamond_drop', 'leave_flooded_tunnel', 'pick_glow_berries', 'hunt_fish', 'gather_mushroom_stew'])
+const OPPORTUNISTIC = new Set(['mine_iron', 'mine_diamond', 'recover_diamond_drop', 'leave_flooded_tunnel', 'leave_wet_biome',
+    'pick_glow_berries', 'hunt_fish', 'gather_mushroom_stew'])
 // Long resource walks that yield when a priority target appears; the user saw the bot walk past
 // iron and glow berries mid-action, and the next decision would have taken them (17:23Z).
 const INTERRUPTIBLE = new Set([Actions.WOOD, Actions.STONE, Actions.COAL, Actions.IRON, Actions.FOOD, Actions.SMELT_IRON,
@@ -1094,6 +1097,13 @@ class SurvivalController {
         const shieldEquipped = offhand?.name === 'shield'
         const shaft = this.memory.shaft
         const feet = this.bot.entity.position.floored()
+        const biome = this.bot.game.dimension === 'overworld' ? surfaceBiome(this.bot, feet) : null
+        if (wetBiome(biome)) {
+            this.biomeExit ??= { direction: null, visited: [], coast: null }
+        } else if (this.biomeExit && this.bot.entity.onGround && !this.bot.entity.isInWater && solidExit(this.bot, feet, biome)) {
+            this.log.info(`Exited the water-dominant biome onto solid footing in ${biome} at ${feet}.`)
+            this.biomeExit = null
+        }
         const shaftEntrance = shaft?.cells?.[0]
         const nightShaftReady = Boolean(shaftEntrance) && shaft.dimension === this.bot.game.dimension && shaft.cells.length >= 8 &&
             !(shaft.retryAfter > Date.now()) && feet.distanceTo(new Vec3(shaftEntrance.x, shaftEntrance.y, shaftEntrance.z)) <= 12 &&
@@ -1169,7 +1179,8 @@ class SurvivalController {
             underground: Boolean(this.sheltered && this.memory.shelter?.burrowed) ||
                 (this.bot.entity.position.y < (this.home?.y || 64) - 3 && !(this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0))?.skyLight >= 12) &&
                     coveredAbove(this.bot, this.bot.entity.position.floored().offset(0, 1, 0))),
-            needsLand: this.needsLand(),
+            wetBiome: this.biomeExit && this.bot.game.dimension === 'overworld' ? biome ?? 'unknown' : null,
+            needsLand: (!this.biomeExit || this.bot.game.dimension !== 'overworld') && this.needsLand(),
             stockBlocks: this.needsBlockStock(),
             portalInProgress: Boolean(this.memory.portalOrigin),
             redstoneInProgress: Boolean(this.memory.redstoneOrigin),
@@ -1252,6 +1263,7 @@ class SurvivalController {
             case 'shoot_arrow': return shootArrow(this)
             case 'surface_for_air': return this.surfaceForAir()
             case 'reach_land': return this.reachLand()
+            case 'leave_wet_biome': return leaveWetBiome(this)
             case 'stock_blocks': return this.stockBlocks()
             case 'escape_lava': return this.escapeLava()
             case 'clear_head': return this.clearHead()
@@ -1770,8 +1782,19 @@ class SurvivalController {
         // Swamp trunks stand in water: the base log beside it is refused (dontCreateFlow) and then blocked the
         // whole tree, so only logs that are safe to break are targets; the rest of the trunk stays reachable (F134).
         const breakable = log => this.movements?.safeToBreak?.(log) ?? true
-        const block = await scanFor(this, () => this.findNearestBlock(name =>
-            LOG_SUFFIXES.some(suffix => name.endsWith(suffix)) && !name.includes('stripped_'), 48, { mining: true, filter: breakable }), { lookUp: true })
+        const rejected = new Set()
+        const block = await scanFor(this, () => {
+            for (let attempt = 0; attempt < 6; attempt++) {
+                const log = this.findNearestBlock(name => LOG_SUFFIXES.some(suffix => name.endsWith(suffix)) &&
+                    !name.includes('stripped_'), 48, { mining: true,
+                    filter: b => breakable(b) && !rejected.has(`${b.position.x},${b.position.z}`) })
+                if (!log || this.treeApproach(log)) {
+                    return log
+                }
+                rejected.add(`${log.position.x},${log.position.z}`)
+            }
+            return null
+        })
         if (!block) {
             return this.scout(36)
         }
@@ -1810,6 +1833,33 @@ class SurvivalController {
             }
             throw error
         }
+    }
+
+    treeApproach (log) {
+        const bot = this.bot
+        const start = bot.entity?.position
+        const trunk = log.position
+        if (!bot.pathfinder?.getPathFromTo || (bot.canDigBlock(log) && canSeeBlock(bot, log))) {
+            return true
+        }
+        const goal = reachGoal(trunk, { raycast: (from, direction, range) => sightRay(bot, from, direction, range) })
+        const walking = dryMovements(bot, true)
+        walking.liquidCost = this.movements?.liquidCost ?? SWIM_STEP_COST
+        const { value } = bot.pathfinder.getPathFromTo(walking, start, goal, { timeout: 75, tickTimeout: 75, optimizePath: false }).next()
+        if (value?.result.status !== 'success') {
+            return false
+        }
+        let swim = 0
+        let previous = start.floored()
+        for (const node of value.result.path) {
+            const cell = new Vec3(node.x, node.y, node.z)
+            swim = waterFilled(bot.blockAt(cell, false)) ? swim + Math.hypot(cell.x - previous.x, cell.z - previous.z) : 0
+            if (swim > TREE_SWIM_LIMIT) {
+                return false
+            }
+            previous = cell
+        }
+        return true
     }
 
     async craftTable () {

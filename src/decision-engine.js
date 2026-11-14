@@ -142,6 +142,9 @@ function chooseAction (state) {
     if (state.floodedTunnel) {
         return 'leave_flooded_tunnel'
     }
+    if (!state.underground && state.wetBiome) {
+        return 'leave_wet_biome'
+    }
     // User direction (F135): after spawning in the Overworld, first stand on dry ground; a swamp spawn
     // otherwise cut logs one by one while treading water.
     if (state.needsLand && !state.underground) {

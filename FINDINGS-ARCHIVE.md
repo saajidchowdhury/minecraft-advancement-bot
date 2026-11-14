@@ -3516,3 +3516,32 @@ feet cell still held water. The final controller treats either signal as
 swimming. This last adjustment has a focused regression and was loaded by
 the regular bot at 23:20:28 ET. The terrain at the original cave death
 location was not replayed. See `outputs/f146-water-combat-final.json`.
+
+## F147 — Leave water-heavy surface biomes before seeking mainland or wood
+
+The empty-handed bot repeatedly targeted water-bound trunks from a swamp
+canopy at 77,68,-33. It had previously completed the world's initial land
+milestone, so the existing first-spawn travel could not break the loop.
+See `outputs/2026-11-13@23.20.28/bot.log`.
+
+Mojang's biome guide and the pinned Java registry identify swamps and
+mangrove swamps, rivers and frozen rivers, and all ocean variants. The
+user also classifies beach and snowy beach as ocean-side. Stony shore can
+qualify for the exit. The biome action precedes the initial land goal and
+resource work. It holds a cardinal heading across multiple legs, follows
+the prior biome's ocean boundary, and waits for actual solid footing in a
+different biome. The separate first-spawn goal still applies its mainland
+check when pending. Loaded biome data is sampled at surface level; unknown
+chunks cannot certify an exit. Tree selection skips a route with more than
+eight consecutive blocks of swimming.
+
+The regular bot restarted at the original canopy without a teleport,
+traveled east, entered forest while still swimming, then stopped on solid
+ground at 126,63,-33 and gathered wood. See
+`outputs/2026-11-13@23.27.28/bot.log`. The staged river-mouth trials used
+the natural interface at 48,62,32 and a heading toward ocean. No terrain
+commands modified the interface. The trial followed river and beach
+segments, and continued after entering windswept savanna while afloat.
+The bounded live runs ended before confirming an on-foot coastal exit.
+The regression tests verify that completion, heading continuity, beach
+handling, and the tree-route limit.

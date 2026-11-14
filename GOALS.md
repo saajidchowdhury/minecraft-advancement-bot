@@ -12,8 +12,9 @@ playthrough is a test, not the definition of success.
 
 1. Fresh-world early game. Watch a natural start end to end with the F133–F137
    spawn, water and land handling. The water-ringed trunk platform passed a
-   staged LAN trial (F145). Done when a first spawn in or near water
-   reaches a large land mass, stocks soil, uses a trunk platform or canopy
+   staged LAN trial (F145). The empty-handed bot left its stuck swamp canopy
+   and stopped on forest ground in the original world (F147). Done when a
+   first spawn in or near water reaches a large land mass, stocks soil, uses a trunk platform or canopy
    descent when needed, and matches the F057 pace (ten advancements in 28 min)
    unaided. Separately check a first-time land seeker underground for safe
    iron pickups and positive elevation gain. The returning-player restart

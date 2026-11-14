@@ -378,6 +378,31 @@ test('swamp wood targets skip trunk logs beside water instead of blocking the tr
     assert.deepEqual(collected, [upper])
 })
 
+test('wood gathering skips a nearer tree across a broad swim and picks the next tree', async () => {
+    const { c, bot, Vec3 } = landWorld()
+    const farBank = bot.blockAt(new Vec3(19, 65, 0))
+    const nearBank = bot.blockAt(new Vec3(0, 65, 24))
+    const logs = [farBank, nearBank].map(block => ({ name: 'oak_log', position: block.position }))
+    bot.entity.position = new Vec3(0.5, 63, 0.5)
+    bot.canDigBlock = () => false
+    c.movements = { safeToBreak: () => true }
+    const blockAt = bot.blockAt
+    bot.blockAt = p => p.x === 0 && p.y === 63 ? { name: 'air' } : blockAt(p)
+    bot.pathfinder = {
+        *getPathFromTo(_, start, goal) {
+            const path = Array.from({ length: 12 }, (_, i) => goal.pos.x > 0 ?
+                new Vec3(i + 1, 62, 0) : new Vec3(0, 63, i + 1))
+            yield { result: { path, status: 'success' } }
+        }
+    }
+    bot.collectBlock = { findFromVein: block => [block] }
+    c.findNearestBlock = (_, __, options) => logs.find(log => options.filter(log)) ?? null
+    c.collectTarget = async (_, block) => { assert.equal(block, logs[1]) }
+    c.scout = async () => assert.fail('a second tree was available')
+    bot.entity.isInWater = false
+    await c.gatherWood()
+})
+
 test('a bot standing in water treads it by holding jump, but not while a path or a dive controls it (F134)', () => {
     const { EventEmitter } = require('node:events')
     const { Vec3 } = require('vec3')
