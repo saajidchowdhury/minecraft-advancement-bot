@@ -129,6 +129,7 @@ const LAND_BLOCK_STOCK = 16
 const LOW_AIR_BUBBLES = 12
 const BUBBLE_MS = 750
 const DIVE_SURFACE_BUBBLES = 15
+const DIVE_PICKUP_BUBBLES = 10
 const DESTROY_DELAY_MS = 250  // 5 ticks at 20 ticks/s
 // Standoff: a melee mob that gains under 0.5 blocks in 4 s is unreachable for 60 s unless it gains 1 block.
 const STANDOFF_WAIT_MS = 4000
@@ -704,6 +705,7 @@ class SurvivalController {
         })
         this.bot.on('breath', () => {
             if (!this.running || this.paused || this.bot.health <= 0 || !(this.bot.oxygenLevel <= LOW_AIR_BUBBLES) ||
+                (this.divingForFish && this.bot.oxygenLevel > 6) ||
                 ['surface_for_air', 'escape_lava', 'clear_head'].includes(this.activeAction) || this.actionAbort?.signal.aborted) {
                 return
             }
@@ -1997,6 +1999,7 @@ class SurvivalController {
         const deadline = Date.now() + 120000
         let caught = 0
         this.divingForFish = true
+        this.biomeExit = null
         try {
             while (caught < 8 && Date.now() < deadline && safe()) {
                 this.checkAction(signal)
@@ -2007,7 +2010,7 @@ class SurvivalController {
                 this.log.info(`Diving for ${fish.name} at ${fish.position.floored()} (air ${this.bot.oxygenLevel ?? 20}/20).`)
                 const killed = await this.chaseFish(fish, cooldownMs, safe)
                 if (killed) {
-                    await pickUpKnownDrops(this, this.visibleDrops(fish.position, 6, false), 'hunted', 'fish', signal)
+                    await this.collectFishDrops(fish.position)
                     caught++
                 }
                 if ((this.bot.oxygenLevel ?? 20) < 20 && swimmingAtSurface(this.bot)) {
@@ -2021,6 +2024,25 @@ class SurvivalController {
         }
         this.log.info(`Fish dive ended with ${caught} fish caught.`)
         return true
+    }
+
+    // Drops sink and drift, so scan wide, dive for each one while air lasts, and surface to refill between trips.
+    async collectFishDrops (origin) {
+        const signal = this.actionAbort?.signal
+        await sleep(400)
+        for (let trip = 0; trip < 6; trip++) {
+            this.checkAction(signal)
+            const here = this.bot.entity.position
+            const drop = this.visibleDrops(origin, 16, false).sort((a, b) => here.distanceTo(a.position) - here.distanceTo(b.position))[0]
+            if (!drop) {
+                return
+            }
+            if ((this.bot.oxygenLevel ?? 20) <= DIVE_PICKUP_BUBBLES && swimmingAtSurface(this.bot)) {
+                await this.surfaceForAir(20)
+            }
+            this.combatLiveAt = Date.now()
+            await pickUpKnownDrops(this, [drop], 'hunted', 'fish', signal)
+        }
     }
 
     async chaseFish (fish, cooldownMs, safe) {
