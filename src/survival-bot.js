@@ -24,7 +24,7 @@ const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnima
 const { archeryState, shootArrow } = require('./archery')
 const { enchantingState, gatherLeather, enchantItem } = require('./enchanting')
 const { golemState, summonGolem } = require('./golem')
-const { disposalStepCost, performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, openCookingAlcove, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
+const { disposalStepCost, performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, openCookingAlcove, inTunnelCurrent, leaveFloodedTunnel, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
 const { updateCrowdRetreat, retreatToWall, mineFromRefuge } = require('./crowd-retreat')
 const { reachGoal, treePillar, climbForLog } = require('./tree-climb')
 const { isUnderFeet, rememberPlacement, forgetPlacement, placedOnSupport, stepOffCells, centerIn, soundFloor, overlapsBody } = require('./under-feet')
@@ -99,6 +99,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     clear_inventory: 30000, mine_diamond: 95000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, reach_land: 60000, stock_blocks: 30000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
     recover_diamond_drop: 60000,
+    leave_flooded_tunnel: 24000,
     wake: 10000, sleep: 30000, prepare_bed: 45000, leave_shelter: 20000, mine_iron: 45000, cook_food: 120000, pick_glow_berries: 60000, hunt_fish: 30000, gather_mushroom_stew: 60000,
     [Actions.EXPLORE]: 60000
 })
@@ -136,7 +137,7 @@ const STATIONARY_ACTIONS = new Set([
     'clear_inventory', 'loot_chest', 'smelt_charcoal', 'craft_progression', 'enchant_item', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', Actions.SHELTER
 ])
 
-const OPPORTUNISTIC = new Set(['mine_iron', 'mine_diamond', 'recover_diamond_drop', 'pick_glow_berries', 'hunt_fish', 'gather_mushroom_stew'])
+const OPPORTUNISTIC = new Set(['mine_iron', 'mine_diamond', 'recover_diamond_drop', 'leave_flooded_tunnel', 'pick_glow_berries', 'hunt_fish', 'gather_mushroom_stew'])
 // Long resource walks that yield when a priority target appears; the user saw the bot walk past
 // iron and glow berries mid-action, and the next decision would have taken them (17:23Z).
 const INTERRUPTIBLE = new Set([Actions.WOOD, Actions.STONE, Actions.COAL, Actions.IRON, Actions.FOOD, Actions.SMELT_IRON,
@@ -669,7 +670,7 @@ class SurvivalController {
         let treading = false
         this.bot.on('physicsTick', () => {
             const floating = Boolean(this.bot.entity?.isInWater) && !this.bot.pathfinder?.isMoving?.() &&
-                !['surface_for_air', 'escape_lava', 'clear_head'].includes(this.activeAction)
+                !['surface_for_air', 'escape_lava', 'clear_head', 'leave_flooded_tunnel'].includes(this.activeAction)
             if (floating) {
                 this.bot.setControlState('jump', true)
             } else if (treading) {
@@ -710,6 +711,9 @@ class SurvivalController {
             }
             const dimension = this.bot.game.dimension
             const entity = this.bot.entity
+            if (block && this.memory.liquidPlugs?.has(`${dimension}:${block.position}`)) {
+                throw new Error(`leaving liquid plug intact at ${block.position}`)
+            }
             if (block && entity?.onGround === false && !entity.isInWater && !entity.isInLava &&
                 this.bot.game.gameMode !== 'creative' && ![Actions.ESCAPE, Actions.REFUGE, 'avoid_enderman', 'flee_sculk',
                     'surface_for_air', 'escape_lava', 'clear_head'].includes(this.activeAction)) {
@@ -1179,6 +1183,7 @@ class SurvivalController {
         state.inLava = this.inLava()
         state.suffocating = Boolean(this.suffocatingBlock())
         state.oxygen = this.bot.oxygenLevel ?? 20
+        state.floodedTunnel = state.underground && inTunnelCurrent(this.bot)
         const headBlock = this.bot.blockAt(this.bot.entity.position.offset(0, this.bot.entity.eyeHeight ?? 1.62, 0), false)
         state.headInWater = WATER_BLOCKS.has(headBlock?.name) || headBlock?.getProperties?.().waterlogged === true
         // Hostiles behind walls cannot reach a sealed pocket; only visible ones make a crowd.
@@ -1217,6 +1222,7 @@ class SurvivalController {
         switch (action) {
             case 'avoid_enderman': return this.avoidEnderman()
             case 'flee_sculk': return this.fleeSculk()
+            case 'leave_flooded_tunnel': return leaveFloodedTunnel(this)
             case 'recover_diamond_drop': return this.recoverDiamondDrop()
             case 'mine_diamond': {
                 if (!this.memory.diamondDetour) {
@@ -3983,6 +3989,9 @@ class SurvivalController {
             movements.blocksCantBreak.add(movements.bot.registry.blocksByName[name].id)
         }
         movements.exclusionAreasBreak.push(block => {
+            if (this.memory?.liquidPlugs?.has(`${movements.bot.game?.dimension}:${block.position}`)) {
+                return 100
+            }
             const items = movements.bot.inventory?.items() ?? []
             return block.material === 'mineable/pickaxe' && !items.some(item => item.name.endsWith('_pickaxe') && block.canHarvest(item.type)) &&
                 !(handDiggable(block) && pickaxeStranded(items)) ? 100 : 0

@@ -7,7 +7,7 @@ const { storeOverflowAtBase } = require('./base')
 const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight, minedPassage, exposedDiamond, findPriorityDiamond,
     findPriorityOre, IRON_ORES, visibleMiningHazard } = require('./cave-exploration')
 const { scanFor, canSeeBlock, cellVisible } = require('./vision')
-const { isUnderFeet, soundFloor } = require('./under-feet')
+const { isUnderFeet, soundFloor, overlapsBody } = require('./under-feet')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction, WATER_BUCKET_TARGET, canFillWaterBuckets } = require('./advancement-plan')
 const { sculkInward } = require('./sculk-caution')
 const { isFuelPlank, isCharcoalLog, furnaceFuelTicks, plankFuelPlan, preparePlankFuel } = require('./furnace-fuel')
@@ -21,6 +21,103 @@ const DIGGING_SHOVELS = ['netherite_shovel', 'diamond_shovel', 'iron_shovel', 's
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 const FACES = [[1, 0, 0], [-1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+function floodedCell(bot, p) {
+    return [0, 1].some(dy => bot.blockAt?.(p.offset(0, dy, 0), false)?.name === 'water')
+}
+
+function inTunnelCurrent(bot) {
+    if (!bot.entity?.isInWater) {
+        return false
+    }
+    const feet = bot.entity.position.floored()
+    return [0, 1].some(dy => {
+        const block = bot.blockAt(feet.offset(0, dy, 0), false)
+        return block?.name === 'water' && Number(block.getProperties?.().level) > 0
+    })
+}
+
+async function leaveFloodedTunnel(c) {
+    const bot = c.bot
+    const start = bot.entity.position.floored()
+    c.memory.tunnelFrontier = null
+    c.memory.mineRoute = []
+    c.memory.mineDirection = ((c.memory.mineDirection ?? 0) + 1) % 4
+    const upstream = DIRECTIONS.flatMap(([dx, dz]) => [2, 1].map(dy => start.offset(dx, dy, dz)))
+        .find(p => bot.blockAt(p, false)?.name === 'water' && supportedPlacement(bot, p) &&
+            !overlapsBody(bot, p) && cellVisible(bot, p, 4.5))
+    if (upstream && c.bestItem(['cobblestone', 'cobbled_deepslate', 'dirt', 'netherrack'])) {
+        const { sealed } = await sealRevealedLiquid(c, upstream, { name: 'water' }, upstream)
+        if (sealed) {
+            bot.clearControlStates?.()
+            for (let tick = 0; tick < 60 && (bot.entity.isInWater || bot.entity.onGround === false); tick++) {
+                await bot.waitForTicks(1)
+                check(c)
+            }
+            if (!bot.entity.isInWater && bot.entity.onGround !== false) {
+                c.log.info(`The current drained; resuming from dry footing at ${bot.entity.position.floored()}.`)
+                return
+            }
+        }
+    }
+    const walking = dryMovements(bot)
+    walking.blocksToAvoid.delete(bot.registry.blocksByName.water.id)
+    const neighbors = walking.getNeighbors.bind(walking)
+    walking.getNeighbors = node => neighbors(node).filter(next => {
+        const p = new Vec3(next.x, next.y, next.z)
+        return p.distanceTo(start) <= 48 && (!floodedCell(bot, p) || (p.y <= node.y && floodedCell(bot, new Vec3(node.x, node.y, node.z))))
+    })
+    const goal = Object.assign(new goals.Goal(), {
+        isEnd: node => node.y <= start.y + 1 && safeFooting(bot, new Vec3(node.x, node.y, node.z), undefined, false)
+    })
+    const onDryGround = () => !bot.entity.isInWater && bot.entity.onGround !== false && goal.isEnd(bot.entity.position.floored())
+    c.log.info(`Leaving the flooded tunnel at ${start} for dry footing.`)
+    bot.pathfinder.setMovements(walking)
+    try {
+        if (bot.getControlState?.('jump')) {
+            bot.setControlState('jump', false)
+        }
+        for (let step = 0; step < 32 && inTunnelCurrent(bot); step++) {
+            const feet = bot.entity.position.floored()
+            const downstream = DIRECTIONS.flatMap(([dx, dz]) => [-2, -1, 0].map(dy => feet.offset(dx, dy, dz)))
+                .filter(p => bot.blockAt(p, false)?.name === 'water' &&
+                    bot.blockAt(p.offset(0, 1, 0), false)?.boundingBox === 'empty' && soundFloor(bot.blockAt(p.offset(0, -1, 0), false)))
+                .sort((a, b) => a.y - b.y || b.distanceTo(start) - a.distanceTo(start))[0]
+            if (!downstream) {
+                break
+            }
+            await bot.lookAt(new Vec3(downstream.x + 0.5, bot.entity.position.y + 1.62, downstream.z + 0.5), true)
+            check(c)
+            try {
+                bot.setControlState('forward', true)
+                for (let tick = 0; tick < 10 && bot.entity.position.floored().equals(feet); tick++) {
+                    await bot.waitForTicks(1)
+                    check(c)
+                }
+            } finally {
+                bot.setControlState('forward', false)
+            }
+            if (bot.entity.position.floored().equals(feet)) {
+                break
+            }
+        }
+        if (!onDryGround()) {
+            await c.gotoWithTimeout(goal, 6000, 'leave flooded tunnel')
+            if (bot.waitForTicks) {
+                for (let tick = 0; tick < 12 && !onDryGround(); tick++) {
+                    await bot.waitForTicks(1)
+                    check(c)
+                }
+            }
+        }
+        if (!onDryGround()) {
+            throw new Error('dry footing was not reached')
+        }
+    } finally {
+        bot.pathfinder.setMovements(c.movements)
+    }
+    c.log.info(`Reached dry footing at ${bot.entity.position.floored()}; abandoning the flooded route.`)
+}
 
 function check(c) {
     if (!c.running || c.paused || c.actionAbort?.signal.aborted || c.bot.health <= 0) {
@@ -161,13 +258,12 @@ function firstOpaqueCell(bot, from, to) {
     return null
 }
 
-async function takeRevealedWater(c, opened) {
+async function takeRevealedWater(c, cells) {
     const bot = c.bot
     if (!c.countItems || !canFillWaterBuckets(c.countItems(['bucket']), c.countItems(['water_bucket']))) {
         return false
     }
     const eye = () => bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
-    const cells = [opened]
     for (let attempt = 0; attempt < 4; attempt++) {
         const sources = cells.flatMap(p => [p, ...FACES.map(([x, y, z]) => p.offset(x, y, z))]).map(q => bot.blockAt(q, false))
             .filter(b => b?.name === 'water' && Number(b.getProperties?.().level ?? 0) === 0 &&
@@ -188,30 +284,64 @@ async function takeRevealedWater(c, opened) {
             return true
         }
         const blocker = sources[0] && firstOpaqueCell(bot, eye(), sources[0].position.offset(0.5, 0.5, 0.5))
-        if (attempt === 3 || !blocker || !blocker.diggable || PROTECTED_CONTAINERS.has(blocker.name) || !bot.canDigBlock?.(blocker)) {
+        if (attempt === 3 || !blocker || !blocker.diggable || PROTECTED_CONTAINERS.has(blocker.name) ||
+            c.memory.liquidPlugs?.has(`${bot.game.dimension}:${blocker.position}`) || !bot.canDigBlock?.(blocker)) {
             return false
         }
         const tool = tunnelTool(c, blocker)
         if (tool) {
             await bot.equip(tool, 'hand')
         }
+        cells.push(blocker.position)
         await bot.dig(blocker, true)
         check(c)
-        cells.push(blocker.position)
+        if (inTunnelCurrent(bot)) {
+            return false
+        }
     }
     return false
 }
 
 // The plug hides the hazard again, so the step that needed this cell is blocked too; otherwise the
 // next plan reopens the same plug (live 06:40:20Z, twice at (307,8,-107)).
-async function plugRevealed(c, p, found, step) {
-    if (found.kind === 'liquid') {
-        await Promise.resolve(c.placeSurvivalBlock?.(p)).catch(error => c.log.warn(`Could not plug ${found.name} at ${p}: ${error.message}`))
+async function sealRevealedLiquid(c, p, found, step, scoop = false) {
+    const openings = [p]
+    let filled = false
+    let sealed = true
+    try {
+        if (scoop && found.name === 'water' && !inTunnelCurrent(c.bot)) {
+            filled = await takeRevealedWater(c, openings)
+        }
+    } finally {
+        if (!step.equals(p)) {
+            c.rememberBlockedTarget?.({ position: step }, 'revealed hazard', new Error(found.name))
+        }
+        for (const opening of openings.reverse()) {
+            c.rememberBlockedTarget?.({ position: opening }, 'revealed hazard', new Error(found.name))
+            if (opening.equals(p) || revealedHazard(c.bot, opening)?.kind === 'liquid') {
+                check(c)
+                try {
+                    await c.placeSurvivalBlock(opening)
+                } catch (error) {
+                    check(c)
+                    c.log.warn(`Could not plug ${found.name} at ${opening}: ${error.message}`)
+                }
+                const placed = c.bot.blockAt(opening, false)?.boundingBox === 'block'
+                if (placed) {
+                    const plugs = c.memory.liquidPlugs ??= new Set()
+                    plugs.add(`${c.bot.game.dimension}:${opening}`)
+                    if (plugs.size > 256) {
+                        plugs.delete(plugs.values().next().value)
+                    }
+                }
+                sealed &&= placed
+            }
+        }
     }
-    for (const position of step.equals(p) ? [p] : [p, step]) {
-        c.rememberBlockedTarget?.({ position }, 'revealed hazard', new Error(found.name))
+    if (sealed) {
+        c.log.info(`Sealed the ${found.name} opening at ${p}.`)
     }
-    throw new Error(`dig at ${p} revealed ${found.name}${found.kind === 'liquid' ? '; plugged the opening' : ''}`)
+    return { filled, sealed }
 }
 
 function miningPickaxe(c, block = null) {
@@ -265,8 +395,11 @@ async function openCookingAlcove(c) {
                 check(c)
             }
             const revealed = revealedHazard(bot, block.position)
+            if (revealed?.kind === 'liquid') {
+                await sealRevealedLiquid(c, block.position, revealed, target)
+            }
             if (revealed) {
-                await plugRevealed(c, block.position, revealed, target)
+                throw new Error(`dig at ${block.position} revealed ${revealed.name}`)
             }
         }
         if (safeFooting(bot, target)) {
@@ -349,12 +482,8 @@ async function probeTunnelSides(c, direction) {
             dug++
             const revealed = revealedHazard(bot, position)
             if (revealed) {
-                if (revealed.name === 'water') {
-                    await takeRevealedWater(c, position)
-                }
                 if (revealed.kind === 'liquid') {
-                    await Promise.resolve(c.placeSurvivalBlock?.(position))
-                        .catch(error => c.log.warn(`Could not plug ${revealed.name} at ${position}: ${error.message}`))
+                    await sealRevealedLiquid(c, position, revealed, position, true)
                 }
                 c.log.info(`Side probe at ${position} revealed ${revealed.name}; stopping that side.`)
                 continue probe
@@ -392,6 +521,9 @@ function rememberProbe(c, p) {
 }
 
 async function climbStep(c, target) {
+    if (floodedCell(c.bot, target) || inTunnelCurrent(c.bot)) {
+        throw new Error(`refusing flooded staircase step at ${target}`)
+    }
     try {
         await c.gotoWithTimeout(new goals.GoalBlock(target.x, target.y, target.z), 4000, 'prepared stair step')
         return
@@ -441,6 +573,9 @@ function tunnelStepBlocked(c, from, to) {
 
 async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, diamond = null) {
     const bot = c.bot
+    if (inTunnelCurrent(bot)) {
+        return leaveFloodedTunnel(c)
+    }
     const tool = miningPickaxe(c)
     const start = bot.entity.position.floored()
     // With no pickaxe and nothing to craft one from, carving by hand is the only way out (user, F126).
@@ -579,6 +714,13 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
             : (target.y > feet.y ? [feet.offset(0, 3, 0), feet.offset(0, 2, 0), target.offset(0, 2, 0), target.offset(0, 1, 0), target] : [target.offset(0, 1, 0), target])
         for (const p of cells) {
             check(c)
+            if (inTunnelCurrent(bot)) {
+                return leaveFloodedTunnel(c)
+            }
+            if (c.memory.liquidPlugs?.has(`${bot.game.dimension}:${p}`)) {
+                c.rememberBlockedTarget?.({ position: target }, 'sealed tunnel step', new Error('water plug'))
+                throw new Error(`leaving liquid plug intact at ${p}`)
+            }
             if (diamond?.position.equals(p)) {
                 return
             }
@@ -604,12 +746,11 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
                 await settleFalling(c, p, feet, target)
                 const revealed = revealedHazard(bot, p)
                 if (revealed?.kind === 'liquid') {
-                    if (revealed.name === 'water' && await takeRevealedWater(c, p)) {
-                        await Promise.resolve(c.placeSurvivalBlock?.(p)).catch(() => {})
-                        c.rememberBlockedTarget?.({ position: target }, 'revealed water', new Error('water'))
+                    const { filled, sealed } = await sealRevealedLiquid(c, p, revealed, target, true)
+                    if (filled && sealed) {
                         return
                     }
-                    await plugRevealed(c, p, revealed, target)
+                    throw new Error(`dig at ${p} revealed ${revealed.name}; ${sealed ? 'plugged the opening' : 'opening is still unsealed'}`)
                 }
                 if (!diamond && c.findNearestBlock && exposedDiamond(c, p) && c.canPursueDiamond?.() !== false && findPriorityDiamond(c)) {
                     c.log.info('Tunnel dig exposed diamond ore; yielding to collect it.')
@@ -774,6 +915,11 @@ async function followShaft(c, direction) {
         return false
     }
     const cells = shaft.cells.map(p => new Vec3(p.x, p.y, p.z))
+    if (cells.some(p => floodedCell(bot, p) && cellVisible(bot, p))) {
+        shaft.retryAfter = Date.now() + 300000
+        c.log.warn('Skipping the flooded remembered shaft.')
+        return false
+    }
     const here = bot.entity.position
     const end = direction === 'down' ? cells.length - 1 : 0
     let i = cells.reduce((best, p, j) => here.distanceTo(p.offset(0.5, 0, 0.5)) <= 6 &&
@@ -807,6 +953,10 @@ async function followShaft(c, direction) {
         // checked jump fallback; descending only drops and can take eight-cell legs.
         const from = i
         i = direction === 'down' ? Math.min(end, i + stride) : i - 1
+        if (inTunnelCurrent(bot) || floodedCell(bot, cells[i])) {
+            shaft.retryAfter = Date.now() + 300000
+            return false
+        }
         try {
             if (direction === 'up' && cells[i].y > bot.entity.position.y + 0.5) {
                 await climbStep(c, cells[i])
@@ -845,6 +995,12 @@ async function followShaft(c, direction) {
                         }
                         await bot.dig(block, true)
                         check(c)
+                        const revealed = revealedHazard(bot, p)
+                        if (revealed?.kind === 'liquid') {
+                            await sealRevealedLiquid(c, p, revealed, next)
+                            shaft.retryAfter = Date.now() + 300000
+                            return false
+                        }
                     }
                 }
                 i -= step
@@ -1126,6 +1282,9 @@ async function useBucket(c, name, aim, verify, label) {
 
 async function fillWaterBucket(c) {
     const bot = c.bot
+    if (inTunnelCurrent(bot)) {
+        return leaveFloodedTunnel(c)
+    }
     const before = c.countItems(['water_bucket'])
     if (!canFillWaterBuckets(c.countItems(['bucket']), before)) {
         return
@@ -1567,6 +1726,11 @@ async function returnSurface(c, surfaceY = c.home?.y || 64) {
         const { x, y, z } = route.at(-1)
         const target = new Vec3(x, y, z)
         const feet = c.bot.entity.position.floored()
+        if (floodedCell(c.bot, target)) {
+            route.length = 0
+            c.log.warn(`Abandoning the flooded return staircase at ${target}.`)
+            break
+        }
         try {
             if (target.y === feet.y + 1 && Math.abs(target.x - feet.x) + Math.abs(target.z - feet.z) === 1) {
                 await climbStep(c, target)
@@ -1961,4 +2125,4 @@ async function performProgression(c, action, state) {
     }
 }
 
-module.exports = { disposalStepCost, armorUpgrades, coveredAbove, openToSky, openCookingAlcove, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS }
+module.exports = { disposalStepCost, armorUpgrades, coveredAbove, openToSky, openCookingAlcove, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, inTunnelCurrent, leaveFloodedTunnel, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS }

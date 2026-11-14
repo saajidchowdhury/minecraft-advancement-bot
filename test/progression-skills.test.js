@@ -309,7 +309,7 @@ test('a stalled prepared stair can use a short checked jump and releases control
     bot.blockAt = p => p.equals(target.offset(0, -1, 0)) ? { name: 'pointed_dripstone', boundingBox: 'block' } : at(p)
     await assert.rejects(climbStep(c, target), /simulated pathfinder stall/)
     bot.blockAt = () => ({ name: 'water', boundingBox: 'empty' })
-    await assert.rejects(climbStep(c, target), /simulated pathfinder stall/)
+    await assert.rejects(climbStep(c, target), /refusing flooded staircase step/)
 })
 
 test('a missing pickaxe prevents carving stairs in either direction', async () => {
@@ -708,15 +708,17 @@ function stallWater(x, y, z) {
 
 // The saved stall geometry; `leak` cells are extra water, e.g. after the granite wall north is gone.
 function stallBot(air, leak = new Set(), onDig = () => {}) {
+    const placed = new Set()
     return {
         health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(305.5, 10, -105.5) },
         blockAt(p) {
             const key = `${p.x},${p.y},${p.z}`
-            const name = leak.has(key) ? 'water' : air.has(key) ? 'air' : stallWater(p.x, p.y, p.z) ? 'water' :
+            const name = placed.has(key) ? 'cobblestone' : leak.has(key) ? 'water' : air.has(key) ? 'air' : stallWater(p.x, p.y, p.z) ? 'water' :
                 STALL_GRAVEL.has(key) ? 'gravel' : 'stone'
-            return { name, position: p, boundingBox: name === 'stone' || name === 'gravel' ? 'block' : 'empty', diggable: true,
+            return { name, position: p, boundingBox: ['stone', 'gravel', 'cobblestone'].includes(name) ? 'block' : 'empty', diggable: true,
                 canHarvest: () => true }
         },
+        place: p => placed.add(`${p.x},${p.y},${p.z}`),
         equip: async () => {}, canDigBlock: () => true,
         async dig(block) {
             air.add(`${block.position.x},${block.position.y},${block.position.z}`)
@@ -744,14 +746,25 @@ test('water hidden behind rock does not stop the climb; the dig that reveals it 
     const blocked = []
     const bot = stallBot(new Set(STALL_AIR), new Set(), p => dug.push(p.toString()))
     const c = stallController(bot, {
-        async placeSurvivalBlock(p) { plugged.push(p.toString()) },
+        async placeSurvivalBlock(p) { plugged.push(p.toString()); bot.place(p) },
         rememberBlockedTarget(block) { blocked.push(block.position.toString()) }
     })
     await assert.rejects(mineTunnel(c, 75), /revealed water; plugged the opening/)
     assert.equal(c.memory.mineDirection, 3, 'digs north toward the water it cannot see')
     assert.deepEqual(dug, ['(305, 13, -106)', '(305, 13, -107)'])
     assert.deepEqual(plugged, ['(305, 13, -107)'])
-    assert.deepEqual(blocked, ['(305, 13, -107)', '(305, 11, -107)'], 'the step is blocked, not just the plugged cell')
+    assert.deepEqual(blocked, ['(305, 11, -107)', '(305, 13, -107)'], 'the step is blocked, not just the plugged cell')
+})
+
+test('a refused plug is reported as unsealed and the opening is quarantined', async () => {
+    const bot = stallBot(new Set(STALL_AIR))
+    const blocked = []
+    const c = stallController(bot, {
+        async placeSurvivalBlock() { throw new Error('placement refused') },
+        rememberBlockedTarget(block) { blocked.push(block.position.toString()) }
+    })
+    await assert.rejects(mineTunnel(c, 75), /revealed water; opening is still unsealed/)
+    assert.deepEqual(blocked, ['(305, 11, -107)', '(305, 13, -107)'])
 })
 
 test('a rising staircase facing visible water climbs sideways through its own excavations (F113)', async () => {
@@ -890,12 +903,13 @@ test('a dig that reveals water opens a line to the source and fills an empty buc
     })
     const c = stallController(bot, {
         countItems: names => names.reduce((n, name) => n + (inventory[name] || 0), 0),
-        async placeSurvivalBlock(p) { plugged.push(p.toString()); order.push('plug') }
+        async placeSurvivalBlock(p) { plugged.push(p.toString()); order.push('plug'); bot.place(p) }
     })
     // The source behind the opened cell is hidden by (305,12,-107); the bot digs that block, then scoops.
     await mineTunnel(c, 75)
     assert.equal(inventory.water_bucket, 1)
-    assert.deepEqual(order, ['scoop', 'plug'])
+    assert.deepEqual(order, ['scoop', 'plug', 'plug'])
+    assert.deepEqual(plugged, ['(305, 12, -107)', '(305, 13, -107)'])
 })
 
 test('digging up into water above the bot scoops it instead of counting a failure (live 07:2xZ, F119)', async () => {
@@ -929,7 +943,7 @@ test('digging up into water above the bot scoops it instead of counting a failur
         bot, running: true, paused: false, actionAbort: new AbortController(), memory: { mineDirection: 0 }, log: { info() {}, warn() {} },
         bestItem: names => names.find(name => inventory[name] || name === 'iron_pickaxe') ? { name: names[0] } : null,
         countItems: names => names.reduce((n, name) => n + (inventory[name] || 0), 0),
-        async placeSurvivalBlock() {}, rememberBlockedTarget() {},
+        async placeSurvivalBlock(p) { air.delete(`${p.x},${p.y},${p.z}`) }, rememberBlockedTarget() {},
         async gotoWithTimeout() { throw new Error('should not step after taking the water') }
     }
     await mineTunnel(c, 75)

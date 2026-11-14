@@ -13,15 +13,14 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13 evening
 
-AdvancementBot is on port 51391 (PID 19216, Terminal window 2250, logs
-`outputs/2026-11-13@21.58.21/`). The latest restart loaded F140 and verified
-the owner kit. The bot crafted two empty buckets before the first water
-scoop (F138). It earned Diamonds! from the second cave vein and crafted a
-diamond pickaxe and sword (F139). The first vein's drop was left behind.
-F140 pickup retries still need live observation. Earlier pending checks
-include the first-time underground land search, trunk platform, reachable
-berries, disposal zones, melee standoffs, sculk exits and dig pacing.
-Baseline: 557 tests pass.
+AdvancementBot is on port 51391 (PID 21342, Terminal window 2250, logs
+`outputs/2026-11-13@22.15.56/`). The restart loaded F141 after the owner
+kit check. A staged player plugged and escaped the original current, then
+EffectHelper restored the inlet seal and verified downstream drainage. The
+bot has two water buckets and reached obsidian casting before the restart.
+Remaining checks include natural flood recovery, first-time underground
+land search, trunk platforms, berries, melee standoffs and sculk exits.
+Baseline: 560 tests pass.
 
 ## Stable facts and process lessons
 
@@ -112,9 +111,11 @@ Mining and tunnels
   gets 45 seconds to approach and a separate retry ahead of new ore (F140).
   Never mine a natural block under the hitbox except in a canopy descent; a placement overlapping the hitbox
   centres the bot first (F102, F129, F135).
-- Hazards count only when visible (`cellVisible`). An opened liquid is plugged
-  and blocks that step for 120 s, except water scooped while buckets are
-  short (F107, F114, F119). Gravel matters only above an opened cell (F118).
+- Hazards count only when visible (`cellVisible`). A revealed liquid triggers
+  verified plugs in the openings, including extra cuts made for a scoop.
+  Keep those plugs intact. A flooded staircase is abandoned, with a nearby
+  reachable upstream plug tried before leaving the current (F141).
+  Gravel matters only above an opened cell (F118).
   Liquid-blocked slopes take level side steps; descents allow eight level
   detours (F064, F094).
 - Sculk zones (48 blocks) block steps that do not gain distance from their
@@ -349,3 +350,4 @@ Highest risk first.
 - F138 Wait for the full pair of empty buckets before the first water scoop [user direction + live + regression]
 - F139 Cave diamonds needed a longer supported walk and independent cooldowns [live + replay + regression]
 - F140 Mined diamonds get a longer pickup and a separate retry [user direction + regression]
+- F141 Seal staircase leaks and abandon flooded routes [user direction + staged + regression]

@@ -32,7 +32,7 @@ function check(c, signal) {
     }
 }
 
-function safeFooting(bot, p, clearNames = AIR) {
+function safeFooting(bot, p, clearNames = AIR, dryNeighbors = true) {
     const floor = bot.blockAt(p.offset(0, -1, 0), false)
     if (!floor || floor.boundingBox !== 'block' || DANGER.has(floor.name)) {
         return false
@@ -43,7 +43,7 @@ function safeFooting(bot, p, clearNames = AIR) {
         }
         for (const [dx, dz] of DIRECTIONS) {
             const block = bot.blockAt(p.offset(dx, dy, dz), false)
-            if (!block || DANGER.has(block.name)) {
+            if (!block || (DANGER.has(block.name) && (dryNeighbors || block.name !== 'water'))) {
                 return false
             }
         }

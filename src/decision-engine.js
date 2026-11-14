@@ -132,6 +132,9 @@ function chooseAction (state) {
     if (state.hostileDistance <= MELEE_ALERT_RANGE || state.rangedDistance <= ARCHER_ALERT_RANGE) {
         return state.hasWeapon && state.health > 10 && !(state.rangedDistance <= ARCHER_ALERT_RANGE) ? Actions.FIGHT : Actions.ESCAPE
     }
+    if (state.floodedTunnel) {
+        return 'leave_flooded_tunnel'
+    }
     // User direction (F135): after spawning in the Overworld, first stand on dry ground; a swamp spawn
     // otherwise cut logs one by one while treading water.
     if (state.needsLand && !state.underground) {

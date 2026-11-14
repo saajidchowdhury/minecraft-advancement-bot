@@ -52,6 +52,47 @@ test('daytime water search keeps climbing beneath a roof even when underground i
     assert.equal(c.bot.entity.position.z, 65.5)
 })
 
+test('a surface return abandons a flooded remembered step and cuts a dry alternative', async () => {
+    const c = waterWorld(false)
+    c.memory.surfaceByStaircase = false
+    c.memory.mineRoute = [{ x: 107, y: 61, z: 65 }, { x: 108, y: 60, z: 65 }]
+    const at = c.bot.blockAt
+    c.bot.blockAt = p => p.equals(new Vec3(107, 61, 65))
+        ? { name: 'water', boundingBox: 'empty', position: p, getProperties: () => ({ level: 8 }) } : at(p)
+    const go = c.gotoWithTimeout
+    const visits = []
+    c.gotoWithTimeout = async goal => { visits.push(new Vec3(goal.x, goal.y, goal.z)); await go(goal) }
+    await performProgression(c, 'fill_water_bucket', {})
+    assert.ok(visits.some(p => p.y > 60))
+    assert.ok(visits.every(p => !p.equals(new Vec3(107, 61, 65))))
+})
+
+test('a bot already in flowing cave water gets to dry footing before mining', async () => {
+    const c = waterWorld(false)
+    const at = c.bot.blockAt
+    const start = c.bot.entity.position.floored()
+    c.bot.entity.isInWater = true
+    c.bot.inventory = { items: () => [] }
+    c.bot.registry = require('minecraft-data')('26.1')
+    c.bot.pathfinder = { setMovements () {} }
+    const exit = start.offset(3, 0, 0)
+    c.bot.blockAt = p => p.equals(start) ? { name: 'water', boundingBox: 'empty', position: p, getProperties: () => ({ level: 8 }) } :
+        p.equals(exit) || p.equals(exit.offset(0, 1, 0)) ? { name: 'air', boundingBox: 'empty', position: p } : at(p)
+    c.bot.dig = async () => assert.fail('mined while fighting the current')
+    c.findNearestBlock = () => assert.fail('searched from the flooded staircase')
+    const dry = new Vec3(108, 67, 65)
+    c.gotoWithTimeout = async (goal, ms, label) => {
+        assert.equal(label, 'leave flooded tunnel')
+        assert.equal(goal.isEnd(start), false)
+        assert.equal(goal.isEnd(dry), false, 'do not route back uphill along the flood')
+        assert.equal(goal.isEnd(exit), true)
+        c.bot.entity.position = exit.offset(0.5, 0, 0.5)
+        c.bot.entity.isInWater = false
+    }
+    await performProgression(c, 'fill_water_bucket', {})
+    assert.equal(c.bot.entity.isInWater, false)
+})
+
 test('nighttime water search stays underground instead of continuing the surface staircase', async () => {
     const c = waterWorld(true)
     await performProgression(c, 'fill_water_bucket', {})

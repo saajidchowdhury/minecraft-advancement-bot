@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-557 tests and `npm run check` pass through F140.
+560 tests and `npm run check` pass through F141.
 Run them with the prepared runtime:
 
 ```sh
@@ -58,7 +58,7 @@ comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
 | mobility-recovery | 35 | unstick, shaft and pillar detection, safe drops, heap guard, sky-bound surface scouts, swamp swims, logs and treading, initial land milestone, cave exclusion, canopy descent, 1000-block land mass, soil stock, trunk platforms, water plants as liquid |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
-| progression-skills | 33 | stairs, tunnels, lava scoop rays, portal geometry, frontier, merges |
+| progression-skills | 34 | stairs, tunnels, verified liquid plugs, lava scoop rays, portal geometry, frontier, merges |
 | resource-routing | 9 | visible-target searches, support preservation, exits |
 | sculk-caution | 8 | sculk alarms, zone, sneak flee, outward steps and carve fallback |
 | shaft-memory | 11 | shaft recording, following, repair, pickless climb pause |
@@ -69,7 +69,7 @@ comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
 | terrain-scout | 4 | land scouting, isolated pillars |
 | tree-climb | 13 | eye-reach approach, tree pillars, scaffold recovery |
 | under-feet | 7 | no digging under the hitbox, own blocks, dripstone |
-| water-search | 9 | day/night water search, cover restriction, bucket-pair requirement for nearby water |
+| water-search | 11 | day/night water search, cover restriction, bucket-pair requirement, flooded-route avoidance and exit |
 
 Run `npm run outline -- test/<file>` to list a file's test names with line numbers.
 
@@ -114,7 +114,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Water search with a daylight exit | live | F089 |
 | Water-search stall deferral | live | F113, F115 |
 | Rising staircase crossing its own excavations | automated | F113 |
-| Digging into hidden water and plugging it | live (re-dig loop fixed after, regression only) | F114 |
+| Digging into hidden water, verifying plugs, abandoning flooded routes | live dig, staged plug and escape, automated retry avoidance | F114, F141 |
 | Night water search | automated | F089 |
 | Underground night mining through a full night | live | F075 |
 | Natural night burrow, 1x2 shelter, `mine_from_shelter` | automated / staged | F102 |

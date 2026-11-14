@@ -3369,3 +3369,32 @@ supplies added (`outputs/f140-owner-kit.log`). The bot had one empty and
 one water bucket. The original diamond drop was created before tracking
 was enabled. No successful recovery of that item was observed.
 
+## F141 — Seal staircase leaks and abandon flooded routes
+
+At 21:55:36 ET on 51391, a staircase dig filled a bucket from
+-173,5,-35, then the bot lost roughly 40 blocks of elevation while trying
+to continue mining. The post-scoop plug silently swallowed placement failure
+and ignored extra cuts made by the scoop routine. The return planner could
+still select flooded waypoints. Live terrain inspection found the remaining
+source at -173,4,-35 feeding -172,4,-35, then water falling down the staircase.
+See `outputs/f141-water-inspection.json` and `outputs/2026-11-13@21.53.48/`.
+
+The tunnel, side probe and shaft repair verify that each liquid plug is a
+solid block. The scoop path tracks and seals additional openings touching
+liquid. Confirmed plugs are protected against re-digging. Flooded stair
+waypoints are skipped. In an underground current the bot clears its mining
+frontier, tries one reachable upstream plug, then seeks dry footing with
+bounded downstream movement. Oxygen and combat reflexes retain priority.
+The three new regressions fail before the patch and pass afterwards.
+
+The original staircase was repaired with a cobblestone block at -172,4,-35.
+Inspection confirmed downstream drainage. EffectHelper issued and recorded
+the repair command. A separate trial reproduced the current and autonomously
+placed a downstream plug at -169,1,-35. The controller initially tried to
+move before the water drained. The final trial supplied eight cobblestone
+and staged only the start in the same current. FloodTrial placed its own
+plug at -169,2,-35 and reached dry footing at -155,-11,-36 without a command
+between those actions. EffectHelper then restored the inlet plug at
+-172,4,-35 and verified that the downstream staircase drained. Commands
+and positions are in `outputs/f141-live-source.json`. All 560 tests pass.
+
