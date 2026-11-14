@@ -3,10 +3,10 @@
 const { Vec3 } = require('vec3')
 
 // User direction (2026-11-14, after a 22-block dig-then-diagonal-jump fall at 05:10:39Z): move carefully
-// wherever any column within ±2 in x and z, besides the bot's own, falls 8+ blocks below its support.
+// wherever any column within ±2 in x and z, besides the bot's own, falls 10+ blocks below its support.
 // This covers lone spires and cliff edges alike; high ground behind the bot does not cancel it.
 const DROP_RADIUS = 2
-const DROP_BLOCKS = 8 // fall from the bot's support block onto the top of a neighbouring column
+const DROP_BLOCKS = 10 // fall from the bot's support block onto the top of a neighbouring column
 const CACHE_MS = 1000
 const AIR = new Set(['air', 'cave_air', 'void_air'])
 const WRAPPED = Symbol('dropCaution')

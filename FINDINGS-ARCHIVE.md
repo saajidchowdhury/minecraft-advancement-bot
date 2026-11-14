@@ -3559,13 +3559,13 @@ route. Parkour was already off.
 
 User direction, refined twice: be careful with jumps and digging moves near
 a big drop, checked within ±2 in x and z (first ±5, cut so navigation does
-not slow) with an 8-block threshold (first 4, judged too strict). A first
+not slow) with a 10-block threshold (first 4, then 8, both judged too strict). A first
 version keyed on the tallest neighbouring block. That cannot fire on a
 jump-up, since the block being jumped onto sits beside the bot at foot
 height, nor on a cliff edge, since the ground behind is tallest. The user
 wants both treated as dangerous, so the rule keys on the deepest column:
 a spot is near a drop when any neighbouring column (not the bot's own) is
-air from head height down to 8 below the support block. Unloaded blocks
+air from head height down to 10 below the support block. Unloaded blocks
 count as solid. Near a drop the pathfinder drops diagonal moves from or
 onto the spot, cardinal jump-ups with blocks to break, and sprinting (the
 `allowSprinting` getter reads the bot's current block each tick). Plain

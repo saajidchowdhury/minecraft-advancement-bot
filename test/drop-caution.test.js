@@ -21,12 +21,12 @@ function world(solid, entity = { position: new Vec3(0.5, 10, 0.5), effects: {} }
 }
 
 // Feet stand at y=10 on a block at y=9 throughout. A 1x1 tower over a floor whose top is at `floor`:
-const tower = (floor = 0) => p => (p.y <= floor || (p.x === 0 && p.z === 0 && p.y <= 9) ? 'stone' : null)
+const tower = (floor = -10) => p => (p.y <= floor || (p.x === 0 && p.z === 0 && p.y <= 9) ? 'stone' : null)
 // The tower plus a dirt step at (1,10,1) whose headroom (1,11,1) is dirt to dig.
 const spire = p => tower()(p) ?? (p.x === 1 && p.z === 1 && (p.y === 10 || p.y === 11) ? 'dirt' : null)
 const flat = p => (p.y <= 9 ? 'stone' : null)
-// High ground at x<=0, a 9-block drop beyond.
-const cliff = p => (p.y <= 0 || (p.x <= 0 && p.y <= 9) ? 'stone' : null)
+// High ground at x<=0, a 19-block drop beyond.
+const cliff = p => (p.y <= -10 || (p.x <= 0 && p.y <= 9) ? 'stone' : null)
 
 function moves(solid, method, dir, wrap, from = new Vec3(0, 10, 0)) {
     const movements = new Movements(world(solid))
@@ -39,15 +39,15 @@ function moves(solid, method, dir, wrap, from = new Vec3(0, 10, 0)) {
     return out
 }
 
-test('any neighbouring column 8 or more blocks down marks a drop, even beside high ground', () => {
+test('any neighbouring column 10 or more blocks down marks a drop, even beside high ground', () => {
     const feet = new Vec3(0, 10, 0)
     assert.equal(nearDrop(world(tower()).blockAt, feet), true)
     assert.equal(nearDrop(world(spire).blockAt, feet), true)
     assert.equal(nearDrop(world(cliff).blockAt, feet), true)
     assert.equal(nearDrop(world(cliff).blockAt, new Vec3(-1, 10, 0)), true)
     assert.equal(nearDrop(world(cliff).blockAt, new Vec3(-2, 10, 0)), false)
-    assert.equal(nearDrop(world(tower(1)).blockAt, feet), true)
-    assert.equal(nearDrop(world(tower(2)).blockAt, feet), false)
+    assert.equal(nearDrop(world(tower(-1)).blockAt, feet), true)
+    assert.equal(nearDrop(world(tower(0)).blockAt, feet), false)
     assert.equal(nearDrop(world(flat).blockAt, feet), false)
     assert.equal(nearDrop(() => null, feet), false)
 })

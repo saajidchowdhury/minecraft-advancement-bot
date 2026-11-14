@@ -38,7 +38,7 @@ startup source hashes match the committed code. Baseline: 573 tests pass.
   `exclusionAreasStep`, `getMoveDiagonal` or `getMoveJumpUp` are not real
   ones; mocks must carry them.
 - Drop caution (`src/drop-caution.js`, F148): where any column within ±2
-  in x and z lies 8+ blocks below the support (spires and cliff edges), A*
+  in x and z lies 10+ blocks below the support (spires and cliff edges), A*
   drops diagonals from or onto the spot and digging jump-ups; sprint is off.
 - Launch with `./scripts/run.sh [port]`; a changed seed clears saved
   coordinates (F002, F071). Runs record commit, hashes, PID and events under
