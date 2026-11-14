@@ -78,7 +78,7 @@ F144 verified portal entry and return. F149 adds the fortress expedition:
 staged prep, a 363-step slab bridge line and a return along the recorded
 path work. Next: a run that sights and enters a fortress, a restock round
 trip resuming at the frontier (frontier walk and netherrack fallback now live),
-golden boots worn in the Nether so piglins stay neutral, ghast fireballs,
+golden boots (G019), ghast fireballs,
 and faster 256-block stone gathering. Portal search needs sight within 32
 blocks; a hidden portal triggered a failed rebuild (F149).
 
@@ -118,6 +118,15 @@ bartering), blaze rods (a fortress, with full iron, food and a route back via
 G006), eyes of ender to triangulate, then the library's shelves. Done with
 server-confirmed Eye Spy and a level-30 enchant on the diamond pick. Starts only
 after G006 is live-verified.
+
+### G019 — High / not started — Golden boots keep piglins neutral
+
+Any one golden armor piece keeps piglins neutral unless the bot attacks them,
+opens chests or breaks gold blocks near them. An ignored piglin on the bridge
+killed NetherTrial (F149). Add 4 gold ingots to the expedition kit, craft
+golden boots, wear them in place of the iron boots while in the Nether and
+switch back in the Overworld. Done when a staged run bridges past piglins
+without being attacked.
 
 ### G017 — High / not started — Keep mining out of sculk biomes
 
