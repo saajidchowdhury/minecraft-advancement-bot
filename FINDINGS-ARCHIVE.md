@@ -3546,7 +3546,7 @@ The bounded live runs ended before confirming an on-foot coastal exit.
 The regression tests verify that completion, heading continuity, beach
 handling, and the tree-route limit.
 
-## F148 — Perch caution after a 22-block dig-then-diagonal-jump fall
+## F148 — Drop caution after a 22-block dig-then-diagonal-jump fall
 
 Live failure, `outputs/2026-11-14@00.06.16/bot.log` 05:10:39Z: during a
 gather_wood land scout from -7,79,-110 toward 7,79,-143 the bot fell to
@@ -3557,21 +3557,24 @@ diagonal that breaks corner and headroom blocks, and the movement monitor
 then sprint-jumps or walk-jumps it with no check on what lies beside the
 route. Parkour was already off.
 
-User direction: be careful with jumps and digging pathfinding when the
-tallest non-air block within ±2 in x and z (first ±5, reduced so navigation
-does not slow) is well below the bot. Taken literally, the jump target
-itself is in that window at foot height, so the rule could never flag a
-jump-up. The check therefore ignores the move's own columns: the start,
-the landing and, for diagonals, both corners. A column counts as tall when
-any block from 4 below the feet to 2 above them is non-air or unloaded. A
-perch drops diagonal moves from or onto it, cardinal jump-ups with blocks
-to break, and sprinting (the `allowSprinting` getter reads the bot's
-current block each tick). Plain cardinal jumps, walks and drops stay.
-Applied to `configureSafeMovements` and `dryMovements`.
+User direction, refined twice: be careful with jumps and digging moves near
+a big drop, checked within ±2 in x and z (first ±5, cut so navigation does
+not slow) with an 8-block threshold (first 4, judged too strict). A first
+version keyed on the tallest neighbouring block. That cannot fire on a
+jump-up, since the block being jumped onto sits beside the bot at foot
+height, nor on a cliff edge, since the ground behind is tallest. The user
+wants both treated as dangerous, so the rule keys on the deepest column:
+a spot is near a drop when any neighbouring column (not the bot's own) is
+air from head height down to 8 below the support block. Unloaded blocks
+count as solid. Near a drop the pathfinder drops diagonal moves from or
+onto the spot, cardinal jump-ups with blocks to break, and sprinting (the
+`allowSprinting` getter reads the bot's current block each tick). Plain
+cardinal jumps, walks and drops stay. `src/drop-caution.js` is applied in
+`configureSafeMovements` and `dryMovements`.
 
 Cost, MacBookPro, Node 24.12.0, synthetic rolling hills with mock blocks,
-A* to 8 goals 40 blocks away, 5 interleaved repetitions after warm-up:
-48.9 ± 9.3 ms unguarded versus 53.5 ± 10.1 ms guarded (n = 40 each), with
-identical paths. Regression only; no live trial yet. Uncertainty: whether
--7,79,-110 met the perch test was not probed in the world. A cliff edge
-with high ground within 2 blocks behind the bot is not a perch.
+A* to 8 goals 40 blocks away, 5 interleaved repetitions after warm-up,
+n = 40 each, two runs: 51.0 ± 10.9 vs 58.4 ± 12.2 ms and 49.3 ± 9.5 vs
+56.0 ± 10.5 ms (unguarded vs guarded), identical paths. Results are cached
+per column and per spot for 1 s. Regression only; no live trial yet. Not
+probed in the world: the drop beside -7,79,-110.
