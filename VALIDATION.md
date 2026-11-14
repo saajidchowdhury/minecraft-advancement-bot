@@ -1,7 +1,7 @@
 # Validation
 
 Updated 2026-11-13 (America/New_York). Host: MacBookPro. Minecraft Java 26.1.2,
-LAN protocol 775. Ordinary bot: AdvancementBot. The seeded cave arena uses a
+LAN protocol 775. Ordinary bot: Bot. The seeded cave arena uses a
 separate CavePractice player. This file holds the current baseline, what each
 test file covers and the live status of each behavior. Per-change test
 history is in `FINDINGS-ARCHIVE.md` and git. Update the baseline and the

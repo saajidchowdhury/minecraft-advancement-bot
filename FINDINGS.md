@@ -13,7 +13,7 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13 evening
 
-AdvancementBot is on port 51391 (PID 27956, Terminal window 2250, logs
+Bot is on port 51391 (PID 27956, Terminal window 2250, logs
 `outputs/2026-11-13@23.40.12/`). It left the stuck swamp canopy and gathered
 wood on forest ground without a teleport (F147). At 23:42 ET it was
 returning upward near 150,32,-58 at full health with eight raw iron,

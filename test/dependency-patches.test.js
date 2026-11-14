@@ -97,7 +97,7 @@ test('only the bot entity air_supply metadata sets oxygenLevel, not a nearby dro
     bot.registry = require('prismarine-registry')(bot.version)
     bot.supportFeature = bot.registry.supportFeature
     bot._client = new EventEmitter()
-    bot._client.username = 'AdvancementBot'
+    bot._client.username = 'Bot'
     injectEntities(bot, {})
     bot._client.emit('login', { entityId: 7, dimension: 'overworld', worldState: { dimension: 'overworld' } })
     const zombie = bot.registry.entitiesByName.zombie

@@ -20,7 +20,7 @@ ignored by Git.
 
 The tested setup is Java 26.1.2, protocol 775. The pinned Mineflayer 4.39.0 stack
 uses its `26.1` protocol data for `MC_VERSION=26.1.2`; `src/config.js` implements
-this mapping. Last supplied LAN port: 50330. Last bot/owner: AdvancementBot /
+this mapping. Last supplied LAN port: 50330. Last bot/owner: Bot /
 newflag. Read current `.env` and the user's latest instruction rather than
 reusing these as permanent defaults.
 
@@ -2534,7 +2534,7 @@ The planner starts a needed smelt ahead of optional visible iron.
 ## F109 — Pre-hit mob detection and a shorter creeper retreat
 
 At 23:30:35 Eastern on port 49910, the server confirmed a creeper killed
-AdvancementBot at (700,3,25). Multiple skeleton arrows had worn the bot
+Bot at (700,3,25). Multiple skeleton arrows had worn the bot
 down, five escape attempts failed, and the explosion took its final
 2.93 HP. `outputs/visible-ore-restart-49910.log` contains the bot trace.
 Commands to give the owner gear and visit the scene are recorded in
@@ -2616,7 +2616,7 @@ heavy damage while seeking a wall refuge after the zombie and second
 creeper arrived. The server confirmed a creeper explosion killed it at
 (437,168,41). See `outputs/cave-mob-practice-49910-staggered.json`.
 The server restored the owner and removed the arena after each run.
-AdvancementBot rejoined port 49910 and resumed mining.
+Bot rejoined port 49910 and resumed mining.
 
 ## F112 — Sword strikes and retreat against an isolated creeper
 
@@ -2635,7 +2635,7 @@ and shield, it killed the creeper in four strikes at 2.94–3.20 blocks and
 took zero damage. The nonlethal strikes were followed by gaps of 5.79,
 6.13 and 8.63 blocks, with an extra retreat to 8.29 when it saw swelling.
 The trial began during an iron dig with 16 raw iron smelting. The owner
-was restored, the arena was removed, and AdvancementBot rejoined port
+was restored, the arena was removed, and Bot rejoined port
 49910. See `outputs/creeper-sword-cave-49910-r3.json` and its companion
 log. `CAVE_TRIALS=1` selects that lone-creeper case. The staggered crowd
 cases from F111 were not rerun with this change.
@@ -2943,7 +2943,7 @@ during a y=31 tunnel (the stone pick had broken earlier), and the bot sealed a
 night shelter at -4,31,-46. From dawn every `leave_shelter` failed with "no
 safe supported shelter exit" and unstick failed with "mining requires a
 pickaxe", every 2 s. The user thought it could craft a pickaxe; an
-EffectHelper `/data get entity AdvancementBot Inventory` showed 1 oak plank,
+EffectHelper `/data get entity Bot Inventory` showed 1 oak plank,
 no sticks, 104 cobblestone and 2 crafting tables, so the planner's
 `gather_wood` route was right and nothing could make sticks. User direction:
 when genuinely unable to craft a pickaxe, break stone with bare hands.

@@ -45,7 +45,7 @@ LAN**. No LLM service or API key is required. `minecraft-iris/` is a local,
 untracked, untouched original kept for reference; the bot runs from this
 directory.
 
-The default configuration uses `AdvancementBot`, offline LAN authentication and
+The default configuration uses `Bot`, offline LAN authentication and
 Minecraft **26.1.2**. Version 26.1.2 advertises protocol 775; the project
 selects the pinned library's compatible `26.1` protocol data. Mineflayer is
 pinned to 4.39.0. Other Minecraft protocol versions have not been tested.
@@ -83,7 +83,7 @@ Minecraft-owning account for the bot.
 | Variable | Meaning |
 | --- | --- |
 | `MC_HOST`, `MC_PORT` | LAN server address; the launcher's port overrides `.env` |
-| `MC_USERNAME` | Bot player name, default `AdvancementBot` |
+| `MC_USERNAME` | Bot player name, default `Bot` |
 | `MC_AUTH` | `offline` or `microsoft` |
 | `MC_VERSION` | `26.1.2` |
 | `MC_OWNER` | If set, only this player can issue chat controls, and the bot sleeps only when this player sleeps; if empty, it sleeps when all other players sleep |

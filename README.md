@@ -1,6 +1,6 @@
 # Minecraft Advancement Bot
 
-A robot player for your Minecraft world. It joins your game as **AdvancementBot**
+A robot player for your Minecraft world. It joins your game as **Bot**
 and plays survival on its own, working through advancements: tools, iron,
 diamonds, all the way to a Nether portal. You just watch.
 
@@ -33,7 +33,7 @@ The bot needs no separate Minecraft account, API key, or coding for LAN play.
    **`Start Bot.command`**. A window opens.
    - The first time, it downloads what it needs. This takes about a minute.
    - Type the port number and press **Enter**.
-3. **Watch.** AdvancementBot joins your world and gets to work. Keep Minecraft
+3. **Watch.** Bot joins your world and gets to work. Keep Minecraft
    open while it plays.
 
 **To stop the bot,** close its window.

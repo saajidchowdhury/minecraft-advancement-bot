@@ -37,7 +37,7 @@ function loadConfig() {
         connection: {
             host: process.env.MC_HOST || '127.0.0.1',
             port: integer('MC_PORT', 25565, 1, 65535),
-            username: process.env.MC_USERNAME || 'AdvancementBot',
+            username: process.env.MC_USERNAME || 'Bot',
             auth,
             version: requestedVersion === '26.1.2' ? '26.1' : requestedVersion,
             viewDistance: process.env.BOT_VIEW_DISTANCE || 'normal',
