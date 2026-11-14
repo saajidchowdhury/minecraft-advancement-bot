@@ -35,7 +35,10 @@ when new evidence changes a ranking; GOALS.md carries the actionable queue.
 3. **Loop latency.** Replan 250 ms after a successful action instead of 1.5 s; keep
    1.5 s only after failures (to avoid fast failure loops) and 100 ms after threats.
 4. **Route to the Nether.** Fix the natural-site obsidian retry loop (F055)
-   before measuring a continuous portal run. Nether entry unlocks several cheap
+   before measuring a continuous portal run. Fortress search holds one cardinal
+   tunnel or bridge line instead of scouting the terrain (user, F149); about 3
+   slabs per bridged block make bridge supply and piglin safety (G019) the
+   levers there. Nether entry unlocks several cheap
    advancements: Oh Shiny (gold to a piglin), Hidden in the Depths (ancient
    debris at Y 8–22 with the diamond pick), and later Into Fire / A Terrible Fortress.
 5. **Enchanter.** User direction (2026-11-06): no sugar-cane farming; serious

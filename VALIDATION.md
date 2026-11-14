@@ -1,11 +1,10 @@
 # Validation
 
-Updated 2026-11-13 (America/New_York). Host: MacBookPro. Minecraft Java 26.1.2,
-LAN protocol 775. Ordinary bot: Bot. The seeded cave arena uses a
-separate CavePractice player. This file holds the current baseline, what each
-test file covers and the live status of each behavior. Per-change test
-history is in `FINDINGS-ARCHIVE.md` and git. Update the baseline and the
-affected rows in place; do not add a dated changelog.
+Updated 2026-11-14 (America/New_York). Host: MacBookPro. Minecraft Java 26.1.2,
+LAN protocol 775. Ordinary bot: Bot; staged trials use separate players
+(CavePractice, DropTrial, NetherTrial). This file holds the baseline, what each
+test file covers and live status; per-change history is in
+`FINDINGS-ARCHIVE.md` and git. Update rows in place; no dated changelog.
 
 ## Baseline
 
@@ -17,13 +16,11 @@ PATH="$PWD/.tools/node-v26.13.0-darwin-x64/bin:$PATH" npm run check
 PATH="$PWD/.tools/node-v26.13.0-darwin-x64/bin:$PATH" npm test
 ```
 
-Commit only when the full suite reports zero failures. Check the exit status
-or the `# fail 0` line, not a filtered grep (F035, F060). Each regression that
-guards a fix must fail on the pre-fix source. Mocks must mirror the pinned
-library's real shapes (F023). A passing suite never establishes a live
-advancement; only server packets do. Every produced code file stays under 10%
-comment-bearing lines. `under-feet.js` is at 13/134 (9.7%) and
-`decision-engine.js` is at 33/369 (8.9%).
+Commit only on a zero-failure full suite, by exit status, not a filtered grep
+(F035, F060). Each regression must fail on the pre-fix source; mocks mirror
+the pinned library (F023); only server packets establish advancements. Code
+files stay under 10% comment lines: `under-feet.js` 13/134, `nether-fortress.js`
+32/408, `drop-caution.js` 10/110.
 
 ## Test files
 
@@ -44,7 +41,7 @@ comment-bearing lines. `under-feet.js` is at 13/134 (9.7%) and
 | decision-engine | 61 | planner priorities, initial land underground, biome exit, swimming combat and retreat |
 | dependency-patches | 5 | crafting, furnace close, entity air, pathfinder jump landings |
 | drop-caution | 7 | 10-block drop test, cliff edges, no diagonal or dig-jump beside drops, sprint off, builders wired, approach time |
-| nether-fortress | 15 | expedition prep, in-Nether rules, carry limits, axis approach, slab bridge and walls, soul sand feet, table beside line, cancellation, path return and resume |
+| nether-fortress | 15 | expedition prep, in-Nether rules, carry limits, axis approach, slab bridge and walls, netherrack fallback, soul sand feet, table beside line, cancellation, path return, hole repair, rejoin, resume, piglin hostility |
 | drowning | 6 | low-air interrupt, direct swim rescue, dry station pickup |
 | enchanting | 5 | Enchanter gating, offer choice, zero-level wait |
 | enderman | 11 | gaze avoidance, anger, refuge priority and persistence |
@@ -58,7 +55,7 @@ comment-bearing lines. `under-feet.js` is at 13/134 (9.7%) and
 | memory-random | 2 | seeded rng, atomic world memory |
 | mined-ore-recovery | 13 | diamond memory, longer dry approaches, independent cooldowns, alternate stairs, cancellation, hidden water, bounded diamond pickup retry |
 | mining-timing | 6 | break times for tier ores, landing before digging, bare-hand stone when stranded, enchanted 26.1 tools, 5-tick destroy delay |
-| mobility-recovery | 37 | unstick, shafts and pillars, safe drops, heap guard, surface scouts, swamp swims, tree approach limit, land milestone, canopy descent, land mass and soil stock |
+| mobility-recovery | 38 | unstick, shafts and pillars, safe drops, heap guard, surface scouts, swamp swims, tree approach limit and sliced search, land milestone, canopy descent, land mass and soil stock |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
 | progression-skills | 37 | stairs, tunnels, verified liquid plugs, lava scoop rays, pool memory, side casting, portal approach and geometry |

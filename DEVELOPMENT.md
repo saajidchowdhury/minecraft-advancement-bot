@@ -32,6 +32,8 @@ It works on `.js` and `.md` files.
   `furnace-fuel.js`, `cave-exploration.js` (surveys, ore sight),
   `crowd-retreat.js`, `night-policy.js`, `night-skills.js`, `base.js`,
   `tree-climb.js`, `under-feet.js`, `sculk-caution.js`, `vision.js`,
+  `drop-caution.js` (movement caution beside 10-block drops, F148),
+  `nether-fortress.js` (fortress expedition line, recorded path, F149),
   `inventory.js`, `farming.js`, `archery.js`, `enchanting.js`, `golem.js`,
   `loot.js`, `terrain-scout.js`.
 - Tests mirror modules: `test/<module>.test.js`. Controller-level cases are in
@@ -131,10 +133,17 @@ The implemented route is:
 8. Gather ten obsidian, ignition supplies and food; **We Need to Go Deeper** —
    construct and enter a Nether portal.
 
-After server-confirmed Nether entry, the bot returns to the Overworld, can
-pursue Enchanter if it already has book supplies, and works toward full diamond
-armor. Autonomous fortress, stronghold and dragon progression are not
-implemented. LAN trials verified the diamond interrupt, a renewable water
+9. After server-confirmed Nether entry, a **fortress expedition**: carry a
+   crafting table, four stacks of non-flammable slab blocks, iron and sticks
+   for two pickaxes and 16 meals; in the Nether, tunnel or bridge one cardinal
+   line on slab floors and head-height slab walls (netherrack once slabs run
+   out), look for fortress blocks every 16 steps, head for a sighted one an
+   axis at a time and dig in. The line is recorded cell by cell: the bot goes
+   home along it to restock and walks it back to the frontier (F149).
+
+Once the fortress is reached the planner holds (`wait`); Enchanter (from book
+supplies in hand) and full diamond armor follow outside the expedition.
+Blaze, stronghold and dragon progression are not implemented. LAN trials verified the diamond interrupt, a renewable water
 source, and Ice Bucket Challenge. A staged run finished the last two of
 ten obsidian at one pool, then the regular bot built a portal, earned
 server-confirmed Nether entry and returned. A continuous ten-cast run from

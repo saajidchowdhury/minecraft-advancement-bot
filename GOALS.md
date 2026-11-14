@@ -10,61 +10,35 @@ playthrough is a test, not the definition of success.
 
 ## Now
 
-1. Fresh-world early game. Verify a wet-biome exit onto solid ground, including
-   an ocean-edge route, then the separate mainland search and soil stock.
-   The natural swamp exit and staged trunk platform passed (F145, F147).
-   Compare a full unaided start with F057 (ten advancements in 28 min).
-   Separately verify that an underground first-time land seeker gains
-   elevation and collects safe visible iron (F137).
-2. Live-verify the 2026-11-12/13 changes still lacking natural evidence:
-   a timed-out diamond pickup retry (F140), natural staircase flood
-   recovery (F141), reachable berries (F127), disposal zones and
-   sky-bound surface scouts (F129), melee standoffs (F130), the 5-tick dig
-   delay's cost on throughput (F131), sculk exits (F132), a bare-hand escape
-   (F126). Then cast obsidian toward the portal (G005).
-3. Retreat under ongoing pursuit (F111). Rerun `CAVE_SEED=49910
-   CAVE_MODE=staggered` and the simultaneous creeper cases. Done when both
-   staggered cases end in a kill or a scored escape on the same seed.
-4. Watch natural play for: the creeper duel on poor footing (F112), a furnace
-   job near the iron cap (F108), an unaided dusk descent with stair-side
-   cooking (F120), a diamond approach resumed after combat (F121), cleanup
-   frequency under the keep rules (F115).
-5. Diagnose the self-clearing "falling air above the bot" loop (05:39Z on
-   2026-11-13), the inventory loss after warden recovery (F104) and the
-   unattributed damage. Decide whether to patch the pathfinder's
-   `safeToBreak` reading hidden liquid (F114).
-6. Flooded caves (user, 2026-11-13; not started). In a large or wide cave whose
-   floor is all water, such as 94,16,-127 in seed -3576454559444207221, the bot
-   swims around for exposed iron, and swimming makes that slow. Preferred fix:
-   detect a water-floored cave and tunnel away from it. The alternative is to
-   pillar cobblestone or dirt up from the cave bottom to the water surface and
-   stand on it; compare throughput before choosing. Done when the bot leaves
-   such a cave promptly, or mines it faster than swimming does.
+1. Nether fortress (G006, G019). Restart the regular bot onto current code.
+   Then a staged run that sights and enters a fortress, golden boots against
+   piglins, a restock round trip that resumes at the frontier, a ghast
+   answer, and faster 256-block stone gathering (tunnel mining, not single
+   blocks). Live-verify the F148 drop caution and tree approach in natural play.
+2. Fresh-world early game: wet-biome exit, mainland search and soil stock
+   (F135–F137, F145, F147); compare an unaided start with F057.
+3. Live-verify still unproven changes: diamond pickup retry (F140), staircase
+   floods (F141), berries (F127), disposal zones (F129), standoffs (F130),
+   dig delay cost (F131), sculk exits (F132), bare-hand escapes (F126);
+   then cast obsidian (G005).
+4. Retreat under pursuit (F111): rerun `CAVE_SEED=49910 CAVE_MODE=staggered`
+   and the simultaneous creepers until both end in a kill or scored escape.
+5. Flooded caves (user, 2026-11-13): leave a water-floored cave, such as
+   94,16,-127 in seed -3576454559444207221, by tunnelling away, or pillar to
+   the surface if faster. Then G017 and G018.
 
 ## Active goals
 
 ### G001 — Highest / active — Survival and death recovery
 
-Most reflexes and combat rules are implemented and many are live-verified
-(see the findings digest). Deaths still dominate throughput (F100–F111).
-Not yet built, from the 2026-11-06 death cascade (F076):
-- cave-spider spawner response: two or more visible cave spiders (or cobwebs
-  plus one) mean a spawner, so retreat along the route, wall the tunnel and
-  mark the area off-limits;
-- with no sword or axe, fight with the best pickaxe;
-- a bare night respawn rebuilds while keeping distance, sheltering only when
-  cornered or hurt; accept sand walls on a non-sand floor;
-- no `wait` rest within 16 blocks of a visible archer; take cover first.
-User combat tactics not yet built (F101): strafe along a nearby wall while
-facing away from it; dig a 2x1 dent, lure zombies away, return and seal;
-time skeleton shield blocks from blocked arrows. Build focused skeleton
-scenarios (open room, tunnel, skeleton with zombies) before relying on
-charge-and-shield.
-F146 passed staged swimming fights against a drowned, two archers, and a
-drowned with a skeleton. The natural submerged archer encounter still
-needs a follow-up run.
-Done when a live bare respawn at night and a natural cave crowd pass
-without a death cascade.
+Most reflexes and combat rules are live (see the digest); deaths still
+dominate throughput (F100–F111, F149). Not yet built (F076, F101): a
+cave-spider spawner retreat and seal; pickaxe fighting without a sword;
+bare night respawns that rebuild at a distance; no rest near a visible
+archer; wall strafing, a 2x1 lure dent and shield timing from blocked
+arrows, each with a focused skeleton scenario first. A natural submerged
+archer fight still needs a run (F146). Done when a live bare night respawn
+and a natural cave crowd pass without a death cascade.
 
 ### G005 — High / live retry loop — Diamonds and obsidian
 
@@ -111,13 +85,10 @@ Shiny, Into Fire, A Terrible Fortress.
 
 ### G016 — Medium / not started — Stronghold, library enchanting and the End portal
 
-(Renumbered from the second G015 on 2026-11-12.) Serious enchanting waits for
-a stronghold library's bookshelves; never farm sugar cane. Dependencies,
-cheapest first, to check against 26.1.2: ender pearls (endermen, or piglin
-bartering), blaze rods (a fortress, with full iron, food and a route back via
-G006), eyes of ender to triangulate, then the library's shelves. Done with
-server-confirmed Eye Spy and a level-30 enchant on the diamond pick. Starts only
-after G006 is live-verified.
+Serious enchanting waits for a stronghold library; never farm sugar cane.
+Dependencies, cheapest first: ender pearls (endermen or bartering), blaze
+rods (a fortress via G006), eyes of ender, then the library's shelves. Done
+with server-confirmed Eye Spy and a level-30 enchant on the diamond pick.
 
 ### G019 — High / not started — Golden boots keep piglins neutral
 
