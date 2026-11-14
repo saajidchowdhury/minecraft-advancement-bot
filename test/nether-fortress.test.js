@@ -166,13 +166,26 @@ test('slab crafting puts the table beside the line and takes it back', async () 
     bot.blockAt = p => (p.floored().y === 69 && !placed.has(key(p.floored())) ? { ...ground(new Vec3(0, 69, 0)), position: p.floored() } : ground(p))
     const dug = []
     bot.dig = async block => { dug.push(block.position); placed.delete(key(block.position)) }
-    let crafted = null
+    const crafted = []
     const c = { bot, memory: {}, log: { info () {}, warn () {} }, running: true, paused: false, actionAbort: new AbortController(),
-        craftItem: async (name, count) => { crafted = [name, count, [...placed.entries()].find(([, v]) => v === 'crafting_table')?.[0]] } }
+        craftItem: async (name, count) => { crafted.push([name, count, [...placed.entries()].find(([, v]) => v === 'crafting_table')?.[0]]) } }
     const memory = { netherBridge: { dimension: 'the_nether', dir: 0, steps: 0, lastCheck: 0, portal: new Vec3(0, 70, 0), target: null, turns: 0 } }
     c.memory = memory
     bot.setControlState = () => { c.running = false }
     await assert.rejects(findFortress(c))
-    assert.deepEqual(crafted, ['cobblestone_slab', 126, '0,70,1'])
+    assert.equal(crafted.reduce((n, [, count]) => n + count, 0), 126, 'one stack of 63 blocks becomes 126 slabs')
+    assert.ok(crafted.every(([name, count, table]) => name === 'cobblestone_slab' && count <= 24 && table === '0,70,1'),
+        'small batches at a table beside the line')
     assert.deepEqual(dug.map(p => key(p)), ['0,70,1'])
+})
+
+test('a cancelled fortress step lets go well inside the 2 s release window', async () => {
+    const { bot } = bridgeWorld()
+    const memory = { netherBridge: { dimension: 'the_nether', dir: 0, steps: 0, lastCheck: 0, portal: new Vec3(0, 70, 0), target: null, turns: 0 } }
+    const c = { bot, memory, rng: () => 0, log: { info () {}, warn () {} }, running: true, paused: false, actionAbort: new AbortController() }
+    const started = Date.now()
+    const run = findFortress(c)
+    setTimeout(() => c.actionAbort.abort('nearby hostile'), 100)
+    await assert.rejects(run, /cancelled/)
+    assert.ok(Date.now() - started < 1000, `released after ${Date.now() - started} ms`)
 })

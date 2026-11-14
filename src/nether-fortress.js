@@ -23,6 +23,14 @@ const AIR = new Set(['air', 'cave_air', 'void_air'])
 const HOT = new Set(['lava', 'fire', 'soul_fire', 'magma_block'])
 const KEEP = new Set(['obsidian', 'crying_obsidian', 'nether_portal', 'spawner', 'chest', 'bedrock'])
 
+// A cancelled action must let go within 2 s (survival-bot reconnects otherwise; live 06:32Z), so loops check.
+function check(c) {
+    if (!c.running || c.paused || c.actionAbort?.signal.aborted || c.bot.health <= 0) {
+        throw new Error('action cancelled')
+    }
+}
+const CRAFT_BATCH = 4 // slab recipes per craft call, about half a second
+
 const countOf = (bot, names) => bot.inventory.items().reduce((n, item) => n + (names.includes(item.name) ? item.count : 0), 0)
 const slabCount = bot => countOf(bot, Object.values(SLABS))
 // Bridge supply in blocks: a slab is half of one.
@@ -52,7 +60,10 @@ async function craftSlabs(c, dir) {
     if (spot && countOf(bot, ['crafting_table']) > 0) {
         await place(c, spot, 'crafting_table', null, [[spot.offset(0, -1, 0), new Vec3(0, 1, 0)]])
     }
-    await c.craftItem(SLABS[name], 2 * blocks, true)
+    for (let made = 0; made < 2 * blocks; made += 6 * CRAFT_BATCH) {
+        check(c)
+        await c.craftItem(SLABS[name], Math.min(6 * CRAFT_BATCH, 2 * blocks - made), true)
+    }
     const table = spot && bot.blockAt(spot)?.name === 'crafting_table' ? bot.blockAt(spot) : null
     if (table) {
         await bot.dig(table, true)
@@ -90,6 +101,7 @@ async function clearCells(c, cells) {
         if (KEEP.has(block.name) || (!block.diggable && !['fire', 'soul_fire'].includes(block.name))) {
             throw new LavaAhead(`undiggable ${block.name} at ${block.position}`)
         }
+        check(c)
         await bot.tool.equipForBlock(block, { requireHarvest: false, getFromChest: false }).catch(() => {})
         await bot.dig(block, true)
         await bot.waitForTicks(2)
@@ -154,6 +166,7 @@ async function walkTo(c, cell, sneak) {
     try {
         bot.setControlState('sneak', sneak)
         while (Date.now() < deadline) {
+            check(c)
             const p = bot.entity.position
             if (Math.abs(p.x - center.x) < 0.2 && Math.abs(p.z - center.z) < 0.2 && bot.entity.onGround) {
                 return
@@ -253,9 +266,7 @@ async function findFortress(c) {
     }
     c.log.info(`Fortress search heading ${DIRECTIONS[nb.dir]} from ${feet()} after ${nb.steps} steps.`)
     for (;;) {
-        if (!c.running || c.paused || c.actionAbort?.signal.aborted || bot.health <= 0) {
-            throw new Error('action cancelled')
-        }
+        check(c)
         if (slabCount(bot) < MIN_SLABS) {
             const [x, z] = DIRECTIONS[nb.dir]
             await craftSlabs(c, new Vec3(x, 0, z))
