@@ -136,16 +136,32 @@ function craft(state, id, item, action = 'craft_progression') {
 
 // Each cast needs lava, two water buckets for the pool, and an empty bucket to recover the water.
 const DEFERRED_DIAMONDS = 16
+const WATER_BUCKET_TARGET = 2
+
+function canFillWaterBuckets(empty, filled) {
+    return filled < WATER_BUCKET_TARGET && empty + filled >= WATER_BUCKET_TARGET
+}
+
+function waterBucketPrep(state, reason, deferred = false) {
+    const filled = state.waterBuckets ?? 0
+    const empty = state.emptyBuckets ?? 0
+    if (filled >= WATER_BUCKET_TARGET) {
+        return null
+    }
+    if (canFillWaterBuckets(empty, filled)) {
+        return deferred ? null : target('prep:water bucket', 'fill_water_bucket', reason)
+    }
+    const count = WATER_BUCKET_TARGET - filled
+    const costs = { ironIngots: (count - empty) * RECIPES.bucket.ironIngots }
+    return target('prep:water bucket', resourceAction(state, costs) || 'craft_progression', 'obtain the empty buckets for two waters', { item: 'bucket', count })
+}
 
 function castingPrep(state) {
     if (state.obsidianCastPending) {
         return null
     }
-    if ((state.waterBuckets ?? 0) < 2) {
-        return state.hasEmptyBucket ? target('prep:water bucket', 'fill_water_bucket', 'fill two water buckets before working with obsidian') :
-            craft(state, 'prep:water bucket', 'bucket')
-    }
-    return !state.hasLavaBucket && !state.hasEmptyBucket ? craft(state, 'prep:lava bucket', 'bucket') : null
+    return waterBucketPrep(state, 'fill two water buckets before working with obsidian') ||
+        (!state.hasLavaBucket && !state.emptyBuckets ? craft(state, 'prep:lava bucket', 'bucket') : null)
 }
 
 function enchanterStep(state) {
@@ -270,9 +286,9 @@ function planAdvancement(state) {
     if (!state.completedAdvancements?.has('minecraft:story/lava_bucket')) {
         // User direction (F127): two water buckets before lava, so a pool found near y=-54 can be cast
         // into obsidian on the spot instead of a surface round trip; a deferred water search lets lava go first.
-        if ((state.waterBuckets ?? 0) < 2 && !state.waterDeferred) {
-            return state.hasEmptyBucket ? target('prep:water bucket', 'fill_water_bucket', 'fill two water buckets before lava') :
-                craft(state, 'prep:water bucket', 'bucket')
+        const water = waterBucketPrep(state, 'fill two water buckets before lava', state.waterDeferred)
+        if (water) {
+            return water
         }
         if (!state.hasBucket) {
             return craft(state, 'minecraft:story/lava_bucket', 'bucket')
@@ -326,4 +342,5 @@ function planAdvancement(state) {
     return target('survival:established', 'wait', 'supported advancement route complete; use !come or !redstone')
 }
 
-module.exports = { EARLY_ADVANCEMENTS, RECIPES, ARMOR_TIERS, nextAdvancement, ironStock, ironReserveCap, plankPotential, resourceAction, ironPickPlankFuel }
+module.exports = { EARLY_ADVANCEMENTS, RECIPES, ARMOR_TIERS, nextAdvancement, ironStock, ironReserveCap, plankPotential, resourceAction,
+    ironPickPlankFuel, WATER_BUCKET_TARGET, canFillWaterBuckets }

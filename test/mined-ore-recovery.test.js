@@ -55,6 +55,52 @@ test('a confirmed diamond survives lost sight and dimension changes without reve
     assert.equal(findPriorityDiamond(c), null)
 })
 
+test('a nearer diamond on approach cooldown does not hide another visible vein', () => {
+    const { c, set } = oreWorld(new Map(), new Vec3(0.5, 0, 0.5))
+    for (let x = -4; x <= 4; x++) {
+        for (let y = 0; y <= 3; y++) {
+            set(x, y, 0, 'air')
+        }
+    }
+    set(2, 1, 0, 'diamond_ore')
+    set(-4, 1, 0, 'diamond_ore')
+    assert.deepEqual(findPriorityDiamond(c)?.position, new Vec3(2, 1, 0))
+    c.memory.diamondTargets.overworld.retryAt = Date.now() + 120000
+    assert.deepEqual(findPriorityDiamond(c)?.position, new Vec3(-4, 1, 0))
+    set(-4, 1, 0, 'air')
+    assert.equal(findPriorityDiamond(c), null, 'changing targets preserves the original cooldown')
+})
+
+test('a priority diamond can use a supported walk that takes longer than four seconds', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] })
+    const { c, bot, set } = oreWorld(new Map(), new Vec3(0.5, 0, 0.5))
+    for (let x = 0; x < 13; x++) {
+        set(x, 0, 0, 'air')
+        set(x, 1, 0, 'air')
+    }
+    set(13, 1, 0, 'diamond_ore')
+    const target = bot.blockAt(new Vec3(13, 1, 0))
+    Object.assign(bot, { health: 20, heldItem: bot.inventory.items()[0],
+        canDigBlock: block => bot.entity.position.distanceTo(block.position) < 4.5,
+        tool: { equipForBlock: async () => {} },
+        async dig(block) { set(block.position.x, block.position.y, block.position.z, 'air') } })
+    Object.setPrototypeOf(c, SurvivalController.prototype)
+    Object.assign(c, { running: true, visibleDrops: () => [], log: { info() {} },
+        async gotoWithTimeout(goal, ms) {
+            assert.ok(ms >= 8000, 'the walk can take longer than four seconds')
+            const feet = new Vec3(10, 0, 0)
+            assert.equal(goal.isEnd(feet), true)
+            bot.entity.position = feet.offset(0.5, 0, 0.5)
+        } })
+    const mined = c.collectTarget(target, target, 'priority diamond').then(() => null, error => error)
+    for (let i = 0; i < 20; i++) {
+        await Promise.resolve()
+        t.mock.timers.tick(300)
+    }
+    assert.equal(await mined, null)
+    assert.equal(bot.blockAt(target.position).name, 'air')
+})
+
 test('a failed diamond approach tries a different side and keeps the target across retries', async () => {
     const { c, bot, set } = oreWorld(new Map(), new Vec3(150.5, 3, 259.5))
     const target = new Vec3(150, 7, 258)
@@ -219,7 +265,7 @@ test('ore approach centers in a supported cell when its corner blocks the view',
     assert.equal(dug, true)
 })
 
-function dropCollector(t, drop, goto) {
+function dropCollector(t, drop, goto, label = 'priority iron') {
     t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
     const target = new Vec3(372, 17, 269)
     const { bot, cells, getBlock } = pitWorld()
@@ -232,16 +278,16 @@ function dropCollector(t, drop, goto) {
     })
     const warnings = []
     const c = Object.create(SurvivalController.prototype)
-    Object.assign(c, { bot, running: true, paused: false, actionAbort: new AbortController(),
-        movements: { safeToBreak: () => true }, log: { debug() {}, warn: m => warnings.push(m) }, minedOpenings: new Map(),
+    Object.assign(c, { bot, memory: {}, running: true, paused: false, actionAbort: new AbortController(),
+        movements: { safeToBreak: () => true }, log: { info() {}, debug() {}, warn: m => warnings.push(m) }, minedOpenings: new Map(),
         canSee: () => false, gotoWithTimeout: goto,
         rememberBlockedTarget: () => assert.fail('a pickup problem quarantined the mined ore') })
     const run = async () => {
-        const operation = c.collectTarget(getBlock(target), getBlock(target), 'priority iron')
+        const operation = c.collectTarget(getBlock(target), getBlock(target), label)
         for (let i = 0; i < 60; i++) { await Promise.resolve(); t.mock.timers.tick(200) }
         await operation
     }
-    return { bot, warnings, run }
+    return { c, bot, warnings, run }
 }
 
 test('a hidden mined drop is followed without turning and stood on when the follow misses it', async t => {
@@ -266,4 +312,28 @@ test('an unreachable mined drop is reported and does not abort the ore collectio
     const { warnings, run } = dropCollector(t, drop, async () => { throw new Error('No path to the goal!') })
     await run()
     assert.ok(warnings.some(m => /Left a mined raw_iron at \(372, 16, 269\)/.test(m)), warnings.join('\n'))
+})
+
+test('a diamond pickup gets 45 seconds and retries before new ore after a timeout', async t => {
+    const drop = { name: 'item', isValid: true, position: new Vec3(371.52, 17, 269.6), getDroppedItem: () => ({ name: 'diamond' }) }
+    const attempts = []
+    const { c, bot, run } = dropCollector(t, drop, async (goal, ms, label) => {
+        attempts.push([label, ms])
+        if (attempts.length === 1) {
+            throw new Error('mined item pickup timed out')
+        }
+        drop.isValid = false
+    }, 'priority diamond')
+    bot.registry = data
+    bot.pathfinder = { setMovements () {} }
+    await run()
+    assert.deepEqual(attempts, [['mined item pickup', 45000]])
+    assert.equal(c.pendingDiamondDrop(), drop)
+    const { chooseAction } = require('../src/decision-engine')
+    const state = { health: 20, food: 20, hostileDistance: Infinity, diamondInView: true, diamondDrop: true, freeInventorySlots: 4 }
+    assert.equal(chooseAction(state), 'recover_diamond_drop')
+    assert.equal(chooseAction({ ...state, inLava: true }), 'escape_lava')
+    await c.perform('recover_diamond_drop', state)
+    assert.deepEqual(attempts[1], ['mined item pickup', 45000])
+    assert.equal(c.pendingDiamondDrop(), null)
 })

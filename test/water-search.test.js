@@ -12,7 +12,7 @@ function waterWorld(night, roof = 65) {
     const c = {
         running: true, paused: false, actionAbort: new AbortController(), memory: { surfaceByStaircase: true },
         home: { y: 63 }, log: { info() {}, warn() {}, debug() {} }, isNight: () => night,
-        countItems: () => 0, findNearestBlock: () => null, checkAction() {},
+        countItems: names => names.includes('bucket') ? 2 : 0, findNearestBlock: () => null, checkAction() {},
         isEmptyPlacementBlock: b => b?.name === 'air',
         observe: () => ({ underground: false, dimension: 'overworld', health: 20, food: 20, foodUnits: 0 }),
         bestItem: names => names.includes('iron_pickaxe') ? { name: 'iron_pickaxe' } : null,
@@ -33,6 +33,17 @@ function waterWorld(night, roof = 65) {
     for (const y of [60, 61]) { air.add(new Vec3(108, y, 65).toString()) }
     return c
 }
+
+test('a visible water source becomes an opportunity only when the bot can fill the pair', () => {
+    const c = waterWorld(false)
+    c.mcData = {}
+    c.hasItem = () => true
+    c.findNearestBlock = () => ({ name: 'water' })
+    for (const [empty, filled, eligible] of [[1, 0, false], [2, 0, true], [1, 1, true], [2, 2, false]]) {
+        c.countItems = names => names.includes('bucket') ? empty : filled
+        assert.equal(Boolean(SurvivalController.prototype.waterSourceInReach.call(c)), eligible)
+    }
+})
 
 test('daytime water search keeps climbing beneath a roof even when underground is falsely reported as false', async () => {
     const c = waterWorld(false)

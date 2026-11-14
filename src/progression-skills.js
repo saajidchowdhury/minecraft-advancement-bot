@@ -8,7 +8,7 @@ const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight,
     findPriorityOre, IRON_ORES, visibleMiningHazard } = require('./cave-exploration')
 const { scanFor, canSeeBlock, cellVisible } = require('./vision')
 const { isUnderFeet, soundFloor } = require('./under-feet')
-const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction } = require('./advancement-plan')
+const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction, WATER_BUCKET_TARGET, canFillWaterBuckets } = require('./advancement-plan')
 const { sculkInward } = require('./sculk-caution')
 const { isFuelPlank, isCharcoalLog, furnaceFuelTicks, plankFuelPlan, preparePlankFuel } = require('./furnace-fuel')
 
@@ -163,7 +163,7 @@ function firstOpaqueCell(bot, from, to) {
 
 async function takeRevealedWater(c, opened) {
     const bot = c.bot
-    if (!c.countItems || c.countItems(['water_bucket']) >= 2 || c.countItems(['bucket']) < 1) {
+    if (!c.countItems || !canFillWaterBuckets(c.countItems(['bucket']), c.countItems(['water_bucket']))) {
         return false
     }
     const eye = () => bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0)
@@ -184,7 +184,7 @@ async function takeRevealedWater(c, opened) {
                 c.log.warn(`Could not scoop revealed water at ${seen.position}: ${error.message}`)
                 return false
             }
-            c.log.info(`Filled a water bucket from the water a dig opened at ${seen.position} (${c.countItems(['water_bucket'])}/2).`)
+            c.log.info(`Filled a water bucket from the water a dig opened at ${seen.position} (${c.countItems(['water_bucket'])}/${WATER_BUCKET_TARGET}).`)
             return true
         }
         const blocker = sources[0] && firstOpaqueCell(bot, eye(), sources[0].position.offset(0.5, 0.5, 0.5))
@@ -687,7 +687,7 @@ async function mineRememberedDiamond(c, block = findPriorityDiamond(c)) {
     c.log.info(`Priority diamond: ${block.name} at ${p}.`)
     bot.pathfinder.setMovements(dryMovements(bot))
     try {
-        if (canMine() || saved.side == null) {
+        if (canMine() || !saved.side) {
             try {
                 await c.collectTarget(block, block, 'priority diamond')
                 return
@@ -716,9 +716,17 @@ async function mineRememberedDiamond(c, block = findPriorityDiamond(c)) {
             check(c)
             c.log.info(`Diamond staircase toward ${heading} failed: ${error.message}`)
         }
-        saved.side++
+        saved.side = side + 1
         if (saved.side >= 4) {
-            Object.assign(saved, { side: 0, first: null, retryAt: Date.now() + 120000 })
+            const now = Date.now()
+            const retries = c.memory.diamondRetries
+            for (const key of Object.keys(retries)) {
+                if (retries[key] <= now) {
+                    delete retries[key]
+                }
+            }
+            retries[`${bot.game.dimension}:${p}`] = now + 120000
+            Object.assign(saved, { side: 0, first: null })
             c.log.warn(`No safe approach to diamond at ${p}; keeping it for a later retry.`)
         }
     } finally {
@@ -873,7 +881,7 @@ async function gatherDeep(c, names) {
     return mineTunnel(c, targetY)
 }
 
-async function craftProgression(c, item) {
+async function craftProgression(c, item, count = 1) {
     const cost = RECIPES[item]
     if (!cost) {
         throw new Error(`unknown progression recipe: ${item}`)
@@ -887,7 +895,7 @@ async function craftProgression(c, item) {
         await c.craftItem('stick', 4, false)
     }
     check(c)
-    await c.ensureItem(item, 1, item !== 'flint_and_steel')
+    await c.ensureItem(item, count, item !== 'flint_and_steel')
 }
 
 async function fillLavaBucket(c) {
@@ -1119,7 +1127,7 @@ async function useBucket(c, name, aim, verify, label) {
 async function fillWaterBucket(c) {
     const bot = c.bot
     const before = c.countItems(['water_bucket'])
-    if (before >= 2) {
+    if (!canFillWaterBuckets(c.countItems(['bucket']), before)) {
         return
     }
     const night = Boolean(c.isNight?.()) && !c.nightSurfaceReady?.()
@@ -1186,7 +1194,7 @@ async function fillWaterBucket(c) {
         }
         await useBucket(c, 'bucket', water.position.offset(0.5, 0.5, 0.5),
             () => c.countItems(['water_bucket']) > before, 'fill water bucket')
-        c.log.info(`Water buckets ready: ${c.countItems(['water_bucket'])}/2.`)
+        c.log.info(`Water buckets ready: ${c.countItems(['water_bucket'])}/${WATER_BUCKET_TARGET}.`)
     } catch (error) {
         if (c.running && !c.paused && !c.actionAbort?.signal.aborted) {
             c.rememberBlockedTarget(water, 'water source', error)
@@ -1918,7 +1926,7 @@ async function performProgression(c, action, state) {
         case 'craft_stone_shovel': return craftProgression(c, 'stone_shovel')
         case 'craft_progression': {
             const goal = state.sideGoal || nextAdvancement(state)
-            return craftProgression(c, goal.item)
+            return craftProgression(c, goal.item, goal.count)
         }
         case 'equip_armor':
             for (const { item, destination } of armorUpgrades(c.bot)) {

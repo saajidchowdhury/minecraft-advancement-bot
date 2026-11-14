@@ -13,7 +13,7 @@ const ready = {
     hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true, hasIronPickaxe: true,
     hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true, hasDiamondPickaxe: true,
     gear: new Set(['diamond_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']),
-    hasBucket: true, hasEmptyBucket: true, waterBuckets: 2, hasFlintAndSteel: true, diamonds: 0, obsidian: 0,
+    hasBucket: true, emptyBuckets: 1, waterBuckets: 2, hasFlintAndSteel: true, diamonds: 0, obsidian: 0,
     flint: 0, redstone: 0, foodUnits: 24, hasSmeltingFuel: true, dimension: 'overworld', completedAdvancements: routeDone,
     sugarCane: 0, paper: 0, books: 0, leather: 0, lapis: 0, xpLevel: 0, hasEnchantingTable: false
 }

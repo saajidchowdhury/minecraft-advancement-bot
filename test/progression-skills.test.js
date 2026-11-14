@@ -779,7 +779,7 @@ test('a stalled tunnel step says how many steps were unsafe, old excavations or 
 test('a cave spring with no dry bank is filled from within bucket reach', async () => {
     const { performProgression } = require('../src/progression-skills')
     const spring = new Vec3(3, 66, 0)
-    const inventory = { bucket: 1, water_bucket: 1 }
+    const inventory = { bucket: 1, water_bucket: 0 }
     let held
     const bot = {
         health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) },
@@ -805,6 +805,11 @@ test('a cave spring with no dry bank is filled from within bucket reach', async 
         async gotoWithTimeout() { bot.entity.position = new Vec3(1.5, 65, 0.5) },
         rememberBlockedTarget: () => assert.fail('quarantined a reachable spring')
     }
+    await performProgression(c, 'fill_water_bucket', {})
+    assert.deepEqual(inventory, { bucket: 1, water_bucket: 0 })
+    inventory.bucket = 2
+    await performProgression(c, 'fill_water_bucket', {})
+    assert.deepEqual(inventory, { bucket: 1, water_bucket: 1 })
     await performProgression(c, 'fill_water_bucket', {})
     assert.equal(inventory.water_bucket, 2)
     inventory.bucket = 1
@@ -866,7 +871,7 @@ test('gravel that falls into a freshly dug tunnel cell is dug again until the co
 })
 
 test('a dig that reveals water opens a line to the source and fills an empty bucket before plugging (F119)', async () => {
-    const inventory = { bucket: 1, water_bucket: 0 }
+    const inventory = { bucket: 2, water_bucket: 0 }
     const plugged = []
     const order = []
     const bot = stallBot(new Set(STALL_AIR))
@@ -897,7 +902,7 @@ test('digging up into water above the bot scoops it instead of counting a failur
     const { mineTunnel } = require('../src/progression-skills')
     const air = new Set(['0,64,0', '0,65,0'])
     let water = new Set(['0,68,0'])
-    const inventory = { bucket: 1, water_bucket: 0, cobblestone: 32 }
+    const inventory = { bucket: 2, water_bucket: 0, cobblestone: 32 }
     const dug = []
     const bot = {
         health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5), eyeHeight: 1.62 }, entities: {},

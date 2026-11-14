@@ -13,14 +13,15 @@ instead of adding another. Keep everything above the index under ~200 lines.
 
 ## Current handoff — 2026-11-13 evening
 
-AdvancementBot resumed iron work at Y=16 on port 51391 (PID 17028, Terminal
-window 2250, `outputs/2026-11-13@21.28.28/`). The dry-land milestone migrated
-and was saved. The restart used the F137 source hashes in `session.json`.
-The preceding run mistook a cave for land and spent two picks (F137). Owner
-kit verified with no items added. Still to validate live: a first-time land
-search from underground, F135 trunk platform and full canopy descent, F127
-buckets and berries, F129 disposal zones, F130 standoffs, F132 sculk exits
-and F131 pacing over a long dig. Baseline: 553 tests pass.
+AdvancementBot is on port 51391 (PID 19216, Terminal window 2250, logs
+`outputs/2026-11-13@21.58.21/`). The latest restart loaded F140 and verified
+the owner kit. The bot crafted two empty buckets before the first water
+scoop (F138). It earned Diamonds! from the second cave vein and crafted a
+diamond pickaxe and sword (F139). The first vein's drop was left behind.
+F140 pickup retries still need live observation. Earlier pending checks
+include the first-time underground land search, trunk platform, reachable
+berries, disposal zones, melee standoffs, sculk exits and dig pacing.
+Baseline: 557 tests pass.
 
 ## Stable facts and process lessons
 
@@ -84,10 +85,12 @@ Planner and gear order
 - The first three ingots make an iron pick (F043). The stone pick is followed
   by a stone axe and shovel (F044, F049, F095). No wooden sword (F071).
   Carried armor and shields equip first (F093).
-- Shield, iron sword, then iron-or-better armor before buckets (F071). The
-  first buckets fill two waters before lava unless the water search is
-  deferred (F127). A diamond pick at three diamonds, a diamond sword with two
-  spare, then affordable armor before routine work (F063, F073, F103, F123).
+- Shield, iron sword, then iron-or-better armor before planned bucket
+  work (F071). Craft both empty buckets before the first water scoop, or one
+  empty if one water bucket is already filled. An eligible water source can
+  interrupt work even when the search is deferred (F119, F127, F138). A
+  diamond pick at three diamonds, a diamond sword with two spare, then
+  affordable armor before routine work (F063, F073, F103, F123).
 - Location-bound ingredients precede wood; wood precedes stone when a recipe
   lacks both (F021, F057). The iron reserve counts furnace input and budgets
   three spare picks, three buckets and missing gear (`ironReserveCap`, F108).
@@ -104,8 +107,10 @@ Mining and tunnels
   a tunnel; with no visible iron the bot heads toward Y=16. Ore its own dig
   exposed within 6 blocks stays a target (F079, F080, F090, F100, F107).
 - A confirmed diamond stays a priority within 48 blocks (F121); lava scoops
-  verify a ray from dry ground (F122). Never mine a natural block under the
-  hitbox except in a canopy descent; a placement overlapping the hitbox
+  verify a ray from dry ground (F122). Diamond walks allow 15 seconds and a
+  target's cooldown leaves other visible ore eligible (F139). A diamond drop
+  gets 45 seconds to approach and a separate retry ahead of new ore (F140).
+  Never mine a natural block under the hitbox except in a canopy descent; a placement overlapping the hitbox
   centres the bot first (F102, F129, F135).
 - Hazards count only when visible (`cellVisible`). An opened liquid is plugged
   and blocks that step for 120 s, except water scooped while buckets are
@@ -341,3 +346,6 @@ Highest risk first.
 - F135 Reach dry land first after every Overworld spawn [user direction + regression]
 - F136 Pathfinder treated seagrass and kelp as air [user report + inspection + regression]
 - F137 Returning underground players no longer repeat the initial land search [live + regression]
+- F138 Wait for the full pair of empty buckets before the first water scoop [user direction + live + regression]
+- F139 Cave diamonds needed a longer supported walk and independent cooldowns [live + replay + regression]
+- F140 Mined diamonds get a longer pickup and a separate retry [user direction + regression]

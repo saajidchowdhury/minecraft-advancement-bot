@@ -239,6 +239,9 @@ function chooseAction (state) {
     if (mustFreeSlot) {
         return 'clear_inventory'
     }
+    if (state.diamondDrop && state.health > 10 && state.hostileDistance > MELEE_ALERT_RANGE && state.freeInventorySlots > 0) {
+        return 'recover_diamond_drop'
+    }
     if (state.needsLand) {
         if (!state.hasWoodenPickaxe && [Actions.CRAFT_TABLE, Actions.CRAFT_WOODEN_PICKAXE, Actions.STONE].includes(progression.action)) {
             return progression.action

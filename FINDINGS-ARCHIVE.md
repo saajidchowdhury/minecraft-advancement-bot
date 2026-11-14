@@ -3295,3 +3295,77 @@ nothing. There were no gameplay setup commands. Fresh underground climbing
 and iron selection are covered by regressions. All three new regressions
 failed before their fixes, and the full 553-test suite and syntax checks passed.
 
+## F138 — Wait for two empty buckets before the first water scoop
+
+User direction, 2026-11-13. The port 51391 bot began `fill_water_bucket`
+with one empty bucket and no filled buckets (`outputs/2026-11-13@21.28.28/`,
+21:42:06 ET). The planner and both water-opportunity paths accepted a
+single empty. The craft action also requested a total of one item, so
+choosing the same bucket recipe again would do nothing.
+
+The planner budgets three ingots per missing bucket and passes the desired
+empty count through to the existing crafting skill. Normal searches, visible
+opportunities and water exposed by a dig use the same requirement. Start with
+two empties if neither is filled, or one empty when one is already full.
+Deferring the water search still allows crafting a missing bucket. Regressions
+cover both recipe paths, the second scoop and opportunistic water. There are
+554 passing tests and syntax checks pass.
+
+Restarted on 51391 in Terminal window 2250 at 21:48:17 ET
+(`outputs/2026-11-13@21.48.17/`). The bot had one empty bucket, one ingot and
+16 raw iron. It started a smelt for the missing bucket. The owner kit helper
+added one enchanted golden apple and verified the kit
+(`outputs/f138-owner-kit.log`). No bot supplies were staged.
+
+The smelt finished at 21:51:53 ET. After rebuilding its iron pick and
+crafting diamond tools, the bot made the second bucket at 21:53:04 ET.
+The inventory count rose from one empty to two before `fill_water_bucket`
+resumed (`outputs/2026-11-13@21.48.17/bot.log`).
+
+## F139 — Cave diamonds needed a longer supported walk and independent cooldowns
+
+User reported two exposed veins near -136,-37,-25 and -129,-39,-34. At
+21:48:35 ET on port 51391, the cave survey yielded to a diamond at
+-137,-37,-26. Its dry approach timed out after four seconds. Four carved
+approaches then failed, two after exposing water. The old cooldown checked
+the nearest ore after selection. When that ore was on cooldown it could
+hide another valid visible target.
+
+EffectHelper inspected the live terrain after verifying the owner kit.
+Pathfinder replay found a 27-step dry walk to the first ore from the survey
+area. From the lower passage it found the second vein in line of sight and
+a 5–9-step route to several blocks. Only EffectHelper was moved. Commands,
+replies and paths are in `outputs/f139-diamond-inspection.json`.
+
+The direct approach now has 15 seconds, retries a dry walk after the
+cooldown, and advances the staircase side explicitly when a side fails.
+Cooldowns are recorded by dimension and position and filtered out during
+ore selection. The two new regressions failed before the fix.
+
+Before the restart onto this fix, the bot mined the first recorded block
+at 21:52:32 ET and logged a failed pickup. It then mined five blocks from
+the second vein, collected five diamonds and earned the server-confirmed
+Diamonds! advancement. It used the diamonds for a pickaxe and a sword.
+No gameplay commands assisted that run. The original drop pickup remains a
+separate failure. Evidence is in `outputs/2026-11-13@21.48.17/bot.log`.
+
+## F140 — Mined diamonds get a longer pickup and a separate retry
+
+User pointed out the first drop was left after the bot mined it. The log
+at 21:52:40 ET confirms an eight-second pickup timeout at -137,-37,-26
+before the bot moved on to the second vein. The generic pickup path logged
+the failure and dropped its reference as soon as the mining action ended.
+
+Diamond drops now get 45 seconds to approach. The mining action's total
+budget accounts for the approach and pickup. The short movement watchdog
+leaves the diamond pickup's own deadline in charge. A still-loaded missed
+diamond is remembered by position and dimension, with a single dry retry
+ahead of routine work if safe. A cancelled retry stays eligible. Regression
+reproduces the old timeout and verifies pickup priority and emergency
+preemption. All 557 tests and syntax checks passed.
+
+Restarted in window 2250 at 21:58:21 ET with owner kit verified and no
+supplies added (`outputs/f140-owner-kit.log`). The bot had one empty and
+one water bucket. The original diamond drop was created before tracking
+was enabled. No successful recovery of that item was observed.
+

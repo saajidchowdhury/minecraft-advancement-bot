@@ -18,7 +18,8 @@ playthrough is a test, not the definition of success.
    iron pickups and positive elevation gain. The returning-player restart
    passed on port 51391 (F137).
 2. Live-verify the 2026-11-12/13 changes still lacking natural evidence:
-   water buckets before lava and reachable berries (F127), disposal zones and
+   the second water fill before lava (F138), a timed-out diamond pickup
+   retry (F140), reachable berries (F127), disposal zones and
    sky-bound surface scouts (F129), melee standoffs (F130), the 5-tick dig
    delay's cost on throughput (F131), sculk exits (F132), a bare-hand escape
    (F126). Then cast obsidian toward the portal (G005).

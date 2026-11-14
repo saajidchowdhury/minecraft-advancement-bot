@@ -263,12 +263,12 @@ function knownExposure(c, block) {
     return eye.distanceTo(block.position.offset(0.5, 0.5, 0.5)) <= 6 && exposedByDig(c, block)
 }
 
-function findPriorityOre(c, ores, range = 16) {
+function findPriorityOre(c, ores, range = 16, eligible = () => true) {
     const bot = c.bot
     const feet = bot.entity.position.floored()
     return c.findNearestBlock(name => ores.includes(name), range, {
         sight: b => Boolean(miningSight(c, b, range)) || knownExposure(c, b),
-        filter: b => !(b.position.x === feet.x && b.position.z === feet.z && b.position.y < feet.y) &&
+        filter: b => eligible(b) && !(b.position.x === feet.x && b.position.z === feet.z && b.position.y < feet.y) &&
             !visibleMiningHazard(bot, b.position) &&
             bot.inventory.items().some(item => item.name.endsWith('_pickaxe') && b.canHarvest(item.type))
     })
@@ -279,19 +279,26 @@ function findPriorityDiamond(c, range = 16) {
     const targets = c.memory.diamondTargets ??= {}
     const dimension = bot.game.dimension
     const saved = targets[dimension]
+    const now = Date.now()
+    const retries = c.memory.diamondRetries ??= {}
+    const coolingDown = block => retries[`${dimension}:${block.position}`] > now
     if (saved) {
         const position = new Vec3(saved.x, saved.y, saved.z)
+        if (saved.retryAt > now) {
+            retries[`${dimension}:${position}`] = saved.retryAt
+            delete saved.retryAt
+        }
         const block = bot.blockAt(position, false)
         if (block && !DIAMOND_ORES.includes(block.name)) {
             delete targets[dimension]
-        } else if (block && bot.entity.position.distanceTo(position) <= 48 && !(saved.retryAt > Date.now()) &&
+        } else if (block && bot.entity.position.distanceTo(position) <= 48 && !coolingDown(block) &&
             !c.isBlockedTarget?.(block) && !visibleMiningHazard(bot, position) &&
             bot.inventory.items().some(item => item.name.endsWith('_pickaxe') && block.canHarvest(item.type))) {
             return block
         }
     }
-    const block = findPriorityOre(c, DIAMOND_ORES, range)
-    if (!block || (saved?.retryAt > Date.now() && block.position.equals(saved))) {
+    const block = findPriorityOre(c, DIAMOND_ORES, range, b => !coolingDown(b))
+    if (!block) {
         return null
     }
     const { x, y, z } = block.position

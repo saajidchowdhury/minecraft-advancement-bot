@@ -3,6 +3,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { EARLY_ADVANCEMENTS, nextAdvancement, plankPotential, resourceAction, ironReserveCap } = require('../src/advancement-plan')
+const { performProgression } = require('../src/progression-skills')
 
 const established = {
     logs: 4, planks: 16, sticks: 8, cobblestone: 16, ironIngots: 0, rawIron: 0,
@@ -10,7 +11,7 @@ const established = {
     hasStonePickaxe: true, hasFurnace: true, hasIronPickaxe: true,
     hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true,
     gear: new Set(['iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']), 
-    hasBucket: true, hasEmptyBucket: true, waterBuckets: 2, hasDiamondPickaxe: false, hasFlintAndSteel: false,
+    hasBucket: true, emptyBuckets: 1, waterBuckets: 2, hasDiamondPickaxe: false, hasFlintAndSteel: false,
     diamonds: 0, obsidian: 0, flint: 0, redstone: 0, foodUnits: 24,
     hasSmeltingFuel: true, completedAdvancements: new Set(['minecraft:story/lava_bucket'])
 }
@@ -81,18 +82,25 @@ test('lava bucket follows iron protection and precedes diamond mining', () => {
     assert.equal(nextAdvancement({ ...state, hasBucket: false, ironIngots: 3 }).item, 'bucket')
 })
 
-test('the first buckets fill two waters before any lava is collected (F127)', () => {
+test('the first water search starts with two empty buckets and uses both before lava', async () => {
     const state = { ...established, completedAdvancements: new Set(), ironIngots: 3 }
-    const first = { ...state, waterBuckets: 0, hasBucket: false, hasEmptyBucket: false }
+    const first = { ...state, waterBuckets: 0, emptyBuckets: 0, hasBucket: false }
     assert.equal(nextAdvancement(first).item, 'bucket')
     assert.equal(nextAdvancement(first).id, 'prep:water bucket')
-    assert.equal(nextAdvancement({ ...first, hasBucket: true, hasEmptyBucket: true }).action, 'fill_water_bucket')
+    assert.equal(nextAdvancement(first).action, 'gather_iron')
+    const oneEmpty = { ...first, emptyBuckets: 1, hasBucket: true }
+    assert.equal(nextAdvancement(oneEmpty).action, 'craft_progression')
+    const c = { running: true, bot: { health: 20 }, countItems: () => 0,
+        async ensureItem (name, count, needsTable) { assert.deepEqual([name, count, needsTable], ['bucket', 2, true]) } }
+    await performProgression(c, 'craft_progression', oneEmpty)
+    assert.equal(nextAdvancement({ ...oneEmpty, emptyBuckets: 2 }).action, 'fill_water_bucket')
     assert.equal(nextAdvancement({ ...first, waterBuckets: 1 }).item, 'bucket')
-    assert.equal(nextAdvancement({ ...first, waterBuckets: 1, hasBucket: true, hasEmptyBucket: true }).action, 'fill_water_bucket')
+    assert.equal(nextAdvancement({ ...oneEmpty, waterBuckets: 1 }).action, 'fill_water_bucket')
     const watered = nextAdvancement({ ...first, waterBuckets: 2 })
     assert.deepEqual([watered.id, watered.item], ['minecraft:story/lava_bucket', 'bucket'])
-    assert.equal(nextAdvancement({ ...first, waterBuckets: 2, hasBucket: true, hasEmptyBucket: true }).action, 'fill_lava_bucket')
-    assert.equal(nextAdvancement({ ...first, hasBucket: true, hasEmptyBucket: true, waterDeferred: true }).action, 'fill_lava_bucket')
+    assert.equal(nextAdvancement({ ...oneEmpty, waterBuckets: 2 }).action, 'fill_lava_bucket')
+    assert.equal(nextAdvancement({ ...oneEmpty, waterDeferred: true }).action, 'craft_progression')
+    assert.equal(nextAdvancement({ ...oneEmpty, emptyBuckets: 2, waterDeferred: true }).action, 'fill_lava_bucket')
 })
 
 test('diamonds are reserved for the pickaxe before obsidian mining', () => {
@@ -102,9 +110,10 @@ test('diamonds are reserved for the pickaxe before obsidian mining', () => {
 
 test('obsidian preparation fills two water buckets and preserves a full lava bucket', () => {
     const state = { ...established, hasDiamondPickaxe: true, gear: diamondSword, hasLavaBucket: true, ironIngots: 3 }
-    assert.equal(nextAdvancement({ ...state, waterBuckets: 0, hasEmptyBucket: true }).action, 'fill_water_bucket')
-    assert.equal(nextAdvancement({ ...state, waterBuckets: 1, hasEmptyBucket: false }).item, 'bucket')
-    assert.equal(nextAdvancement({ ...state, waterBuckets: 1, hasEmptyBucket: true }).action, 'fill_water_bucket')
+    assert.equal(nextAdvancement({ ...state, waterBuckets: 0, emptyBuckets: 1 }).item, 'bucket')
+    assert.equal(nextAdvancement({ ...state, waterBuckets: 0, emptyBuckets: 2 }).action, 'fill_water_bucket')
+    assert.equal(nextAdvancement({ ...state, waterBuckets: 1, emptyBuckets: 0 }).item, 'bucket')
+    assert.equal(nextAdvancement({ ...state, waterBuckets: 1, emptyBuckets: 1 }).action, 'fill_water_bucket')
     assert.equal(nextAdvancement(state).action, 'gather_obsidian')
     const { chooseAction } = require('../src/decision-engine')
     assert.equal(chooseAction({ ...state, health: 20, food: 20, hostileDistance: Infinity, logs: 0, planks: 0 }), 'gather_obsidian')
@@ -199,9 +208,9 @@ test('the first iron batch aims for three ingots instead of smelting a lone piec
 })
 
 test('a full pair of water buckets without lava or an empty bucket crafts a third bucket before casting', () => {
-    const state = { ...established, hasDiamondPickaxe: true, gear: diamondSword, hasLavaBucket: false, hasEmptyBucket: false, ironIngots: 3 }
+    const state = { ...established, hasDiamondPickaxe: true, gear: diamondSword, hasLavaBucket: false, emptyBuckets: 0, ironIngots: 3 }
     assert.equal(nextAdvancement(state).item, 'bucket')
-    assert.equal(nextAdvancement({ ...state, hasEmptyBucket: true }).action, 'gather_obsidian')
+    assert.equal(nextAdvancement({ ...state, emptyBuckets: 1 }).action, 'gather_obsidian')
     assert.equal(nextAdvancement({ ...state, obsidianCastPending: true }).action, 'gather_obsidian')
     assert.equal(nextAdvancement({ ...state, obsidian: 10 }).item, 'flint_and_steel')
 })
@@ -266,7 +275,7 @@ test('a diamond sword follows the diamond pickaxe at once instead of waiting for
 
 test('a deferred water search sends a fully geared bot deep mining instead of waiting (live 07:03Z)', () => {
     const gear = new Set(['diamond_sword', 'diamond_helmet', 'diamond_chestplate', 'diamond_leggings', 'diamond_boots'])
-    const state = { ...established, hasDiamondPickaxe: true, gear, waterBuckets: 0, hasEmptyBucket: true, hasLavaBucket: true,
+    const state = { ...established, hasDiamondPickaxe: true, gear, waterBuckets: 0, emptyBuckets: 2, hasLavaBucket: true,
         diamonds: 1, completedAdvancements: new Set(['minecraft:story/lava_bucket', 'minecraft:story/shiny_gear']) }
     assert.equal(nextAdvancement(state).action, 'fill_water_bucket')
     assert.equal(nextAdvancement({ ...state, waterDeferred: true }).action, 'gather_diamonds')

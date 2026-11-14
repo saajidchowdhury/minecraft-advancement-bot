@@ -6,7 +6,7 @@ const { Vec3 } = require('vec3')
 const { createRng } = require('./random')
 const { Actions, chooseAction, canSustainFight, outnumbered, hasMiningWood,
     MELEE_ALERT_RANGE, CREEPER_ALERT_RANGE, CREEPER_DUEL_HP, ARCHER_ALERT_RANGE } = require('./decision-engine')
-const { RECIPES, nextAdvancement, ironPickPlankFuel, ironStock, ironReserveCap } = require('./advancement-plan')
+const { RECIPES, nextAdvancement, ironPickPlankFuel, ironStock, ironReserveCap, canFillWaterBuckets } = require('./advancement-plan')
 const { chooseLandCandidate, isIsolatedPillar } = require('./terrain-scout')
 const { updateNightState, retreatForNight, wornArmorPoints } = require('./night-policy')
 const { prepareBed, sleepSafely, leaveShelter, clearPlants, wakeWithOwner } = require('./night-skills')
@@ -56,6 +56,7 @@ const SAFE_DESCENT_BLOCKS = new Set([
     'mud', 'clay', 'sand', 'red_sand', 'gravel', 'snow_block'
 ])
 const RECOVERY_WINDOW_MS = 4.5 * 60 * 1000
+const DIAMOND_DROP_PICKUP_MS = 45000
 const FALLING_BLOCK = /^(sand|red_sand|gravel|suspicious_sand|suspicious_gravel)$|_concrete_powder$/
 const WATER_DEFER_MS = 5 * 60 * 1000
 // Pathfinder measures from the bot's feet to the landing block, so a value of
@@ -95,8 +96,9 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     smelt_charcoal: 45000, craft_progression: 45000, equip_armor: 10000, equip_shield: 10000,
     fill_water_bucket: 90000, fill_lava_bucket: 90000, gather_diamonds: 90000, gather_obsidian: 90000,
     gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000,
-    clear_inventory: 30000, mine_diamond: 45000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, reach_land: 60000, stock_blocks: 30000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
+    clear_inventory: 30000, mine_diamond: 95000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, reach_land: 60000, stock_blocks: 30000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 45000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
+    recover_diamond_drop: 60000,
     wake: 10000, sleep: 30000, prepare_bed: 45000, leave_shelter: 20000, mine_iron: 45000, cook_food: 120000, pick_glow_berries: 60000, hunt_fish: 30000, gather_mushroom_stew: 60000,
     [Actions.EXPLORE]: 60000
 })
@@ -134,7 +136,7 @@ const STATIONARY_ACTIONS = new Set([
     'clear_inventory', 'loot_chest', 'smelt_charcoal', 'craft_progression', 'enchant_item', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', Actions.SHELTER
 ])
 
-const OPPORTUNISTIC = new Set(['mine_iron', 'mine_diamond', 'pick_glow_berries', 'hunt_fish', 'gather_mushroom_stew'])
+const OPPORTUNISTIC = new Set(['mine_iron', 'mine_diamond', 'recover_diamond_drop', 'pick_glow_berries', 'hunt_fish', 'gather_mushroom_stew'])
 // Long resource walks that yield when a priority target appears; the user saw the bot walk past
 // iron and glow berries mid-action, and the next decision would have taken them (17:23Z).
 const INTERRUPTIBLE = new Set([Actions.WOOD, Actions.STONE, Actions.COAL, Actions.IRON, Actions.FOOD, Actions.SMELT_IRON,
@@ -306,9 +308,13 @@ async function pickUpKnownDrops (c, drops, source, label, signal) {
         if (!drop.isValid) {
             continue
         }
+        const diamond = source === 'mined' && drop.getDroppedItem?.()?.name === 'diamond'
+        c.pickingUpDiamond = diamond
         try {
-            await c.gotoWithTimeout(droppedItemGoal(drop), label === 'tree' ? 4000 : 8000, `${source} item pickup`)
+            const timeout = diamond ? DIAMOND_DROP_PICKUP_MS : label === 'tree' ? 4000 : 8000
+            await c.gotoWithTimeout(droppedItemGoal(drop), timeout, `${source} item pickup`)
             if (!await collected(drop)) {
+                c.checkAction(signal)
                 const p = drop.position.floored()
                 await c.gotoWithTimeout(new GoalNear(p.x, p.y, p.z, 0), 4000, `${source} item cell`)
                 await collected(drop)
@@ -318,6 +324,8 @@ async function pickUpKnownDrops (c, drops, source, label, signal) {
                 throw error
             }
             c.log.warn(`Skipping ${label} drop pickup: ${error.message}`)
+        } finally {
+            c.pickingUpDiamond = false
         }
         if (drop.isValid) {
             c.log.warn(`Left a ${source} ${drop.getDroppedItem?.()?.name ?? 'item'} at ${drop.position.floored()}.`)
@@ -1129,7 +1137,7 @@ class SurvivalController {
             hasShield: shieldEquipped || this.hasItem('shield'), shieldEquipped,
             hasBucket: this.hasAnyItem(['bucket', 'lava_bucket']),
             buckets: this.countItems(['bucket', 'water_bucket', 'lava_bucket']),
-            hasEmptyBucket: this.hasItem('bucket'), waterBuckets: this.countItems(['water_bucket']), hasLavaBucket: this.hasItem('lava_bucket'),
+            emptyBuckets: items.bucket ?? 0, waterBuckets: items.water_bucket ?? 0, hasLavaBucket: this.hasItem('lava_bucket'),
             waterDeferred: this.memory.waterDeferredUntil > Date.now(),
             nightSurfaceReady: this.nightSurfaceReady(),
             obsidianCastPending: this.memory.obsidianCast?.dimension === this.bot.game.dimension,
@@ -1184,6 +1192,7 @@ class SurvivalController {
         state.gear = new Set([...this.bot.inventory.items(), ...[5, 6, 7, 8, 45].map(slot => this.bot.inventory.slots[slot])]
             .filter(Boolean).map(item => item.name))
         state.armorUpgrade = armorUpgrades(this.bot).length > 0
+        state.diamondDrop = Boolean(this.pendingDiamondDrop())
         state.ironCap = ironReserveCap(state)
         this.ironWanted = ironStock(state) < state.ironCap
         try {
@@ -1208,6 +1217,7 @@ class SurvivalController {
         switch (action) {
             case 'avoid_enderman': return this.avoidEnderman()
             case 'flee_sculk': return this.fleeSculk()
+            case 'recover_diamond_drop': return this.recoverDiamondDrop()
             case 'mine_diamond': {
                 if (!this.memory.diamondDetour) {
                     const goal = nextAdvancement(state)
@@ -1358,7 +1368,7 @@ class SurvivalController {
                         // Mining deliberately holds the bot in place. Treat an active dig
                         // as liveness so the movement watchdog does not abort useful work.
                         // A pillar refuge or a fight in place holds still on purpose (round 6 cancelled one).
-                        if (this.bot.targetDigBlock || Date.now() - (this.combatLiveAt || 0) < 3000) {
+                        if (this.bot.targetDigBlock || this.pickingUpDiamond || Date.now() - (this.combatLiveAt || 0) < 3000) {
                             lastMovementAt = Date.now()
                             return
                         }
@@ -1909,7 +1919,7 @@ class SurvivalController {
     // A water source within bucket reach while buckets are short is an opportunity, even with the water
     // search deferred (user direction, F119).
     waterSourceInReach () {
-        if (!this.mcData || this.countItems(['water_bucket']) >= 2 || !this.hasItem('bucket')) {
+        if (!this.mcData || !canFillWaterBuckets(this.countItems(['bucket']), this.countItems(['water_bucket']))) {
             return null
         }
         const eye = this.bot.entity.position.offset(0, this.bot.entity.eyeHeight ?? 1.62, 0)
@@ -1992,7 +2002,7 @@ class SurvivalController {
                         goal.isEnd = cell => block.position.y <= cell.y + 1 && !cell.offset(0, -1, 0).equals(block.position) &&
                             safeFooting(this.bot, cell) && visibleFrom(cell)
                     }
-                    await this.gotoWithTimeout(goal, diamond ? 4000 : 10000, 'resource approach')
+                    await this.gotoWithTimeout(goal, diamond ? 15000 : 10000, 'resource approach')
                     if (diamond && !goal.isEnd(this.bot.entity.position.floored())) {
                         throw new Error('no supported view of the diamond was reached')
                     }
@@ -2053,7 +2063,15 @@ class SurvivalController {
                 // Our own drop may land behind stone or in a pit out of view (live 01:54Z left raw iron);
                 // turn to it, follow it, then stand in its cell if the server has not collected it.
                 const drops = this.visibleDrops(block.position.offset(0.5, 0.5, 0.5), 3, false)
+                const diamondDrop = drops.find(drop => drop.getDroppedItem?.()?.name === 'diamond')
+                if (diamondDrop) {
+                    const { x, y, z } = diamondDrop.position
+                    this.memory.diamondDrop = { x, y, z, dimension: this.bot.game.dimension, expiresAt: Date.now() + RECOVERY_WINDOW_MS }
+                }
                 await pickUpKnownDrops(this, drops, 'mined', label, signal)
+                if (diamondDrop && !diamondDrop.isValid) {
+                    delete this.memory.diamondDrop
+                }
                 await sleep(300)
             }
         } catch (error) {
@@ -2748,6 +2766,34 @@ class SurvivalController {
     visibleDrops (position, radius, requireSight = true) {
         return Object.values(this.bot.entities || {}).filter(entity => entity.isValid && entity.name === 'item' &&
             entity.position.distanceTo(position) <= radius && (!requireSight || this.canSee(entity)))
+    }
+
+    pendingDiamondDrop () {
+        const saved = this.memory.diamondDrop
+        if (!saved || saved.expiresAt <= Date.now() || saved.dimension !== this.bot.game.dimension) {
+            return null
+        }
+        const at = new Vec3(saved.x, saved.y, saved.z)
+        if (this.bot.entity.position.distanceTo(at) > 32) {
+            return null
+        }
+        return this.visibleDrops(at, 3, false).find(drop => drop.getDroppedItem?.()?.name === 'diamond') ?? null
+    }
+
+    async recoverDiamondDrop () {
+        const drop = this.pendingDiamondDrop()
+        if (!drop) {
+            return
+        }
+        const pathfinder = this.bot.pathfinder
+        pathfinder.setMovements(dryMovements(this.bot))
+        try {
+            this.log.info(`Returning for the dropped diamond at ${drop.position.floored()}.`)
+            await pickUpKnownDrops(this, [drop], 'mined', 'priority diamond', this.actionAbort?.signal)
+            delete this.memory.diamondDrop
+        } finally {
+            pathfinder.setMovements(this.movements)
+        }
     }
 
     // Creepers only swell and archers only shoot with line of sight, and outrunning either

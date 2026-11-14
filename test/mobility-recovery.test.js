@@ -241,7 +241,7 @@ test('a water search failing three times in place is deferred so the planner tur
         hasWoodcuttingAxe: true, hasDiggingShovel: true, hasFurnace: true, hasIronPickaxe: true, hasDiamondPickaxe: true,
         hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true, hasSmeltingFuel: true,
         gear: new Set(['iron_sword', 'diamond_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']),
-        hasBucket: true, hasEmptyBucket: true, waterBuckets: 0, hasLavaBucket: true, diamonds: 0, obsidian: 0,
+        hasBucket: true, emptyBuckets: 2, waterBuckets: 0, hasLavaBucket: true, diamonds: 0, obsidian: 0,
         rawIron: 4, ironIngots: 5, completedAdvancements: new Set(['minecraft:story/lava_bucket', 'minecraft:story/mine_diamond']),
         waterDeferred: c.memory.waterDeferredUntil > Date.now()
     })

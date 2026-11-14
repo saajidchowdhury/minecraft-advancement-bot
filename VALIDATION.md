@@ -9,7 +9,7 @@ affected rows in place; do not add a dated changelog.
 
 ## Baseline
 
-553 tests and `npm run check` pass through F137.
+557 tests and `npm run check` pass through F140.
 Run them with the prepared runtime:
 
 ```sh
@@ -53,7 +53,7 @@ comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
 | leaf-vision | 8 | leaf-transparent rays, overhead trunks, moving drops |
 | loot | 2 | chest and chest-minecart looting |
 | memory-random | 2 | seeded rng, atomic world memory |
-| mined-ore-recovery | 10 | confirmed diamond memory, alternate stair approaches, cancellation, hidden water, ore drops |
+| mined-ore-recovery | 13 | diamond memory, longer dry approaches, independent cooldowns, alternate stairs, cancellation, hidden water, bounded diamond pickup retry |
 | mining-timing | 6 | break times for tier ores, landing before digging, bare-hand stone when stranded, enchanted 26.1 tools, 5-tick destroy delay |
 | mobility-recovery | 35 | unstick, shaft and pillar detection, safe drops, heap guard, sky-bound surface scouts, swamp swims, logs and treading, initial land milestone, cave exclusion, canopy descent, 1000-block land mass, soil stock, trunk platforms, water plants as liquid |
 | night-policy | 10 | night work versus shelter, crowds, beds |
@@ -69,7 +69,7 @@ comment-bearing lines. The highest are `under-feet.js` at 13/134 (9.7%) and
 | terrain-scout | 4 | land scouting, isolated pillars |
 | tree-climb | 13 | eye-reach approach, tree pillars, scaffold recovery |
 | under-feet | 7 | no digging under the hitbox, own blocks, dripstone |
-| water-search | 8 | day/night water search, cover restriction |
+| water-search | 9 | day/night water search, cover restriction, bucket-pair requirement for nearby water |
 
 Run `npm run outline -- test/<file>` to list a file's test names with line numbers.
 
@@ -140,6 +140,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Redstone demo | automated | G009 |
 | Bare-hand shelter exit and stair carving without a pickaxe | live (out of y=31, six levels) | F126 |
 | Enchanted 26.1 tools at efficiency speed; 5-tick destroy delay | live | F128, F131 |
+| Crafting two empty buckets before the first water search | live | F138 |
 | Water buckets before lava, reachable berries, melee standoffs | automated | F127, F130 |
 | Disposal zones, sky-bound surface scouts, self-overlap placement | automated | F129 |
 | Carving out of a sculk zone | live (left the zone 05:39Z) | F132 |
