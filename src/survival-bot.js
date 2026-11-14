@@ -1995,8 +1995,10 @@ class SurvivalController {
         const cooldownMs = HUNT_AXE_COOLDOWN_MS[weapon?.name] || 650
         const swim = dryMovements(this.bot, true)
         swim.liquidCost = 1
+        swim.infiniteLiquidDropdownDistance = true
+        swim.maxDropDown = 16
         this.bot.pathfinder.setMovements(swim)
-        const deadline = Date.now() + 120000
+        const deadline = Date.now() + 50000
         let caught = 0
         this.divingForFish = true
         this.biomeExit = null
