@@ -3,6 +3,7 @@
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder')
 const { plugin: collectBlockPlugin } = require('mineflayer-collectblock')
 const { Vec3 } = require('vec3')
+const { aimDig, aimPlace } = require('./aim')
 const { createRng } = require('./random')
 const { dropCaution } = require('./drop-caution')
 const { findFortress, returnAlongPath, bridgeSupply } = require('./nether-fortress')
@@ -765,7 +766,7 @@ class SurvivalController {
                 }
             }
             const timed = Boolean(block) && (this.bot.digTime?.(block) ?? 0) > 0
-            await dig(block, ...args)
+            await dig(block, ...aimDig(this.bot, block, args))
             if (timed) {
                 this.lastTimedBreakAt = Date.now()
             }
@@ -775,10 +776,15 @@ class SurvivalController {
             }
         }
         // Record own placements so pillar and tower blocks stay minable from on top of them.
+        const placeWithOptions = this.bot._placeBlockWithOptions?.bind(this.bot)
         for (const name of ['placeBlock', '_placeBlockWithOptions']) {
-            const place = this.bot[name]?.bind(this.bot)
-            if (!place) {
+            if (!this.bot[name]) {
                 continue
+            }
+            const original = this.bot[name].bind(this.bot)
+            const place = (reference, face, options = name === 'placeBlock' ? { swingArm: 'right' } : {}) => {
+                const aimed = aimPlace(this.bot, reference, face, options)
+                return placeWithOptions ? placeWithOptions(reference, face, aimed) : original(reference, face, aimed)
             }
             this.bot[name] = async (reference, face, ...args) => {
                 const target = reference?.position?.plus(face)

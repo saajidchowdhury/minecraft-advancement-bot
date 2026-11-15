@@ -1,5 +1,5 @@
 diff --git a/node_modules/mineflayer/lib/plugins/craft.js b/node_modules/mineflayer/lib/plugins/craft.js
-index fb2766a..2a7d7c2 100644
+index fb2766a..2b87a22 100644
 --- a/node_modules/mineflayer/lib/plugins/craft.js
 +++ b/node_modules/mineflayer/lib/plugins/craft.js
 @@ -18,6 +18,7 @@ function inject (bot) {
@@ -35,11 +35,33 @@ index fb2766a..2a7d7c2 100644
    async function craftOnce (recipe, craftingTable) {
      if (craftingTable) {
        if (!windowCraftingTable) {
+diff --git a/node_modules/mineflayer/lib/plugins/digging.js b/node_modules/mineflayer/lib/plugins/digging.js
+index 5ae5552..4155999 100644
+--- a/node_modules/mineflayer/lib/plugins/digging.js
++++ b/node_modules/mineflayer/lib/plugins/digging.js
+@@ -31,6 +31,17 @@ function inject (bot) {
+ 
+     bot.targetDigFace = 1 // Default (top)
+ 
++    // A caller that aimed itself still names the face it aimed at.
++    if (forceLook === 'ignore' && (digFace?.x || digFace?.y || digFace?.z)) {
++      if (digFace.x) {
++        bot.targetDigFace = digFace.x > 0 ? BlockFaces.EAST : BlockFaces.WEST
++      } else if (digFace.y) {
++        bot.targetDigFace = digFace.y > 0 ? BlockFaces.TOP : BlockFaces.BOTTOM
++      } else {
++        bot.targetDigFace = digFace.z > 0 ? BlockFaces.SOUTH : BlockFaces.NORTH
++      }
++    }
++
+     if (forceLook !== 'ignore') {
+       if (digFace?.x || digFace?.y || digFace?.z) {
+         // Determine the block face the bot should mine
 diff --git a/node_modules/mineflayer/lib/plugins/entities.js b/node_modules/mineflayer/lib/plugins/entities.js
-index 0000000..0000000 100644
+index 9fcb6f9..522e11d 100644
 --- a/node_modules/mineflayer/lib/plugins/entities.js
 +++ b/node_modules/mineflayer/lib/plugins/entities.js
-@@ -494,8 +494,8 @@
+@@ -494,8 +494,8 @@ function inject (bot) {
          }
        }
  
@@ -54,7 +76,7 @@ diff --git a/node_modules/mineflayer/lib/plugins/inventory.js b/node_modules/min
 index bab0eef..39d4a79 100644
 --- a/node_modules/mineflayer/lib/plugins/inventory.js
 +++ b/node_modules/mineflayer/lib/plugins/inventory.js
-@@ -363,11 +363,7 @@
+@@ -363,11 +363,7 @@ function inject (bot, { hideErrors }) {
    }
  
    function extendWindow (window) {
@@ -67,7 +89,7 @@ index bab0eef..39d4a79 100644
  
      window.withdraw = async (itemType, metadata, count, nbt) => {
        if (bot.inventory.emptySlotCount() === 0) {
-@@ -431,17 +427,23 @@
+@@ -431,17 +427,23 @@ function inject (bot, { hideErrors }) {
    // never sent. A rejected click already carries the full inventory, so the
    // sync click's outcome is not an error.
    function closeWindow (window) {
@@ -93,7 +115,7 @@ index bab0eef..39d4a79 100644
    function copyInventory (window) {
      const slotOffset = window.inventoryStart - bot.inventory.inventoryStart
      for (let i = window.inventoryStart; i < window.inventoryEnd; i++) {
-@@ -569,6 +571,26 @@
+@@ -569,6 +571,26 @@ function inject (bot, { hideErrors }) {
      return changedSlots
    }
  
@@ -120,7 +142,7 @@ index bab0eef..39d4a79 100644
    async function clickWindow (slot, mouseButton, mode) {
      // if you click on the quick bar and have dug recently,
      // wait a bit
-@@ -607,7 +629,9 @@
+@@ -607,7 +629,9 @@ function inject (bot, { hideErrors }) {
            // 5,
            // 6
          ].includes(click.mode)) {
@@ -130,7 +152,7 @@ index bab0eef..39d4a79 100644
        } else {
          // this is used as a fallback
          const oldSlots = JSON.parse(JSON.stringify(window.slots))
-@@ -749,10 +773,8 @@
+@@ -749,10 +773,8 @@ function inject (bot, { hideErrors }) {
      prepareWindow(bot.currentWindow)
    })
    bot._client.on('close_window', (packet) => {
@@ -143,7 +165,7 @@ index bab0eef..39d4a79 100644
    })
    // Window ids restart with the player entity, so a later window can reuse
    // the closed one's id and its early sync must not be taken for a trailing one.
-@@ -764,8 +786,7 @@
+@@ -764,8 +786,7 @@ function inject (bot, { hideErrors }) {
      lastClosedWindow = null
      const oldWindow = bot.currentWindow
      if (!oldWindow) return

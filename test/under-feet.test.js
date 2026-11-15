@@ -26,8 +26,14 @@ function digWorld(overrides = {}, position = new Vec3(0.5, 64, 0.5)) {
             dug.push({ at: block.position, from: bot.entity.position.clone() })
             blocks.set(block.position.toString(), 'air')
         },
-        async placeBlock(ref, face) { blocks.set(ref.position.plus(face).toString(), 'cobblestone') },
-        async _placeBlockWithOptions() { throw new Error('No block has been placed : the block was not placed in time') },
+        unanswered: false,
+        async _placeBlockWithOptions(ref, face) {
+            if (bot.unanswered) {
+                throw new Error('No block has been placed : the block was not placed in time')
+            }
+            blocks.set(ref.position.plus(face).toString(), 'cobblestone')
+        },
+        placeBlock(ref, face) { return bot._placeBlockWithOptions(ref, face, { swingArm: 'right' }) },
         lookAt: async () => {}, setControlState() {}, waitForTicks: async () => {}
     })
     const c = { bot, memory: {}, log: { info() {}, warn() {}, debug() {} }, actionAbort: new AbortController(), running: true,
@@ -105,6 +111,7 @@ test('pathfinder movements treat a stalactite as no floor', () => {
 
 test('a tower placement reported unanswered but landing a moment later is still recorded as own', async () => {
     const { bot, blocks, dug } = digWorld({ [new Vec3(0, 64, 0)]: 'air' }, new Vec3(0.5, 65, 0.5))
+    bot.unanswered = true
     await assert.rejects(bot._placeBlockWithOptions(bot.blockAt(new Vec3(0, 63, 0)), new Vec3(0, 1, 0), {}), /not placed in time/)
     blocks.set(new Vec3(0, 64, 0).toString(), 'dirt')
     bot.emit(`blockUpdate:${new Vec3(0, 64, 0)}`)

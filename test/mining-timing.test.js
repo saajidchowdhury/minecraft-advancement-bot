@@ -156,3 +156,23 @@ test('the next break waits the vanilla 5 ticks after a timed break but not after
     t.mock.timers.tick(50)
     await after
 })
+
+test('a wrapped dig looks at a point on the block surface and names that face in the start packet', async t => {
+    const { bot, held, target } = diggingBot(t)
+    const faces = []
+    const looks = []
+    bot._client.write = (name, packet) => faces.push([name, packet.status, packet.face])
+    bot.entity.position = new Vec3(0.5, 63, 0.5)
+    bot.entity.yaw = -Math.PI / 2
+    bot.entity.pitch = 0
+    bot.lookAt = async (point, force) => { looks.push([point, force]) }
+    bot.heldItem = held('stone_pickaxe')
+    t.mock.timers.tick(250)
+    const dig = bot.dig(target('stone'), true)
+    t.mock.timers.tick(600)
+    await dig
+    const [[point, force]] = looks
+    assert.equal(force, true)
+    assert.ok(point.distanceTo(new Vec3(1, 64.62, 0.5)) < 1e-9, String(point))
+    assert.deepEqual(faces[0], ['block_dig', 0, 4])
+})
