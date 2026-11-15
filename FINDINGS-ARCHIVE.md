@@ -3778,3 +3778,25 @@ swings, gaps 126 ms minimum and 185 ms median, HP never below 14.5. Regressions
 in `test/survival-safety.test.js`, `test/crowd-retreat.test.js` and
 `test/decision-engine.test.js` fail on the pre-fix source. Not yet seen in an
 unstaged crowd.
+
+## F153 — Underground scout dug into a lake under the tunnel
+
+Live, `outputs/2026-11-14@22.59.01/` (419b5b6). Tunnelling for iron at about
+(-205, 51, 144), digs revealed water six times and each opening was plugged.
+The frontier was then boxed in ("4 already excavated, 2 blocked"), so the
+failure path's land scout toward (-199, 51, 159) took over. Underground the
+column classifier hits the rock ceiling and calls every heading land, and the
+scout used the normal digging movements, where water costs only 3 per step.
+It dug a passage south along x=-204 to z=157, where the floor cell
+(-204, 50, 157) was the top of a lake reaching down to y=45 (spectator
+inspection, `outputs/inspect-tunnel-water.json`; kit check first). The bot
+floated at y=48-51 for about 2.5 min. Every tunnel step was refused as liquid
+and every unstick scout found no path, until a coal opportunity above led it
+out (user observation). Fix: an underground scout that starts outside water
+adds water and water plants to the active movements' `blocksToAvoid` for its
+search and removes only what it added. Mineflayer-pathfinder then refuses
+those cells and drops into them (cost 100 aborts a move; an avoided liquid
+landing returns null). Surface scouts and a swimming bot are unchanged.
+Regression in `test/combat-navigation.test.js` fails on the pre-fix source.
+Not yet seen live. Open: a bot already in an underground lake still has no
+dedicated way out.

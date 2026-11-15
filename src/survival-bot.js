@@ -3918,6 +3918,12 @@ class SurvivalController {
         } else if (active) {
             active.exclusionAreasStep.push(skyStep)
         }
+        // An underground scout dug its way to a lake under the tunnel and dropped into it (live 04:02Z):
+        // a dry bot's underground scout treats water as impassable.
+        const buried = !surfaceOnly && !surfaceStart && !swimmingAtSurface(this.bot) ? this.bot.pathfinder?.movements : null
+        const wet = buried?.blocksToAvoid ? ['water', ...WATER_PLANTS].map(name => this.bot.registry?.blocksByName[name]?.id)
+            .filter(id => id !== undefined && !buried.blocksToAvoid.has(id)) : []
+        wet.forEach(id => buried.blocksToAvoid.add(id))
         try {
             // Terrain height at the target is unknown; a fixed-height 3-D goal can sit in air or rock.
             const goal = new goals.GoalNearXZ(selected.x, selected.z, 3)
@@ -3937,6 +3943,7 @@ class SurvivalController {
                 this.bot.pathfinder.setMovements(this.movements)
             }
             active?.exclusionAreasStep.splice(active.exclusionAreasStep.indexOf(skyStep), 1)
+            wet.forEach(id => buried.blocksToAvoid.delete(id))
         }
     }
 

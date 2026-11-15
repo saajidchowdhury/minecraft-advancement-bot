@@ -75,6 +75,7 @@ Spawn, water and land
   water (`waterFilled`, F135, F136); water costs 3 per step, 1 while in
   water; an idle bot in water treads (F134). Digs outlasting the air above
   12 bubbles are refused (F133, F134).
+- An underground scout from dry footing avoids water (F153).
 - Trees: skip routes with over eight consecutive swim blocks (F147); the
   approach check searches up to 1 s in yielding slices with the bot's
   digging and rejects only exhausted searches (F148). A water-ringed trunk
@@ -360,3 +361,4 @@ Highest risk first.
 - F150 Dive for visible fish when no prey is in sight, steering by hand underwater [user direction + staged + regression]
 - F151 Vanilla held-attack dig schedule: 6-tick gap and float32 break ticks [user report + bytecode + regression]
 - F152 Sealed-in zombie crowd killed an unarmored bot; fight back when the refuge has no route [live failure + user direction + staged + regression]
+- F153 Underground scout dug into a lake under the tunnel; scouts below ground avoid water [live failure + regression]

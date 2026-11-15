@@ -256,3 +256,32 @@ test('scouting treats pathfinder resolving an empty path outside the goal as fai
     await assert.rejects(c.scout(16), /No path to the goal/)
     assert.equal(c.memory.scoutVisits.size, 0)
 })
+
+test('an underground scout from dry footing treats water as impassable and restores the movements (live 04:02Z)', async () => {
+    const registry = require('prismarine-registry')('26.1')
+    const water = registry.blocksByName.water.id
+    const kelp = registry.blocksByName.kelp.id
+    const scoutFrom = async (blockAt, avoided = []) => {
+        const movements = { blocksToAvoid: new Set(avoided), exclusionAreasStep: [] }
+        const seen = []
+        const c = Object.create(SurvivalController.prototype)
+        c.bot = { registry, entity: { position: new Vec3(-204.5, 51, 144.5) }, blockAt, pathfinder: { movements } }
+        c.memory = { scoutVisits: new Map() }
+        c.log = { info() {} }
+        c.classifyTerrainColumn = () => 'land'
+        c.scoutAngle = c.scoutSteps = 0
+        c.gotoWithTimeout = async goal => {
+            seen.push(movements.blocksToAvoid.has(water), movements.blocksToAvoid.has(kelp))
+            c.bot.entity.position = new Vec3(goal.x, 51, goal.z)
+        }
+        await c.scout(12)
+        return { seen, after: movements.blocksToAvoid }
+    }
+    const rock = p => ({ name: p.y >= 53 || p.y < 51 ? 'stone' : 'air', boundingBox: p.y >= 53 || p.y < 51 ? 'block' : 'empty' })
+    const buried = await scoutFrom(rock)
+    assert.deepEqual(buried.seen, [true, true])
+    assert.equal(buried.after.has(water), false)
+    assert.equal((await scoutFrom(rock, [water])).after.has(water), true, 'an existing avoid entry stays')
+    const swimming = await scoutFrom(p => ({ name: p.y < 51 ? 'stone' : p.y === 51 ? 'water' : 'stone', boundingBox: p.y === 51 ? 'empty' : 'block' }))
+    assert.deepEqual(swimming.seen, [false, false])
+})
