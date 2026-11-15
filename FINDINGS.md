@@ -168,7 +168,8 @@ Environmental reflexes, night and recovery
 - `escape_lava`, air swims at 12/20 and `clear_head` (F065, F069, F074, F099,
   F118); at 6 HP or less rest to 14 when fed and calm (F062).
 - Surface nights need full iron armor, a diamond sword, a shield and HP above
-  12 (F117); underground mining continues to 12 HP (F071, F104); verified 1x2
+  12 (F117); a night water search needs only an iron sword (F156);
+  underground mining continues to 12 HP (F071, F104); verified 1x2
   shelters; sleep only while the owner sleeps (F009, F017, F102).
 - Unstick never bridges, never runs near a hostile within 8 or on a Nether
   fortress line (F094, F101, F149). High logs use pillars of at most 5
@@ -364,3 +365,4 @@ Highest risk first.
 - F153 Underground scout dug into a lake under the tunnel; scouts below ground avoid water [live failure + regression]
 - F154 Night shelter retried 32 times at a spot with no shelter or burrow geometry; relocate every third failure [live failure + regression]
 - F155 Mineshaft fence floor: a level tunnel step was never taken, the frontier advanced anyway and two passes alternated [live failure + regression]
+- F156 Night water search with full iron gear continues on the surface [user direction + regression]

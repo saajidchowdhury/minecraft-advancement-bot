@@ -1383,7 +1383,7 @@ async function fillWaterBucket(c) {
     if (!canFillWaterBuckets(c.countItems(['bucket']), before)) {
         return
     }
-    const night = Boolean(c.isNight?.()) && !c.nightSurfaceReady?.()
+    const night = Boolean(c.isNight?.()) && !(c.nightWaterReady ?? c.nightSurfaceReady)?.call(c)
     const feet = bot.entity.position.floored()
     const outside = openToSky(bot, feet.offset(0, 1, 0))
     c.waterDaytimeSearch = !night

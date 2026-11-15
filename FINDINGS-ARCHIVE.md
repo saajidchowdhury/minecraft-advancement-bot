@@ -3835,3 +3835,23 @@ collision shape higher than 1) disqualifies a floor in `safeTunnelStep` and
 `safeFooting`, and every tunnel step must end on its target or it fails and
 is remembered as blocked. Regression in `test/progression-skills.test.js`
 fails on the pre-fix source. Not yet seen live.
+
+## F156 — Night water search with full iron gear continues on the surface
+
+Live, `outputs/2026-11-14@23.39.44/` (d556c49), 04:44Z. The bot climbed from
+Y=25 to the surface for `fill_water_bucket`, wearing full iron armor and a
+shield and carrying an iron sword. At nightfall the `time` handler cancelled
+the search ("nightfall during surface water search"), and the planner sent it
+back to `gather_iron`, digging down. Night surface readiness (F117, user
+2026-11-12) required a diamond or netherite sword. User direction 2026-11-15:
+iron gear is enough to survive while finding water, so the bot should have
+finished the trip and searched the surface. Fix: `nightWaterReady` means four
+iron-or-better armor pieces, a shield, an iron-or-better sword and HP above
+12. `nightSurfaceReady` is that plus a diamond or netherite sword, so its
+meaning is unchanged. The nightfall cancel, the `fillWaterBucket` night mode
+(full-range surface search, and an underground bot returns to the surface)
+and the surface-only scout now use `nightWaterReady`. The planner keeps
+`fill_water_bucket` on the surface at night while the progression goal is the
+water search (not when hurt or in a night retreat). Other night surface work
+keeps the diamond-sword rule. Regressions in `test/decision-engine.test.js`
+and `test/water-search.test.js` fail on the pre-fix source. Not yet seen live.

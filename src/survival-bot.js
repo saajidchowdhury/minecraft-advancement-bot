@@ -691,7 +691,7 @@ class SurvivalController {
         installSculkCaution(this)
         this.bot.on('time', () => {
             if (this.running && this.busy && this.activeAction === 'fill_water_bucket' && this.waterDaytimeSearch &&
-                this.isNight() && !this.nightSurfaceReady() && !this.actionAbort?.signal.aborted) {
+                this.isNight() && !this.nightWaterReady() && !this.actionAbort?.signal.aborted) {
                 this.urgentReplan = true
                 this.cancelCurrentTask('nightfall during surface water search')
             }
@@ -1080,9 +1080,15 @@ class SurvivalController {
 
     // Night surface work is allowed in full iron-or-better armor with a diamond sword and a shield, above 12 HP.
     nightSurfaceReady () {
+        return this.nightWaterReady() && this.hasAnyItem(['diamond_sword', 'netherite_sword'])
+    }
+
+    // User direction 2026-11-15: full iron-or-better armor, a shield and an iron sword are enough to keep
+    // searching the surface for water at night; other night surface work still wants a diamond sword.
+    nightWaterReady () {
         const slots = this.bot.inventory?.slots || []
         return [5, 6, 7, 8].every(slot => /^(iron|diamond|netherite)_/.test(slots[slot]?.name || '')) &&
-            slots[45]?.name === 'shield' && this.hasAnyItem(['diamond_sword', 'netherite_sword']) && this.bot.health > 12
+            slots[45]?.name === 'shield' && this.hasAnyItem(['iron_sword', 'diamond_sword', 'netherite_sword']) && this.bot.health > 12
     }
 
     inventoryContext () {
@@ -1200,6 +1206,7 @@ class SurvivalController {
             emptyBuckets: items.bucket ?? 0, waterBuckets: items.water_bucket ?? 0, hasLavaBucket: this.hasItem('lava_bucket'),
             waterDeferred: this.memory.waterDeferredUntil > Date.now(),
             nightSurfaceReady: this.nightSurfaceReady(),
+            nightWaterReady: this.nightWaterReady(),
             obsidianCastPending: this.memory.obsidianCast?.dimension === this.bot.game.dimension,
             hasFlintAndSteel: this.hasItem('flint_and_steel'),
             diamonds: this.countItems(['diamond']), obsidian: this.countItems(['obsidian']),
@@ -3910,8 +3917,8 @@ class SurvivalController {
         const surfaceStart = !surfaceOnly && openToSky(this.bot, here.floored().offset(0, 1, 0))
         const active = surfaceStart ? this.bot.pathfinder.movements : null
         if (surfaceOnly) {
-            if (this.isNight()) {
-                throw new Error('surface water exploration is daytime only')
+            if (this.isNight() && !this.nightWaterReady()) {
+                throw new Error('surface water exploration is daytime only without night gear')
             }
             const walking = dryMovements(this.bot)
             walking.exclusionAreasStep.push(skyStep)

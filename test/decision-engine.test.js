@@ -623,3 +623,17 @@ test('a water source in bucket reach is taken while buckets are short, even with
     assert.equal(chooseAction({ ...working, diamondInView: true }), 'mine_diamond', 'diamonds still come first')
     assert.notEqual(chooseAction({ ...working, waterInReach: false }), 'fill_water_bucket')
 })
+
+test('a night water search with full iron armor, a shield and an iron sword stays on the surface (user 2026-11-15)', () => {
+    const searching = state({ isNight: true, hasWeapon: true, armorPoints: 15, shieldEquipped: true,
+        logs: 4, planks: 16, sticks: 8, cobblestone: 16, ironIngots: 3, rawIron: 0,
+        hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true, hasFurnace: true,
+        hasIronPickaxe: true, hasIronArmor: true, armorEquipped: true, hasShield: true,
+        gear: new Set(['iron_sword', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']),
+        hasBucket: true, emptyBuckets: 2, waterBuckets: 0, foodUnits: 24, hasSmeltingFuel: true, completedAdvancements: new Set() })
+    assert.equal(chooseAction({ ...searching, isNight: false }), 'fill_water_bucket')
+    assert.notEqual(chooseAction(searching), 'fill_water_bucket', 'without night water gear the bot leaves the surface')
+    assert.equal(chooseAction({ ...searching, nightWaterReady: true }), 'fill_water_bucket')
+    assert.notEqual(chooseAction({ ...searching, nightWaterReady: true, health: 12 }), 'fill_water_bucket', 'hurt bots still shelter')
+    assert.notEqual(chooseAction({ ...searching, nightWaterReady: true, retreatForNight: true }), 'fill_water_bucket')
+})

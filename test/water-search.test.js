@@ -178,7 +178,7 @@ test('nightfall interrupts a daytime water trip but leaves an underground night 
     let interrupted = 0
     let ready = false
     const c = { bot, running: true, busy: true, activeAction: 'fill_water_bucket', waterDaytimeSearch: true,
-        isNight: () => true, nightSurfaceReady: () => ready, actionAbort: new AbortController(), cancelCurrentTask() { interrupted++ } }
+        isNight: () => true, nightWaterReady: () => ready, actionAbort: new AbortController(), cancelCurrentTask() { interrupted++ } }
     SurvivalController.prototype.bindEvents.call(c)
     bot.emit('time')
     assert.equal(interrupted, 1)
@@ -197,4 +197,23 @@ test('a night-ready bot continues the water search to the surface instead of sta
     await performProgression(c, 'fill_water_bucket', {})
     assert.ok(c.bot.entity.position.y > 60, 'climbs as in daylight')
     assert.equal(c.waterDaytimeSearch, true, 'nightfall does not cancel it')
+})
+
+test('full iron armor, a shield and an iron sword clear a night water search but not other night surface work (user 2026-11-15)', () => {
+    const slots = Object.assign([], { 5: { name: 'iron_helmet' }, 6: { name: 'iron_chestplate' }, 7: { name: 'iron_leggings' },
+        8: { name: 'iron_boots' }, 45: { name: 'shield' } })
+    const c = Object.create(SurvivalController.prototype)
+    let swords = ['iron_sword']
+    c.bot = { health: 20, inventory: { slots } }
+    c.hasAnyItem = names => names.some(n => swords.includes(n))
+    assert.equal(c.nightWaterReady(), true)
+    assert.equal(c.nightSurfaceReady(), false)
+    swords = ['diamond_sword']
+    assert.equal(c.nightSurfaceReady(), true)
+    swords = ['iron_sword']
+    slots[8] = { name: 'leather_boots' }
+    assert.equal(c.nightWaterReady(), false)
+    slots[8] = { name: 'iron_boots' }
+    c.bot.health = 12
+    assert.equal(c.nightWaterReady(), false)
 })

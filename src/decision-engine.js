@@ -229,7 +229,10 @@ function chooseAction (state) {
         return 'sleep'
     }
     // Surface nights killed the bot. At night descend, carve down when protected, or shelter.
-    if (state.isNight && !state.underground && !nightCleared) {
+    // A night water search with iron gear stays on the surface (user, 2026-11-15).
+    const waterCleared = state.isNight && state.nightWaterReady && state.health > 12 && !state.retreatForNight &&
+        progression.action === 'fill_water_bucket'
+    if (state.isNight && !state.underground && !nightCleared && !waterCleared) {
         if (state.nightShaftReady && state.hasStonePickaxe && state.health > 12 && !state.visibleHostiles) {
             return 'descend_shaft_at_night'
         }
