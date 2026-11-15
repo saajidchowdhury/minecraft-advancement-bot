@@ -177,6 +177,11 @@ function shouldRelocateAfterStationFailure (action, failureCount, message) {
         /could not place (crafting table|furnace)|shelter enclosure incomplete/.test(message)
 }
 
+// A return staircase boxed in by plugged water and its own passage retried one cell 396 times (live 05:15Z).
+function shouldRerouteAscent (action, failureCount, message) {
+    return action === 'return_surface' && failureCount % 3 === 0 && /no supported dry tunnel step/.test(message)
+}
+
 function mobilityRecoveryKind (shaftTrapped, elevationTrapped) {
     if (shaftTrapped) {
         return 'shaft'
@@ -822,6 +827,22 @@ class SurvivalController {
         }
     }
 
+    // Back down up to four staircase cells and turn, so the climb restarts in fresh rock.
+    async rerouteAscent (failureCount) {
+        const route = this.memory.mineRoute || []
+        const index = Math.max(0, route.length - 4)
+        const back = route[index]
+        if (back) {
+            await this.gotoWithTimeout(new goals.GoalBlock(back.x, back.y, back.z), 10000, 'ascent reroute')
+            route.length = index
+        }
+        // +1 then +2 visits the right, left, original and reverse headings in turn.
+        const turn = (failureCount / 3) % 2 ? 1 : 2
+        this.memory.mineDirection = ((this.memory.mineDirection || 0) + turn) % 4
+        this.memory.tunnelFrontier = null
+        this.log.warn(`Return staircase boxed in; rerouting from ${this.positionText()} toward direction ${this.memory.mineDirection}.`)
+    }
+
     // Natural ground under the bot may hide a cave below (live 05:04Z fall through a stalactite),
     // so step to an adjacent standing cell, centred, before mining it.
     async stepOffBlock (block) {
@@ -1047,6 +1068,9 @@ class SurvivalController {
                 } catch (relocationError) {
                     this.log.warn(`Workspace relocation failed: ${relocationError.message}`)
                 }
+            }
+            if (shouldRerouteAscent(action, count, message)) {
+                await this.rerouteAscent(count).catch(rerouteError => this.log.warn(`Ascent reroute failed: ${rerouteError.message}`))
             }
             // Unstick scouting accepts six-block drops, which only take a surfacing bot deeper (04.01.02).
             // Opportunistic targets are blocked one by one; a run of unreachable ores is not a stuck bot (17:14:26Z).
@@ -4557,7 +4581,7 @@ class SurvivalController {
 
 module.exports = {
     SurvivalController, HOSTILES, PREY, FOOD_VALUES, actionMadeProgress, smeltJobState, updateHome,
-    shouldRelocateAfterStationFailure, mobilityRecoveryKind,
+    shouldRelocateAfterStationFailure, shouldRerouteAscent, mobilityRecoveryKind,
     pathfinderDropLimitForLanding, SAFE_PATHFINDER_DROP, kite, resourceApproachMs,
     heapPressureExceeded, PATH_SEARCH_RADIUS, HEAP_GUARD_BYTES, coveredAbove
 }

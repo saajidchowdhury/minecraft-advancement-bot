@@ -87,6 +87,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Rejecting unsupported jump landings; dry berry approaches and pickup | automated | F124 |
 | Drop caution: no diagonals, dig-jumps or sprinting beside 10+ block drops | automated / staged arena | F148 |
 | Nether fortress line: prep, slab bridge, return and frontier walk on the recorded path, netherrack fallback | staged (no fortress seen yet) | F149 |
+| Golden boots: smelt, craft, wear in the Nether, keep both pairs | staged 1/1 | F158 |
 | Diamond interrupt, probe-exposed ore, dig-exposed vein ore | live / staged | F031, F054, F079, F100 |
 | Remembered diamond behind an overhang, stair approach and pickup | automated / staged on original vein | F121 |
 | Lava source with an obstructed centre ray | automated / staged at original ledge | F122 |

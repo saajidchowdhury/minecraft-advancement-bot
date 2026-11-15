@@ -3880,3 +3880,47 @@ face from a centred stance, so surface aiming was not the cause. The
 mineflayer-aim comparison run was aborted by the leftover arena and not
 repeated. Regression in `test/progression-skills.test.js` fails on the
 pre-fix source.
+
+## F158 — Gold to a cap of four; golden boots for the Nether
+
+User direction 2026-11-15: mine gold opportunistically with a cap of 4. Before
+going to the Nether, craft golden boots and wear them; keep the iron or
+diamond boots, and keep the golden boots after coming back. Implementation:
+the opportunity cap (`cave-exploration.js` ORES), the carry limit
+(`inventory.js` gold group) and the base carry level (`base.js`) are all 4.
+`goldBootsPrep` (advancement plan) runs before both `enter_nether` targets,
+the first entry and the fortress return. Without golden boots it crafts them
+from 4 ingots (`craft_progression`, item `golden_boots`), smelts raw gold in
+place (`smelt_gold`; an iron job holding the furnace is collected first), or
+mines gold (`gather_gold` = `gatherDeep` on gold ores, a night carve action).
+`enterNether` equips the golden boots just before walking into the portal.
+In the Nether `armorUpgrades` ranks golden boots above every tier, so the
+iron or diamond boots carried are not swapped back on. In the Overworld the
+normal tier order restores the better boots. Cleanup keeps one golden boots
+(`SINGLE`), and the better boots are kept because they outrank the worn
+golden pair. Base deposits skip golden boots. Staged
+(`outputs/stage-gold-boots.js`, `gold-boots-test.json`, 6460ed8; kit check):
+GoldTrial smelted 4 raw gold into 4 ingots with a real furnace and crafted
+golden boots while keeping iron boots on. Moved to the Nether roof,
+`equip_armor` put golden boots on with the iron boots carried; back in the
+Overworld it put the iron boots back on with the golden boots carried.
+Cleanup would discard neither pair at any step. Regressions in
+`advancement-plan`, `base`, `inventory`, `progression-skills` and `smelting`
+tests fail on the pre-fix source. Not yet seen in an unstaged portal trip.
+
+## F159 — Boxed-in return staircase retried one cell 396 times
+
+Live, `outputs/2026-11-15@00.10.19/` (a589f7c), 05:15Z. `return_surface`
+climbed from Y=-37 into an aquifer around (-527, 4, 1): eight digs in a row
+revealed water and were plugged, and each revealed hazard blocked its step
+for 120 s. Then all six candidate steps were refused ("0 unsafe, 1 already
+excavated, 5 blocked"): five were remembered water steps, and one was the
+excavated cell behind, which an ascending staircase never backtracks into.
+`return_surface` is excluded from unstick and scouting, so it failed in
+place 396 times in 11 minutes. Fix: every third `return_surface` failure that
+reports no supported dry tunnel step runs `rerouteAscent`. It walks back up
+to four cells along the remembered staircase, trims the route there, turns
+the mining direction (+1, then +2, visiting right, left, original and
+reverse), and clears the tunnel frontier so the climb restarts in fresh rock.
+Regression in `test/mobility-recovery.test.js` fails on the pre-fix source.
+Not yet seen live.

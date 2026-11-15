@@ -869,3 +869,28 @@ test('paths treat seagrass and kelp as the water they are, as the physics does (
         assert.equal(result.status, 'success')
     })
 })
+
+test('a boxed-in return staircase reroutes every third failure: back four cells, then turn (live 05:15Z)', async () => {
+    const { shouldRerouteAscent } = require('../src/survival-bot')
+    const boxed = 'no supported dry tunnel step: 0 unsafe (liquid, falling blocks or support), 1 already excavated, 5 blocked'
+    assert.equal(shouldRerouteAscent('return_surface', 3, boxed), true)
+    assert.equal(shouldRerouteAscent('return_surface', 4, boxed), false)
+    assert.equal(shouldRerouteAscent('gather_iron', 3, boxed), false)
+    assert.equal(shouldRerouteAscent('return_surface', 3, 'dig at (-527, 5, 1) revealed water; plugged the opening'), false)
+    const route = [0, 1, 2, 3, 4, 5].map(i => ({ x: i, y: i, z: 0 }))
+    const goals = []
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, {
+        memory: { mineRoute: route, mineDirection: 0, tunnelFrontier: { x: 6, y: 6, z: 0 } }, log: { warn() {} },
+        bot: { entity: { position: new Vec3(6.5, 6, 0.5) } },
+        positionText: () => 'here',
+        async gotoWithTimeout(goal) { goals.push([goal.x, goal.y, goal.z]) }
+    })
+    await c.rerouteAscent(3)
+    assert.deepEqual(goals, [[2, 2, 0]])
+    assert.deepEqual(route.map(p => p.x), [0, 1])
+    assert.equal(c.memory.mineDirection, 1)
+    assert.equal(c.memory.tunnelFrontier, null)
+    await c.rerouteAscent(6)
+    assert.equal(c.memory.mineDirection, 3, 'the second reroute tries the other side')
+})

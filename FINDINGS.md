@@ -137,8 +137,9 @@ Inventory, base and disposal
   routes 20 per step (F129).
 - Carry rules (`src/inventory.js`): 64 stone-type blocks (320, plus 512 slabs, on a
   fortress expedition, F149) and 16 dirt, logs 40,
-  fuel 32, the two best pickaxes, the best other tool per kind, better armor
-  only. Wool, leather and all seeds are junk (F115, F125, F127).
+  fuel 32, gold 4, the two best pickaxes, the best other tool per kind, better
+  armor only plus golden boots (F158). Wool, leather and all seeds are junk
+  (F115, F125, F127).
 - The base is a sealed barrel vault with matching carry and restock levels;
   leather is neither (F038, F039, F058, F070, F127).
 
@@ -367,3 +368,5 @@ Highest risk first.
 - F155 Mineshaft fence floor: a level tunnel step was never taken, the frontier advanced anyway and two passes alternated [live failure + regression]
 - F156 Night water search with full iron gear continues on the surface [user direction + regression]
 - F157 Level tunnel steps never bridged gaps; floors now go in from the supported cell, staged with surface aim [user report + staged + regression]
+- F158 Gold capped at four; golden boots crafted before every portal trip and worn only in the Nether [user direction + staged + regression]
+- F159 Return staircase boxed in by plugged water retried one cell 396 times; reroute every third failure [live failure + regression]
