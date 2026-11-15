@@ -1,6 +1,6 @@
 # Prioritized development goals
 
-Updated 2026-11-14 (America/New_York). This is a working queue, not a rigid
+Updated 2026-11-15 (America/New_York). This is a working queue, not a rigid
 script. Reorder it when evidence or user instructions change. Keep goal IDs
 stable. When a goal is done, reduce it to one line under "Completed" with its
 evidence reference. Dated session narratives belong in `FINDINGS-ARCHIVE.md`
@@ -10,11 +10,12 @@ playthrough is a test, not the definition of success.
 
 ## Now
 
-1. Nether fortress (G006, G019). Restart the regular bot onto current code.
-   Then a staged run that sights and enters a fortress, golden boots against
-   piglins, a restock round trip that resumes at the frontier, a ghast
-   answer, and faster 256-block stone gathering (tunnel mining, not single
-   blocks). Live-verify the F148 drop caution and tree approach in natural play.
+1. Nether fortress (G006, G019). The live bot is gathering gold for golden
+   boots (F158); watch it craft them, cast obsidian and enter the Nether in
+   natural play. Then a staged run that sights and enters a fortress, a
+   restock round trip that resumes at the frontier, a ghast answer, and
+   faster 256-block stone gathering. Live-verify this session's untested
+   fixes in natural play: F153–F157, F159, F160.
 2. Fresh-world early game: wet-biome exit, mainland search and soil stock
    (F135–F137, F145, F147); compare an unaided start with F057.
 3. Live-verify still unproven changes: diamond pickup retry (F140), staircase
@@ -32,7 +33,8 @@ playthrough is a test, not the definition of success.
 ### G001 — Highest / active — Survival and death recovery
 
 Most reflexes and combat rules are live (see the digest); deaths still
-dominate throughput (F100–F111, F149). Not yet built (F076, F101): a
+dominate throughput (F100–F111, F149). A sealed-in zombie crowd now gets
+fought when the refuge has no route (F152, staged pass). Not yet built (F076, F101): a
 cave-spider spawner retreat and seal; pickaxe fighting without a sword;
 bare night respawns that rebuild at a distance; no rest near a visible
 archer; wall strafing, a 2x1 lure dent and shield timing from blocked
@@ -90,14 +92,11 @@ Dependencies, cheapest first: ender pearls (endermen or bartering), blaze
 rods (a fortress via G006), eyes of ender, then the library's shelves. Done
 with server-confirmed Eye Spy and a level-30 enchant on the diamond pick.
 
-### G019 — High / not started — Golden boots keep piglins neutral
+### G019 — High / implemented, staged — Golden boots keep piglins neutral
 
-Any one golden armor piece keeps piglins neutral unless the bot attacks them,
-opens chests or breaks gold blocks near them. An ignored piglin on the bridge
-killed NetherTrial (F149). Add 4 gold ingots to the expedition kit, craft
-golden boots, wear them in place of the iron boots while in the Nether and
-switch back in the Overworld. Done when a staged run bridges past piglins
-without being attacked.
+Gold is capped at four; golden boots are mined, smelted and crafted before
+every portal trip, worn only in the Nether, and both pairs are kept (F158,
+staged swap). Done when a live trip bridges past piglins without an attack.
 
 ### G017 — High / not started — Keep mining out of sculk biomes
 
@@ -135,6 +134,7 @@ then occasional functional builds. Lower than every survival goal.
 ## Completed
 
 - G002 Mining supplies and disposal: lanes, pit and back-off live (F019, F022, F050).
+- Vanilla dig timing (user, 2026-11-15): float32 break ticks and the 6-tick held gap, live (F151).
 - G003 Furnace-window inventory fix: regression, plus live smelts since (F008, F106).
 - G004 Hot Stuff: confirmed live on two worlds (F003, F063).
 - G007 Broadened route: gear route, husbandry and the Nether plan now live in

@@ -1,6 +1,6 @@
 # Findings
 
-Updated 2026-11-14 (America/New_York). This file is the digest: the current
+Updated 2026-11-15 (America/New_York). This file is the digest: the current
 handoff, stable facts, policies in force, open problems and a one-line index.
 Full evidence for each finding is in `FINDINGS-ARCHIVE.md`; search it by ID
 (`rg -n '^## F112' FINDINGS-ARCHIVE.md`) rather than reading it whole.
@@ -11,17 +11,15 @@ To record a finding, append its full entry to the archive, add one index line
 below, and edit the digest bullets it changes. Replace the current handoff
 instead of adding another. Keep everything above the index under ~200 lines.
 
-## Current handoff — 2026-11-14 early morning
+## Current handoff — 2026-11-15 early morning
 
-Baseline 596 tests pass at 6951f3e. The regular bot (PID 30242, port 52978,
-`outputs/2026-11-14@00.06.16/`) still runs pre-session code 0450d64 and was
-stuck in a `return_surface` loop at -3,53,-101 after its F148 fall death;
-restart it onto current code (verify the PID first). Staging left in the
-world: the floating F148 arena at 160,100,-260, a lit portal at
-175..178,101..105,-225, and in the Nether a 372-cell bridge from 24,101,-28
-east to x=225, then north to z=-198. NetherTrial logged out in the
-Overworld. keep_inventory is false; the owner is at -93,-54,199. Next: G006
-(sight and enter a fortress), then G019 golden boots.
+625 tests pass at 48e5b81 (pushed). The regular bot runs a41c626 (PID 79610,
+port 55354, `outputs/2026-11-15@00.31.14/`), mining down for gold. It lacks
+F160; restart it with the kit check when convenient. It has a diamond pick,
+diamond sword, full iron armor, a shield, two water buckets and no obsidian
+portal yet; Hot Stuff is still pending. Staging arenas are all removed. Next:
+golden boots live (F158), the obsidian portal and first Nether entry (G006),
+then a fortress. The dig-timing work (F151) came from a split session.
 
 ## Stable facts and process lessons
 
@@ -29,16 +27,13 @@ Overworld. keep_inventory is false; the owner is at -93,-54,199. Next: G006
   (`src/config.js`). Local registry fixes: obsidian tool speed (F053), 108
   blocks wrongly tagged `incorrect_for_wooden_tool` (F105). `keep_inventory`
   is false in the LAN world; staged trials enable it and restore it (F101).
-- `patch-package` patches: Mineflayer (mixed-plank crafting, window `close`
-  F078, `air_supply` guard F099), mineflayer-pathfinder (landing checks), and
-  prismarine-item, which normalizes 26.1 component enchantments to
-  `[{ name, lvl }]` (F128). `patch-package --reverse` reverts every patch;
-  reapply them all afterwards.
-- Pathfinder facts: `searchRadius` (48) is also A*'s cost slack above the start
-  heuristic (F134). Only water and lava are library liquids; seagrass, kelp
-  and bubble columns are added (F136). Movements without `liquids`,
-  `exclusionAreasStep`, `getMoveDiagonal` or `getMoveJumpUp` are not real
-  ones; mocks must carry them.
+- `patch-package` patches: Mineflayer (crafting, window `close` F078,
+  `air_supply` F099, dig face), pathfinder (landings), prismarine-item
+  (26.1 enchantments, F128), prismarine-block (float32 dig ticks, F151).
+  Regenerate with `node node_modules/patch-package/index.js <pkg>`.
+- Pathfinder: `searchRadius` (48) is also A*'s cost slack (F134); seagrass,
+  kelp and bubble columns are added liquids (F136); scaffolding is off, and
+  `blocksToAvoid` plus cost over 100 truly forbids a move (F153, F157).
 - Launch with `./scripts/run.sh [port]`; a changed seed clears saved
   coordinates (F002, F071). Runs record commit, hashes, PID and events under
   `outputs/<New York time>/` (F012); a running process never loads later
@@ -47,22 +42,21 @@ Overworld. keep_inventory is false; the owner is at -93,-54,199. Next: G006
 - Only server packets confirm advancements (F003). Staged supplies, such as
   the user's enchanted netherite pickaxe, make progress command-assisted
   (F101, F102, F128).
-- Tests: mocks mirror the real library: `blockAt` floors positions,
-  `inventory.items()` exists, getPathFromTo is a generator (F008, F023, F133).
-  `Vec3.normalize` mutates (F090). An empty no-path can resolve as success,
-  so check the final position (F048, F096). `stop()` defers; clear goals with
-  `setGoal(null)` (F004). Gate commits on the `npm test` exit status (F035, F060).
+- Tests: mocks mirror the real library (`blockAt` floors, `items()`,
+  generator searches; F008, F023, F133). `Vec3.normalize` mutates (F090). An
+  empty no-path resolves as success, so check the final position (F048, F096,
+  F155). `stop()` defers; use `setGoal(null)` (F004). Gate commits on `npm test`.
 - Staging: space commands 800 ms apart and await replies; place a platform
   before teleporting; run staged scripts visibly and teleport the owner to a
   vantage point (F021, F088, F101). Trial scripts handle SIGTERM so cleanup
   (keep_inventory, owner return) runs; give armor before a Nether teleport;
   name the dimension in every `/tp` and `/fill` (F149). Read-only
-  EffectHelper probes map blocks and replay path searches (F134, F149).
-  Most diagnoses need only `bot.log` and `state.json` (no worn armor, F068).
+  EffectHelper probes map blocks (F134, F149, F153); its own login position
+  counts in `@a` guards, so exclude it (F157).
 
 ## Policies in force
 
-Checked against `src/` on 2026-11-14. Named constants are in the cited files.
+Checked against `src/` on 2026-11-15. Named constants are in the cited files.
 
 Spawn, water and land
 - Leave swamps, rivers, oceans and sandy beaches on one cardinal heading,
@@ -81,9 +75,8 @@ Spawn, water and land
   digging and rejects only exhausted searches (F148). A water-ringed trunk
   gets a waterline platform (F145). Resource approaches allow 700 ms per
   block, at least 10 s (15 s diamond, F148).
-- Drop caution (F148): where any column within ±2 lies 10+ blocks below the
-  support, A* drops diagonals from or onto the spot and digging jump-ups,
-  and sprint is off (`src/drop-caution.js`).
+- Drop caution (F148): beside a 10+ block drop, A* skips diagonals and
+  digging jump-ups, and sprint is off (`src/drop-caution.js`).
 
 Planner and gear order
 - The first three ingots make an iron pick (F043). The stone pick is followed
@@ -121,6 +114,10 @@ Mining and tunnels
 - A confirmed diamond stays a priority within 48 blocks with 15 s walks,
   cooldowns and a 45 s drop retry (F121, F139, F140). Never mine under the
   hitbox except in a canopy descent (F102, F129, F135).
+- Level steps bridge gaps from the supported cell (F157); a floor over 1
+  block tall (fences) is no footing; every step must be reached (F155);
+  digs and placements aim at block surfaces (c31544d). A boxed-in return
+  staircase reroutes every third failure (F159).
 - Hazards count only when visible. Revealed liquids get verified plugs, kept
   intact; flooded staircases are abandoned after an upstream plug try (F141).
   Lava casts keep ten visible sources and a side pit (F142); stair steps skip
@@ -148,9 +145,8 @@ Furnaces, fuel and food
   cooking jobs, abandoned beyond 300 blocks; cooking reach 300 by day, 64
   underground, 8 at night; surface jobs end by tick 12500 (F037, F103, F104).
 - Coal first, planks as needed, charcoal three at a time (F106); stair-side
-  cooking recesses (F120); fish, glow berries within 24 dry moves and up to
-  four stews (F072, F127). Hunts use axes, drop prey after 3 s hidden, and
-  start at low health only below 18 food (F095, F103, F104).
+  cooking (F120); fish, glow berries and stews (F072, F127, F150). Hunts use
+  axes and swim rivers; prey hidden 3 s is dropped (F095, F103, F104).
 
 Combat and threats
 - Line-of-sight alerts: melee 6, creeper 8, archer 12 blocks (F081, F101,
@@ -173,17 +169,17 @@ Environmental reflexes, night and recovery
   underground mining continues to 12 HP (F071, F104); verified 1x2
   shelters; sleep only while the owner sleeps (F009, F017, F102).
 - Unstick never bridges, never runs near a hostile within 8 or on a Nether
-  fortress line (F094, F101, F149). High logs use pillars of at most 5
+  fortress line (F094, F101, F149). Stationary failures (workstation,
+  shelter, no toss lane) relocate every third try (F154, F160). High logs use pillars of at most 5
   (F097); three in-place water-search failures defer the water and portal
   route 5 min (F113, F116).
 
 ## Open problems and unverified behavior
 
 Highest risk first.
-1. Nether: no fortress sighted or entered yet; piglin hostility and the
-   restock round trip are regression-only; ghast fireballs hit the bridge
-   unanswered; a portal hidden from sight within 32 blocks triggered a
-   failed rebuild; 256 stones take about 10 min to gather (F149, G006, G019).
+1. Nether: no fortress sighted or entered yet; golden boots are staged only
+   (F158); the restock round trip is regression-only; ghast fireballs hit the
+   bridge unanswered; a hidden portal triggered a failed rebuild (F149, G006).
 2. Coastal landing, first-spawn mainland selection and a natural trunk
    platform need live evidence (F135–F137, F145, F147).
 3. Retreat under pursuit and mixed creeper groups failed staged cases
@@ -191,23 +187,21 @@ Highest risk first.
 4. Missing natural evidence: obstructed crowd seals (F094), rough-ground
    creeper duels (F112), burrows (F102), high-tree pillars (F097), cave
    surveys (F013, F051), sculk exits (F132).
-5. Unexplained: inventory loss after warden recovery (F104), a 16 HP hit
-   (2026-11-11), the F071 memory reset, a path into lava (F074).
-6. Regression-only: charcoal batches (F106), Take Aim and Enchanter (F059),
-   golem (F037), fishing and breeding (F036), base restock (F034, F039),
-   bare-hand climbs (F126); casting ten obsidian from zero (F142).
+5. A bot already in an underground lake has no dedicated exit (F153);
+   reroutes and relocations F154, F159, F160 are regression-only.
+6. Regression-only: charcoal (F106), Take Aim, Enchanter (F059), golem,
+   fishing, breeding, base restock, bare-hand climbs, ten-obsidian casts.
 
 ## Progress records
 
 - Unaided: ten advancements in 28 min, Diamonds! at about 45 min (F057); a
   bare rebuild to full iron in 29 min (F031).
-- Confirmed live at least once: story root, Stone Age, Getting an Upgrade,
-  Acquire Hardware, Isn't It Iron Pick, Suit Up, Hot Stuff, Diamonds!, Cover
-  Me with Diamonds, Not Today Thank You, Adventure, Monster Hunter, Husbandry,
-  A Seedy Place, Ice Bucket Challenge, We Need to Go Deeper and Nether
-  root (F142, F144). Staged only: Sweet Dreams (F017).
-- Deaths come from survival gaps: 13 on 2026-11-05 (F023–F035), 13 on
-  2026-11-06 (F062–F076), then F081 through F124.
+- Confirmed live: story root, Stone Age, Getting an Upgrade, Acquire Hardware,
+  Isn't It Iron Pick, Suit Up, Hot Stuff, Diamonds!, Cover Me with Diamonds,
+  Not Today Thank You, Ice Bucket Challenge, We Need to Go Deeper, Adventure,
+  Monster Hunter, Husbandry, A Seedy Place, Nether root (F142, F144).
+  Staged only: Sweet Dreams (F017).
+- Deaths come from survival gaps: F023–F035, F062–F076, F081–F124, F152.
 
 ## Index
 
