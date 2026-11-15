@@ -155,7 +155,9 @@ Combat and threats
   F116). A lone creeper is duelled at 12 HP or more (F062, F109, F112).
   Armed bots fight before eating, kite up to four melee mobs, wall-retreat
   from three or more and charge a lone archer with the shield (F030, F068,
-  F094, F101). Water combat swims to close and away (F146).
+  F094, F101). Water combat swims to close and away (F146). A refuge with no
+  route, or only a flee under 8 blocks, fights for 6 s uninterrupted; swings
+  rotate over attackers in reach, 500 ms per mob, 125 ms apart (F152).
 - A melee mob gaining under 0.5 blocks in 4 s stands down 60 s; archers only
   in the Nether (F130, F149). Ghasts are not hostile; piglins are (F149).
   Endermen are avoided (F086); deaths near threats or lava skip recovery
@@ -357,3 +359,4 @@ Highest risk first.
 - F149 Nether fortress expedition: prepare, bridge one cardinal line, return along it [user direction + staged + regression]
 - F150 Dive for visible fish when no prey is in sight, steering by hand underwater [user direction + staged + regression]
 - F151 Vanilla held-attack dig schedule: 6-tick gap and float32 break ticks [user report + bytecode + regression]
+- F152 Sealed-in zombie crowd killed an unarmored bot; fight back when the refuge has no route [live failure + user direction + staged + regression]

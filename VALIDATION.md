@@ -127,6 +127,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Cave combat while mining: lone skeleton, lone zombie | staged pass | F111 |
 | Simultaneous creeper groups and staggered reinforcements | staged fail (timeouts, one death) | F111 |
 | Crowd wall-pocket retreat and seal | staged | F094 |
+| Sealed-in zombie crowd fought when the refuge has no route | staged 1/1 after fix | F152 |
 | Pre-hit detection behind the bot | staged | F109 |
 | Creeper flight, tunnel seal, archer cover | live | F020, F029, F030, F031 |
 | Enderman gaze and refuges | staged | F086 |

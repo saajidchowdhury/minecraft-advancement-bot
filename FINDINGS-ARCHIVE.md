@@ -3733,3 +3733,41 @@ the pre-fix source. Expected cost: one more tick per block when nothing else fil
 stone 13 -> 14 ticks per block), which is the human maximum. Uncertain: the live overhead between
 tunnel steps; the first block after a fresh click is one tick slower than a human's (the bot always
 behaves as if holding the button).
+
+## F152 — Sealed-in zombie crowd killed an unarmored bot; fight back when the refuge has no route
+
+Live failure, `outputs/2026-11-14@22.44.06/` (commit c31544d). Restarted onto a
+ledge at y=-4 with an iron sword and no armor, the bot met five or more
+zombies and a skeleton. The fight aimed at a zombie 3-4 blocks away and stood
+down twice ("not approaching") while others hit from 1.3-1.8 blocks: the
+stand-down timer and swing rotation looked only at the chosen target, and an
+out-of-reach target never swung at always won the least-recently-swung
+rotation. The crowd latch then chose `retreat_to_wall`, which failed 16 times
+with "no supported walking route" and never swung; death at 262,-5,40 after
+54 s, drops not recovered (iron pickaxe, sword, 6 ingots). User direction:
+the bot should click zombies as they come close; five is doable, clicking
+faster is fine.
+
+Fix (54c31be, b265698; one hunk landed in 130eb70 from a concurrent session
+sharing the checkout): a refuge failing for lack of a route, or offering only
+a no-refuge flee ending under 8 blocks from remembered threats, with melee
+within 3 blocks sets `refugeBlockedUntil` (6 s). The planner then fights
+(creeper escape keeps priority), a cornered fight ignores the crowd latch
+while the refuge is blocked, and the entityMoved crowd interrupt no longer
+cancels that fight. Mobs within reach count as engagement for the stand-down
+timer, and the swing rotation picks among attackers in reach. Swings are
+spaced 500 ms per mob (10-tick hurt cooldown) and 125 ms between clicks
+(8 CPS) instead of 500 ms globally. Pinned escapes alone still prefer the wall
+refuge (earlier policy, tests kept).
+
+Staged (`outputs/stage-cornered-crowd.js`; kit check via EffectHelper; owner
+on a black-glass ceiling and returned; arena 42..48,200..204,42..48 removed;
+Normal difficulty): unarmored CrowdTrial, iron sword, five helmeted zombies in
+a sealed 5x5 room. Run 1 on 54c31be (`cornered-crowd-test-run1.json`) died in
+8 s: `retreat_to_wall` walked 1-7 step flees for 4 s, then the crowd interrupt
+cancelled each fight within 0.7 s (5 swings). Run 2 on 419b5b6
+(`cornered-crowd-test-run2.json`) passed: all five killed in 17.4 s, 41
+swings, gaps 126 ms minimum and 185 ms median, HP never below 14.5. Regressions
+in `test/survival-safety.test.js`, `test/crowd-retreat.test.js` and
+`test/decision-engine.test.js` fail on the pre-fix source. Not yet seen in an
+unstaged crowd.
