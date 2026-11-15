@@ -2543,7 +2543,9 @@ class SurvivalController {
         let standoffAt = Date.now()
         let standoffDistance = Infinity
         let swimming = !hunt && swimmingAtSurface(this.bot)
-        this.bot.pathfinder.setMovements?.(dryMovements(this.bot, swimming))
+        // Prey across a river was chased to the bank, abandoned and rechosen in a loop (live 03:23Z).
+        this.bot.pathfinder.setMovements?.(Object.assign(dryMovements(this.bot, hunt || swimming),
+            hunt ? { liquidCost: this.movements?.liquidCost ?? SWIM_STEP_COST } : {}))
         try {
             while (Date.now() < deadline) {
                 if (!entity.isValid && !hunt) {

@@ -696,6 +696,40 @@ test('charging an archer keeps the shield raised and lowers it only to strike', 
     assert.equal(events.at(-1), 'lower')
 })
 
+test('a hunt from dry land plans swims to prey across a river', async () => {
+    const cow = { id: 1, name: 'cow', isValid: true, position: new Vec3(12, 64, 0) }
+    const registry = require('prismarine-registry')('26.1')
+    const original = { liquidCost: 3 }
+    let movement
+    let planned = false
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, {
+        running: true, memory: {}, movements: original, actionAbort: new AbortController(), canSee: () => true,
+        bestItem: () => null, visibleDrops: () => [], visibleThreatCount: () => 0,
+        bot: { registry, health: 20, entity: { position: new Vec3(0, 64, 0), isInWater: false },
+            entities: { 1: cow }, inventory: { slots: [] },
+            blockAt: () => ({ name: 'grass_block', boundingBox: 'block' }),
+            equip: async () => {}, lookAt: async () => {},
+            attack(target) { target.isValid = false },
+            pathfinder: {
+                setMovements(next) { movement = next },
+                setGoal(goal) {
+                    if (goal) {
+                        assert.equal(movement.blocksToAvoid.has(registry.blocksByName.water.id), false)
+                        assert.equal(movement.liquidCost, 3)
+                        planned = true
+                        c.bot.entity.position = new Vec3(10, 64, 0)
+                    }
+                }
+            }
+        }
+    })
+    await c.fight(cow, true)
+    assert.equal(planned, true)
+    assert.equal(cow.isValid, false)
+    assert.equal(movement, original)
+})
+
 test('a swimming archer charge allows water and strikes a closer visible mob first', async () => {
     const skeleton = { id: 1, name: 'skeleton', isValid: true, position: new Vec3(6, 64, 0) }
     const drowned = { id: 2, name: 'drowned', isValid: true, position: new Vec3(2, 64, 0) }
