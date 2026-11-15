@@ -3733,6 +3733,13 @@ the pre-fix source. Expected cost: one more tick per block when nothing else fil
 stone 13 -> 14 ticks per block), which is the human maximum. Uncertain: the live overhead between
 tunnel steps; the first block after a fresh click is one tick slower than a human's (the bot always
 behaves as if holding the button).
+Live, `outputs/2026-11-14@22.59.01/` (PID 71801, 419b5b6, unaided survival `gather_iron` with a stone
+pickaxe, 04:00-04:03Z): three summaries of 32 timed breaks each. START->STOP median 606, 603 and 602 ms
+against the vanilla 600 ms (12 ticks), so within one tick. STOP->START median 577, 302 and 304 ms, with
+39%, 65% and 88% within a tick of 300 ms. Continuous rate 0.76, 0.93 and 1.19 blocks/s. The last
+window mixed in faster blocks: stone pickaxe on stone alone caps at 1.11 blocks/s (18 ticks). By
+construction no gap is below 300 ms and no break is below n ticks, so the bot cannot beat a human with
+the button held; the gaps above 300 ms are walking and drop pickup.
 
 ## F152 — Sealed-in zombie crowd killed an unarmored bot; fight back when the refuge has no route
 

@@ -142,7 +142,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Take Aim, Enchanter, golem, fishing, breeding | automated | F036, F037, F059 |
 | Redstone demo | automated | G009 |
 | Bare-hand shelter exit and stair carving without a pickaxe | live (out of y=31, six levels) | F126 |
-| Enchanted 26.1 tools at efficiency speed; 6-tick held gap (F151 not yet live) | live (F131) | F128, F131, F151 |
+| Enchanted 26.1 tools at efficiency speed; 6-tick held gap and vanilla break ticks | live | F128, F131, F151 |
 | Crafting two empty buckets before the first water search | live | F138 |
 | Water buckets before lava, reachable berries, melee standoffs, water combat | automated; water combat staged | F127, F130, F146 |
 | Disposal zones, sky-bound surface scouts, self-overlap placement | automated | F129 |
