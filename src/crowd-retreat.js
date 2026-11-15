@@ -7,6 +7,7 @@ const { miningPickaxe, mineTunnel } = require('./progression-skills')
 const { towerStep, descendPillar } = require('./tree-climb')
 
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
+const FLEE_CLEARANCE = 8  // blocks from every remembered threat; zombies follow at walking pace
 const UNSAFE = new Set(['water', 'lava', 'sand', 'red_sand', 'gravel', 'magma_block',
     'bedrock', 'chest', 'barrel', 'furnace', 'spawner', 'trial_spawner', 'infested_stone', 'infested_deepslate'])
 
@@ -121,7 +122,8 @@ async function retreatToWall(c) {
             c.checkAction()
             updateCrowdRetreat(c, c.hostileNames)
             const route = retreatRoute(c, rejected)
-            if (!route) {
+            // A flee with no refuge that ends inside the crowd's reach only trades hits for steps (staged 03:54Z).
+            if (!route || (!route.center && route.distance < FLEE_CLEARANCE && c.closeMelee?.())) {
                 throw new Error('crowd retreat has no supported walking route; refusing to bridge')
             }
             c.log.info(`Crowd retreat: ${route.path.length} supported steps${route.center ? ` to wall refuge ${route.center}` : ' away from the mob group'}; no bridging.`)

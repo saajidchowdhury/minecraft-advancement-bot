@@ -199,3 +199,29 @@ test('an all-zombie crowd moving into view does not cancel a kiting fight', () =
     c.bot.emit('entityMoved', c.bot.entities[1])
     assert.equal(c.actionAbort.signal.aborted, false)
 })
+
+test('a fight with the refuge blocked is not cancelled by the crowd interrupt (staged 03:54Z)', () => {
+    const c = corridor()
+    c.bot.entities[3].name = 'skeleton'
+    c.activeAction = 'fight'
+    c.refugeBlockedUntil = Date.now() + 6000
+    c.bindEvents()
+    c.bot.emit('entityMoved', c.bot.entities[1])
+    assert.equal(c.actionAbort.signal.aborted, false)
+})
+
+test('a sealed room offers no flee that clears the crowd, so the retreat gives up without walking (staged 03:54Z)', async () => {
+    const c = corridor()
+    const room = p => Math.abs(p.x) <= 2 && Math.abs(p.z) <= 2 && [64, 65].includes(p.y)
+    c.bot.blockAt = p => {
+        const name = room(p) ? 'air' : 'stone'
+        return { name, position: p, boundingBox: name === 'air' ? 'empty' : 'block', diggable: name !== 'air',
+            shapes: name === 'air' ? [] : [[0, 0, 0, 1, 1, 1]], material: 'mineable/pickaxe', canHarvest: () => true }
+    }
+    c.bot.entities = Object.fromEntries([[1, 1.9, 0.5], [2, -0.9, 0.5], [3, 0.5, 1.9]].map(([id, x, z]) =>
+        [id, { id, name: 'zombie', isValid: true, position: new Vec3(x, 64, z) }]))
+    c.crowdRetreat = null
+    updateCrowdRetreat(c, c.hostileNames)
+    await assert.rejects(retreatToWall(c), /no supported walking route/)
+    assert.deepEqual(c.moves, [])
+})
