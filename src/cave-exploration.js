@@ -33,9 +33,14 @@ function check(c, signal) {
     }
 }
 
+// Fences, walls and closed gates collide 1.5 high: the cell above them cannot be stood in.
+function tallFloor(block) {
+    return Boolean(block?.shapes?.some(shape => shape[4] > 1))
+}
+
 function safeFooting(bot, p, clearNames = AIR, dryNeighbors = true) {
     const floor = bot.blockAt(p.offset(0, -1, 0), false)
-    if (!floor || floor.boundingBox !== 'block' || DANGER.has(floor.name)) {
+    if (!floor || floor.boundingBox !== 'block' || DANGER.has(floor.name) || tallFloor(floor)) {
         return false
     }
     for (const dy of [0, 1]) {
@@ -452,5 +457,5 @@ async function exploreCave(c, targetY, canEnter = () => true) {
     return moved
 }
 
-module.exports = { waterPlantsAsWater, WATER_PLANTS, safeFooting, findCaveRoute, exploreCave, collectOpportunity, dryMovements, oreSeen, miningSight, minedPassage, visibleMiningHazard,
+module.exports = { waterPlantsAsWater, WATER_PLANTS, safeFooting, tallFloor, findCaveRoute, exploreCave, collectOpportunity, dryMovements, oreSeen, miningSight, minedPassage, visibleMiningHazard,
     rememberMiningExposure, exposedByDig, exposedDiamond, findPriorityDiamond, findPriorityOre, IRON_ORES }

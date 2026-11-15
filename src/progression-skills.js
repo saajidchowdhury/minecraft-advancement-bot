@@ -5,7 +5,7 @@ const { goals } = require('mineflayer-pathfinder')
 const { discardableStacks, overflowStack, pickaxeStranded, handDiggable } = require('./inventory')
 const { storeOverflowAtBase } = require('./base')
 const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight, minedPassage, exposedDiamond, findPriorityDiamond,
-    findPriorityOre, IRON_ORES, visibleMiningHazard } = require('./cave-exploration')
+    findPriorityOre, IRON_ORES, visibleMiningHazard, tallFloor } = require('./cave-exploration')
 const { scanFor, canSeeBlock, cellVisible } = require('./vision')
 const { isUnderFeet, soundFloor, overlapsBody } = require('./under-feet')
 const { towerStep } = require('./tree-climb')
@@ -178,7 +178,7 @@ function safeTunnelStep(bot, feet, target, allowFloorPlacement = false) {
             ['air', 'cave_air', 'void_air'].includes(floor.name) &&
             (supportedPlacement(bot, floorPosition) || (base && ['air', 'cave_air', 'void_air'].includes(base.name) &&
                 supportedPlacement(bot, target.offset(0, -2, 0))))
-        if ((!canBuildFloor && floor.boundingBox !== 'block') || LIQUIDS.has(floor.name)) {
+        if ((!canBuildFloor && floor.boundingBox !== 'block') || LIQUIDS.has(floor.name) || tallFloor(floor)) {
             return false
         }
     }
@@ -773,8 +773,10 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
             } else {
                 await c.gotoWithTimeout(new goals.GoalBlock(target.x, target.y, target.z), 8000, 'tunnel step')
             }
-            if (diamond && !bot.entity.position.floored().equals(target)) {
-                throw new Error('diamond staircase step was not reached')
+            // A goto with no path resolves in place; the frontier then advanced past a step never taken and
+            // the next pass failed to return to it, alternating every 2 s (mineshaft fence floor, live 04:35Z).
+            if (!bot.entity.position.floored().equals(target)) {
+                throw new Error(`${diamond ? 'diamond staircase' : 'tunnel'} step was not reached`)
             }
         } catch (error) {
             c.rememberBlockedTarget?.({ position: target }, 'tunnel step', error)

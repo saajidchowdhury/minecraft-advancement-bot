@@ -3815,3 +3815,23 @@ and furnace placement. Fix: `shouldRelocateAfterStationFailure` also matches
 "shelter enclosure incomplete", so every third failure scouts about 10 blocks
 to new ground before retrying. Regression in `test/station-recovery.test.js`
 fails on the pre-fix source. Not yet seen live.
+
+## F155 — Mineshaft fence floor stalled a tunnel in a two-pass loop
+
+Live, `outputs/2026-11-14@23.12.55/` (b66b2fc), 04:35Z. Climbing toward Y=68
+for `fill_water_bucket` at (-212, 25, -92), the tunnel ran into an abandoned
+mineshaft: rails, oak fences, planks, cobwebs (spectator inspection,
+`outputs/inspect-frontier-stall.json`; kit check first). The level step to
+(-212, 25, -93) stood on an oak fence at (-212, 24, -93), which collides 1.5
+blocks high, so the cell above it cannot be stood in. `safeTunnelStep`
+accepted any `boundingBox === 'block'` floor. The pathfinder found no path
+and `gotoWithTimeout` resolved in place. Only diamond staircase steps checked
+arrival, so the frontier advanced to the untaken step and the pass logged
+"Tunnel: Y 25 -> 25.0" as a success. The next attempt's "return to frontier"
+failed in 50 ms ("tunnel frontier was not reached") and cleared the frontier.
+The passes then alternated every 2 s, 22 times, and each success reset the
+failure count to 1, so recovery never escalated. Fix: `tallFloor` (a
+collision shape higher than 1) disqualifies a floor in `safeTunnelStep` and
+`safeFooting`, and every tunnel step must end on its target or it fails and
+is remembered as blocked. Regression in `test/progression-skills.test.js`
+fails on the pre-fix source. Not yet seen live.

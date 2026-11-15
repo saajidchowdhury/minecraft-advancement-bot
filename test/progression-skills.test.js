@@ -1057,3 +1057,28 @@ test('digging up into water above the bot scoops it instead of counting a failur
     assert.equal(inventory.water_bucket, 1)
     assert.deepEqual(dug.slice(0, 2), ['(0, 67, 0)', '(0, 66, 0)'], 'opens the stair headroom, then the block hiding the source')
 })
+
+test('a mineshaft fence is no tunnel floor, and a level step the pathfinder never takes fails without advancing (live 04:35Z)', async () => {
+    const fence = new Vec3(1, 63, 0)
+    const shaft = {
+        entity: { position: new Vec3(0.5, 64, 0.5) },
+        blockAt(p) {
+            const name = p.equals(fence) ? 'oak_fence' : p.y < 64 ? 'stone' : 'air'
+            return { name, position: p, boundingBox: name === 'air' ? 'empty' : 'block', diggable: true, canHarvest: () => true,
+                shapes: name === 'air' ? [] : name === 'oak_fence' ? [[0.375, 0, 0, 0.625, 1.5, 1]] : [[0, 0, 0, 1, 1, 1]] }
+        }
+    }
+    assert.equal(safeTunnelStep(shaft, new Vec3(0, 64, 0), new Vec3(1, 64, 0)), false)
+    assert.equal(safeTunnelStep(shaft, new Vec3(0, 64, 0), new Vec3(0, 64, 1)), true)
+    const blocked = []
+    const bot = { ...shaft, health: 20, game: { dimension: 'overworld' }, equip: async () => {}, canDigBlock: () => true }
+    const c = {
+        bot, running: true, paused: false, actionAbort: new AbortController(), log: { info() {}, warn() {} },
+        memory: { mineDirection: 1 }, bestItem: () => ({ name: 'iron_pickaxe' }),
+        rememberBlockedTarget: block => blocked.push(block.position),
+        async gotoWithTimeout() {}
+    }
+    await assert.rejects(mineTunnel(c, 64), /tunnel step was not reached/)
+    assert.deepEqual(blocked, [new Vec3(0, 64, 1)])
+    assert.deepEqual([c.memory.tunnelFrontier.x, c.memory.tunnelFrontier.z], [0, 0])
+})

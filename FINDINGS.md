@@ -363,3 +363,4 @@ Highest risk first.
 - F152 Sealed-in zombie crowd killed an unarmored bot; fight back when the refuge has no route [live failure + user direction + staged + regression]
 - F153 Underground scout dug into a lake under the tunnel; scouts below ground avoid water [live failure + regression]
 - F154 Night shelter retried 32 times at a spot with no shelter or burrow geometry; relocate every third failure [live failure + regression]
+- F155 Mineshaft fence floor: a level tunnel step was never taken, the frontier advanced anyway and two passes alternated [live failure + regression]
