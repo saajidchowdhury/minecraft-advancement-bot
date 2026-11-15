@@ -3924,3 +3924,18 @@ the mining direction (+1, then +2, visiting right, left, original and
 reverse), and clears the tunnel frontier so the climb restarts in fresh rock.
 Regression in `test/mobility-recovery.test.js` fails on the pre-fix source.
 Not yet seen live.
+
+## F160 — Cleanup with no toss lane retried 256 times in one cell
+
+Live, `outputs/2026-11-15@00.29.02/` (6460ed8), 05:29Z. The bot restarted in the
+boxed-in aquifer cell of F159 at (-528, 3, 1) with a full inventory.
+`clear_inventory` failed 256 times in about 2 minutes ("no open toss lane or
+supported disposal retreat; refusing a stationary drop/pickup loop"), and the
+crowd interrupt cancelled some attempts when zombies came near. It is a
+stationary action, so it never moved. The next restart left the cell only
+because the new `gather_gold` goal tunnels down. Fix:
+`shouldRelocateAfterStationFailure` also matches "no open toss lane", so every
+third such failure scouts about 10 blocks before cleanup retries (underground
+scouts avoid water, F153). Regression in `test/station-recovery.test.js` fails
+on the pre-fix source. Not yet seen live; the running bot (a41c626) loads it
+at its next restart.

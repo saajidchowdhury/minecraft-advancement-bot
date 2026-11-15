@@ -370,3 +370,4 @@ Highest risk first.
 - F157 Level tunnel steps never bridged gaps; floors now go in from the supported cell, staged with surface aim [user report + staged + regression]
 - F158 Gold capped at four; golden boots crafted before every portal trip and worn only in the Nether [user direction + staged + regression]
 - F159 Return staircase boxed in by plugged water retried one cell 396 times; reroute every third failure [live failure + regression]
+- F160 Full inventory with no toss lane retried cleanup 256 times in one cell; relocate every third failure [live failure + regression]

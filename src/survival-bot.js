@@ -171,10 +171,11 @@ function updateHome (memory, position, skyLight) {
     return true
 }
 
-// A spot with no shelter or burrow geometry failed the same way 32 times in a row (live 04:09Z).
+// A spot with no shelter or burrow geometry failed the same way 32 times in a row (live 04:09Z); a full
+// inventory with no toss lane failed 256 times in one boxed-in cell (live 05:29Z).
 function shouldRelocateAfterStationFailure (action, failureCount, message) {
     return STATIONARY_ACTIONS.has(action) && failureCount % 3 === 0 &&
-        /could not place (crafting table|furnace)|shelter enclosure incomplete/.test(message)
+        /could not place (crafting table|furnace)|shelter enclosure incomplete|no open toss lane/.test(message)
 }
 
 // A return staircase boxed in by plugged water and its own passage retried one cell 396 times (live 05:15Z).

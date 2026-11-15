@@ -22,6 +22,12 @@ test('a shelter that cannot enclose or burrow at one spot relocates every third 
     assert.equal(shouldRelocateAfterStationFailure(Actions.SHELTER, 3, 'action cancelled'), false)
 })
 
+test('a full inventory with no toss lane relocates every third failure (live 05:29Z)', () => {
+    const message = 'no open toss lane or supported disposal retreat; refusing a stationary drop/pickup loop'
+    assert.equal(shouldRelocateAfterStationFailure('clear_inventory', 2, message), false)
+    assert.equal(shouldRelocateAfterStationFailure('clear_inventory', 3, message), true)
+})
+
 test('ordinary crafting errors do not cause unrelated relocation', () => {
     assert.equal(shouldRelocateAfterStationFailure(Actions.CRAFT_WOODEN_PICKAXE, 3, 'need more logs'), false)
     assert.equal(shouldRelocateAfterStationFailure(Actions.WOOD, 3, 'could not place crafting table'), false)
