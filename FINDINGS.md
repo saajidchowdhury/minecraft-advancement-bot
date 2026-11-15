@@ -11,15 +11,14 @@ To record a finding, append its full entry to the archive, add one index line
 below, and edit the digest bullets it changes. Replace the current handoff
 instead of adding another. Keep everything above the index under ~200 lines.
 
-## Current handoff — 2026-11-15 early morning
+## Current handoff — 2026-11-15
 
-625 tests pass at 48e5b81 (pushed). The regular bot runs a41c626 (PID 79610,
-port 55354, `outputs/2026-11-15@00.31.14/`), mining down for gold. It lacks
-F160; restart it with the kit check when convenient. It has a diamond pick,
-diamond sword, full iron armor, a shield, two water buckets and no obsidian
-portal yet; Hot Stuff is still pending. Staging arenas are all removed. Next:
-golden boots live (F158), the obsidian portal and first Nether entry (G006),
-then a fortress. The dig-timing work (F151) came from a split session.
+The bot reached the fortress hallway at (101, 53, -304) with 20 HP and
+earned A Terrible Fortress (F166). LAN run `outputs/2026-11-15@02.04.16/`
+on port 55354 ended on SIGINT at 02:09 local time with the bot inside.
+Staging restored it to the recorded Y=61 ledge. The latest stair protection
+and reverse-route checks passed in regression tests. F161 and F162 still
+need focused LAN validation.
 
 ## Stable facts and process lessons
 
@@ -102,7 +101,11 @@ Nether expedition (F149)
   fortress check every 16 steps, home along every recorded cell when bridge
   supply falls under 8 blocks or food under a quarter, restock, resume at
   the line's frontier. Once no slab blocks are left, full netherrack blocks
-  continue floors and walls; netherrack counts toward Nether supply only.
+  continue floors and walls. When a table is lost, craft a replacement from
+  carried wood or use full blocks if the materials are short (F163).
+  Clear diggable plants in the next floor cell before placing slabs (F164).
+  Near a fortress below the line, scan for a lower hallway, build supported
+  one-block steps and keep their footing for the recorded return (F166).
   Ghasts are not melee hostiles.
 
 Mining and tunnels
@@ -115,11 +118,15 @@ Mining and tunnels
   cooldowns and a 45 s drop retry (F121, F139, F140). Never mine under the
   hitbox except in a canopy descent (F102, F129, F135).
 - Level steps bridge gaps from the supported cell (F157); a floor over 1
-  block tall (fences) is no footing; every step must be reached (F155);
-  digs and placements aim at block surfaces (c31544d). A boxed-in return
-  staircase reroutes every third failure (F159).
+  block tall (fences) is no footing; every step must be reached (F155).
+  Digs and placements aim at block surfaces (c31544d).
+- New Overworld mining descents alternate two columns with a confirmed
+  one-block drop per step. Routine returns mine directly overhead, pillar
+  through the clearance and step off onto dry surface ground (F161).
+- Stone-supply trips mine consecutive cells on Y=47 until the recipe or
+  bridge quota plus the estimated climb allowance is carried (F162).
 - Hazards count only when visible. Revealed liquids get verified plugs, kept
-  intact; flooded staircases are abandoned after an upstream plug try (F141).
+  intact. Flooded mining passages have a bounded dry-footing escape (F141).
   Lava casts keep ten visible sources and a side pit (F142); stair steps skip
   known plugs (F143); gravel matters above opened cells (F118); blocked slopes
   take level side steps (F064, F094). Sculk zones block inward steps (F132).
@@ -144,6 +151,8 @@ Furnaces, fuel and food
 - Asynchronous furnace jobs (`furnaceDue`): one smelt, one active and parked
   cooking jobs, abandoned beyond 300 blocks; cooking reach 300 by day, 64
   underground, 8 at night; surface jobs end by tick 12500 (F037, F103, F104).
+  Shaft work defers furnace interactions. The first day's surface meat is
+  cooked in a side alcove at Y=47 before the bot descends farther (F161).
 - Coal first, planks as needed, charcoal three at a time (F106); stair-side
   cooking (F120); fish, glow berries and stews (F072, F127, F150). Hunts use
   axes and swim rivers; prey hidden 3 s is dropped (F095, F103, F104).
@@ -157,7 +166,9 @@ Combat and threats
   route, or only a flee under 8 blocks, fights for 6 s uninterrupted; swings
   rotate over attackers in reach, 500 ms per mob, 125 ms apart (F152).
 - A melee mob gaining under 0.5 blocks in 4 s stands down 60 s; archers only
-  in the Nether (F130, F149). Ghasts are not hostile; piglins are (F149).
+  in the Nether (F130, F149). Gold-neutral piglins and mobs recently seen
+  attacking someone else stay out of the crowd count. Hoglins count as
+  melee, and confirmed attackers override neutrality (F165).
   Endermen are avoided (F086); deaths near threats or lava skip recovery
   (F029, F069).
 
@@ -177,8 +188,9 @@ Environmental reflexes, night and recovery
 ## Open problems and unverified behavior
 
 Highest risk first.
-1. Nether: no fortress sighted or entered yet; golden boots are staged only
-   (F158); the restock round trip is regression-only; ghast fireballs hit the
+1. Nether: entry verified from the recorded ledge (F166); the new stair
+   exit and restock round trip need LAN checks. Golden boots are staged only
+   (F158); ghast fireballs hit the
    bridge unanswered; a hidden portal triggered a failed rebuild (F149, G006).
 2. Coastal landing, first-spawn mainland selection and a natural trunk
    platform need live evidence (F135–F137, F145, F147).
@@ -188,7 +200,7 @@ Highest risk first.
    creeper duels (F112), burrows (F102), high-tree pillars (F097), cave
    surveys (F013, F051), sculk exits (F132).
 5. A bot already in an underground lake has no dedicated exit (F153);
-   reroutes and relocations F154, F159, F160 are regression-only.
+   the vertical routes and station relocations await live checks (F154, F160, F161).
 6. Regression-only: charcoal (F106), Take Aim, Enchanter (F059), golem,
    fishing, breeding, base restock, bare-hand climbs, ten-obsidian casts.
 
@@ -196,11 +208,11 @@ Highest risk first.
 
 - Unaided: ten advancements in 28 min, Diamonds! at about 45 min (F057); a
   bare rebuild to full iron in 29 min (F031).
-- Confirmed live: story root, Stone Age, Getting an Upgrade, Acquire Hardware,
+- Confirmed on LAN: story root, Stone Age, Getting an Upgrade, Acquire Hardware,
   Isn't It Iron Pick, Suit Up, Hot Stuff, Diamonds!, Cover Me with Diamonds,
   Not Today Thank You, Ice Bucket Challenge, We Need to Go Deeper, Adventure,
   Monster Hunter, Husbandry, A Seedy Place, Nether root (F142, F144).
-  Staged only: Sweet Dreams (F017).
+  Staged only: Sweet Dreams (F017), A Terrible Fortress (F166).
 - Deaths come from survival gaps: F023–F035, F062–F076, F081–F124, F152.
 
 ## Index
@@ -365,3 +377,9 @@ Highest risk first.
 - F158 Gold capped at four; golden boots crafted before every portal trip and worn only in the Nether [user direction + staged + regression]
 - F159 Return staircase boxed in by plugged water retried one cell 396 times; reroute every third failure [live failure + regression]
 - F160 Full inventory with no toss lane retried cleanup 256 times in one cell; relocate every third failure [live failure + regression]
+- F161 Vertical mining routes, liquid bypass and a first-day Y=47 cooking stop [regression]
+- F162 Consecutive Y=47 stone tunneling and stocked surface return [regression]
+- F163 Nether bridge resumes after crafting a replacement table from carried wood [live + regression]
+- F164 Clear a warped fungus from the next bridge floor cell before placement [live + regression]
+- F165 Fight the hoglin, exclude neutral or occupied mobs from the Nether crowd [live recovery + regression]
+- F166 Descend from the Nether line through a fortress roof to its hallway [staged LAN + regression]

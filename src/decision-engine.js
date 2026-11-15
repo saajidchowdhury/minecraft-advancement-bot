@@ -72,6 +72,7 @@ function chooseAction (state) {
     // User direction 2026-11-12: full iron-or-better armor, a diamond sword and a shield may work the
     // surface at night, which finds water far faster; a hurt bot or a night retreat still shelters.
     const nightCleared = state.isNight && state.nightSurfaceReady && state.health > 12 && !state.retreatForNight
+    const shaftAction = state.carvingSurfaceExit ? 'return_surface' : state.stoneClimb ? Actions.STONE : state.descentAction
     // Drowning costs 2 HP/s once air runs out and nothing else can fix it (02.56.08 died underwater).
     // Lava costs 4 HP per half second (03.45.28 died in 2.5 s standing still in it).
     if (state.inLava) {
@@ -154,7 +155,7 @@ function chooseAction (state) {
     if (state.needsLand && !state.underground) {
         return 'reach_land'
     }
-    if (state.stockBlocks) {
+    if (state.stockBlocks && !shaftAction) {
         return 'stock_blocks'
     }
     // Eating (1.6 s, not cleanly cancellable) never runs with melee at arm's length (round 9). User 2026-11-11:
@@ -165,10 +166,11 @@ function chooseAction (state) {
         (state.underground && !state.sheltered && state.y < COOKING_MAX_Y + 1)
     const canWaitForDepth = !cookingDepth && state.hasStonePickaxe && hasMiningWood(state) &&
         state.mealReserve >= MIN_MINING_MEALS && state.food > 14 && state.health > 10
-    if (wantsMeal && rawOnly && (state.cookJob?.ready || (state.canCook && !canWaitForDepth))) {
+    if (wantsMeal && rawOnly && !shaftAction && (state.cookJob?.ready || (state.canCook && !canWaitForDepth))) {
         return 'cook_food'
     }
-    const urgent = state.cookJob ? state.food <= 6 || state.health <= 6 : state.food <= 14 || state.health <= 10
+    const urgent = state.cookJob && (!shaftAction || state.firstDayShaftMeal)
+        ? state.food <= 6 || state.health <= 6 : state.food <= 14 || state.health <= 10
     if (wantsMeal && (!rawOnly || urgent)) {
         return Actions.EAT
     }
@@ -197,7 +199,8 @@ function chooseAction (state) {
     const progression = nextAdvancement(state)
     const craftPick = [Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_PICKAXE].includes(progression.action)
     const mustFreeSlot = state.freeInventorySlots === 0 && state.inventoryFull
-    if ((state.underground || state.sheltered) && craftPick && !state.hasStonePickaxe && !mustFreeSlot) {
+    if ((state.underground || state.sheltered) && craftPick && !state.hasStonePickaxe &&
+        !(state.stoneTrip && state.hasWoodenPickaxe) && !mustFreeSlot) {
         return progression.action
     }
     if (state.combatRefuge) {
@@ -211,6 +214,32 @@ function chooseAction (state) {
     }
     if (state.needsShelterExit) {
         return 'leave_shelter'
+    }
+    const waterCleared = state.isNight && state.nightWaterReady && state.health > 12 && !state.retreatForNight &&
+        progression.action === 'fill_water_bucket'
+    if (shaftAction) {
+        if (mustFreeSlot) {
+            return 'clear_inventory'
+        }
+        if (state.firstDayShaftMeal) {
+            return state.cookJob && !state.cookJob.ready ? 'wait' : 'cook_food'
+        }
+        if (!state.hasWoodenPickaxe && !state.pickaxeStranded &&
+            (craftPick || [Actions.CRAFT_TABLE, Actions.CRAFT_WOODEN_PICKAXE].includes(progression.action))) {
+            return progression.action
+        }
+        if ((shaftAction === 'return_surface' || !state.hasWoodenPickaxe) && state.isNight && !nightCleared && !waterCleared) {
+            return 'wait'
+        }
+        if (state.descentAction && shaftAction !== Actions.STONE && state.hasWoodenPickaxe && state.health > 10 && state.hostileDistance > 6) {
+            if (state.diamondInView) {
+                return 'mine_diamond'
+            }
+            if (state.ironInView) {
+                return 'mine_iron'
+            }
+        }
+        return state.hasWoodenPickaxe ? shaftAction : 'return_surface'
     }
     // A verified night shelter is a sealed 1x1 column too; it must not trigger a shaft escape.
     if (state.shaftTrapped && !state.sheltered) {
@@ -230,8 +259,6 @@ function chooseAction (state) {
     }
     // Surface nights killed the bot. At night descend, carve down when protected, or shelter.
     // A night water search with iron gear stays on the surface (user, 2026-11-15).
-    const waterCleared = state.isNight && state.nightWaterReady && state.health > 12 && !state.retreatForNight &&
-        progression.action === 'fill_water_bucket'
     if (state.isNight && !state.underground && !nightCleared && !waterCleared) {
         if (state.nightShaftReady && state.hasStonePickaxe && state.health > 12 && !state.visibleHostiles) {
             return 'descend_shaft_at_night'
@@ -259,6 +286,18 @@ function chooseAction (state) {
     if (mustFreeSlot) {
         return 'clear_inventory'
     }
+    if (state.stoneTrip) {
+        if (!state.hasWoodenPickaxe && !state.pickaxeStranded &&
+            (craftPick || [Actions.CRAFT_TABLE, Actions.CRAFT_WOODEN_PICKAXE].includes(progression.action))) {
+            return progression.action
+        }
+        if (state.stoneTrip.ready) {
+            return state.isNight && !nightCleared ? 'wait' : 'return_surface'
+        }
+        if (state.hasWoodenPickaxe) {
+            return Actions.STONE
+        }
+    }
     if (state.diamondDrop && state.health > 10 && state.hostileDistance > MELEE_ALERT_RANGE && state.freeInventorySlots > 0) {
         return 'recover_diamond_drop'
     }
@@ -279,8 +318,7 @@ function chooseAction (state) {
     const daytimeDeparture = nearSurface && !state.isNight
     const needsDepartureWood = daytimeDeparture && !hasMiningWood(state)
     const needsDepartureFood = daytimeDeparture && (state.mealReserve ?? 0) < MIN_MINING_MEALS
-    const finishingExit = state.carvingSurfaceExit && state.underground && ['gather_wood', Actions.FOOD].includes(progression.action)
-    const priorityOre = !finishingExit && state.health > 10 && state.hostileDistance > 6 &&
+    const priorityOre = state.health > 10 && state.hostileDistance > 6 &&
         (state.diamondInView ? 'mine_diamond' : state.waterInReach ? 'fill_water_bucket'
             : state.ironInView && progression.action !== Actions.SMELT_IRON ? 'mine_iron' : null)
     if (priorityOre && !needsDepartureWood && !needsDepartureFood) {

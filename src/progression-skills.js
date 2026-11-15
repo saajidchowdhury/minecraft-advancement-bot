@@ -7,8 +7,8 @@ const { storeOverflowAtBase } = require('./base')
 const { exploreCave, collectOpportunity, safeFooting, dryMovements, miningSight, minedPassage, exposedDiamond, findPriorityDiamond,
     findPriorityOre, IRON_ORES, visibleMiningHazard, tallFloor } = require('./cave-exploration')
 const { scanFor, canSeeBlock, cellVisible } = require('./vision')
-const { isUnderFeet, soundFloor, overlapsBody } = require('./under-feet')
-const { towerStep } = require('./tree-climb')
+const { centerIn, isUnderFeet, soundFloor, overlapsBody } = require('./under-feet')
+const { scaffoldCount, towerStep } = require('./tree-climb')
 const { RECIPES, ARMOR_TIERS, nextAdvancement, resourceAction, WATER_BUCKET_TARGET, canFillWaterBuckets } = require('./advancement-plan')
 const { sculkInward } = require('./sculk-caution')
 const { isFuelPlank, isCharcoalLog, furnaceFuelTicks, plankFuelPlan, preparePlankFuel } = require('./furnace-fuel')
@@ -22,6 +22,8 @@ const DIGGING_SHOVELS = ['netherite_shovel', 'diamond_shovel', 'iron_shovel', 's
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 const LAVA_POOL_RADIUS = 16
 const LAVA_POOL_LIMIT = 10
+const FIRST_DAY_COOKING_Y = 47
+const STONE_MINING_Y = 47
 const FACES = [[1, 0, 0], [-1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -377,7 +379,8 @@ async function openCookingAlcove(c) {
     const bot = c.bot
     const feet = bot.entity.position.floored()
     const frontier = c.memory.tunnelFrontier
-    const direction = frontier?.dimension === bot.game.dimension && feet.equals(frontier) ? frontier.direction : c.memory.mineDirection
+    const direction = miningPitAt(c, feet)?.direction ??
+        (frontier?.dimension === bot.game.dimension && feet.equals(frontier) ? frontier.direction : c.memory.mineDirection)
     const sides = direction == null ? DIRECTIONS : [DIRECTIONS[(direction + 1) % 4], DIRECTIONS[(direction + 3) % 4]]
     for (const [dx, dz] of sides) {
         check(c)
@@ -577,6 +580,181 @@ function tunnelStepBlocked(c, from, to) {
         : Boolean(c.isBlockedTarget?.({ position: to }))
 }
 
+function dryShaftAir(block) {
+    return block?.boundingBox === 'empty' && !LIQUIDS.has(block.name) &&
+        !/^(bubble_column|kelp(_plant)?|(tall_)?seagrass|powder_snow|sweet_berry_bush)$/.test(block.name) &&
+        block.getProperties?.().waterlogged !== true
+}
+
+async function clearShaftCell(c, p, feet, step) {
+    const bot = c.bot
+    check(c)
+    const block = bot.blockAt(p, false)
+    const plug = c.memory.liquidPlugs?.has(`${bot.game.dimension}:${p}`)
+    if (!block || plug || LIQUIDS.has(block.name)) {
+        return false
+    }
+    if (!dryShaftAir(block)) {
+        if (PROTECTED_CONTAINERS.has(block.name) || isUnderFeet(bot, p) ||
+            !bot.canDigBlock(block) || !canSeeBlock(bot, block) || (p.x === feet.x && p.z === feet.z && falls(block.name))) {
+            return false
+        }
+        const tool = tunnelTool(c, block)
+        if (tool) {
+            if (bot.heldItem?.slot == null || bot.heldItem.slot !== tool.slot) {
+                await bot.equip(tool, 'hand')
+            }
+        } else if (handDiggable(block) && pickaxeStranded(bot.inventory.items())) {
+            await bot.unequip('hand')
+        } else {
+            return false
+        }
+        check(c)
+        await bot.dig(block, true)
+        check(c)
+        const revealed = revealedHazard(bot, p)
+        if (revealed?.kind === 'liquid') {
+            const { sealed } = await sealRevealedLiquid(c, p, revealed, step)
+            if (!sealed) {
+                throw new Error(`could not plug ${revealed.name} in the mining shaft at ${p}`)
+            }
+            return false
+        }
+        await settleFalling(c, p, feet, step)
+    }
+    return dryShaftAir(bot.blockAt(p, false)) && revealedHazard(bot, p)?.kind !== 'liquid'
+}
+
+function shaftLanding(bot, feet, target) {
+    const floor = bot.blockAt(target.offset(0, -1, 0), false)
+    return soundFloor(floor) && !tallFloor(floor) &&
+        tunnelClearance(feet, target).every(p => dryShaftAir(bot.blockAt(p, false)))
+}
+
+async function walkShaftStep(c, feet, target) {
+    const bot = c.bot
+    const centre = target.offset(0.5, 0, 0.5)
+    const close = () => Math.hypot(bot.entity.position.x - centre.x, bot.entity.position.z - centre.z) < 0.22
+    await bot.lookAt(centre.offset(0, bot.entity.position.y - target.y + 1.62, 0), true)
+    try {
+        for (let tick = 0; tick < 24; tick++) {
+            if (!shaftLanding(bot, feet, target) || bot.entity.position.y < target.y - 0.05) {
+                throw new Error(`lost safe footing for mining shaft step to ${target}`)
+            }
+            const centered = close()
+            if (centered && bot.entity.onGround && bot.entity.position.floored().equals(target)) {
+                return
+            }
+            check(c)
+            bot.setControlState('forward', !centered)
+            await bot.waitForTicks(1)
+        }
+        throw new Error(`mining shaft step to ${target} was not reached`)
+    } finally {
+        bot.setControlState('forward', false)
+    }
+}
+
+async function mineToLayer(c, targetY) {
+    const bot = c.bot
+    const start = bot.entity.position.floored()
+    if (start.y <= targetY || bot.game.dimension !== 'overworld') {
+        return mineTunnel(c, targetY)
+    }
+    if (inTunnelCurrent(bot)) {
+        return leaveFloodedTunnel(c)
+    }
+    if (start.y === FIRST_DAY_COOKING_Y && c.memory.firstDayMeal === 'pending' && miningPitAt(c, start)) {
+        return
+    }
+    if (!miningPickaxe(c)) {
+        throw new Error('mining requires a pickaxe')
+    }
+    c.memory.tunnelFrontier = null
+    c.memory.surfaceClimb = null
+    const dimension = bot.game.dimension
+    for (let i = 0; i < 4 && bot.entity.position.y > targetY; i++) {
+        const feet = bot.entity.position.floored()
+        check(c)
+        if (bot.entity.onGround === false || !soundFloor(bot.blockAt(feet.offset(0, -1, 0), false)) ||
+            !await centerIn(bot, feet, c.actionAbort?.signal)) {
+            throw new Error(`mining shaft needs stable footing at ${feet}`)
+        }
+        const previous = c.memory.miningDescent
+        const continuing = previous?.dimension === dimension && previous.targetY === targetY && feet.equals(previous)
+        const preferred = continuing ? previous.direction : (c.memory.mineDirection ?? 0)
+        let moved = false
+        for (const turn of [0, 1, 3, 2]) {
+            const direction = (preferred + turn) % 4
+            const [dx, dz] = DIRECTIONS[direction]
+            const target = feet.offset(dx, -1, dz)
+            if (tunnelStepBlocked(c, feet, target) || !await clearShaftStep(c, feet, target)) {
+                continue
+            }
+            await walkShaftStep(c, feet, target)
+            c.memory.miningDescent = { x: target.x, y: target.y, z: target.z, dimension, targetY, direction: (direction + 2) % 4,
+                entryY: continuing && turn === 0 ? previous.entryY : feet.y, action: c.activeAction }
+            moved = true
+            break
+        }
+        if (!moved) {
+            throw new Error(`no supported dry mining shaft step below ${feet}`)
+        }
+        if (feet.y - 1 === FIRST_DAY_COOKING_Y && c.memory.firstDayMeal === 'pending') {
+            break
+        }
+        if (c.activeAction !== 'gather_stone' && c.findNearestBlock && c.canPursueDiamond?.() !== false &&
+            (findPriorityDiamond(c) || (c.ironWanted && findPriorityOre(c, IRON_ORES)))) {
+            break
+        }
+    }
+    c.log.info(`Mining shaft: Y=${start.y} to Y=${bot.entity.position.y.toFixed(1)} (target Y=${targetY}).`)
+}
+
+async function clearShaftStep(c, feet, target) {
+    for (const p of tunnelClearance(feet, target)) {
+        if (!await clearShaftCell(c, p, feet, target)) {
+            return false
+        }
+    }
+    return shaftLanding(c.bot, feet, target)
+}
+
+async function mineStoneLayer(c, enough) {
+    const bot = c.bot
+    if (inTunnelCurrent(bot)) {
+        return leaveFloodedTunnel(c)
+    }
+    let direction = c.memory.mineDirection ?? 0
+    for (let step = 0; step < 12 && !enough(); step++) {
+        check(c)
+        if (!miningPickaxe(c)) {
+            return
+        }
+        const feet = bot.entity.position.floored()
+        if (bot.entity.onGround === false || !await centerIn(bot, feet, c.actionAbort?.signal)) {
+            throw new Error(`stone tunnel needs stable footing at ${feet}`)
+        }
+        let next = null
+        for (const turn of [0, 1, 3]) {
+            const index = (direction + turn) % 4
+            const [dx, dz] = DIRECTIONS[index]
+            const target = feet.offset(dx, 0, dz)
+            if (!soundFloor(bot.blockAt(target.offset(0, -1, 0), false)) || tunnelStepBlocked(c, feet, target) ||
+                !await clearShaftStep(c, feet, target)) {
+                continue
+            }
+            next = target
+            direction = c.memory.mineDirection = index
+            break
+        }
+        if (!next) {
+            throw new Error(`no supported dry stone tunnel step at ${feet}`)
+        }
+        await walkShaftStep(c, feet, next)
+    }
+}
+
 async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, diamond = null) {
     const bot = c.bot
     if (inTunnelCurrent(bot)) {
@@ -593,10 +771,6 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
         await bot.equip(tool, 'hand')
     }
     check(c)
-    if (!diamond && targetY < start.y && c.memory.surfaceByStaircase) {
-        c.memory.surfaceByStaircase = false
-        c.memory.mineRoute = []
-    }
     let frontier = null
     if (!heading) {
         const saved = c.memory.tunnelFrontier
@@ -648,8 +822,6 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
         // The wanted slope first; when liquid or falling blocks touch all four, a level step (or, on a
         // level tunnel, one step up or down) routes around the hazard (live 02.02.15, 02.29.19).
         const rise = Math.sign(targetY - feet.y)
-        const ascending = rise > 0 && c.activeAction === 'return_surface'
-        const behind = c.memory.mineRoute?.at(-1)
         const slopes = rise ? (rise < 0 && frontier?.levelSteps >= 8 ? [rise] : [rise, 0]) : [0, 1, -1]
         // Fresh rock ahead beside an old tunnel or staircase running the same way would cut a parallel
         // duplicate (live 01:42Z dug z=269 along z=270; 07:37Z a lava descent beside the y=-54 stairs):
@@ -679,8 +851,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
             if (undergroundOnly && openToSky(bot, candidate.offset(0, dy === 0 ? 2 : 3, 0))) {
                 continue
             }
-            const backtrack = candidate.x === behind?.x && candidate.y === behind?.y && candidate.z === behind?.z
-            if (!heading && dy <= 0 && (ascending ? backtrack : index !== forward && minedPassage(c, candidate))) {
+            if (!heading && dy <= 0 && index !== forward && minedPassage(c, candidate)) {
                 refused.excavated++
             } else if (tunnelStepBlocked(c, feet, candidate) || tunnelClearance(feet, candidate).some(isPlug)) {
                 refused.blocked++
@@ -799,7 +970,7 @@ async function mineTunnel(c, targetY, heading = null, undergroundOnly = false, d
         if (c.memory.minedCells.size > 4096) {
             c.memory.minedCells.delete(c.memory.minedCells.values().next().value)
         }
-        if (!diamond && c.activeAction !== 'return_surface' && c.findNearestBlock && c.canPursueDiamond?.() !== false &&
+        if (!diamond && c.findNearestBlock && c.canPursueDiamond?.() !== false &&
             (findPriorityDiamond(c) || (c.ironWanted && findPriorityOre(c, IRON_ORES)))) {
             c.log.info('Priority ore came into view; leaving the tunnel segment to mine it.')
             return
@@ -913,9 +1084,8 @@ function rememberShaft(c) {
     c.log.info(`Remembered a ${cells.length}-cell shaft from ${new Vec3(cells[0].x, cells[0].y, cells[0].z)} to ${new Vec3(cells.at(-1).x, cells.at(-1).y, cells.at(-1).z)}.`)
 }
 
-// Re-walk the remembered shaft instead of carving a new staircase. Every eighth cell is
-// a waypoint: the dug stairs are open, so the pathfinder covers each leg without digging.
-async function followShaft(c, direction) {
+// Reuse an existing descending route in eight-cell legs. Open stairs need no new digs.
+async function followShaft(c) {
     const bot = c.bot
     const shaft = c.memory.shaft
     if (!shaft || shaft.dimension !== bot.game.dimension || shaft.cells.length < 8 || shaft.retryAfter > Date.now()) {
@@ -928,15 +1098,15 @@ async function followShaft(c, direction) {
         return false
     }
     const here = bot.entity.position
-    const end = direction === 'down' ? cells.length - 1 : 0
+    const end = cells.length - 1
     let i = cells.reduce((best, p, j) => here.distanceTo(p.offset(0.5, 0, 0.5)) <= 6 &&
         (best < 0 || here.distanceTo(p) < here.distanceTo(cells[best])) ? j : best, -1)
     if (i < 0) {
-        const entry = cells[direction === 'down' ? 0 : cells.length - 1]
+        const entry = cells[0]
         if (Math.hypot(here.x - entry.x, here.z - entry.z) > 128 || Math.abs(here.y - entry.y) > 12) {
             return false
         }
-        c.log.info(`Travelling to the remembered shaft ${direction === 'down' ? 'entrance' : 'bottom'} at ${entry}.`)
+        c.log.info(`Travelling to the remembered shaft entrance at ${entry}.`)
         try {
             await c.gotoWithTimeout(new goals.GoalNear(entry.x, entry.y, entry.z, 1), 30000, 'shaft approach')
         } catch (error) {
@@ -945,31 +1115,24 @@ async function followShaft(c, direction) {
             shaft.retryAfter = Date.now() + 300000
             return false
         }
-        i = cells.length - 1 - end
+        i = 0
     }
     if (i === end) {
         return false
     }
-    c.log.info(`Following the remembered shaft ${direction} from ${cells[i]} (${Math.abs(end - i)} cells).`)
+    c.log.info(`Following the remembered shaft down from ${cells[i]} (${Math.abs(end - i)} cells).`)
     let repaired = -1
-    let stride = direction === 'down' ? 8 : 1
-    const step = direction === 'down' ? 1 : -1
+    let stride = 8
     while (i !== end) {
         check(c)
-        // The pathfinder stalls on stair jumps (F004), so climbing goes cell by cell with the
-        // checked jump fallback; descending only drops and can take eight-cell legs.
         const from = i
-        i = direction === 'down' ? Math.min(end, i + stride) : i - 1
+        i = Math.min(end, i + stride)
         if (inTunnelCurrent(bot) || floodedCell(bot, cells[i])) {
             shaft.retryAfter = Date.now() + 300000
             return false
         }
         try {
-            if (direction === 'up' && cells[i].y > bot.entity.position.y + 0.5) {
-                await climbStep(c, cells[i])
-            } else {
-                await c.gotoWithTimeout(new goals.GoalBlock(cells[i].x, cells[i].y, cells[i].z), stride === 1 ? 6000 : 15000, 'shaft travel')
-            }
+            await c.gotoWithTimeout(new goals.GoalBlock(cells[i].x, cells[i].y, cells[i].z), stride === 1 ? 6000 : 15000, 'shaft travel')
         } catch (error) {
             check(c)
             const feet = bot.entity.position.floored()
@@ -1010,7 +1173,7 @@ async function followShaft(c, direction) {
                         }
                     }
                 }
-                i -= step
+                i--
                 continue
             }
             c.log.warn(`Remembered shaft is blocked near ${cells[i]}; forgetting it: ${error.message}`)
@@ -1018,7 +1181,7 @@ async function followShaft(c, direction) {
             throw error
         }
     }
-    c.memory.mineRoute = direction === 'down' ? cells.map(p => ({ x: p.x, y: p.y, z: p.z })) : []
+    c.memory.mineRoute = cells.map(p => ({ x: p.x, y: p.y, z: p.z }))
     return true
 }
 
@@ -1035,13 +1198,13 @@ async function gatherDeep(c, names) {
         return diamond ? mineRememberedDiamond(c, block) : c.collectTarget(block, block, block.name)
     }
     const targetY = bot.game.minY < 0 ? -54 : 11
-    if (bot.entity.position.y > targetY + 8 && await followShaft(c, 'down')) {
+    if (bot.entity.position.y > targetY + 8 && await followShaft(c)) {
         return
     }
     if (await collectOpportunity(c, names) || await exploreCave(c, targetY)) {
         return
     }
-    return mineTunnel(c, targetY)
+    return mineToLayer(c, targetY)
 }
 
 async function craftProgression(c, item, count = 1) {
@@ -1130,7 +1293,7 @@ async function fillLavaBucket(c, forObsidian = false) {
         if (await exploreCave(c, targetY)) {
             return
         }
-        return mineTunnel(c, targetY)
+        return mineToLayer(c, targetY)
     }
     if (!bot.inventory.items().some(item => item.name === 'bucket')) {
         throw new Error('lava needs an empty bucket; filled buckets would pour instead')
@@ -1898,96 +2061,121 @@ function openToSky(bot, head) {
     return true
 }
 
-async function returnSurface(c, surfaceY = c.home?.y || 64) {
-    if (openToSky(c.bot, c.bot.entity.position.floored().offset(0, 1, 0))) {
-        c.memory.surfaceByStaircase = false
+function surfaceClimbAt(c, feet = c.bot.entity.position.floored()) {
+    const climb = c.memory?.surfaceClimb
+    return climb && climb.dimension === c.bot.game?.dimension && feet.equals(climb) ? climb : null
+}
+
+function miningPitAt(c, feet) {
+    const pit = c.memory.miningDescent
+    if (!pit || pit.dimension !== c.bot.game?.dimension || feet.y < pit.y || feet.y >= pit.entryY) {
+        return null
+    }
+    const [dx, dz] = DIRECTIONS[pit.direction]
+    return (feet.x === pit.x && feet.z === pit.z) || (feet.x === pit.x + dx && feet.z === pit.z + dz) ? pit : null
+}
+
+async function returnSurface(c, stopY = null) {
+    const bot = c.bot
+    if (inTunnelCurrent(bot)) {
+        c.memory.surfaceClimb = null
+        return leaveFloodedTunnel(c)
+    }
+    const start = bot.entity.position.floored()
+    let climb = surfaceClimbAt(c, start)
+    if ((climb?.stopY ?? null) !== stopY) {
+        climb = null
+    }
+    if (stopY == null && !climb && !miningPitAt(c, start) && openToSky(bot, start.offset(0, 1, 0))) {
+        c.memory.surfaceClimb = null
+        c.memory.stoneTrip = null
         return
     }
-    const retry = c.picklessReturnRetry
-    const dimension = c.bot.game?.dimension
-    const stranded = pickaxeStranded(c.bot.inventory?.items() ?? [])
-    const retrying = Boolean(retry) && retry.dimension === dimension && retry.until > Date.now()
-    if (retrying && !miningPickaxe(c) && !stranded) {
-        return sleep(2000)
+    if (!miningPickaxe(c) && !pickaxeStranded(bot.inventory?.items() ?? [])) {
+        throw new Error('return shaft carving requires a pickaxe')
     }
-    const route = c.memory.mineRoute || []
-    // Walking off the route (ore pickup, restock) leaves deeper cells behind; resume at the nearest one.
-    const here = c.bot.entity.position
-    const nearest = route.reduce((best, p, i) => {
-        const d = here.distanceTo(new Vec3(p.x + 0.5, p.y, p.z + 0.5))
-        return d < best.d ? { i, d } : best
-    }, { i: -1, d: Infinity })
-    route.length = nearest.d <= 6 ? nearest.i + 1 : 0
-    for (let i = 0; !c.memory.surfaceByStaircase && route.length; i++) {
-        if (i === 6) {
-            return
-        }
+    climb ??= { x: start.x, y: start.y, z: start.z, dimension: bot.game.dimension, sides: [], skyY: null, stopY }
+    c.memory.surfaceClimb = climb
+    c.memory.mineRoute = []
+    c.memory.tunnelFrontier = null
+    const signal = c.actionAbort?.signal
+    for (let moves = 0; moves < 6;) {
+        const feet = bot.entity.position.floored()
         check(c)
-        const { x, y, z } = route.at(-1)
-        const target = new Vec3(x, y, z)
-        const feet = c.bot.entity.position.floored()
-        if (floodedCell(c.bot, target)) {
-            route.length = 0
-            c.log.warn(`Abandoning the flooded return staircase at ${target}.`)
-            break
+        if (bot.entity.onGround === false || !soundFloor(bot.blockAt(feet.offset(0, -1, 0), false)) ||
+            !await centerIn(bot, feet, signal)) {
+            throw new Error(`surface shaft needs stable footing at ${feet}`)
         }
-        try {
-            if (target.y === feet.y + 1 && Math.abs(target.x - feet.x) + Math.abs(target.z - feet.z) === 1) {
-                await climbStep(c, target)
-            } else {
-                await c.gotoWithTimeout(new goals.GoalBlock(x, y, z), 8000, 'return staircase')
+        const pit = miningPitAt(c, feet)
+        // A long open pit yields no replacement blocks. Move into rock before spending the scaffold.
+        const leavePit = pit && scaffoldCount(bot) < pit.entryY - feet.y && openToSky(bot, feet.offset(0, 1, 0))
+        const reachY = leavePit ? feet.y + 1 : Math.min(feet.y + 6, (stopY ?? Infinity) + 2)
+        let ceiling = feet.y + 2
+        for (; ceiling <= reachY; ceiling++) {
+            const p = feet.offset(0, ceiling - feet.y, 0)
+            if (sculkInward(c, feet, p) || c.rememberedBlocked?.({ position: p }) || !await clearShaftCell(c, p, feet, p)) {
+                break
             }
-            if (c.bot.entity.position.distanceTo(target.offset(0.5, 0, 0.5)) > 1.2) {
-                throw new Error('return waypoint was not reached')
+        }
+        if (stopY == null && openToSky(bot, feet.offset(0, 1, 0))) {
+            climb.skyY ??= feet.y
+        }
+        const maxSkyY = Math.max((pit?.entryY ?? -Infinity) + 2, (climb.skyY ?? Infinity) + 8)
+        // The jump needs clear space through feet+3. The bot must step off onto dry ground
+        // after breaking through the roof, even when the shaft gets sky light several blocks early.
+        let here = feet
+        while (moves < 6) {
+            const exit = climb.skyY == null ? null : [0, -1].flatMap(dy => DIRECTIONS.map(([dx, dz]) => here.offset(dx, dy, dz)))
+                .find(p => !miningPitAt(c, p) && shaftLanding(bot, here, p) && openToSky(bot, p.offset(0, 1, 0)))
+            if (exit) {
+                await walkShaftStep(c, here, exit)
+                c.memory.surfaceClimb = null
+                c.memory.stoneTrip = null
+                c.log.info(`Reached the surface at ${exit}.`)
+                return
             }
-        } catch (error) {
+            if (here.y + 3 >= ceiling || here.y >= maxSkyY) {
+                break
+            }
+            await towerStep(c, signal)
+            here = here.offset(0, 1, 0)
+            if (!bot.entity.onGround || !bot.entity.position.floored().equals(here)) {
+                throw new Error(`surface pillar did not reach ${here}`)
+            }
+            Object.assign(climb, { y: here.y, sides: [] })
+            if (here.y === stopY) {
+                c.memory.surfaceClimb = null
+                return
+            }
             check(c)
-            c.log.warn(`Current return stairs blocked at ${target}: ${error.message}.`)
+            moves++
+        }
+        if (here.y !== feet.y) {
+            continue
+        }
+        const direction = climb.direction ?? c.memory.mineDirection ?? 0
+        const sides = [0, 1, 3, 2].map(turn => (direction + turn) % 4)
+        let moved = false
+        for (const next of climb.sides.length >= 12 ? [] : sides) {
+            const [dx, dz] = DIRECTIONS[next]
+            const side = feet.offset(dx, 0, dz)
+            if ((leavePit && miningPitAt(c, side)) || climb.sides.includes(String(side)) || tunnelStepBlocked(c, feet, side) ||
+                !soundFloor(bot.blockAt(side.offset(0, -1, 0), false)) || !await clearShaftStep(c, feet, side)) {
+                continue
+            }
+            await walkShaftStep(c, feet, side)
+            climb.sides.push(String(feet))
+            Object.assign(climb, { x: side.x, z: side.z, direction: next, skyY: null })
+            moves++
+            moved = true
             break
         }
-        route.pop()
-    }
-    const head = c.bot.entity.position.floored().offset(0, 1, 0)
-    // Hills rise above the home level; reaching home Y inside one left the bot walled in (00.35.19).
-    const outside = openToSky(c.bot, head)
-    const enclosed = c.bot.entity.position.y >= surfaceY - 1 && !outside
-    if (outside || (!enclosed && await followShaft(c, 'up'))) {
-        c.memory.surfaceByStaircase = false
-        return
-    }
-    if (!miningPickaxe(c)) {
-        // Without a pick only walking (and hand-digging soft blocks) can climb; any node at the
-        // surface level ends the search, and height is the A* heuristic.
-        const up = Object.assign(new goals.Goal(), {
-            heuristic: node => Math.max(0, surfaceY - 1 - node.y),
-            isEnd: node => node.y >= surfaceY - 1 && (!enclosed || openToSky(c.bot, new Vec3(node.x, node.y + 1, node.z)))
-        })
-        // A stranded bot retries the walk only after the hand-carved stairs have had their turn.
-        if (!(stranded && retrying)) {
-            try {
-                await c.gotoWithTimeout(up, 20000, 'pickaxe-free climb')
-                if (c.bot.entity.position.y >= surfaceY - 1 && (!enclosed || openToSky(c.bot, c.bot.entity.position.floored().offset(0, 1, 0)))) {
-                    return
-                }
-            } catch (error) {
-                check(c)
-                if (!/no path|timed out/i.test(error.message)) {
-                    throw error
-                }
-            }
-            c.picklessReturnRetry = { dimension, until: Date.now() + 30000 }
+        if (!moved) {
+            c.memory.surfaceClimb = null
+            throw new Error(`no supported dry bypass for the surface shaft at ${feet}`)
         }
-        if (!stranded) {
-            throw new Error('return stairs blocked and carving requires a pickaxe')
-        }
-        c.log.warn('No pickaxe and too little wood to craft one; carving the staircase by hand.')
     }
-    if (!c.memory.surfaceByStaircase) {
-        c.log.warn('Known return stairs unavailable. Carving a supported staircase.')
-        c.memory.surfaceByStaircase = true
-        c.memory.mineRoute = []
-    }
-    return mineTunnel(c, enclosed ? head.y + 3 : surfaceY)
+    c.log.info(`Surface shaft: Y=${start.y} to Y=${bot.entity.position.y.toFixed(1)}.`)
 }
 
 // Lane and in-place drops stay on the walking level; the next scout re-collected 390 thrown blocks at a
@@ -2323,10 +2511,10 @@ async function performProgression(c, action, state) {
         case 'enter_nether': return enterNether(c)
         case 'leave_nether': return leaveNether(c)
         case 'build_redstone': return buildRedstone(c)
-        case 'return_surface': return returnSurface(c, state.departureSurfaceY)
+        case 'return_surface': return returnSurface(c)
         case 'wait': return sleep(2000)
         default: throw new Error(`unknown progression action: ${action}`)
     }
 }
 
-module.exports = { disposalStepCost, armorUpgrades, coveredAbove, openToSky, openCookingAlcove, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, inTunnelCurrent, leaveFloodedTunnel, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS }
+module.exports = { disposalStepCost, armorUpgrades, coveredAbove, openToSky, openCookingAlcove, followShaft, rememberShaft, performProgression, safeTunnelStep, portalFrame, redstonePlan, until, mineTunnel, mineToLayer, mineStoneLayer, returnSurface, surfaceClimbAt, miningPitAt, safeCastingBasin, probeTunnelSides, miningPickaxe, climbStep, inTunnelCurrent, leaveFloodedTunnel, FIRST_DAY_COOKING_Y, STONE_MINING_Y, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS }

@@ -1,14 +1,12 @@
 # Validation
 
 Updated 2026-11-15 (America/New_York). Host: MacBookPro. Minecraft Java 26.1.2,
-LAN protocol 775. Ordinary bot: Bot; staged trials use separate players
-(CavePractice, DropTrial, NetherTrial, CrowdTrial, BridgeTrial, GoldTrial). This file holds the baseline, what each
-test file covers and live status; per-change history is in
-`FINDINGS-ARCHIVE.md` and git. Update rows in place; no dated changelog.
+LAN protocol 775. Ordinary bot: Bot. Some staged trials use separate players. Per-change
+history is in `FINDINGS-ARCHIVE.md` and git.
 
 ## Baseline
 
-625 tests and `npm run check` pass through F160 (48e5b81).
+635 tests and `npm run check` pass through fortress stair entry (F166).
 Run them with the prepared runtime:
 
 ```sh
@@ -18,9 +16,7 @@ PATH="$PWD/.tools/node-v26.13.0-darwin-x64/bin:$PATH" npm test
 
 Commit only on a zero-failure full suite, by exit status, not a filtered grep
 (F035, F060). Each regression must fail on the pre-fix source; mocks mirror
-the pinned library (F023); only server packets establish advancements. Code
-files stay under 10% comment lines: `under-feet.js` 13/134, `nether-fortress.js`
-32/408, `drop-caution.js` 10/110.
+the pinned library (F023); only server packets establish advancements. Keep code files under 10% comment lines.
 
 ## Test files
 
@@ -31,24 +27,24 @@ files stay under 10% comment lines: `under-feet.js` 13/134, `nether-fortress.js`
 | advancement-tracker | 5 | AND-of-OR requirements, resets, revocation, phantom completions |
 | aim | 6 | surface aim points for digs and placements, covered faces, slabs, view vectors |
 | archery | 5 | Take Aim ballistics, line-of-fire safety, planner gating |
-| bare-hands | 5 | pickaxe-stranded predicate, hand-diggable blocks, hand tunnel, hand return stairs, break exclusion |
+| bare-hands | 4 | pickaxe-stranded predicate, hand-diggable blocks, hand tunnel, break exclusion |
 | base | 14 | vault site, deposit/restock levels, migration, sealed-vault access, four gold and golden boots kept |
 | biome-exit | 4 | biome classification, cardinal travel, coastal routing, solid footing |
 | cave-exploration | 29 | survey routing, checkpoints, footing, torches, reserves, loot interrupt |
 | charcoal | 3 | furnace-window inventory (F008), cooking-job isolation |
 | combat-navigation | 11 | creeper duel, hunting with axes, out-of-view prey and drops, river swims to prey, underground scouts avoid water |
 | config | 1 | LAN port bounds, 26.1.2 protocol data |
-| crowd-retreat | 13 | crowd latch, wall-pocket retreat and seal, pillar refuge, blocked-refuge fight, futile flee in a sealed room |
-| decision-engine | 65 | planner priorities, initial land underground, biome exit, swimming combat and retreat |
+| crowd-retreat | 15 | crowd latch, wall-pocket retreat and seal, pillar refuge, blocked-refuge fight, sealed room, hoglin duel and piglin aggro |
+| decision-engine | 67 | planner priorities, initial land underground, biome exit, swimming combat and retreat, furnace deferral during shafts |
 | dependency-patches | 5 | crafting, furnace close, entity air, pathfinder jump landings |
 | drop-caution | 7 | 10-block drop test, cliff edges, no diagonal or dig-jump beside drops, sprint off, builders wired, approach time |
-| nether-fortress | 15 | expedition prep, in-Nether rules, carry limits, axis approach, slab bridge and walls, netherrack fallback, soul sand feet, table beside line, cancellation, path return, hole repair, rejoin, resume, piglin hostility |
+| nether-fortress | 19 | expedition prep, in-Nether rules, carry limits, axis approach, slab bridge and walls, netherrack fallback, soul sand feet, table replacement, floor obstruction, cancellation, path return and loop skipping, hole repair, rejoin, resume, piglin hostility, supported stairs through a roof and back |
 | drowning | 6 | low-air interrupt, direct swim rescue, dry station pickup |
 | enchanting | 5 | Enchanter gating, offer choice, zero-level wait |
 | enderman | 11 | gaze avoidance, anger, refuge priority and persistence |
 | farming | 6 | A Seedy Place, Fishy Business, breeding |
 | food-gathering | 4 | stew crafting, prey quarantine, watchdog recovery |
-| food | 24 | cooking depth, urgent meals, reach, berry path bound, parking, far returns, detours, due times |
+| food | 25 | cooking depth, first-day Y=47 batches, urgent meals, reach, berry path bound, parking, far returns, detours, due times |
 | golem | 3 | Hired Help site, build order, gating |
 | inventory | 23 | keep rules, wool/leather/seed disposal, batch trigger, stack merge, pits, lanes, full packs, golden boots and gold cap |
 | leaf-vision | 9 | leaf-transparent rays, overhead trunks, moving drops |
@@ -56,13 +52,13 @@ files stay under 10% comment lines: `under-feet.js` 13/134, `nether-fortress.js`
 | memory-random | 2 | seeded rng, atomic world memory |
 | mined-ore-recovery | 13 | diamond memory, longer dry approaches, independent cooldowns, alternate stairs, cancellation, hidden water, bounded diamond pickup retry |
 | mining-timing | 10 | vanilla float32 break ticks for seven pickaxe tiers on cave blocks, landing before digging, bare-hand stone when stranded, enchanted 26.1 tools, 6-tick held gap, one-tick instant cadence, held-run throughput, timing summary |
-| mobility-recovery | 39 | unstick, shafts and pillars, safe drops, heap guard, surface scouts, swamp swims, tree approach limit and sliced search, land milestone, canopy descent, land mass and soil stock, boxed-in ascent reroute |
+| mobility-recovery | 38 | unstick, shafts and pillars, safe drops, heap guard, surface scouts, swamp swims, tree approach limit and sliced search, land milestone, canopy descent, land mass and soil stock |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
-| progression-skills | 44 | stairs, tunnels, verified liquid plugs, lava scoop rays, pool memory, side casting, portal approach and geometry, fence floors, step arrival, level bridging, golden boots in the Nether |
+| progression-skills | 41 | stairs, tunnels, verified liquid plugs, lava scoop rays, pool memory, side casting, portal approach and geometry, fence floors, step arrival, level bridging, golden boots in the Nether |
 | resource-routing | 9 | visible-target searches, support preservation, exits |
 | sculk-caution | 8 | sculk alarms, zone, sneak flee, outward steps and carve fallback |
-| shaft-memory | 11 | shaft recording, following, repair, pickless climb pause |
+| shaft-memory | 7 | route recording, downward following and repair |
 | side-probes | 23 | probe reach, spacing, anchors, hazards, descents |
 | smelting | 17 | async smelt jobs, fuel due times, plank fuel, collection, in-place gold smelt |
 | station-recovery | 5 | workstation placement relocation, cooking recess beside a stair, shelter and no-lane cleanup relocation |
@@ -70,9 +66,8 @@ files stay under 10% comment lines: `under-feet.js` 13/134, `nether-fortress.js`
 | terrain-scout | 4 | land scouting, isolated pillars |
 | tree-climb | 13 | eye-reach approach, tree pillars, scaffold recovery |
 | under-feet | 8 | no digging under the hitbox, own blocks, dripstone |
-| water-search | 13 | day/night water search, cover restriction, bucket-pair requirement, flooded-route avoidance and exit, iron-gear night water search |
-
-Run `npm run outline -- test/<file>` to list a file's test names with line numbers.
+| vertical-mining | 11 | pits, pillars, lava, cancellation, Y=47 food stop, continuous stone batches and stocked return |
+| water-search | 12 | day/night water search, cover restriction, bucket-pair requirement, flooded-route avoidance and exit, iron-gear night water search |
 
 ## Live status
 
@@ -87,7 +82,8 @@ none ran during the trial). "Automated" means regression tests only.
 | Crafting and wearing diamond armor before Hot Stuff | automated / staged | F123 |
 | Rejecting unsupported jump landings; dry berry approaches and pickup | automated | F124 |
 | Drop caution: no diagonals, dig-jumps or sprinting beside 10+ block drops | automated / staged arena | F148 |
-| Nether fortress line: prep, slab bridge, return and frontier walk on the recorded path, netherrack fallback | staged (no fortress seen yet) | F149 |
+| Nether line: bridge, field repairs, threat filtering and recorded return | live field recovery and fortress sighting, automated hoglin duel, staged return | F149, F163–F165 |
+| Nether fortress entry from above, preserved stairs and return | staged LAN ledge-to-hall entry; final footing protection and reverse walk automated | F166 |
 | Golden boots: smelt, craft, wear in the Nether, keep both pairs | staged 1/1 | F158 |
 | Diamond interrupt, probe-exposed ore, dig-exposed vein ore | live / staged | F031, F054, F079, F100 |
 | Remembered diamond behind an overhang, stair approach and pickup | automated / staged on original vein | F121 |
@@ -100,9 +96,8 @@ none ran during the trial). "Automated" means regression tests only.
 | Furnace return from a stalled hillside | staged | F096 |
 | Hunting sheep, cows, pigs; out-of-view prey | live | F103 |
 | Axe-equipped animal kill | automated | F095 |
-| Shaft climb along a remembered route | live | F033 |
+| Vertical descent, pillar return, first-day cooking and Y=47 stone batches | automated | F161, F162 |
 | Tunnel frontier return and parallel-tunnel merge | live / staged | F088, F098 |
-| Descent merge into an old staircase | automated | F103 |
 | Disposal pit, toss lanes and clutter cleanup | live | F019, F022, F050 |
 | Keep rules and batch cleanup (1 to 9 free slots in one pass) | live | F115 |
 | Line of sight without head turns | automated | F116 |

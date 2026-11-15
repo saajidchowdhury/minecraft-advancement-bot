@@ -149,6 +149,7 @@ async function towerStep (c, signal, attempts = 3) {
                 throw new Error('pillar jump did not clear the placement cell')
             }
             await bot.waitForTicks(1)
+            c.checkAction(signal)
             await bot._placeBlockWithOptions(bot.blockAt(feet.offset(0, -1, 0)), new Vec3(0, 1, 0), { forceLook: 'ignore', swingArm: 'right' })
         } catch (e) {
             error = e
@@ -317,4 +318,4 @@ async function climbForLog (c, log, { maxPillar = MAX_PILLAR, approachMs = 10000
     return dug
 }
 
-module.exports = { GoalReachBlock, reachGoal, pillarHeight, choosePillar, treePillar, climbForLog, descendPillar, towerStep, MAX_PILLAR }
+module.exports = { GoalReachBlock, reachGoal, pillarHeight, choosePillar, treePillar, climbForLog, descendPillar, towerStep, scaffoldCount, MAX_PILLAR }

@@ -4,6 +4,10 @@ const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
 const { until } = require('./progression-skills')
 const { canSeeBlock } = require('./vision')
+const { RECIPES } = require('./advancement-plan')
+const { WOOD_SUFFIXES } = require('./inventory')
+const { soundFloor } = require('./under-feet')
+const { tallFloor } = require('./cave-exploration')
 
 // User direction (2026-11-14): scouting Nether terrain is deadly. Hold one cardinal line instead, tunnelling
 // through rock and bridging gaps on top-half slab floors with bottom-half slab walls at head height, and look
@@ -24,6 +28,8 @@ const MAX_TURNS = 4
 const MAX_PATH = 8192
 const REJOIN_STEPS = 96
 const STEP_MS = 4000
+const ENTRY_DEPTH = 6
+const ENTRY_SIDESTEPS = 2
 const AIR = new Set(['air', 'cave_air', 'void_air'])
 const HOT = new Set(['lava', 'fire', 'soul_fire', 'magma_block'])
 const KEEP = new Set(['obsidian', 'crying_obsidian', 'nether_portal', 'spawner', 'chest', 'bedrock'])
@@ -141,6 +147,10 @@ const piece = (bot, half) => slabItem(bot) ? [slabItem(bot), half] : [fullItem(b
 
 // Floor := top-half slab under the next feet cell, clicked high on the side of the block underfoot.
 async function placeFloor(c, floor, dir) {
+    const block = c.bot.blockAt(floor)
+    if (block?.boundingBox === 'empty' && block.diggable && !open(block) && !HOT.has(block.name)) {
+        await clearCells(c, [floor])
+    }
     const sides = DIRECTIONS.map(([x, z]) => [floor.offset(x, 0, z), new Vec3(-x, 0, -z)])
     const behind = [floor.offset(-dir.x, 0, -dir.z), dir]
     if (!await place(c, floor, ...piece(c.bot, 'top'), [behind, ...sides])) {
@@ -178,11 +188,12 @@ async function walkTo(c, cell, sneak) {
         while (Date.now() < deadline) {
             check(c)
             const p = bot.entity.position
-            if (Math.abs(p.x - center.x) < 0.2 && Math.abs(p.z - center.z) < 0.2 && bot.entity.onGround) {
+            const aligned = Math.abs(p.x - center.x) < 0.2 && Math.abs(p.z - center.z) < 0.2
+            if (aligned && bot.entity.onGround && feetOf(bot).y === cell.y) {
                 return
             }
             await bot.lookAt(center.offset(0, 1.5, 0), true)
-            bot.setControlState('forward', true)
+            bot.setControlState('forward', !aligned)
             await bot.waitForTicks(1)
         }
         throw new Error(`bridge step to ${cell} timed out`)
@@ -248,17 +259,123 @@ function heading(feet, target, dir) {
     return DIRECTIONS.findIndex(([dx, dz]) => axis === 0 ? dx === Math.sign(gap[0]) && dz === 0 : dz === Math.sign(gap[1]) && dx === 0)
 }
 
-function fortressBeside(bot, feet) {
-    for (let x = -1; x <= 1; x++) {
-        for (let y = -1; y <= 2; y++) {
-            for (let z = -1; z <= 1; z++) {
-                if (FORTRESS.includes(bot.blockAt(feet.offset(x, y, z))?.name)) {
-                    return feet.offset(x, y, z)
-                }
+const levelSupport = block => soundFloor(block) && !tallFloor(block)
+
+function fortressFloor(bot, feet) {
+    const below = bot.blockAt(feet.offset(0, -1, 0))
+    return levelSupport(below) && FORTRESS.includes(below.name)
+}
+
+function hallBelow(bot, feet) {
+    for (const [dx, dz] of [[0, 0], ...DIRECTIONS]) {
+        const roof = feet.offset(dx, 0, dz)
+        if (!fortressFloor(bot, roof) || ![2, 3].every(dy => open(bot.blockAt(roof.offset(0, -dy, 0))))) {
+            continue
+        }
+        for (let drop = 3; drop <= ENTRY_DEPTH; drop++) {
+            const landing = roof.offset(0, -drop, 0)
+            if (!open(bot.blockAt(landing))) {
+                break
+            }
+            if (fortressFloor(bot, landing)) {
+                return landing.y
             }
         }
     }
     return null
+}
+
+function entryStep(bot, next, drop, canBuild, protectedFloors, priorFloors) {
+    const cells = (drop ? [2, 1, 0] : [1, 0]).map(y => next.offset(0, y, 0))
+    if (cells.some(p => {
+        const block = bot.blockAt(p)
+        return priorFloors.some(floor => floor.equals(p)) || (!open(block) &&
+            (!drop || !block?.diggable || protectedFloors.has(String(p)) || KEEP.has(block.name) || HOT.has(block.name) ||
+             lavaBeside(bot, p, cells)))
+    })) {
+        return null
+    }
+    const floor = next.offset(0, -1, 0)
+    const ground = bot.blockAt(floor)
+    if (levelSupport(ground)) {
+        return { next, cells, floor, build: [] }
+    }
+    if (!drop || !canBuild || !open(ground)) {
+        return null
+    }
+    const side = DIRECTIONS.map(([dx, dz]) => [floor.offset(dx, 0, dz), new Vec3(-dx, 0, -dz)])
+        .filter(([p]) => levelSupport(bot.blockAt(p)))
+    const up = new Vec3(0, 1, 0)
+    const base = floor.offset(0, -1, 0)
+    if (levelSupport(bot.blockAt(base))) {
+        return { next, cells, floor, build: [[floor, [[base, up], ...side]]] }
+    }
+    if (side.length) {
+        return { next, cells, floor, build: [[floor, side]] }
+    }
+    const lower = base.offset(0, -1, 0)
+    if (open(bot.blockAt(base)) && levelSupport(bot.blockAt(lower))) {
+        return { next, cells, floor, build: [[base, [[lower, up]]], [floor, [[base, up]]]] }
+    }
+    return null
+}
+
+function entryDescent(bot, from, goalY, target, rejected, protectedFloors) {
+    if (from.y <= goalY || from.y - goalY > ENTRY_DEPTH) {
+        return null
+    }
+    const queue = [{ p: from, first: null, floors: [from.offset(0, -1, 0)], lateral: 0, blocks: countOf(bot, FULL_BLOCKS) }]
+    const seen = new Set([`${from}/0`])
+    for (const { p, first, floors, lateral, blocks } of queue) {
+        for (const dy of lateral < ENTRY_SIDESTEPS ? [-1, 0] : [-1]) {
+            const cells = DIRECTIONS.map(([x, z]) => p.offset(x, dy, z))
+                .sort((a, b) => a.distanceTo(target) - b.distanceTo(target))
+            const sidesteps = lateral + Number(dy === 0)
+            for (const next of cells) {
+                const key = `${next}/${sidesteps}`
+                if (seen.has(key) || rejected.has(String(next))) {
+                    continue
+                }
+                const step = entryStep(bot, next, dy < 0, blocks > 0, protectedFloors, floors)
+                if (!step || step.build.length > blocks) {
+                    continue
+                }
+                if (next.y === goalY) {
+                    if (fortressFloor(bot, next)) {
+                        return first ?? step
+                    }
+                    continue
+                }
+                seen.add(key)
+                queue.push({ p: next, first: first ?? step, floors: [...floors, step.floor],
+                    lateral: sidesteps, blocks: blocks - step.build.length })
+            }
+        }
+    }
+    return null
+}
+
+async function descendEntry(c, step) {
+    const { bot } = c
+    await clearCells(c, step.cells)
+    bot.setControlState('sneak', true)
+    try {
+        if (step.build.length) {
+            await bot.waitForTicks(2)
+        }
+        for (const [p, refs] of step.build) {
+            check(c)
+            if (!await place(c, p, fullItem(bot), null, refs)) {
+                throw new Error(`no placement support at ${p}`)
+            }
+        }
+    } finally {
+        bot.setControlState('sneak', false)
+    }
+    if (!levelSupport(bot.blockAt(step.floor)) || step.cells.some(p => !open(bot.blockAt(p)))) {
+        throw new Error(`unverified fortress landing at ${step.next}`)
+    }
+    await walkTo(c, step.next, false)
 }
 
 async function findFortress(c) {
@@ -267,11 +384,13 @@ async function findFortress(c) {
     const nb = c.memory.netherBridge ??= { dimension: bot.game.dimension, dir: Math.floor(c.rng() * 4), steps: 0,
         lastCheck: -Infinity, portal: feet(), target: null, turns: 0 }
     nb.path ??= [[nb.portal.x, nb.portal.y, nb.portal.z]]
+    const protectedFloors = new Set(nb.path.map(([x, y, z]) => String(new Vec3(x, y - 1, z))))
     const record = () => {
         const here = feet()
         const last = nb.path.at(-1)
         if (nb.path.length < MAX_PATH && !(last && here.equals(new Vec3(...last)))) {
             nb.path.push([here.x, here.y, here.z])
+            protectedFloors.add(String(here.offset(0, -1, 0)))
         }
     }
     if (bot.blockAt(feet())?.name === 'nether_portal') {
@@ -290,15 +409,21 @@ async function findFortress(c) {
         nb.dir = last >= 0 ? last : nb.dir
     }
     record()
+    const rejectedEntry = new Set()
     c.log.info(`Fortress search heading ${DIRECTIONS[nb.dir]} from ${feet()} after ${nb.steps} steps.`)
     for (;;) {
         check(c)
         if (slabCount(bot) < MIN_SLABS && countOf(bot, BRIDGE_BLOCKS) >= 3) {
-            const [x, z] = DIRECTIONS[nb.dir]
-            await craftSlabs(c, new Vec3(x, 0, z))
-        }
-        if (!slabItem(bot) && !fullItem(bot)) {
-            throw new Error('out of bridge blocks and netherrack')
+            if (!countOf(bot, ['crafting_table']) && bot.inventory.items().some(({ name }) =>
+                WOOD_SUFFIXES.some(suffix => name.endsWith(suffix)) ||
+                (name.endsWith('_planks') && countOf(bot, [name]) >= RECIPES.crafting_table.planks))) {
+                await c.craftTable()
+                check(c)
+            }
+            if (countOf(bot, ['crafting_table'])) {
+                const [x, z] = DIRECTIONS[nb.dir]
+                await craftSlabs(c, new Vec3(x, 0, z))
+            }
         }
         if (nb.steps - nb.lastCheck >= CHECK_EVERY) {
             nb.lastCheck = nb.steps
@@ -308,16 +433,41 @@ async function findFortress(c) {
             }
             nb.target = target ?? nb.target
         }
-        const brick = fortressBeside(bot, feet())
-        if (brick) {
-            const [x, z] = DIRECTIONS[nb.dir]
-            const inside = feet().offset(x, 0, z)
-            await clearCells(c, [inside, inside.offset(0, 1, 0)]).catch(error => c.log.warn(`Fortress entry dig: ${error.message}`))
+        const here = feet()
+        const target = nb.target ? vec(nb.target) : null
+        nb.hallY ??= fortressFloor(bot, here) ? hallBelow(bot, here) : null
+        if (fortressFloor(bot, here) && (nb.hallY == null || here.y === nb.hallY)) {
+            const brick = here.offset(0, -1, 0)
             c.memory.netherFortress = { dimension: bot.game.dimension, x: brick.x, y: brick.y, z: brick.z, reached: true }
-            c.log.info(`Reached the Nether fortress at ${brick} after ${nb.steps} steps.`)
+            c.log.info(`Reached the Nether fortress on foot at ${here} after ${nb.steps} steps.`)
             return
         }
-        const target = nb.target ? vec(nb.target) : null
+        const goalY = nb.hallY ?? (target && here.distanceTo(target) <= 12 ? target.y + 1 : null)
+        const descent = goalY == null ? null : entryDescent(bot, here, goalY, target ?? here, rejectedEntry, protectedFloors)
+        if (descent) {
+            try {
+                await descendEntry(c, descent)
+                nb.steps++
+                nb.turns = 0
+                record()
+                rejectedEntry.clear()
+                c.log.info(`Fortress stair: landed at ${feet()}.`)
+            } catch (error) {
+                check(c)
+                if (!feet().equals(here)) {
+                    throw error
+                }
+                rejectedEntry.add(String(descent.next))
+                c.log.warn(`Fortress stair at ${descent.next} rejected: ${error.message}`)
+            }
+            continue
+        }
+        if (nb.hallY != null) {
+            throw new Error(`no supported fortress stair from ${here} to hallway Y=${nb.hallY}`)
+        }
+        if (!slabItem(bot) && !fullItem(bot)) {
+            throw new Error('out of bridge blocks and netherrack')
+        }
         nb.dir = heading(feet(), target, nb.dir)
         const [x, z] = DIRECTIONS[nb.dir]
         try {
@@ -364,7 +514,10 @@ async function walkPath(c, to) {
         return false
     }
     const here = feetOf(bot)
-    let i = path.reduce((best, p, j) => p.distanceTo(here) < path[best].distanceTo(here) ? j : best, 0)
+    let i = path.reduce((best, p, j) => {
+        const distance = p.distanceTo(here) - path[best].distanceTo(here)
+        return distance < 0 || (distance === 0 && to !== 0) ? j : best
+    }, 0)
     if (path[i].distanceTo(here) > 0) {
         await c.gotoWithTimeout(new goals.GoalBlock(path[i].x, path[i].y, path[i].z), 10000, 'back onto the bridge')
             .catch(error => {
@@ -374,17 +527,24 @@ async function walkPath(c, to) {
             })
     }
     const delta = Math.sign(to - i)
+    const indexByCell = new Map()
+    for (let j = i; j !== to + delta && delta !== 0; j += delta) {
+        indexByCell.set(String(path[j]), j)
+    }
+    i = indexByCell.get(String(path[i])) ?? i
     if (delta !== 0) {
         c.log.info(`Walking ${Math.abs(to - i)} recorded bridge cells toward ${to === 0 ? 'the portal' : 'the frontier'}.`)
     }
     for (i += delta; delta !== 0 && i !== to + delta; i += delta) {
         check(c)
         let cell = path[i]
+        i = indexByCell.get(String(cell))
         // A hole or a lost floor on the line (a 2-deep dip trapped the walk at 225,99,-127, 06:58Z) is
         // floored at the current height and the record updated, so the walk stays level.
         const from = feetOf(bot)
         const level = new Vec3(cell.x, from.y, cell.z)
-        if (cell.y <= from.y && open(bot.blockAt(level)) && open(bot.blockAt(level.offset(0, 1, 0))) &&
+        if (cell.y <= from.y && !levelSupport(bot.blockAt(cell.offset(0, -1, 0))) &&
+            open(bot.blockAt(level)) && open(bot.blockAt(level.offset(0, 1, 0))) &&
             !solid(bot.blockAt(level.offset(0, -1, 0)))) {
             await placeFloor(c, level.offset(0, -1, 0), new Vec3(Math.sign(cell.x - from.x), 0, Math.sign(cell.z - from.z)))
             cell = level

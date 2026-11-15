@@ -101,7 +101,7 @@ test('full hunger does not trigger an endless failed eating loop after damage', 
     assert.equal(chooseAction(state), 'craft_table')
 })
 
-test('surface resources use the return staircase when deep underground', () => {
+test('surface resources use the return shaft when deep underground', () => {
     const state = { health: 20, food: 20, hasFood: false, hostileDistance: Infinity,
         logs: 0, planks: 0, sticks: 0, hasCraftingTable: false, underground: true }
     assert.equal(chooseAction(state), 'return_surface')
@@ -309,40 +309,6 @@ test('ascending across an open cave places attached stair supports before walkin
     await mineTunnel(c, 68)
     assert.equal(bot.entity.position.y, 68)
     assert.equal(placed.size, 7)
-})
-
-test('a return staircase sidesteps a shared ceiling plug through a partially dug dry passage', async () => {
-    const start = new Vec3(0, 19, 0)
-    const plug = start.offset(0, 2, 0)
-    const side = start.offset(0, 0, 1)
-    const air = new Set([String(start), String(start.offset(0, 1, 0)), String(side.offset(0, 1, 0))])
-    const visits = []
-    const bot = {
-        health: 20, game: { dimension: 'overworld' }, entity: { position: start.offset(0.5, 0, 0.5) },
-        blockAt(p) {
-            const open = air.has(String(p))
-            return { name: open ? 'air' : 'stone', position: p, boundingBox: open ? 'empty' : 'block',
-                diggable: true, canHarvest: () => true }
-        },
-        equip: async () => {}, canDigBlock: () => true,
-        async dig(block) {
-            assert.ok(!block.position.equals(plug), 'must keep the plug in place')
-            air.add(String(block.position))
-        }
-    }
-    const c = {
-        bot, running: true, activeAction: 'return_surface', log: { info() {} },
-        memory: { liquidPlugs: new Set([`overworld:${plug}`]), excavatedCells: new Set([`overworld:${side.offset(0, 1, 0)}`]) },
-        bestItem: () => ({ name: 'diamond_pickaxe' }),
-        rememberedBlocked: block => block.position.equals(start.offset(1, 0, 0)) || block.position.equals(start.offset(0, 0, -1)),
-        async gotoWithTimeout(goal) {
-            visits.push(new Vec3(goal.x, goal.y, goal.z))
-            bot.entity.position = visits.at(-1).offset(0.5, 0, 0.5)
-        }
-    }
-    await mineTunnel(c, 22)
-    assert.deepEqual(visits[0], side)
-    assert.equal(bot.entity.position.y, 22)
 })
 
 test('tunneling uses the strongest available pick that can harvest the block', () => {
@@ -650,29 +616,6 @@ test('portal construction stands beside the frame plane, never inside a frame ce
     assert.equal(bot.game.dimension, 'the_nether')
 })
 
-test('a return trip resumes the remembered stairs at the nearest cell, not a stale deeper waypoint', async () => {
-    const { performProgression } = require('../src/progression-skills')
-    const route = [{ x: 0, y: 63, z: 0 }, { x: 1, y: 62, z: 1 }, { x: 2, y: 61, z: 2 }, { x: 20, y: 50, z: 20 }]
-    const bot = { health: 20, entity: { position: new Vec3(2.5, 61, 2.5) },
-        blockAt: p => ({ name: p.y === 64 && p.x > 0 ? 'stone' : 'air',
-            boundingBox: p.y === 64 && p.x > 0 ? 'block' : 'empty' }) }
-    const visited = []
-    const c = {
-        bot, running: true, paused: false, home: { y: 64 }, memory: { mineRoute: route }, log: { info() {}, warn() {} },
-        async gotoWithTimeout(goal) {
-            const target = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5)
-            if (bot.entity.position.distanceTo(target) > 3) {
-                throw new Error('return staircase timed out after 8s')
-            }
-            visited.push(`${goal.x},${goal.y},${goal.z}`)
-            bot.entity.position = target
-        }
-    }
-    await performProgression(c, 'return_surface', {})
-    assert.deepEqual(visited, ['2,61,2', '1,62,1', '0,63,0'])
-    assert.equal(c.memory.surfaceByStaircase, false)
-})
-
 test('reaching the home level inside a hill keeps climbing until the sky is open', async () => {
     const { performProgression } = require('../src/progression-skills')
     for (const [roof, expectClimb] of [[74, true], [null, false]]) {
@@ -698,20 +641,7 @@ test('a shallow return finishes at open ground below the home plateau', async ()
     const c = { bot, home: { y: 119 }, memory: {}, bestItem: () => null,
         async gotoWithTimeout() { assert.fail('already out on the lower surface') } }
     await performProgression(c, 'return_surface', { departureSurfaceY: 86 })
-    assert.equal(c.memory.surfaceByStaircase, false)
-})
-
-test('a pickaxe-free bot below the surface walks up toward the home level instead of failing at once', async () => {
-    const { performProgression } = require('../src/progression-skills')
-    const bot = { health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(6.5, 65, 3.5) },
-        blockAt: p => ({ name: p.y === 67 ? 'oak_planks' : 'air', boundingBox: p.y === 67 ? 'block' : 'empty' }) }
-    let goal
-    const c = { bot, running: true, paused: false, home: { y: 69 }, memory: {}, log: { info() {}, warn() {} }, bestItem: () => null,
-        async gotoWithTimeout(g) { goal = g; bot.entity.position = new Vec3(9.5, 68, 3.5) } }
-    await performProgression(c, 'return_surface', {})
-    assert.equal(goal.isEnd({ y: 68 }), true)
-    assert.equal(goal.isEnd({ y: 66 }), false)
-    assert.equal(goal.heuristic({ y: 60 }), 8)
+    assert.equal(c.memory.surfaceClimb, null)
 })
 
 test('lava with no walking path is tunneled toward before the source is quarantined', async () => {

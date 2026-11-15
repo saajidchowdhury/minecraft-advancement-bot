@@ -29,8 +29,9 @@ const { farmingState, fishingState, breedingState, plantSeed, goFish, breedAnima
 const { archeryState, shootArrow } = require('./archery')
 const { enchantingState, gatherLeather, enchantItem } = require('./enchanting')
 const { golemState, summonGolem } = require('./golem')
-const { disposalStepCost, performProgression, redstonePlan, mineTunnel, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, openCookingAlcove, inTunnelCurrent, leaveFloodedTunnel, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
+const { disposalStepCost, performProgression, redstonePlan, mineTunnel, mineToLayer, mineStoneLayer, returnSurface, surfaceClimbAt, miningPitAt, until, climbStep, armorUpgrades, miningPickaxe, followShaft, coveredAbove, openToSky, openCookingAlcove, inTunnelCurrent, leaveFloodedTunnel, FIRST_DAY_COOKING_Y, STONE_MINING_Y, PROTECTED_CONTAINERS, WOODCUTTING_AXES, DIGGING_SHOVELS } = require('./progression-skills')
 const { updateCrowdRetreat, retreatToWall, mineFromRefuge } = require('./crowd-retreat')
+const { rememberMobTarget, recentMobTarget, isThreat } = require('./mob-threat')
 const { reachGoal, treePillar, climbForLog } = require('./tree-climb')
 const { isUnderFeet, rememberPlacement, forgetPlacement, placedOnSupport, stepOffCells, centerIn, soundFloor, overlapsBody } = require('./under-feet')
 
@@ -40,7 +41,7 @@ const HOSTILES = new Set([
     'zombie', 'husk', 'drowned', 'skeleton', 'stray', 'creeper', 'spider',
     'cave_spider', 'witch', 'pillager', 'vindicator', 'evoker', 'ravager',
     'slime', 'magma_cube', 'phantom', 'guardian', 'elder_guardian',
-    'warden', 'blaze', 'piglin', 'piglin_brute', 'hoglin', 'zoglin', 'wither_skeleton'
+    'warden', 'blaze', 'piglin', 'piglin_brute', 'zombified_piglin', 'hoglin', 'zoglin', 'wither_skeleton'
 ])
 // No ghast: melee cannot reach one, and chasing or fleeing it off a Nether bridge is worse than its fireballs.
 // Piglins attack a player without gold armor; one ignored on the bridge killed NetherTrial (07:04Z).
@@ -139,7 +140,7 @@ const MOB_HURT_COOLDOWN_MS = 500
 const CLICK_GAP_MS = 125
 const STANDOFF_APPROACH = 0.5
 const STANDOFF_MS = 60000
-const MELEE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'spider', 'cave_spider', 'vindicator', 'piglin', 'piglin_brute', 'zombified_piglin'])
+const MELEE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'spider', 'cave_spider', 'vindicator', 'piglin', 'piglin_brute', 'zombified_piglin', 'hoglin'])
 const INTERACTIVE = /(^|_)(furnace|smoker|chest|barrel|crafting_table|enchanting_table|anvil|bed|door|trapdoor|fence_gate|button|lever|shulker_box)$/
 const STATIONARY_ACTIONS = new Set([
     'avoid_enderman',
@@ -176,11 +177,6 @@ function updateHome (memory, position, skyLight) {
 function shouldRelocateAfterStationFailure (action, failureCount, message) {
     return STATIONARY_ACTIONS.has(action) && failureCount % 3 === 0 &&
         /could not place (crafting table|furnace)|shelter enclosure incomplete|no open toss lane/.test(message)
-}
-
-// A return staircase boxed in by plugged water and its own passage retried one cell 396 times (live 05:15Z).
-function shouldRerouteAscent (action, failureCount, message) {
-    return action === 'return_surface' && failureCount % 3 === 0 && /no supported dry tunnel step/.test(message)
 }
 
 function mobilityRecoveryKind (shaftTrapped, elevationTrapped) {
@@ -276,14 +272,15 @@ function separationGoal (position, distance) {
     })
 }
 
-// One rule for the decision interrupt and fight(): armed, above 10 HP, only melee mobs within 16
-// and at most four of them close (round 9: the crowd interrupt cancelled a kiting fight ten times).
+// Match the interruption and fight guards. An armored bot can sustain a lone melee duel below 10 HP.
 function kiteableCrowd (c) {
     const here = c.bot.entity.position
-    const near = Object.values(c.bot.entities || {}).filter(e => e.isValid && HOSTILES.has(e.name) &&
+    const near = Object.values(c.bot.entities || {}).filter(e => isThreat(c, e, HOSTILES) &&
         here.distanceTo(e.position) <= 16 && c.canSee?.(e, true) !== false)
-    return c.bot.health > 10 && Boolean(c.bestItem?.([...WEAPONS])) && near.every(e => MELEE.has(e.name)) &&
-        near.filter(e => here.distanceTo(e.position) <= 6).length <= 4
+    const armor = near.length === 1 ? wornArmorPoints(c.bot) : 0
+    const armoredDuel = armor >= 12 && here.distanceTo(near[0].position) <= 3.5 && canSustainFight(c.bot.health, armor)
+    return (c.bot.health > 10 || armoredDuel) && Boolean(c.bestItem?.([...WEAPONS])) &&
+        near.every(e => MELEE.has(e.name)) && near.filter(e => here.distanceTo(e.position) <= 6).length <= 4
 }
 
 // A cautious route around drops can double the walk; a fixed 10 s gave up mid-staircase 30 blocks out (F148).
@@ -374,7 +371,8 @@ function actionMadeProgress (action, before, after, moved) {
         return true
     }
     if ([Actions.STONE, Actions.COAL, Actions.IRON].includes(action) &&
-        ((before.hasIronPickaxe && !after.hasIronPickaxe) || (before.hasStonePickaxe && !after.hasStonePickaxe))) {
+        ((before.hasIronPickaxe && !after.hasIronPickaxe) || (before.hasStonePickaxe && !after.hasStonePickaxe) ||
+            (before.hasWoodenPickaxe && !after.hasWoodenPickaxe))) {
         return true
     }
     // Mining actions also collect opportunity ores; 03.01.22 flagged three coal pickups as stalls.
@@ -507,7 +505,7 @@ class SurvivalController {
                 const sameRecovery = previous && previous.dimension === this.bot.game.dimension &&
                     Date.now() - previous.diedAt < RECOVERY_WINDOW_MS &&
                     Math.hypot(position.x - previous.x, position.y - previous.y, position.z - previous.z) <= 16
-                const near = Object.values(this.bot.entities || {}).filter(e => e.isValid && HOSTILES.has(e.name))
+                const near = Object.values(this.bot.entities || {}).filter(e => isThreat(this, e, HOSTILES))
                     .map(e => ({ name: e.name, distance: position.distanceTo(e.position) }))
                 // A fresh respawn cannot win where a crowd or an archer just killed a geared bot.
                 // Lava also burns the drops, so a lava death site is never worth the trip back.
@@ -528,10 +526,14 @@ class SurvivalController {
             this.shelterCenter = null
             this.lastDepartureSurface = null
             this.crowdRetreat = null
+            this.mobTargets = null
             this.memory.combatRefuge = null
+            this.memory.surfaceClimb = null
+            this.memory.stoneTrip = null
             this.cancelCurrentTask('death')
         })
         this.bot.on('entityHurt', (victim, source) => {
+            rememberMobTarget(this, victim, source)
             const action = this.activeAction || this.lastAction
             if (victim === this.bot.entity && source?.isValid && source.name === 'enderman') {
                 this.endermanThreat = { id: source.id, dimension: this.bot.game.dimension, at: Date.now(), hit: true }
@@ -549,7 +551,7 @@ class SurvivalController {
             // damage_event names the shooter; an unseen skeleton 8 blocks behind shot the bot from 20 HP
             // to death while it kept mining (live 01:57Z), so archers count to 24 blocks.
             if (!this.running || this.paused || this.followPlayer || !victim || victim !== this.bot.entity ||
-                this.bot.health <= 0 || !source?.isValid || !HOSTILES.has(source.name) ||
+                this.bot.health <= 0 || !isThreat(this, source, HOSTILES) ||
                 victim.position.distanceTo(source.position) > (ARCHERS.has(source.name) ? 24 : 4) ||
                 (this.busy && ([Actions.FIGHT, Actions.ESCAPE, Actions.REFUGE, 'escape_lava', 'surface_for_air', 'clear_head'].includes(action) ||
                     source === this.creeperFightTarget))) {
@@ -568,7 +570,7 @@ class SurvivalController {
             const tookDamage = Number.isFinite(previousHealth) && previousHealth - this.bot.health > 0.01
             if (this.running && tookDamage) {
                 const threats = Object.values(this.bot.entities || {}).filter(entity => entity.isValid &&
-                    (HOSTILES.has(entity.name) || (entity.name === 'enderman' && this.endermanThreat?.id === entity.id)) &&
+                    (isThreat(this, entity, HOSTILES) || (entity.name === 'enderman' && this.endermanThreat?.id === entity.id)) &&
                     this.bot.entity.position.distanceTo(entity.position) <= 12)
                     .map(entity => `${entity.name}:${this.bot.entity.position.distanceTo(entity.position).toFixed(1)}`)
                 this.log.warn(`Damage: hp=${previousHealth.toFixed(2)}->${this.bot.health.toFixed(2)}, action=${action}, ` +
@@ -631,7 +633,7 @@ class SurvivalController {
             (!this.busy || !this.actionAbort?.signal.aborted) &&
             ![Actions.REFUGE, 'avoid_enderman', 'flee_sculk', 'escape_lava', 'surface_for_air', 'clear_head'].includes(this.activeAction)
         const nearbyThreat = entity => {
-            if (!entity?.isValid || !HOSTILES.has(entity.name) || entity === this.creeperFightTarget || this.standingOff(entity)) {
+            if (!isThreat(this, entity, HOSTILES) || entity === this.creeperFightTarget || this.standingOff(entity)) {
                 return false
             }
             const creeper = entity.name === 'creeper'
@@ -652,7 +654,7 @@ class SurvivalController {
             return true
         }
         this.bot.on('entityMoved', entity => {
-            if (this.running && !this.paused && this.bot.health > 0 && this.bot.entity && HOSTILES.has(entity.name) &&
+            if (this.running && !this.paused && this.bot.health > 0 && this.bot.entity && isThreat(this, entity, HOSTILES) &&
                 ![Actions.REFUGE, 'avoid_enderman', 'flee_sculk', 'escape_lava', 'surface_for_air', 'clear_head'].includes(this.activeAction) &&
                 updateCrowdRetreat(this, HOSTILES) && !(this.activeAction === Actions.FIGHT &&
                     (kiteableCrowd(this) || this.refugeBlockedUntil > Date.now()))) {
@@ -828,22 +830,6 @@ class SurvivalController {
         }
     }
 
-    // Back down up to four staircase cells and turn, so the climb restarts in fresh rock.
-    async rerouteAscent (failureCount) {
-        const route = this.memory.mineRoute || []
-        const index = Math.max(0, route.length - 4)
-        const back = route[index]
-        if (back) {
-            await this.gotoWithTimeout(new goals.GoalBlock(back.x, back.y, back.z), 10000, 'ascent reroute')
-            route.length = index
-        }
-        // +1 then +2 visits the right, left, original and reverse headings in turn.
-        const turn = (failureCount / 3) % 2 ? 1 : 2
-        this.memory.mineDirection = ((this.memory.mineDirection || 0) + turn) % 4
-        this.memory.tunnelFrontier = null
-        this.log.warn(`Return staircase boxed in; rerouting from ${this.positionText()} toward direction ${this.memory.mineDirection}.`)
-    }
-
     // Natural ground under the bot may hide a cave below (live 05:04Z fall through a stalactite),
     // so step to an adjacent standing cell, centred, before mining it.
     async stepOffBlock (block) {
@@ -918,7 +904,11 @@ class SurvivalController {
         const landing = this.findSafeLowerLanding()
         this.log.info(`Spawn mobility check: support=${support ? support.name : 'unknown'}, ` +
             `isolatedPillar=${Boolean(trap)}, lowerLanding=${landing ? `${landing.x},${landing.y},${landing.z} drop=${landing.drop}` : 'none'}.`)
-        if (!this.sheltered && (trap || (landing && landing.drop >= 3 && landing.distance <= 2.5))) {
+        const bridge = this.memory.netherBridge
+        const p = this.bot.entity.position.offset(0, 0.2, 0).floored()
+        const onBridge = bridge?.dimension === this.bot.game.dimension &&
+            bridge.path?.some(([x, y, z]) => p.x === x && p.y === y && p.z === z)
+        if (!this.sheltered && !onBridge && (trap || (landing && landing.drop >= 3 && landing.distance <= 2.5))) {
             this.log.info('Raised spawn platform detected; resolving it before starting survival goals.')
             await this.recoverMobility().catch(error => this.log.warn(`Initial mobility recovery failed: ${error.message}`))
         }
@@ -1045,7 +1035,7 @@ class SurvivalController {
                 return
             }
             this.actionAbort = new AbortController()
-            const recoveryKind = mobilityRecoveryKind(
+            const recoveryKind = surfaceClimbAt(this) ? null : mobilityRecoveryKind(
                 this.detectVerticalShaft(),
                 Boolean(this.detectElevationTrap())
             )
@@ -1070,14 +1060,11 @@ class SurvivalController {
                     this.log.warn(`Workspace relocation failed: ${relocationError.message}`)
                 }
             }
-            if (shouldRerouteAscent(action, count, message)) {
-                await this.rerouteAscent(count).catch(rerouteError => this.log.warn(`Ascent reroute failed: ${rerouteError.message}`))
-            }
             // Unstick scouting accepts six-block drops, which only take a surfacing bot deeper (04.01.02).
             // Opportunistic targets are blocked one by one; a run of unreachable ores is not a stuck bot (17:14:26Z).
             const opportunistic = OPPORTUNISTIC.has(action)
             // Unstick carves a rising staircase; under attack that only climbed into the mobs (staged round 5).
-            const threatNear = Object.values(this.bot.entities || {}).some(e => e.isValid && HOSTILES.has(e.name) &&
+            const threatNear = Object.values(this.bot.entities || {}).some(e => isThreat(this, e, HOSTILES) &&
                 e.position.distanceTo(this.bot.entity.position) <= 8)
             if (threatNear) {
                 return
@@ -1171,6 +1158,13 @@ class SurvivalController {
             this.biomeExit = null
         }
         const shaftEntrance = shaft?.cells?.[0]
+        const climb = surfaceClimbAt(this, feet)
+        const carvingSurfaceExit = Boolean(climb && climb.stopY == null)
+        const stoneClimb = climb?.stopY === STONE_MINING_Y
+        const stoneTrip = this.memory.stoneTrip?.dimension === this.bot.game.dimension ? this.memory.stoneTrip : null
+        const pit = miningPitAt(this, feet)
+        const cookingStop = feet.y === FIRST_DAY_COOKING_Y && this.memory.firstDayMeal === 'pending'
+        const descentAction = !climb && pit && feet.equals(pit) && (feet.y > pit.targetY || cookingStop) ? pit.action : null
         const nightShaftReady = Boolean(shaftEntrance) && shaft.dimension === this.bot.game.dimension && shaft.cells.length >= 8 &&
             !(shaft.retryAfter > Date.now()) && feet.distanceTo(new Vec3(shaftEntrance.x, shaftEntrance.y, shaftEntrance.z)) <= 12 &&
             shaft.cells.at(-1).y <= feet.y - 6
@@ -1197,8 +1191,8 @@ class SurvivalController {
             canMineFromShelter: this.sheltered && !this.memory.shelter?.descentFailed,
             nightShaftReady,
             needsShelterExit: Boolean(this.shelterCenter && !this.isNight()),
-            shaftTrapped: this.detectVerticalShaft(),
-            elevationTrapped: Boolean(this.detectElevationTrap()),
+            shaftTrapped: !stoneTrip && !climb && !descentAction && this.detectVerticalShaft(),
+            elevationTrapped: !stoneTrip && !climb && !descentAction && Boolean(this.detectElevationTrap()),
             // Without a pickaxe a drop far above or below cannot be reached in time; rebuild instead.
             recoveryAvailable: Boolean(lastDeath && !lastDeath.dangerous && lastDeath.dimension === this.bot.game.dimension && recoveryAge < RECOVERY_WINDOW_MS && lastDeath.attempts < 3 &&
                 (hasWoodPickNow || Math.abs(lastDeath.y - this.bot.entity.position.y) <= 12)),
@@ -1213,7 +1207,12 @@ class SurvivalController {
             hasStonePickaxe: hasStonePickNow,
             hasWoodcuttingAxe: this.hasAnyItem(WOODCUTTING_AXES),
             hasDiggingShovel: this.hasAnyItem(DIGGING_SHOVELS),
-            carvingSurfaceExit: Boolean(this.memory.surfaceByStaircase),
+            carvingSurfaceExit,
+            stoneClimb,
+            stoneTrip,
+            descentAction,
+            descentTargetY: descentAction ? pit.targetY : null,
+            pickaxeStranded: !hasWoodPickNow && pickaxeStranded(inventory),
             hasFurnace: hasFurnaceNow,
             foodUnits: this.foodUnits(),
             coal: this.countItems(['coal', 'charcoal']),
@@ -1245,7 +1244,7 @@ class SurvivalController {
             inventoryFull: needsCleanup(freeInventorySlots, discardableStack(inventory, this.inventoryContext())) &&
                 !(this.memory.disposalBackoffUntil > Date.now()),
             surfaceY: this.home?.y || 64, y: this.bot.entity.position.y,
-            underground: Boolean(this.sheltered && this.memory.shelter?.burrowed) ||
+            underground: Boolean(climb || pit || (this.sheltered && this.memory.shelter?.burrowed)) ||
                 (this.bot.entity.position.y < (this.home?.y || 64) - 3 && !(this.bot.blockAt(this.bot.entity.position.offset(0, 1, 0))?.skyLight >= 12) &&
                     coveredAbove(this.bot, this.bot.entity.position.floored().offset(0, 1, 0))),
             wetBiome: this.biomeExit && this.bot.game.dimension === 'overworld' ? biome ?? 'unknown' : null,
@@ -1319,6 +1318,9 @@ class SurvivalController {
     }
 
     async perform (action, state) {
+        if (state?.descentAction === action && action !== Actions.STONE) {
+            return mineToLayer(this, state.descentTargetY)
+        }
         switch (action) {
             case 'avoid_enderman': return this.avoidEnderman()
             case 'find_fortress': return findFortress(this)
@@ -1367,7 +1369,7 @@ class SurvivalController {
             case 'mine_from_shelter': return this.mineFromShelter()
             case 'descend_shaft_at_night': {
                 const shaft = this.memory.shaft
-                if (!await followShaft(this, 'down') && shaft) {
+                if (!await followShaft(this) && shaft) {
                     shaft.retryAfter = Date.now() + 300000
                 }
                 return
@@ -1411,7 +1413,7 @@ class SurvivalController {
             case Actions.WOOD: return this.gatherWood()
             case Actions.CRAFT_TABLE: return this.craftTable()
             case Actions.CRAFT_WOODEN_PICKAXE: return this.craftWoodenPickaxe()
-            case Actions.STONE: return this.gatherStone()
+            case Actions.STONE: return this.gatherStone(state)
             case Actions.CRAFT_STONE_PICKAXE: return this.craftStonePickaxe()
             case Actions.CRAFT_FURNACE: return this.craftFurnace()
             case Actions.FOOD: return this.gatherFood(state)
@@ -1503,8 +1505,8 @@ class SurvivalController {
                 }))
             }
             const stockingWood = action === Actions.WOOD && !state.isNight && !hasMiningWood(state)
-            if (INTERRUPTIBLE.has(action) && !stockingWood) {
-                const allowOre = action !== Actions.FOOD && !(action === 'return_surface' && state.mealReserve < MIN_MINING_MEALS)
+            if (INTERRUPTIBLE.has(action) && !stockingWood && !(action === Actions.STONE && state.dimension === 'overworld')) {
+                const allowOre = action !== Actions.FOOD && !(action === 'return_surface' && (state.carvingSurfaceExit || state.mealReserve < MIN_MINING_MEALS))
                 const initial = this.priorityTargetInView(allowOre)
                 attempts.push(new Promise(resolve => {
                     opportunityWatchdog = setInterval(() => {
@@ -1975,7 +1977,31 @@ class SurvivalController {
         await this.ensureItem('wooden_pickaxe', 1, true)
     }
 
-    async gatherStone () {
+    async gatherStone (state) {
+        if (this.bot.game.dimension === 'overworld') {
+            const feet = this.bot.entity.position.floored()
+            let trip = state.stoneTrip
+            if (!trip) {
+                const goal = state.sideGoal?.action === Actions.STONE ? state.sideGoal : nextAdvancement(state)
+                const kit = (state.hasStonePickaxe ? 0 : RECIPES.stone_pickaxe.cobblestone) +
+                    (state.hasWoodcuttingAxe ? 0 : RECIPES.stone_axe.cobblestone) +
+                    (state.hasDiggingShovel ? 0 : RECIPES.stone_shovel.cobblestone) +
+                    (state.hasFurnace ? 0 : RECIPES.furnace.cobblestone)
+                const reserve = Math.max(0, (state.departureSurfaceY ?? this.home?.y ?? 64) - STONE_MINING_Y)
+                const need = goal.bridgeBlocks ?? Math.max(kit, RECIPES[goal.item]?.cobblestone ?? 3)
+                trip = this.memory.stoneTrip = { dimension: 'overworld', limit: need + reserve, bridge: Boolean(goal.bridgeBlocks), ready: false }
+            }
+            if (feet.y > STONE_MINING_Y) {
+                return mineToLayer(this, STONE_MINING_Y)
+            }
+            if (feet.y < STONE_MINING_Y) {
+                return returnSurface(this, STONE_MINING_Y)
+            }
+            const enough = () => (trip.bridge ? bridgeSupply(this.bot) : this.countItems(['cobblestone', 'cobbled_deepslate'])) >= trip.limit
+            await mineStoneLayer(this, enough)
+            trip.ready = enough()
+            return
+        }
         const feet = this.bot.entity.position.floored()
         const block = await scanFor(this, () => this.findNearestBlock(name =>
             ['stone', 'cobblestone', 'deepslate', 'cobbled_deepslate'].includes(name), 24, {
@@ -1984,7 +2010,7 @@ class SurvivalController {
                 (!candidate.name.endsWith('_ore') || !visibleMiningHazard(this.bot, candidate.position))
         }))
         if (!block) {
-            return mineTunnel(this, 16)
+            return mineToLayer(this, 16)
         }
         await this.collectTarget(block, block, 'stone')
     }
@@ -2206,7 +2232,7 @@ class SurvivalController {
             if (await collectOpportunity(this, names) || await exploreCave(this, names.includes('iron_ore') ? 16 : feet.y)) {
                 return
             }
-            return mineTunnel(this, names.includes('iron_ore') ? 16 : feet.y)
+            return mineToLayer(this, names.includes('iron_ore') ? 16 : feet.y)
         }
         await this.collectTarget(block, block, block.name)
     }
@@ -2660,8 +2686,8 @@ class SurvivalController {
                     throw new Error(reason)
                 }
                 const here = this.bot.entity.position
-                const close = swimming && Object.values(this.bot.entities || {}).filter(e => e.isValid &&
-                    (MELEE.has(e.name) || ARCHERS.has(e.name)) && here.distanceTo(e.position) <= 3 && this.canSee(e))
+                const close = swimming && Object.values(this.bot.entities || {}).filter(e =>
+                    (isThreat(this, e, MELEE) || isThreat(this, e, ARCHERS)) && here.distanceTo(e.position) <= 3 && this.canSee(e))
                     .sort((a, b) => here.distanceTo(a.position) - here.distanceTo(b.position))[0]
                 // Twelve or more armor points make a lone melee duel safer than running (F030).
                 if (!hunt && !cornered && (!canSustainFight(this.bot.health, wornArmorPoints(this.bot)) ||
@@ -2678,8 +2704,8 @@ class SurvivalController {
                 }
                 const distance = here.distanceTo(entity.position)
                 // Zombies at arm's length were ignored while the chosen target held 3-4 blocks off (03:44Z death).
-                const inReach = !hunt && Object.values(this.bot.entities || {}).some(e => e !== entity && e.isValid &&
-                    (MELEE.has(e.name) || ARCHERS.has(e.name)) && here.distanceTo(e.position) <= 3)
+                const inReach = !hunt && Object.values(this.bot.entities || {}).some(e => e !== entity &&
+                    (isThreat(this, e, MELEE) || isThreat(this, e, ARCHERS)) && here.distanceTo(e.position) <= 3)
                 // Occlusion only, held 3 s without closing 2 blocks: the bot turns to its prey just before
                 // swinging (an adjacent cow failed the view cone, 06:37Z), hilltop rays to prey 40+ blocks off
                 // flicker (06:49Z), and a pig over a crest was lost while the bot closed 26 blocks (06:58Z).
@@ -2758,7 +2784,7 @@ class SurvivalController {
                     }
                     // Rotate over attackers in reach; an out-of-reach target never swung at always won the rotation.
                     const pool = [entity, ...Object.values(this.bot.entities || {}).filter(e => e !== entity &&
-                        e.isValid && (MELEE.has(e.name) || ARCHERS.has(e.name)) && here.distanceTo(e.position) <= 3.1)]
+                        (isThreat(this, e, MELEE) || isThreat(this, e, ARCHERS)) && here.distanceTo(e.position) <= 3.1)]
                     const reachable = pool.filter(e => here.distanceTo(e.position) <= 3)
                     const target = close || (hunt ? entity : (reachable.length ? reachable : pool)
                         .reduce((a, b) => (lastSwing.get(b.id) ?? 0) < (lastSwing.get(a.id) ?? 0) ? b : a))
@@ -2767,7 +2793,7 @@ class SurvivalController {
                     // A zombie's reach (~1.5 blocks) is half ours and it is slower than a walking player:
                     // back off whenever melee is inside 2.5 blocks while swinging at 3 (user kiting advice).
                     const moving = hunt ? null : kite(this, Object.values(this.bot.entities || {}).filter(e =>
-                        e.isValid && MELEE.has(e.name) && here.distanceTo(e.position) <= 4))
+                        isThreat(this, e, MELEE) && here.distanceTo(e.position) <= 4))
                     const readyAt = hunt ? nextHuntAttackAt : Math.max(nextHuntAttackAt, (lastSwing.get(target.id) ?? -Infinity) + MOB_HURT_COOLDOWN_MS)
                     if (Date.now() < readyAt || here.distanceTo(target.position) > 3 || (swimming && !this.canSee(target))) {
                         await sleep(Math.max(20, Math.min(100, readyAt - Date.now())))
@@ -2933,7 +2959,7 @@ class SurvivalController {
     // below the eye's view cone (staged 02:21Z: two "unseen" zombies killed a cornered bot).
     closeMelee (range = 3) {
         const here = this.bot.entity.position
-        return Object.values(this.bot.entities || {}).filter(e => e.isValid && MELEE.has(e.name) && here.distanceTo(e.position) <= range)
+        return Object.values(this.bot.entities || {}).filter(e => isThreat(this, e, MELEE) && here.distanceTo(e.position) <= range)
             .sort((a, b) => here.distanceTo(a.position) - here.distanceTo(b.position))[0] || null
     }
 
@@ -3128,7 +3154,7 @@ class SurvivalController {
 
     visibleThreatCount (range = 5) {
         const position = this.bot.entity.position
-        return Object.values(this.bot.entities || {}).filter(entity => entity.isValid && HOSTILES.has(entity.name) &&
+        return Object.values(this.bot.entities || {}).filter(entity => isThreat(this, entity, HOSTILES) &&
             position.distanceTo(entity.position) <= range && this.canSee(entity, true)).length
     }
 
@@ -3725,10 +3751,17 @@ class SurvivalController {
     }
 
     // Smelting skips furnaces holding food: charcoal took back a cooking job's beef and looped (07:06Z).
-    async getFurnace (cooking = false, underground = false) {
+    async getFurnace (cooking = false, underground = false, level = null) {
         const key = p => `${p.x},${p.y},${p.z}`
         const food = new Set([this.memory.cookJob, ...(this.memory.parkedCookJobs || [])].filter(Boolean).map(key))
-        return this.getStation('furnace', cooking ? null : block => !food.has(key(block.position)), cooking && underground)
+        const filter = level == null ? (cooking ? null : block => !food.has(key(block.position))) :
+            block => block.position.y === level && !food.has(key(block.position)) &&
+                (!this.memory.smeltJob || key(block.position) !== key(this.memory.smeltJob))
+        if (level != null && !this.hasItem('furnace') && !this.findStation('furnace', 4, filter)) {
+            await this.ensureItem('furnace', 1, true)
+            this.checkAction()
+        }
+        return this.getStation('furnace', filter, cooking && underground)
     }
 
     findStation (name, maxDistance = 4, filter = null) {
@@ -4352,9 +4385,17 @@ class SurvivalController {
     }
 
     nearestEntity (names, maxDistance = 16) {
+        if (names === HOSTILES || names === MELEE) {
+            const attacker = Object.values(this.bot.entities || {}).find(e => isThreat(this, e, names) &&
+                recentMobTarget(this, e) === this.bot.entity &&
+                this.bot.entity.position.distanceTo(e.position) <= Math.min(3, maxDistance))
+            if (attacker) {
+                return attacker
+            }
+        }
         return this.bot.nearestEntity(entity => {
             const name = entity.name
-            return entity.isValid && names.has(name) && this.bot.entity.position.distanceTo(entity.position) <= maxDistance &&
+            return isThreat(this, entity, names) && this.bot.entity.position.distanceTo(entity.position) <= maxDistance &&
                 (!PREY.has(name) || !this.isBlockedTarget(entity)) && !this.standingOff(entity) && this.canSee(entity, HOSTILES.has(entity.name))
         })
     }
@@ -4582,7 +4623,7 @@ class SurvivalController {
 
 module.exports = {
     SurvivalController, HOSTILES, PREY, FOOD_VALUES, actionMadeProgress, smeltJobState, updateHome,
-    shouldRelocateAfterStationFailure, shouldRerouteAscent, mobilityRecoveryKind,
+    shouldRelocateAfterStationFailure, mobilityRecoveryKind,
     pathfinderDropLimitForLanding, SAFE_PATHFINDER_DROP, kite, resourceApproachMs,
     heapPressureExceeded, PATH_SEARCH_RADIUS, HEAP_GUARD_BYTES, coveredAbove
 }

@@ -174,4 +174,4 @@ function handDiggable(block) {
     return Boolean(block?.diggable) && block.hardness != null && block.hardness <= BARE_HAND_MAX_HARDNESS && !block.name.endsWith('_ore')
 }
 
-module.exports = { discardableStack, discardableStacks, needsCleanup, overflowStack, inventoryReport, pickaxeStranded, handDiggable }
+module.exports = { discardableStack, discardableStacks, needsCleanup, overflowStack, inventoryReport, pickaxeStranded, handDiggable, WOOD_SUFFIXES }

@@ -4,7 +4,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { Vec3 } = require('vec3')
 const { pickaxeStranded, handDiggable } = require('../src/inventory')
-const { mineTunnel, performProgression } = require('../src/progression-skills')
+const { mineTunnel } = require('../src/progression-skills')
 const { SurvivalController } = require('../src/survival-bot')
 
 // Server-side inventory of the stuck bot at -4,31,-46 (F126): one plank, no sticks.
@@ -60,21 +60,6 @@ test('a stranded bot carves a rising tunnel step by hand with an empty hand', as
     const craftable = tunnelBot(stuck([['stick', 2]]))
     await assert.rejects(mineTunnel(craftable.c, 68), /mining requires a pickaxe/)
     assert.equal(craftable.dug.length, 0)
-})
-
-test('a stranded return carves the staircase by hand after the pickaxe-free walk fails', async () => {
-    const warnings = []
-    const { c, dug } = tunnelBot(stuck([]))
-    Object.assign(c, { paused: false, home: { y: 69 }, log: { info() {}, warn: m => warnings.push(m) } })
-    c.gotoWithTimeout = async goal => {
-        if (goal.x === undefined) {
-            throw new Error('No path to the goal!')
-        }
-        c.bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5)
-    }
-    await performProgression(c, 'return_surface', {}).catch(() => {})
-    assert.ok(warnings.some(m => /carving the staircase by hand/.test(m)), warnings.join('\n'))
-    assert.ok(dug.length >= 1)
 })
 
 test('the pickaxe guard and pathfinder exclusion lift only while stranded', () => {

@@ -3939,3 +3939,132 @@ third such failure scouts about 10 blocks before cleanup retries (underground
 scouts avoid water, F153). Regression in `test/station-recovery.test.js` fails
 on the pre-fix source. Not yet seen live; the running bot (a41c626) loads it
 at its next restart.
+
+## F161 — Vertical mining descent and surface return
+
+User direction 2026-11-15. Routine Overworld mining descents alternate two
+adjacent columns, one level per move, while preserving the floor under the
+bot. Each landing needs a dry two-high opening and a sound floor before the
+bot steps. Iron, gold, diamonds, lapis, redstone and deep lava searches use
+this path when they need a lower layer. Surface returns no longer find or
+walk remembered stairs or use the F159 reroute. They dig reachable overhead
+blocks in batches, verify each jump-and-place landing, plug revealed liquid
+and use supported same-level side passages when a column is blocked. A
+skylit mining pit still counts as underground. When it is deeper than the
+available scaffold, the bot sidesteps into rock to mine material on the way
+up. A remembered downward walking route is still usable.
+
+The planner defers cooking, smelting and furnace returns while a vertical
+route is active. It marks pending meat carried on the surface on the first
+observed Overworld day. The marked descent stops at exactly Y=47, digs a
+furnace alcove perpendicular to the pit, waits at the furnace and processes
+each raw meat type in turn. Existing jobs stay recorded. Once the last
+batch is collected, the furnace is reclaimed and descent resumes.
+
+The pinned prismarine physics simulator verifies Y=64 to Y=-54 in 235 digs
+across two columns and Y=-54 to Y=70 in 122 digs and 124 placements in
+solid rock, with mined stone credited to the test inventory. It also
+checks a lava bypass, unsupported drops, a hand-dug return, cancellation
+and resumption, an exit from a skylit pit, and the Y=47 stop and alcove.
+Planner and furnace tests verify job deferral, waiting, multiple batches
+and resumption. The new cases fail on the pre-change source. LAN timing,
+server placement and scaffold pickup over a natural deep ascent are pending.
+
+## F162 — Gather stone in consecutive cells at Y=47
+
+User direction 2026-11-15. `gather_stone` previously scanned up to 24 blocks
+and used the collect-target path for one block per action. Overworld stone
+trips now reach Y=47 by the vertical skills and clear two-high cells along a
+cardinal heading, changing direction at an unsafe face. The mining loop
+checks carried stock and steps directly into each verified cell. The trip
+budgets for the current recipe, remaining starter tools and furnace, or
+the 256-block bridge quota, plus estimated scaffold to surface. It keeps
+the stock objective across batches and returns by the normal pillar on
+completion. The Y=47 first-day meat stop retains priority.
+
+Regressions use the pinned player physics to verify both approaches to
+Y=47, consecutive breaks and direct steps at that level without a target
+scan, and a return with the required recipe stock. All three fail under
+the previous stone-gathering implementation. Time per stone has yet to
+be measured in LAN play.
+
+## F163 — Replace a missing crafting table on the Nether line
+
+Live on port 55354. The bot stopped at bridge step 298 near (46, 61, -177)
+with 32 logs and 3 planks. The recorded-search branch bypassed expedition
+prep and retried slab crafting with no table. The Nether planner now takes
+the craftable table prep before continuing the recorded search. If the
+table goes missing during the search action, slab restocking replaces it
+from carried wood or builds with full blocks when the recipe is unavailable.
+Both regression cases fail before the patch.
+
+Verified the owner's kit using EffectHelper, stopped PID 79610 and
+restarted in the same Terminal tab. Run `outputs/2026-11-15@01.37.54/`
+(PID 85065) shows the bot turning one log into planks, crafting a table
+at 06:37:58Z and replenishing its slabs. Read-only server queries in
+`outputs/nether-table-resume-probe.log` confirmed Z=-208.6 then Z=-210.6
+at Y=61. No bot supplies were staged. The owner-kit command log is
+`outputs/nether-table-restart-kit-live.json`.
+
+## F164 — A warped fungus occupied the next bridge floor
+
+The resumed F163 route advanced from step 298 to 345 and then retried
+placing a slab at (46, 60, -225), whose cell contained warped fungus.
+The bridge skipped solid footing but only cleared the body cells. Floor
+placement now clears diggable, non-solid obstructions with the existing
+lava-aware dig checks before placing the slab. The regression fails with
+the recorded server refusal on the previous code.
+
+After another owner-kit check, the bot restarted in the same Terminal tab
+(`outputs/2026-11-15@01.41.13/`, PID 85533). The read-only probe recorded
+the slab in the previously blocked cell and the bot moving from Z=-234.4
+to Z=-235.1, beyond the former stall at Z=-224. No bot supplies or terrain
+changes were staged. See `outputs/nether-floor-resume-probe.log`.
+
+## F165 — A hoglin hit while the Nether crowd guard refused to fight
+
+In `outputs/2026-11-15@01.41.13/bot.log`, the gold-armored bot held near
+(88, 61, -289), repeatedly chose `fight`, and rejected the action as
+outnumbered before swinging. A hoglin at one block kept dealing damage.
+Piglins wearing down the crowd policy were counted by type despite the
+bot's gold boots. The crowd latch could stay set with one nearby hostile,
+and the fight guard omitted hoglins from melee. It rejected an armored
+lone duel below 10 HP even though the planner still chose it.
+
+Nether threat classification now uses recent server-reported attack
+victims. Piglins remain neutral around gold armor until an attack is
+observed, and nearby hoglins or piglins observed hitting another entity
+are temporarily excluded. A Nether crowd latch clears below three active
+threats. The two regressions fail before the patch and verify a real swing
+at the hoglin at 9 HP and reaction to a piglin's first observed attack.
+
+Stopped the verified bot at about 9.7 HP to prevent loss, then verified
+the owner kit and restarted in the same Terminal tab
+(`outputs/2026-11-15@01.49.51/`, PID 86412). It ate and resumed the bridge
+from step 446. The server reported it at (118.5, 61, -295.1), 19.9 HP, and
+the bot logged a fortress sighting at (104, 57, -301). No fight with the
+original hoglin was observed after restart. No bot supplies were staged.
+
+## F166 — Supported descent from above a Nether fortress
+
+The bot circled on Y=61 because the bridge could descend only onto an
+existing one-block landing. The live terrain probe found a roof at Y=57
+and a brick hallway floor at Y=52 (`outputs/fortress-descent-terrain.log`).
+The approach now looks for the lower floor, constructs or excavates one
+supported step at a time, and records each standing cell for return. The
+bounded search tries short side moves and protects old stair supports from
+excavation. Returning past a repeated coordinate skips the loop. Startup
+preserves a recorded Nether footing instead of entering generic drop recovery.
+
+The first LAN restart moved off the recorded ledge during generic spawn
+recovery and failed to rejoin it (`outputs/2026-11-15@02.02.30/`). The
+owner kit was verified (`outputs/fortress-descent-staged-kit.json`), then
+the command helper restored Bot to (101.5, 61, -303.5), its last recorded
+cell (`outputs/fortress-descent-stage-ledger.log`). No items or blocks were
+staged. In `outputs/2026-11-15@02.04.16/bot.log`, the bot descended eight
+blocks, resumed after two hoglin interruptions, and stood in the hallway
+at (101, 53, -304) with 20 HP. The server awarded A Terrible Fortress.
+The additional footing-preservation check fixed a switchback that could
+mine a recorded landing. The regression fails on the previous code and
+now checks every landing and the reverse route. A LAN exit on the final
+stairs is still pending.

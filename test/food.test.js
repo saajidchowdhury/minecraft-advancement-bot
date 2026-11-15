@@ -296,6 +296,49 @@ test('a furnace job is due when its fuel runs out, counted in world ticks includ
     assert.equal(jobDue({}, { readyAt: Date.now() - 1 }), true, 'jobs recorded before tick tracking still resolve')
 })
 
+test('first-day surface meat waits at one Y=47 furnace until all batches are collected', async () => {
+    const { chooseAction } = require('../src/decision-engine')
+    const { c, furnace } = kitchen([{ name: 'beef', count: 3 }, { name: 'mutton', count: 2 }, { name: 'coal', count: 2 }])
+    c.findNearestBlock = () => null
+    c.bot.time = { day: 15, age: 1000 }
+    const state = { dimension: 'overworld', health: 20, food: 20, hostileDistance: Infinity, freeInventorySlots: 10,
+        hasCraftingTable: true, hasFurnace: true, hasWoodenPickaxe: true, hasStonePickaxe: true, logs: 40 }
+    foodState(c, { ...state, y: 64, underground: false })
+    assert.equal(c.memory.firstDayMeal, 'pending')
+    c.bot.time.day++
+    c.bot.entity.position = new Vec3(0.5, 47, 0.5)
+    c.bot.blockAt().position.y = 47
+    const site = { ...state, y: 47, underground: true, descentAction: 'gather_iron' }
+    const ordinaryJob = { dimension: 'overworld', x: 0, y: 64, z: 0, input: 'chicken', count: 2, readyAt: 0 }
+    c.memory.cookJob = ordinaryJob
+    const getFurnace = c.getFurnace
+    const requestedLevels = []
+    c.getFurnace = async (food, underground, level) => {
+        requestedLevels.push(level)
+        return getFurnace()
+    }
+    for (const [name, count] of [['beef', 3], ['mutton', 2]]) {
+        const ready = foodState(c, { ...site })
+        assert.equal(chooseAction(ready), 'cook_food')
+        await cookFood(c, ready)
+        assert.deepEqual(furnace.input, { name, count })
+        assert.equal(chooseAction(foodState(c, { ...site })), 'wait')
+        furnace.input = null
+        furnace.output = { name: `cooked_${name}`, count }
+        c.bot.time.age = c.memory.cookJob.readyAtTick
+        const collect = foodState(c, { ...site })
+        assert.equal(chooseAction(collect), 'cook_food')
+        await cookFood(c, collect)
+        assert.equal(c.countItems([`cooked_${name}`]), count)
+        assert.equal(Boolean(c.reclaimed), name === 'mutton')
+    }
+    assert.deepEqual(requestedLevels, [47, 47])
+    assert.equal(chooseAction(foodState(c, { ...site })), 'gather_iron')
+    assert.equal(c.memory.cookJob, ordinaryJob)
+    assert.equal(c.memory.firstDayMeal, 'done')
+    assert.equal(c.bot.entity.position.y, 47)
+})
+
 test('cooking collects leftover charcoal output instead of treating the furnace as busy', async () => {
     const items = [{ name: 'mutton', count: 2 }, { name: 'coal', count: 1 }]
     const { c, furnace } = kitchen(items)

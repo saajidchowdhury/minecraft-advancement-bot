@@ -10,21 +10,22 @@ playthrough is a test, not the definition of success.
 
 ## Now
 
-1. Nether fortress (G006, G019). The live bot is gathering gold for golden
-   boots (F158); watch it craft them, cast obsidian and enter the Nether in
-   natural play. Then a staged run that sights and enters a fortress, a
-   restock round trip that resumes at the frontier, a ghast answer, and
-   faster 256-block stone gathering. Live-verify this session's untested
-   fixes in natural play: F153–F157, F159, F160.
+1. Nether fortress (G006, G019). Entry earned A Terrible Fortress (F166).
+   Verify exit on the recorded stairs, a restock round trip to the saved
+   frontier, a ghast answer and a live hoglin fight. Measure LAN stone
+   gathering (F162) and check F153–F157 and F160.
 2. Fresh-world early game: wet-biome exit, mainland search and soil stock
    (F135–F137, F145, F147); compare an unaided start with F057.
-3. Live-verify still unproven changes: diamond pickup retry (F140), staircase
-   floods (F141), berries (F127), disposal zones (F129), standoffs (F130),
+3. Live-verify still unproven changes: diamond pickup retry (F140),
+   berries (F127), disposal zones (F129), standoffs (F130),
    dig delay cost (F131), sculk exits (F132), bare-hand escapes (F126);
    then cast obsidian (G005).
 4. Retreat under pursuit (F111): rerun `CAVE_SEED=49910 CAVE_MODE=staggered`
    and the simultaneous creepers until both end in a kill or scored escape.
-5. Flooded caves (user, 2026-11-13): leave a water-floored cave, such as
+5. Vertical routes (F161): stage a flooded descent and a return with overhead
+   liquid (F141). Verify footing, placement and the Y=47 food stop on LAN. Record
+   blocks broken, blocks placed and elapsed time for the stair comparison.
+6. Flooded caves (user, 2026-11-13): leave a water-floored cave, such as
    94,16,-127 in seed -3576454559444207221, by tunnelling away, or pillar to
    the surface if faster. Then G017 and G018.
 
@@ -52,10 +53,10 @@ casting ten from zero. The original blocked lava scoop passes on LAN (F122).
 
 F144 verified portal entry and return. F149 adds the fortress expedition:
 staged prep, a 363-step slab bridge line and a return along the recorded
-path work. Next: a run that sights and enters a fortress, a restock round
-trip resuming at the frontier (frontier walk and netherrack fallback now live),
+path work. F166 verified descent into a fortress hallway. Next: a live stair
+exit and a restock round trip resuming at the frontier,
 golden boots (G019), ghast fireballs,
-and faster 256-block stone gathering. Portal search needs sight within 32
+and a LAN timing comparison for the 256-block stone batch (F162). Portal search needs sight within 32
 blocks; a hidden portal triggered a failed rebuild (F149).
 
 ### G010 — High / implemented, full survey pending — Caves and parallel preparation

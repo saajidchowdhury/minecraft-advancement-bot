@@ -6,11 +6,12 @@ const { Vec3 } = require('vec3')
 const { EventEmitter } = require('node:events')
 const { performProgression, openToSky } = require('../src/progression-skills')
 const { SurvivalController } = require('../src/survival-bot')
+const { rockWorld } = require('./fixtures/rock-world')
 
 function waterWorld(night, roof = 65) {
     const air = new Set()
     const c = {
-        running: true, paused: false, actionAbort: new AbortController(), memory: { surfaceByStaircase: true },
+        running: true, paused: false, actionAbort: new AbortController(), memory: {},
         home: { y: 63 }, log: { info() {}, warn() {}, debug() {} }, isNight: () => night,
         countItems: names => names.includes('bucket') ? 2 : 0, findNearestBlock: () => null, checkAction() {},
         isEmptyPlacementBlock: b => b?.name === 'air',
@@ -46,25 +47,12 @@ test('a visible water source becomes an opportunity only when the bot can fill t
 })
 
 test('daytime water search keeps climbing beneath a roof even when underground is falsely reported as false', async () => {
-    const c = waterWorld(false)
+    const { c, bot } = rockWorld(new Vec3(108, 60, 65), 65)
+    c.countItems = names => names.includes('bucket') ? 2 : 0
+    c.observe = () => ({ underground: false })
     await performProgression(c, 'fill_water_bucket', {})
-    assert.ok(c.bot.entity.position.y > 60)
-    assert.equal(c.bot.entity.position.z, 65.5)
-})
-
-test('a surface return abandons a flooded remembered step and cuts a dry alternative', async () => {
-    const c = waterWorld(false)
-    c.memory.surfaceByStaircase = false
-    c.memory.mineRoute = [{ x: 107, y: 61, z: 65 }, { x: 108, y: 60, z: 65 }]
-    const at = c.bot.blockAt
-    c.bot.blockAt = p => p.equals(new Vec3(107, 61, 65))
-        ? { name: 'water', boundingBox: 'empty', position: p, getProperties: () => ({ level: 8 }) } : at(p)
-    const go = c.gotoWithTimeout
-    const visits = []
-    c.gotoWithTimeout = async goal => { visits.push(new Vec3(goal.x, goal.y, goal.z)); await go(goal) }
-    await performProgression(c, 'fill_water_bucket', {})
-    assert.ok(visits.some(p => p.y > 60))
-    assert.ok(visits.every(p => !p.equals(new Vec3(107, 61, 65))))
+    assert.ok(bot.entity.position.y > 60)
+    assert.equal(bot.entity.position.z, 65.5)
 })
 
 test('a bot already in flowing cave water gets to dry footing before mining', async () => {
@@ -93,11 +81,11 @@ test('a bot already in flowing cave water gets to dry footing before mining', as
     assert.equal(c.bot.entity.isInWater, false)
 })
 
-test('nighttime water search stays underground instead of continuing the surface staircase', async () => {
+test('nighttime water search stays underground instead of starting a surface shaft', async () => {
     const c = waterWorld(true)
     await performProgression(c, 'fill_water_bucket', {})
     assert.ok(c.bot.entity.position.y <= 60)
-    assert.equal(c.memory.surfaceByStaircase, true)
+    assert.equal(c.memory.surfaceClimb, undefined)
 })
 
 test('a blocked nighttime water search fails in place, without land scouting, so the stall rule can defer it', async () => {
@@ -192,10 +180,12 @@ test('nightfall interrupts a daytime water trip but leaves an underground night 
 })
 
 test('a night-ready bot continues the water search to the surface instead of staying underground', async () => {
-    const c = waterWorld(true)
+    const { c, bot } = rockWorld(new Vec3(108, 60, 65), 65)
+    c.countItems = names => names.includes('bucket') ? 2 : 0
+    c.isNight = () => true
     c.nightSurfaceReady = () => true
     await performProgression(c, 'fill_water_bucket', {})
-    assert.ok(c.bot.entity.position.y > 60, 'climbs as in daylight')
+    assert.ok(bot.entity.position.y > 60, 'climbs as in daylight')
     assert.equal(c.waterDaytimeSearch, true, 'nightfall does not cancel it')
 })
 

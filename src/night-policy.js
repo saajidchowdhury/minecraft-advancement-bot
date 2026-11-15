@@ -1,5 +1,7 @@
 'use strict'
 
+const { isThreat } = require('./mob-threat')
+
 const ARMOR = { leather: [1, 3, 2, 1], golden: [2, 5, 3, 1], chainmail: [2, 5, 4, 1],
     iron: [2, 6, 5, 2], diamond: [3, 8, 6, 3], netherite: [3, 8, 6, 3] }
 
@@ -29,7 +31,7 @@ function updateNightState(c, state) {
     state.sleeping = Boolean(bot.isSleeping)
     state.sleepPartnerReady = sleepPartnerReady(c)
     state.armorPoints = wornArmorPoints(bot)
-    const threats = Object.values(bot.entities).filter(e => e.isValid && c.hostileNames.has(e.name))
+    const threats = Object.values(bot.entities).filter(e => isThreat(c, e, c.hostileNames))
         .map(entity => ({ entity, distance: bot.entity.position.distanceTo(entity.position) }))
         .filter(entry => entry.distance <= 24 && c.canSee(entry.entity))
     state.hostileCount = threats.filter(entry => entry.distance <= 12).length

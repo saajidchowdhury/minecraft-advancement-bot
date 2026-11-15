@@ -5,7 +5,7 @@ const assert = require('node:assert/strict')
 const { EventEmitter } = require('node:events')
 const { Vec3 } = require('vec3')
 const registry = require('minecraft-data')('26.1')
-const { SurvivalController } = require('../src/survival-bot')
+const { SurvivalController, HOSTILES } = require('../src/survival-bot')
 const { updateCrowdRetreat, retreatToWall, mineFromRefuge, sealedRefuge } = require('../src/crowd-retreat')
 
 function corridor() {
@@ -174,6 +174,54 @@ test('a cornered fight cannot attack after a crowd with an archer has latched', 
     assert.equal(attacks, 0)
     assert.ok(c.crowdRetreat)
     assert.deepEqual(c.movements[0].scafoldingBlocks, [])
+})
+
+test('an armored bot fights a hoglin at nine HP after a Nether crowd thins out', async () => {
+    const c = corridor()
+    const { bot } = c
+    bot.game.dimension = 'the_nether'
+    c.hostileNames = HOSTILES
+    const [hoglin, piglin, other] = Object.values(bot.entities)
+    hoglin.name = other.name = 'hoglin'
+    piglin.name = 'piglin'
+    c.bestItem = () => ({ name: 'diamond_sword' })
+    assert.equal(updateCrowdRetreat(c, HOSTILES), true)
+    bot.health = 9
+    bot.inventory.slots[5] = { name: 'diamond_helmet' }
+    bot.inventory.slots[6] = { name: 'diamond_chestplate' }
+    bot.inventory.slots[7] = { name: 'iron_leggings' }
+    bot.inventory.slots[8] = { name: 'golden_boots' }
+    c.activeAction = 'fight'
+    c.bindEvents()
+    bot.emit('entityHurt', piglin, other)
+    bot.emit('entityHurt', bot.entity, hoglin)
+    const swings = []
+    bot.attack = mob => {
+        swings.push(mob.id)
+        mob.isValid = false
+    }
+    await c.fight(hoglin)
+    assert.deepEqual(swings, [hoglin.id])
+    assert.equal(c.crowdRetreat, null)
+})
+
+test('a piglin only interrupts a gold-armored Nether bot after its attack is observed', () => {
+    const c = corridor()
+    const { bot } = c
+    bot.game.dimension = 'the_nether'
+    c.hostileNames = HOSTILES
+    const piglin = bot.entities[1]
+    piglin.name = 'piglin'
+    bot.entities = { 1: piglin }
+    bot.inventory.slots[8] = { name: 'golden_boots' }
+    c.activeAction = 'find_fortress'
+    c.bindEvents()
+    bot.emit('entityMoved', piglin)
+    assert.equal(c.actionAbort.signal.aborted, false)
+    assert.equal(c.visibleThreatCount(), 0)
+    bot.emit('entityHurt', bot.entity, piglin)
+    assert.equal(c.actionAbort.signal.reason, 'attacked by piglin')
+    assert.equal(c.visibleThreatCount(), 1)
 })
 
 test('a crowd-retreat latch expires after ten seconds with no hostile within 24 blocks', t => {

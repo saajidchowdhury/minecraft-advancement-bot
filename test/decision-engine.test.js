@@ -175,6 +175,25 @@ test('a hungry miner crafts a pick before attempting a routine surface return', 
     assert.equal(chooseAction({ ...miner, creeperDistance: 4 }), Actions.ESCAPE)
 })
 
+test('the planner resumes an open surface shaft through an ore opportunity', () => {
+    const climbing = state({ carvingSurfaceExit: true, underground: true, y: 67, surfaceY: 64,
+        hasWoodenPickaxe: true, hasStonePickaxe: true, hasIronPickaxe: true, logs: 40, mealReserve: 320, diamondInView: true })
+    assert.equal(chooseAction(climbing), 'return_surface')
+    assert.equal(chooseAction({ ...climbing, food: 10, hasFood: true }), Actions.EAT)
+    assert.equal(chooseAction({ ...climbing, inLava: true }), 'escape_lava')
+})
+
+test('vertical travel defers a ready cooking or smelting job even at the ordinary cooking depth', () => {
+    const miner = state({ underground: true, y: 47, surfaceY: 64, hasCraftingTable: true, hasFurnace: true,
+        hasWoodenPickaxe: true, hasStonePickaxe: true, rawIron: 6, smeltReady: true, canCook: true,
+        cookJob: { ready: true }, hasFood: true, hasReadyFood: false })
+    for (const vertical of [{ descentAction: 'gather_gold' }, { carvingSurfaceExit: true }]) {
+        const expected = vertical.descentAction || 'return_surface'
+        assert.equal(chooseAction({ ...miner, ...vertical }), expected)
+        assert.equal(chooseAction({ ...miner, ...vertical, food: 12 }), Actions.EAT)
+    }
+})
+
 test('the axe upgrade outranks optional activities while keeping threat interrupts', () => {
     const ready = state({ hasCraftingTable: true, hasWoodenPickaxe: true, hasEarlySword: true, hasStonePickaxe: true,
         hasWoodcuttingAxe: false, cobblestone: 3, sticks: 2, canPlantSeed: true })

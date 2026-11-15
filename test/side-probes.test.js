@@ -7,6 +7,7 @@ const mcData = require('minecraft-data')('26.1')
 const { probeTunnelSides, mineTunnel } = require('../src/progression-skills')
 const { SurvivalController } = require('../src/survival-bot')
 const { loadConfig } = require('../src/config')
+const { rockWorld } = require('./fixtures/rock-world')
 
 function miningWorld(overrides = new Map()) {
     const air = new Set(['(0, 64, 0)', '(0, 65, 0)'])
@@ -328,7 +329,8 @@ test('mining one diamond reveals its face-adjacent vein through the opening, whi
 
 test('the iron skill descends toward its normal depth when loaded iron is behind stone', async () => {
     const hidden = new Vec3(0, 64, -4)
-    const c = miningWorld(new Map([[hidden.toString(), 'iron_ore']]))
+    const { c, set } = rockWorld(new Vec3(0, 64, 0), 70)
+    set(hidden, 'iron_ore')
     c.mcData = mcData
     c.observe = () => ({ dimension: 'overworld', health: 12 })
     c.checkAction = () => {}

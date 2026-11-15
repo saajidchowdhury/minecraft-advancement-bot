@@ -2,7 +2,7 @@
 
 const { Vec3 } = require('vec3')
 const { goals } = require('mineflayer-pathfinder')
-const { until } = require('./progression-skills')
+const { until, FIRST_DAY_COOKING_Y } = require('./progression-skills')
 const { canSeeBlock } = require('./vision')
 const { dryMovements, safeFooting } = require('./cave-exploration')
 const { reachGoal } = require('./tree-climb')
@@ -21,6 +21,7 @@ const FOOD_VALUES = Object.fromEntries(Object.entries(FOODS).map(([name, [hunger
 const COOKED = { beef: 'cooked_beef', porkchop: 'cooked_porkchop', mutton: 'cooked_mutton', chicken: 'cooked_chicken',
     rabbit: 'cooked_rabbit', cod: 'cooked_cod', salmon: 'cooked_salmon', potato: 'baked_potato' }
 const LAND_MEATS = ['cooked_beef', 'cooked_porkchop', 'cooked_mutton', 'cooked_chicken', 'cooked_rabbit']
+const rawMeat = item => COOKED[item.name] && item.name !== 'potato'
 const meal = name => FOODS[name][0] + FOODS[name][1]
 // User direction (2026-11-06): 16 average cooked land meats before mining (16 x 16.28 = 260.5).
 // Hunger plus saturation is what a meal restores eaten hungry; saturation alone would rate a
@@ -79,6 +80,15 @@ function foodState(c, state) {
     const items = c.bot.inventory.items()
     state.mealReserve = mealReserve(items)
     state.rawFood = c.countItems(Object.keys(COOKED))
+    if (state.dimension === 'overworld' && c.bot.time?.day != null) {
+        c.memory.firstOverworldDay ??= c.bot.time.day
+        if (!state.underground && !state.isNight && c.bot.time.day === c.memory.firstOverworldDay &&
+            !c.memory.firstDayMeal && items.some(rawMeat)) {
+            c.memory.firstDayMeal = 'pending'
+        }
+    }
+    const atMealStop = state.dimension === 'overworld' && state.descentAction &&
+        Math.floor(state.y) === FIRST_DAY_COOKING_Y && c.memory.firstDayMeal === 'pending'
     const distance = j => j.dimension === state.dimension ? c.bot.entity.position.distanceTo(new Vec3(j.x, j.y, j.z)) : Infinity
     // Reach by furnace: an underground one serves the night miner beside it; a surface one is visited by
     // day (300 blocks on the surface, 64 from below) and at night only at hand (user direction 2026-11-11).
@@ -89,7 +99,12 @@ function foodState(c, state) {
         c.log.warn(`Abandoning the distant cooking job at ${j.x},${j.y},${j.z} (${j.count} ${j.input}).`)
     }
     jobs = jobs.filter(j => !(distance(j) > 300 && distance(j) < Infinity))
-    let job = jobs.find(j => j === c.memory.cookJob) || jobs.find(j => distance(j) <= reach(j)) || null
+    state.firstDayShaftMeal = Boolean(atMealStop && (items.some(rawMeat) || jobs.some(j => j.shaftMeal && distance(j) <= 4)))
+    if (atMealStop && !state.firstDayShaftMeal) {
+        c.memory.firstDayMeal = 'done'
+    }
+    let job = state.firstDayShaftMeal ? jobs.find(j => j.shaftMeal && distance(j) <= 4) || null :
+        jobs.find(j => j === c.memory.cookJob) || jobs.find(j => distance(j) <= reach(j)) || null
     if (job && distance(job) > reach(job) && state.rawFood > 0) {
         job = null
     }
@@ -216,11 +231,12 @@ async function waitForFish(c) {
 // Fire-and-forget like iron smelting: load one raw type with fuel, record the job, keep working.
 async function startCooking(c, state) {
     const signal = c.actionAbort?.signal
-    if (!c.hasItem('furnace') && !c.findStation('furnace', 4)) {
+    const shaftMeal = Boolean(state?.firstDayShaftMeal)
+    if (!shaftMeal && !c.hasItem('furnace') && !c.findStation('furnace', 4)) {
         await c.ensureItem('furnace', 1, true)
         c.checkAction(signal)
     }
-    const block = await c.getFurnace(true, state?.underground).catch(error => {
+    const block = await c.getFurnace(true, state?.underground, shaftMeal ? FIRST_DAY_COOKING_Y : null).catch(error => {
         if (!signal?.aborted) {
             c.memory.cookBlockedUntil = Date.now() + 60000
         }
@@ -239,7 +255,8 @@ async function startCooking(c, state) {
         }
         // Raw food already in the slot (an earlier interrupted job) is adopted rather than mixed.
         let current = furnace.inputItem()
-        const raw = current || c.bot.inventory.items().filter(item => COOKED[item.name]).sort((a, b) => b.count - a.count)[0]
+        const raw = current || c.bot.inventory.items().filter(shaftMeal ? rawMeat : item => COOKED[item.name])
+            .sort((a, b) => b.count - a.count)[0]
         if (!raw) {
             return
         }
@@ -264,6 +281,9 @@ async function startCooking(c, state) {
         const p = block.position
         c.memory.cookJob = { dimension: c.bot.game.dimension, x: p.x, y: p.y, z: p.z, input: raw.name, count,
             underground: Boolean(state?.underground), readyAt: Date.now() + count * SECONDS_PER_ITEM * 1000 + 1000 }
+        if (shaftMeal) {
+            c.memory.cookJob.shaftMeal = true
+        }
         if (fuel && !furnace.fuelItem()) {
             await putCookingFuel(c, furnace, fuel)
         }
@@ -387,7 +407,8 @@ async function collectCooking(c, job) {
         await c.bot.closeWindow(furnace).catch(() => {})
     }
     c.log.info(`Checked cooking at ${position}; ${finished ? 'job complete' : `${job.count} ${job.input} left`}.`)
-    if (finished && c.running && !c.actionAbort?.signal.aborted) {
+    const moreMeat = job.shaftMeal && c.bot.inventory.items().some(rawMeat)
+    if (finished && !moreMeat && c.running && !c.actionAbort?.signal.aborted) {
         await c.reclaimStation(block).catch(error => c.log.warn(`Could not reclaim furnace: ${error.message}`))
     }
 }

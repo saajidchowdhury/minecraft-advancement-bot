@@ -232,7 +232,8 @@ function expeditionStep(state) {
         return craft(state, 'prep:expedition crafting table', 'crafting_table', 'craft_table')
     }
     if ((state.bridgeSupply ?? 0) < EXPEDITION_BLOCKS) {
-        return target('prep:Nether bridge blocks', 'gather_stone', 'four stacks of non-flammable blocks for bridging')
+        return target('prep:Nether bridge blocks', 'gather_stone', 'four stacks of non-flammable blocks for bridging',
+            { bridgeBlocks: EXPEDITION_BLOCKS })
     }
     const iron = resourceAction(state, EXPEDITION_IRON)
     if (iron) {
@@ -247,8 +248,14 @@ function expeditionStep(state) {
 function planAdvancement(state) {
     if (state.dimension === 'the_nether' && state.completedAdvancements?.has('minecraft:story/enter_the_nether')) {
         const supplied = (state.netherSupply ?? state.bridgeSupply ?? 0) >= EXPEDITION_MIN_BLOCKS && state.netherMealsLeft !== false
-        if (!state.fortressReached && supplied && (state.fortressSearch || !expeditionStep(state))) {
-            return target('prep:Nether fortress', 'find_fortress', 'bridge or tunnel one cardinal line until a fortress shows')
+        if (!state.fortressReached && supplied) {
+            const prep = expeditionStep(state)
+            if (prep?.action === 'craft_table') {
+                return prep
+            }
+            if (state.fortressSearch || !prep) {
+                return target('prep:Nether fortress', 'find_fortress', 'bridge or tunnel one cardinal line until a fortress shows')
+            }
         }
         if (!state.fortressReached) {
             return target('prep:return from the Nether', 'leave_nether', 'step back through the portal to the Overworld')

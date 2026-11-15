@@ -26,14 +26,15 @@ It works on `.js` and `.md` files.
 - `src/biome-exit.js` handles cardinal travel, coastline routing and solid
   footing before the first-spawn mainland search.
 - `src/progression-skills.js`: tunnels (`mineTunnel`, `probeTunnelSides`),
-  shafts (`followShaft`, `returnSurface`), buckets and obsidian, the Nether
+  shafts (`mineToLayer`, `returnSurface`, `followShaft`), buckets and obsidian, the Nether
   portal, disposal (`clearInventory`, `disposalPit`), redstone.
 - Other skills, one module each: `food.js` (cooking jobs, meal reserve),
   `furnace-fuel.js`, `cave-exploration.js` (surveys, ore sight),
-  `crowd-retreat.js`, `night-policy.js`, `night-skills.js`, `base.js`,
+  `crowd-retreat.js`, `mob-threat.js` (Nether attack-target evidence, F165),
+  `night-policy.js`, `night-skills.js`, `base.js`,
   `tree-climb.js`, `under-feet.js`, `sculk-caution.js`, `vision.js`,
   `drop-caution.js` (movement caution beside 10-block drops, F148),
-  `nether-fortress.js` (fortress expedition line, recorded path, F149),
+  `nether-fortress.js` (expedition line and fortress entry, F149, F166),
   `inventory.js`, `farming.js`, `archery.js`, `enchanting.js`, `golem.js`,
   `loot.js`, `terrain-scout.js`.
 - Tests mirror modules: `test/<module>.test.js`. Controller-level cases are in
@@ -125,7 +126,7 @@ The implemented route is:
 5. Craft two empty buckets and fill both with water. **Hot Stuff** requires
    a separate lava scoop. A deferred water search can let the lava scoop
    happen first.
-6. **Diamonds!** — staircase/branch mining, then a diamond pickaxe.
+6. **Diamonds!** — two-column descent and branch mining, then a diamond pickaxe.
 7. For **Ice Bucket Challenge**, mine exposed obsidian or cast it by pouring
    water above lava in an off-path basin. The bot remembers up to ten visible
    sources near the active pool and can reuse the basin. A three-cell water
@@ -137,9 +138,11 @@ The implemented route is:
    crafting table, four stacks of non-flammable slab blocks, iron and sticks
    for two pickaxes and 16 meals; in the Nether, tunnel or bridge one cardinal
    line on slab floors and head-height slab walls (netherrack once slabs run
-   out), look for fortress blocks every 16 steps, head for a sighted one an
-   axis at a time and dig in. The line is recorded cell by cell: the bot goes
-   home along it to restock and walks it back to the frontier (F149).
+   out) and look for fortress blocks every 16 steps. Approach a sighted
+   fortress one axis at a time. If the line is higher than the fortress, find
+   a lower landing and build supported one-block steps, including through
+   the roof when there is a hallway below. The bot records the bridge and
+   stairs for return and restock trips (F149, F166).
 
 Once the fortress is reached the planner holds (`wait`); Enchanter (from book
 supplies in hand) and full diamond armor follow outside the expedition.
@@ -166,6 +169,19 @@ then seeks a large land mass if the world's initial land milestone is pending
 success after 250 ms, a failure after 1.5 s. Path searches and actions are
 bounded. An operation that refuses cancellation forces a reconnect.
 Minecraft commands for staged tests stay outside the gameplay controller.
+
+For an Overworld mining descent, the bot stays on solid ground, opens the
+adjacent column down one level, checks the landing and steps across. It
+alternates columns until the target Y, then digs horizontally. Surface
+returns clear reachable blocks overhead, then jump and place underfoot
+through the cleared space. The bot plugs exposed liquid and cuts a short
+side passage when the column is blocked. Furnace interactions wait until
+vertical travel ends. On its first observed Overworld day, the bot saves a
+Y=47 stop for raw meat carried from the surface. It cooks every batch in one
+side-alcove furnace before resuming the descent (F161). Stone-supply trips
+mine a two-high horizontal tunnel at Y=47, then return to the surface
+with the stock for the current objective and an allowance for the climb
+(F162).
 
 The current rules for mining, furnaces, food, combat, night, shelter and
 recovery, each with its constants and finding IDs, are under "Policies in

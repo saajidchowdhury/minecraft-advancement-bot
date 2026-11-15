@@ -5,6 +5,7 @@ const { goals } = require('mineflayer-pathfinder')
 const { dryMovements, safeFooting } = require('./cave-exploration')
 const { miningPickaxe, mineTunnel } = require('./progression-skills')
 const { towerStep, descendPillar } = require('./tree-climb')
+const { isThreat } = require('./mob-threat')
 
 const DIRECTIONS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 const FLEE_CLEARANCE = 8  // blocks from every remembered threat; zombies follow at walking pace
@@ -12,7 +13,7 @@ const UNSAFE = new Set(['water', 'lava', 'sand', 'red_sand', 'gravel', 'magma_bl
     'bedrock', 'chest', 'barrel', 'furnace', 'spawner', 'trial_spawner', 'infested_stone', 'infested_deepslate'])
 
 function observedThreats(c, names) {
-    return Object.values(c.bot.entities || {}).filter(e => e.isValid && names.has(e.name) &&
+    return Object.values(c.bot.entities || {}).filter(e => isThreat(c, e, names) &&
         e.position.distanceTo(c.bot.entity.position) <= 16 && c.canSee(e, true))
 }
 
@@ -27,8 +28,11 @@ function updateCrowdRetreat(c, names) {
     }
     // A latched retreat ends after 10 s with no hostile within 24 blocks (round 6: a stale latch sent a
     // later hallway fight into the wall-refuge routine); briefly losing track keeps the latch.
-    const tracked = Object.values(c.bot.entities || {}).some(e => e.isValid && names.has(e.name) &&
-        e.position.distanceTo(c.bot.entity.position) <= 24)
+    const tracked = Object.values(c.bot.entities || {}).filter(e => isThreat(c, e, names) &&
+        e.position.distanceTo(c.bot.entity.position) <= 24).length
+    if (dimension === 'the_nether' && tracked < 3) {
+        c.crowdRetreat = null
+    }
     if (c.crowdRetreat && (tracked || c.crowdRetreat.trackedAt === undefined)) {
         c.crowdRetreat.trackedAt = Date.now()
     } else if (c.crowdRetreat && Date.now() - c.crowdRetreat.trackedAt > 10000) {
@@ -120,7 +124,9 @@ async function retreatToWall(c) {
     try {
         for (let attempt = 0; attempt < 3 && Date.now() < deadline; attempt++) {
             c.checkAction()
-            updateCrowdRetreat(c, c.hostileNames)
+            if (!updateCrowdRetreat(c, c.hostileNames)) {
+                return
+            }
             const route = retreatRoute(c, rejected)
             // A flee with no refuge that ends inside the crowd's reach only trades hits for steps (staged 03:54Z).
             if (!route || (!route.center && route.distance < FLEE_CLEARANCE && c.closeMelee?.())) {
@@ -137,7 +143,9 @@ async function retreatToWall(c) {
                 if (!bot.entity.position.floored().equals(p)) {
                     throw new Error('crowd retreat waypoint was not reached')
                 }
-                updateCrowdRetreat(c, c.hostileNames)
+                if (!updateCrowdRetreat(c, c.hostileNames)) {
+                    return
+                }
             }
             if (!route.center || nearby()) {
                 if (route.entrance) { rejected.add(route.entrance.toString()) }
@@ -233,7 +241,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 function pillarSafe(c) {
     const bot = c.bot
     const here = bot.entity.position
-    const near = Object.values(bot.entities || {}).filter(e => e.isValid && c.hostileNames?.has(e.name) && e.position.distanceTo(here) <= 16)
+    const near = Object.values(bot.entities || {}).filter(e => isThreat(c, e, c.hostileNames) && e.position.distanceTo(here) <= 16)
     const scaffold = bot.inventory.items().reduce((n, i) => n + (SCAFFOLD.includes(i.name) ? i.count : 0), 0)
     const feet = here.floored()
     const headroom = [2, 3, 4, 5].every(dy => bot.blockAt(feet.offset(0, dy, 0), false)?.boundingBox === 'empty')

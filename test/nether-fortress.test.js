@@ -38,6 +38,18 @@ test('in the Nether a supplied bot searches for a fortress, a short one returns 
     assert.equal(step({ fortressReached: true }).action, 'wait')
 })
 
+test('the Nether planner replaces a lost crafting table before resuming a recorded search', () => {
+    const { chooseAction } = require('../src/decision-engine')
+    const stalled = { ...kit, health: 20, food: 20, hostileDistance: Infinity, freeInventorySlots: 1,
+        dimension: 'the_nether', fortressSearch: true, hasCraftingTable: false, carriesCraftingTable: false,
+        logs: 32, planks: 3, bridgeSupply: 76, netherSupply: 76 }
+    assert.equal(chooseAction(stalled), 'craft_table')
+    assert.equal(chooseAction({ ...stalled, logs: 0, planks: 4 }), 'craft_table')
+    assert.equal(chooseAction({ ...stalled, logs: 0, planks: 3 }), 'find_fortress')
+    assert.equal(chooseAction({ ...stalled, carriesCraftingTable: true }), 'find_fortress')
+    assert.equal(chooseAction({ ...stalled, netherSupply: 7 }), 'leave_nether')
+})
+
 test('expedition carry limits keep four stacks of bridge blocks and their slabs', () => {
     const items = [...Array(5)].map(() => ({ name: 'cobblestone', count: 64 })).concat([{ name: 'cobblestone_slab', count: 64 }])
     assert.equal(discardableStacks(items).filter(i => i.name === 'cobblestone').length, 4)
@@ -56,6 +68,59 @@ test('a sighted fortress is approached one axis at a time', () => {
     assert.equal(heading(feet, new Vec3(0, 75, 0), 3), 3)
     const near = chooseTarget(feet, [new Vec3(6, 90, 0), new Vec3(12, 70, 0)])
     assert.deepEqual(near, new Vec3(12, 70, 0), 'a block at bridge height beats a nearer one far above')
+})
+
+test('a roof above a fortress hallway gets a reversible stair to the interior floor', async () => {
+    const { bot, placed, key } = bridgeWorld()
+    bot.entity.position = new Vec3(1.5, 61, 0.5)
+    placed.set('1,60,0', 'netherrack')
+    for (let x = 0; x <= 4; x++) {
+        for (let z = -7; z <= 7; z++) {
+            placed.set(key(new Vec3(x, 57, z)), 'nether_bricks')
+            placed.set(key(new Vec3(x, 52, z)), 'nether_bricks')
+            if (x === 0 || x === 4) {
+                for (let y = 53; y <= 56; y++) {
+                    placed.set(key(new Vec3(x, y, z)), 'nether_bricks')
+                }
+            }
+        }
+    }
+    const c = { bot, running: true, rng: () => 0, log: { info() {}, warn() {} },
+        memory: { netherBridge: { dimension: 'the_nether', dir: 0, steps: 0, lastCheck: 0,
+            portal: new Vec3(1, 61, 0), target: new Vec3(0, 57, 0), turns: 0 } } }
+    const items = bot.inventory.items()
+    items.splice(0, items.length, { name: 'netherrack', count: 64 })
+    bot.equip = async item => { bot.heldName = item.name }
+    bot.dig = async block => {
+        assert.ok(!block.position.equals(bot.entity.position.floored().offset(0, -1, 0)), 'dug current footing')
+        placed.set(key(block.position), 'air')
+    }
+    bot._placeBlockWithOptions = async (ref, face) => { placed.set(key(ref.position.plus(face)), bot.heldName) }
+    let destination
+    let steps = 0
+    bot.lookAt = async p => { destination = p.offset(0, -1.5, 0) }
+    bot.setControlState = (control, on) => {
+        if (control === 'forward' && on) {
+            assert.ok(++steps <= 12, 'walked past the hallway')
+            assert.ok(Math.abs(bot.entity.position.y - destination.y) <= 1, 'attempted an unsupported drop')
+            assert.equal(bot.blockAt(destination.offset(0, -1, 0)).boundingBox, 'block')
+            bot.entity.position = destination
+        }
+    }
+    c.gotoWithTimeout = async goal => { bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5) }
+    await findFortress(c)
+    assert.equal(bot.entity.position.y, 53, 'the roof is not the hallway')
+    assert.equal(c.memory.netherFortress.reached, true)
+    const { returnAlongPath } = require('../src/nether-fortress')
+    for (const [i, [x, y, z]] of c.memory.netherBridge.path.entries()) {
+        const feet = new Vec3(x, y, z)
+        assert.equal(bot.blockAt(feet.offset(0, -1, 0)).boundingBox, 'block', `missing stair support at ${feet}`)
+        assert.equal(bot.blockAt(feet).name, 'air')
+        assert.equal(bot.blockAt(feet.offset(0, 1, 0)).name, 'air')
+        assert.ok(!i || c.memory.netherBridge.path[i - 1][1] - y <= 1)
+    }
+    await returnAlongPath(c)
+    assert.deepEqual(bot.entity.position.floored(), new Vec3(1, 61, 0))
 })
 
 // A real Movements-free world: netherrack floor at y=69 for x<=1, void beyond, slabs placed by clicks.
@@ -179,6 +244,74 @@ test('slab crafting puts the table beside the line and takes it back', async () 
     assert.deepEqual(dug.map(p => key(p)), ['0,70,1'])
 })
 
+test('the bridge replaces a missing table on demand and uses full blocks if no table can be made', async () => {
+    for (const wood of [true, false]) {
+        const { bot, placed, key } = bridgeWorld()
+        const items = bot.inventory.items()
+        items.splice(0, items.length, { name: 'cobblestone', count: 6 })
+        if (wood) {
+            items.push({ name: 'oak_log', count: 1 })
+        }
+        const origin = bot.entity.position.floored()
+        const floor = origin.offset(1, -1, 0)
+        placed.set(key(floor), 'air')
+        const trace = []
+        bot.equip = async item => { bot.heldName = item.name }
+        bot._placeBlockWithOptions = async (ref, face) => { placed.set(key(ref.position.plus(face)), bot.heldName) }
+        bot.dig = async block => { placed.delete(key(block.position)) }
+        const c = { bot, running: true, rng: () => 0, log: { info() {}, warn() {} },
+            memory: { netherBridge: { dimension: 'the_nether', dir: 0, steps: 298, lastCheck: 298, portal: origin, turns: 0 } },
+            async craftTable() {
+                assert.ok(wood)
+                trace.push('table')
+                items.push({ name: 'crafting_table', count: 1 })
+            },
+            async craftItem(name, count, needsTable) {
+                assert.equal(needsTable, true)
+                assert.equal(bot.blockAt(origin.offset(-1, 0, 0)).name, 'crafting_table')
+                trace.push(name)
+                items.push({ name, count })
+            }
+        }
+        bot.setControlState = (control, on) => {
+            if (control === 'forward' && on) {
+                bot.entity.position = bot.entity.position.offset(1, 0, 0)
+                c.running = false
+            }
+        }
+        await assert.rejects(findFortress(c), /cancelled/)
+        assert.deepEqual(trace, wood ? ['table', 'cobblestone_slab'] : [])
+        assert.equal(bot.blockAt(floor).name, wood ? 'cobblestone_slab' : 'cobblestone')
+        assert.equal(c.memory.netherBridge.steps, 298)
+        assert.equal(bot.entity.position.x, 1.5)
+    }
+})
+
+test('a warped fungus in the next bridge floor cell is cleared before placing a slab', async () => {
+    const { bot, placed, key } = bridgeWorld()
+    const floor = new Vec3(1, 69, 0)
+    placed.set(key(floor), 'warped_fungus')
+    const dig = []
+    bot.dig = async block => { dig.push(block.name); placed.set(key(block.position), 'air') }
+    const place = bot._placeBlockWithOptions
+    bot._placeBlockWithOptions = async (ref, face, options) => {
+        if (ref.position.plus(face).equals(floor) && placed.get(key(floor)) === 'warped_fungus') {
+            throw new Error('Server refused to place cobblestone_slab: the block is still warped_fungus')
+        }
+        await place.call(bot, ref, face, options)
+    }
+    const c = { bot, memory: {}, running: true, rng: () => 0, log: { info() {}, warn() {} } }
+    bot.setControlState = (control, on) => {
+        if (control === 'forward' && on) {
+            bot.entity.position = bot.entity.position.offset(1, 0, 0)
+            c.running = false
+        }
+    }
+    await assert.rejects(findFortress(c), /cancelled/)
+    assert.deepEqual(dig, ['warped_fungus'])
+    assert.equal(placed.get(key(floor)), 'cobblestone_slab')
+})
+
 test('a cancelled fortress step lets go well inside the 2 s release window', async () => {
     const { bot } = bridgeWorld()
     const memory = { netherBridge: { dimension: 'the_nether', dir: 0, steps: 0, lastCheck: 0, portal: new Vec3(0, 70, 0), target: null, turns: 0 } }
@@ -190,12 +323,12 @@ test('a cancelled fortress step lets go well inside the 2 s release window', asy
     assert.ok(Date.now() - started < 1000, `released after ${Date.now() - started} ms`)
 })
 
-test('the way home walks every recorded bridge cell back, not a pathfinder route', async () => {
+test('the way home follows recorded bridge cells and skips loops that end on the same cell', async () => {
     const { returnAlongPath } = require('../src/nether-fortress')
     const fixture = bridgeWorld()
     const { bot } = fixture
     // An L-shaped line: east from the portal cell to x=3, then north to z=-2; the bot stands on its end.
-    const path = [[0, 70, 0], [1, 70, 0], [2, 70, 0], [3, 70, 0], [3, 70, -1], [3, 70, -2]]
+    const path = [[0, 70, 0], [1, 70, 0], [2, 70, 0], [3, 70, 0], [4, 70, 0], [3, 70, 0], [3, 70, -1], [3, 70, -2]]
     const { placed, key } = fixture
     path.forEach(([x, y, z]) => placed.set(key(new Vec3(x, y - 1, z)), 'cobblestone_slab'))
     bot.entity.position = new Vec3(3.5, 70, -1.5)
@@ -330,9 +463,14 @@ test('a bot knocked off its line tunnels or bridges back to it instead of scouti
     assert.deepEqual(bot.entity.position.floored(), new Vec3(0, 70, 0), 'back on the line and home to its first cell')
 })
 
-test('piglins count as hostile attackers, ghasts and zombified piglins do not', () => {
+test('piglins without gold protection warn the bot, while zombified piglins require attack evidence', () => {
     const { HOSTILES } = require('../src/survival-bot')
-    assert.equal(HOSTILES.has('piglin'), true, 'an ignored piglin killed the bot on its bridge')
-    assert.equal(HOSTILES.has('ghast'), false)
-    assert.equal(HOSTILES.has('zombified_piglin'), false)
+    const { isThreat, rememberMobTarget } = require('../src/mob-threat')
+    const c = { bot: { game: { dimension: 'the_nether' }, entity: {} } }
+    const zombified = { id: 1, name: 'zombified_piglin', isValid: true }
+    assert.equal(isThreat(c, { name: 'piglin', isValid: true }, HOSTILES), true)
+    assert.equal(isThreat(c, { name: 'ghast', isValid: true }, HOSTILES), false)
+    assert.equal(isThreat(c, zombified, HOSTILES), false)
+    rememberMobTarget(c, c.bot.entity, zombified)
+    assert.equal(isThreat(c, zombified, HOSTILES), true)
 })
