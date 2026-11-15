@@ -1082,3 +1082,37 @@ test('a mineshaft fence is no tunnel floor, and a level step the pathfinder neve
     assert.deepEqual(blocked, [new Vec3(0, 64, 1)])
     assert.deepEqual([c.memory.tunnelFrontier.x, c.memory.tunnelFrontier.z], [0, 0])
 })
+
+test('a level tunnel bridges a three-block gap, placing each floor from the supported cell before stepping (05:00Z)', async () => {
+    const placed = new Set()
+    const gap = x => x >= 1 && x <= 3
+    const bot = {
+        health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) },
+        blockAt(p) {
+            const solid = placed.has(p.toString()) || (p.y < 64 && !(p.y === 63 && gap(p.x) && p.z === 0) && !(p.y < 63 && gap(p.x))) ||
+                (p.y >= 64 && p.z !== 0) || p.y >= 66
+            return { name: solid ? 'stone' : 'air', position: p, boundingBox: solid ? 'block' : 'empty', diggable: true,
+                canHarvest: () => true, shapes: solid ? [[0, 0, 0, 1, 1, 1]] : [] }
+        },
+        equip: async () => {}, canDigBlock: () => true, async dig(b) { placed.delete(b.position.toString()) }
+    }
+    const steps = []
+    const c = {
+        bot, running: true, paused: false, actionAbort: new AbortController(), log: { info() {}, warn() {} },
+        memory: { mineDirection: 0 }, bestItem: names => names.includes('cobblestone') ? { name: 'cobblestone' } : { name: 'iron_pickaxe' },
+        async placeSurvivalBlock(p) {
+            const feet = bot.entity.position.floored()
+            assert.equal(bot.blockAt(feet.offset(0, -1, 0)).boundingBox, 'block', 'the bot stands on support while placing')
+            assert.ok([[1, 0, 0], [-1, 0, 0], [0, -1, 0]].some(([x, y, z]) => bot.blockAt(p.offset(x, y, z)).boundingBox === 'block'))
+            placed.add(p.toString())
+        },
+        async gotoWithTimeout(goal) {
+            assert.equal(bot.blockAt(new Vec3(goal.x, goal.y - 1, goal.z)).boundingBox, 'block', 'never steps onto air')
+            steps.push(goal.x)
+            bot.entity.position = new Vec3(goal.x + 0.5, goal.y, goal.z + 0.5)
+        }
+    }
+    await mineTunnel(c, 64)
+    assert.deepEqual(steps, [1, 2, 3, 4])
+    assert.deepEqual([...placed].sort(), ['(1, 63, 0)', '(2, 63, 0)', '(3, 63, 0)'])
+})

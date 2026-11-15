@@ -174,7 +174,8 @@ function safeTunnelStep(bot, feet, target, allowFloorPlacement = false) {
     }
     if (cellVisible(bot, floorPosition)) {
         const base = bot.blockAt(target.offset(0, -2, 0), false)
-        const canBuildFloor = allowFloorPlacement && target.y > feet.y &&
+        // Level steps bridge too: the floor goes in from the supported cell before the bot steps (user, 05:00Z).
+        const canBuildFloor = allowFloorPlacement && target.y >= feet.y &&
             ['air', 'cave_air', 'void_air'].includes(floor.name) &&
             (supportedPlacement(bot, floorPosition) || (base && ['air', 'cave_air', 'void_air'].includes(base.name) &&
                 supportedPlacement(bot, target.offset(0, -2, 0))))

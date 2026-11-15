@@ -3855,3 +3855,28 @@ and the surface-only scout now use `nightWaterReady`. The planner keeps
 water search (not when hurt or in a night retreat). Other night surface work
 keeps the diamond-sword rule. Regressions in `test/decision-engine.test.js`
 and `test/water-search.test.js` fail on the pre-fix source. Not yet seen live.
+
+## F157 — Level tunnel steps never bridged a gap
+
+User report 05:00Z: the bot could not reach ore near (-387, -12, 15) and seemed
+to fail to bridge at (-385, -17, 3); the user suspected the surface aiming of
+c31544d. Evidence (`outputs/2026-11-14@23.50.16/`): four diamond staircases
+toward (-386, -18, -4) each failed with "no supported dry tunnel step: 4
+unsafe", and the priority-iron approach timed out after 10 s. No placement
+was even attempted. The pathfinder cannot bridge (the safe movements set
+`scafoldingBlocks = []`, and a staged pathfinder crossing of a 3-wide gap
+answered "No path"), and `safeTunnelStep` built a missing floor only for
+rising steps (`target.y > feet.y`, a rule from the first commit). A level
+step over a gap was therefore always unsafe. Fix: level steps may build their
+floor too (`target.y >= feet.y`). `placeFloor` puts the block in against the
+support beside it while the bot still stands on its own supported cell, then
+the bot steps. Staged (`outputs/stage-bridge.js`; kit check; owner perch;
+arena removed with `outputs/cleanup-bridge-arena.js` after the stage's own
+cleanup was blocked by players still inside): a BridgeTrial level tunnel
+crossed a 3-wide gap at y=200 with surface aiming. It made 3 placements, no
+refusals, looking down at the support's side face (pitch -0.8 to -1.3), and
+ended at x=68.5 (`bridge-test-surface-aim.json`). The server accepts the side
+face from a centred stance, so surface aiming was not the cause. The
+mineflayer-aim comparison run was aborted by the leftover arena and not
+repeated. Regression in `test/progression-skills.test.js` fails on the
+pre-fix source.

@@ -366,3 +366,4 @@ Highest risk first.
 - F154 Night shelter retried 32 times at a spot with no shelter or burrow geometry; relocate every third failure [live failure + regression]
 - F155 Mineshaft fence floor: a level tunnel step was never taken, the frontier advanced anyway and two passes alternated [live failure + regression]
 - F156 Night water search with full iron gear continues on the surface [user direction + regression]
+- F157 Level tunnel steps never bridged gaps; floors now go in from the supported cell, staged with surface aim [user report + staged + regression]
