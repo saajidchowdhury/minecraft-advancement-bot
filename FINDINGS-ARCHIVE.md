@@ -3800,3 +3800,18 @@ landing returns null). Surface scouts and a swimming bot are unchanged.
 Regression in `test/combat-navigation.test.js` fails on the pre-fix source.
 Not yet seen live. Open: a bot already in an underground lake still has no
 dedicated way out.
+
+## F154 — Night shelter stuck at a spot with no shelter or burrow geometry
+
+Live, `outputs/2026-11-14@23.09.04/` (c0bcf5d). At night a land scout carried
+the bot out of its boxed-in tunnel to open sky at (-205, 58, 131), then
+(-205, 62, 127), in a cave mouth. With a stone pickaxe and no armor or shield,
+the planner correctly chose `shelter` (night carve-down needs iron gear). Every
+try failed the same way: "no open neighbouring cell for a two-cell shelter",
+and the burrow fallback found air in its column or walls. That was at least
+32 times in about 65 s, with no movement, because `shelter` is a stationary
+action and relocation after a stationary failure covered only crafting-table
+and furnace placement. Fix: `shouldRelocateAfterStationFailure` also matches
+"shelter enclosure incomplete", so every third failure scouts about 10 blocks
+to new ground before retrying. Regression in `test/station-recovery.test.js`
+fails on the pre-fix source. Not yet seen live.

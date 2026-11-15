@@ -171,9 +171,10 @@ function updateHome (memory, position, skyLight) {
     return true
 }
 
+// A spot with no shelter or burrow geometry failed the same way 32 times in a row (live 04:09Z).
 function shouldRelocateAfterStationFailure (action, failureCount, message) {
     return STATIONARY_ACTIONS.has(action) && failureCount % 3 === 0 &&
-        /could not place (crafting table|furnace)/.test(message)
+        /could not place (crafting table|furnace)|shelter enclosure incomplete/.test(message)
 }
 
 function mobilityRecoveryKind (shaftTrapped, elevationTrapped) {
@@ -1039,7 +1040,7 @@ class SurvivalController {
                 return
             }
             if (shouldRelocateAfterStationFailure(action, count, message)) {
-                this.log.warn(`Workstation placement failed ${count} times; relocating to a different patch of land.`)
+                this.log.warn(`${action} failed ${count} times in place; relocating to a different patch of land.`)
                 try {
                     await this.scout(10)
                     this.failures.set(action, 0)

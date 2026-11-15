@@ -14,6 +14,14 @@ test('repeated workstation placement failures trigger relocation every third fai
     assert.equal(shouldRelocateAfterStationFailure(Actions.CRAFT_WOODEN_PICKAXE, 6, message), true)
 })
 
+test('a shelter that cannot enclose or burrow at one spot relocates every third failure (live 04:09Z)', () => {
+    const message = 'shelter enclosure incomplete; 1 placement errors: no open neighbouring cell for a two-cell shelter; ' +
+        'burrow fallback failed: no hand-diggable enclosed room below: wall cell (-204, 59, 126) is air'
+    assert.equal(shouldRelocateAfterStationFailure(Actions.SHELTER, 2, message), false)
+    assert.equal(shouldRelocateAfterStationFailure(Actions.SHELTER, 3, message), true)
+    assert.equal(shouldRelocateAfterStationFailure(Actions.SHELTER, 3, 'action cancelled'), false)
+})
+
 test('ordinary crafting errors do not cause unrelated relocation', () => {
     assert.equal(shouldRelocateAfterStationFailure(Actions.CRAFT_WOODEN_PICKAXE, 3, 'need more logs'), false)
     assert.equal(shouldRelocateAfterStationFailure(Actions.WOOD, 3, 'could not place crafting table'), false)
