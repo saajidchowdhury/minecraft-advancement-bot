@@ -28,7 +28,7 @@ const RECIPES = Object.freeze({
     iron_leggings: { ironIngots: 7 }, iron_boots: { ironIngots: 4 },
     diamond_sword: { diamonds: 2, sticks: 1 }, diamond_chestplate: { diamonds: 8 },
     diamond_leggings: { diamonds: 7 }, diamond_helmet: { diamonds: 5 }, diamond_boots: { diamonds: 4 },
-    flint_and_steel: { ironIngots: 1, flint: 1 },
+    flint_and_steel: { ironIngots: 1, flint: 1 }, golden_boots: { goldIngots: 4 },
     piston: { planks: 3, cobblestone: 4, ironIngots: 1, redstone: 1 },
     lever: { sticks: 1, cobblestone: 1 },
     paper: {}, book: {}, enchanting_table: { diamonds: 2, obsidian: 4 }
@@ -76,6 +76,21 @@ function ironReserveCap(state) {
     const spares = Math.max(0, ironPicks - Number(!owns(state, ['diamond_pickaxe', 'netherite_pickaxe'])))
     return missing + RECIPES.iron_pickaxe.ironIngots * Math.max(0, 3 - spares) +
         RECIPES.bucket.ironIngots * Math.max(0, 3 - (state.buckets ?? 0))
+}
+
+// Golden boots before every portal trip: piglins attack a player without gold armor (user, 2026-11-15).
+function goldBootsPrep(state) {
+    const gold = state.goldIngots ?? 0
+    if (owns(state, ['golden_boots'])) {
+        return null
+    }
+    if (gold >= RECIPES.golden_boots.goldIngots) {
+        return target('prep:golden boots', 'craft_progression', 'obtain golden_boots', { item: 'golden_boots' })
+    }
+    if (gold + (state.rawGold ?? 0) >= RECIPES.golden_boots.goldIngots) {
+        return target('prep:golden boots', state.smeltRunning ? 'smelt_iron' : 'smelt_gold', 'smelt four gold ingots')
+    }
+    return target('prep:golden boots', 'gather_gold', 'mine four gold for boots')
 }
 
 function target(id, action, reason, extra = {}) {
@@ -350,10 +365,11 @@ function planAdvancement(state) {
         if (state.cobblestone < 3) {
             return target('prep:portal supports', 'gather_stone', 'three blocks support the portal frame')
         }
-        return target('minecraft:story/enter_the_nether', 'enter_nether', 'build, light and enter a portal')
+        return goldBootsPrep(state) ?? target('minecraft:story/enter_the_nether', 'enter_nether', 'build, light and enter a portal')
     }
     if (entered && !state.fortressReached && state.dimension === 'overworld') {
-        return expeditionStep(state) ?? target('prep:Nether fortress', 'enter_nether', 'return through the portal to search for a fortress')
+        return expeditionStep(state) ?? goldBootsPrep(state) ??
+            target('prep:Nether fortress', 'enter_nether', 'return through the portal to search for a fortress')
     }
     // User direction: no sugar-cane farming for enchanting; serious enchanting waits for a stronghold
     // library. A book or its paper found along the way (chest loot) still earns Enchanter cheaply.

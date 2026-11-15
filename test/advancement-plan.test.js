@@ -158,7 +158,18 @@ test('portal needs ignition and provisions; partial frame is resumed instead of 
     const state = { ...established, hasDiamondPickaxe: true, gear: diamondSword, obsidian: 10, ironIngots: 1, flint: 1 }
     assert.equal(nextAdvancement(state).item, 'flint_and_steel')
     assert.equal(nextAdvancement({ ...state, hasFlintAndSteel: true, foodUnits: 0 }).action, 'gather_food')
-    assert.equal(nextAdvancement({ ...state, hasFlintAndSteel: true, obsidian: 2, portalInProgress: true }).action, 'enter_nether')
+    const booted = { ...state, gear: new Set([...diamondSword, 'golden_boots']) }
+    assert.equal(nextAdvancement({ ...booted, hasFlintAndSteel: true, obsidian: 2, portalInProgress: true }).action, 'enter_nether')
+})
+
+test('golden boots are mined, smelted and crafted before the portal is entered (user 2026-11-15)', () => {
+    const ready = { ...established, hasDiamondPickaxe: true, gear: diamondSword, obsidian: 10, hasFlintAndSteel: true }
+    assert.equal(nextAdvancement(ready).action, 'gather_gold')
+    assert.equal(nextAdvancement({ ...ready, rawGold: 3, goldIngots: 1 }).action, 'smelt_gold')
+    assert.equal(nextAdvancement({ ...ready, rawGold: 4, smeltRunning: true }).action, 'smelt_iron', 'an iron job holds the furnace')
+    const craft = nextAdvancement({ ...ready, goldIngots: 4 })
+    assert.deepEqual([craft.action, craft.item], ['craft_progression', 'golden_boots'])
+    assert.equal(nextAdvancement({ ...ready, gear: new Set([...diamondSword, 'golden_boots']) }).action, 'enter_nether')
 })
 
 test('after the Nether route the bot mines for a diamond armor set, then waits instead of an End quest', () => {

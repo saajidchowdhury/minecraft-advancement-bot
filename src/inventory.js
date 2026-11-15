@@ -10,7 +10,7 @@ const GROUPS = [
     { key: 'logs', match: name => /_(log|wood|stem|hyphae)$/.test(name), limit: 40 },
     { key: 'planks', match: name => name.endsWith('_planks'), limit: 64 },
     { key: 'fuel', match: name => name === 'coal' || name === 'charcoal', limit: 32 },
-    { key: 'gold', match: name => name === 'raw_gold' || name === 'gold_ingot', limit: 8 },
+    { key: 'gold', match: name => name === 'raw_gold' || name === 'gold_ingot', limit: 4 },
     { key: 'slabs', match: name => name.endsWith('_slab'), limit: 2 },
     { key: 'beds', match: name => name.endsWith('_bed'), limit: 1 }
 ]
@@ -18,7 +18,7 @@ const SINGLE = {
     dirt: 16, stick: 64, torch: 32, gravel: 16, flint: 4, redstone: 16, lapis_lazuli: 8, string: 5, feather: 4,
     arrow: 64, wheat: 16, mushroom_stew: 4, crafting_table: 1, furnace: 1, barrel: 1, chest: 1,
     enchanting_table: 1, book: 1, paper: 3, sugar_cane: 3, pumpkin: 1, carved_pumpkin: 1, iron_block: 4,
-    shield: 1, bow: 1, fishing_rod: 1, shears: 1, flint_and_steel: 1,
+    shield: 1, bow: 1, fishing_rod: 1, shears: 1, flint_and_steel: 1, golden_boots: 1,
     raw_copper: 0, copper_ingot: 0, gunpowder: 0, red_mushroom: 0, brown_mushroom: 0, bowl: 0
 }
 const KEEP_ALL = new Set(['diamond', 'raw_iron', 'iron_ingot', 'obsidian', 'bucket', 'water_bucket', 'lava_bucket', 'ender_pearl',

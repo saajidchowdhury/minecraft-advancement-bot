@@ -5,7 +5,7 @@ const { MIN_MINING_MEALS } = require('./food')
 // User direction (2026-11-06): 32 logs, counting a plank as a quarter log, before a mining trip.
 const MIN_MINING_WOOD_PLANKS = 128
 const COOKING_MAX_Y = 47
-const NIGHT_CARVE_ACTIONS = new Set(['gather_iron', 'gather_coal', 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'fill_lava_bucket'])
+const NIGHT_CARVE_ACTIONS = new Set(['gather_iron', 'gather_coal', 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'gather_gold', 'fill_lava_bucket'])
 const MELEE_ALERT_RANGE = 6
 const CREEPER_ALERT_RANGE = 8
 const CREEPER_DUEL_HP = 12

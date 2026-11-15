@@ -383,3 +383,10 @@ test('lane and in-place drops mark a five-minute zone that walking routes pay to
     t.mock.timers.tick(300001)
     assert.equal(step({ position: new Vec3(-54, 72, -84) }), 0)
 })
+
+test('golden boots and the better boots are both kept whichever pair is worn, and gold is capped at four (user 2026-11-15)', () => {
+    const names = items => items.map(item => item.name)
+    const carried = [{ name: 'golden_boots', count: 1 }, { name: 'gold_ingot', count: 4 }, { name: 'raw_gold', count: 1 }]
+    assert.deepEqual(names(discardableStacks(carried, { worn: ['diamond_boots'] })), ['raw_gold'])
+    assert.deepEqual(names(discardableStacks([{ name: 'iron_boots', count: 1 }], { worn: ['golden_boots'] })), [])
+})

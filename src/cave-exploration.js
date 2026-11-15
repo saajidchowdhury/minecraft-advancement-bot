@@ -22,7 +22,8 @@ const ORES = [
     { ore: 'diamond', items: ['diamond'], cap: 5, use: 'diamond tools and enchanting table' },
     { ore: 'iron', cap: null, use: 'missing gear, buckets and spare picks' },
     { ore: 'coal', items: ['coal', 'charcoal'], cap: 32, use: 'fuel and cave lighting' },
-    { ore: 'gold', items: ['raw_gold', 'gold_ingot'], cap: 8, use: 'Nether protection and bartering' },
+    // User direction 2026-11-15: four gold is one pair of golden boots, worn in the Nether.
+    { ore: 'gold', items: ['raw_gold', 'gold_ingot'], cap: 4, use: 'golden boots for the Nether' },
     { ore: 'lapis', items: ['lapis_lazuli'], cap: 8, use: 'enchanting' },
     { ore: 'redstone', items: ['redstone'], cap: 16, use: 'later redstone builds' }
 ]

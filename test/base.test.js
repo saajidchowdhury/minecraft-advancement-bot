@@ -18,7 +18,7 @@ const asMap = plan => Object.fromEntries(plan.map(entry => [entry.name, entry.co
 test('deposit keeps the best tools, a work pick and carry levels and stores the surplus', () => {
     const plan = asMap(depositPlan(kit, { helmet: 'diamond_helmet', chestplate: 'iron_chestplate' }))
     assert.deepEqual(plan, {
-        iron_pickaxe: 1, iron_sword: 1, iron_helmet: 1, diamond: 3, raw_gold: 6, bread: 2, white_bed: 2
+        iron_pickaxe: 1, iron_sword: 1, iron_helmet: 1, diamond: 3, raw_gold: 2, bread: 2, white_bed: 2
     })
     assert.equal(asMap(depositPlan(kit, {}, 12)).iron_ingot, undefined)
     assert.equal(asMap(depositPlan([{ name: 'raw_iron', count: 30 }, { name: 'iron_ingot', count: 20 }], {}, 45)).iron_ingot, 5)
@@ -26,6 +26,12 @@ test('deposit keeps the best tools, a work pick and carry levels and stores the 
 
 test('an unworn better armor piece is not stored before it can be equipped', () => {
     assert.equal(asMap(depositPlan([{ name: 'diamond_boots', count: 1 }], { boots: 'iron_boots' })).diamond_boots, undefined)
+})
+
+test('golden boots stay carried beside better worn boots, and four gold is carried (user 2026-11-15)', () => {
+    const plan = asMap(depositPlan([{ name: 'golden_boots', count: 1 }, { name: 'gold_ingot', count: 5 }], { boots: 'diamond_boots' }))
+    assert.equal(plan.golden_boots, undefined)
+    assert.equal(plan.gold_ingot, 1)
 })
 
 test('after a death the restock takes the best gear and refills carry levels', () => {
@@ -117,7 +123,7 @@ test('every vault visit digs the cobblestone seal out and puts it back afterward
     const open = c.bot.openContainer
     c.bot.openContainer = async block => { events.push(sealed.size === 0 ? 'open' : 'open while sealed'); return open(block) }
     await depositAtBase(c)
-    assert.equal(c.memory.base.contents.raw_gold, 6)
+    assert.equal(c.memory.base.contents.raw_gold, 2)
     assert.deepEqual(events, ['dig', 'dig', 'open', 'seal', 'seal'])
     assert.equal(sealed.size, 2)
     assert.equal(c.memory.base.sealed, true)
@@ -189,7 +195,7 @@ test('depositing and restocking move the planned stacks through the chest and re
     const { c, window } = chestWorld(items, {})
     await depositAtBase(c)
     assert.equal(window.closed, true)
-    assert.equal(c.memory.base.contents.raw_gold, 6)
+    assert.equal(c.memory.base.contents.raw_gold, 2)
     assert.equal(items.find(i => i.name === 'diamond').count, 8)
     const empty = []
     const after = chestWorld(empty, { diamond_pickaxe: 1, bread: 30 })

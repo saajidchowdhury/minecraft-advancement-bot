@@ -103,7 +103,7 @@ const ACTION_TIMEOUT_MS = Object.freeze({
     [Actions.CRAFT_IRON_PICKAXE]: 30000,
     smelt_charcoal: 45000, craft_progression: 45000, equip_armor: 10000, equip_shield: 10000,
     fill_water_bucket: 90000, fill_lava_bucket: 90000, gather_diamonds: 90000, gather_obsidian: 90000,
-    gather_flint: 60000, gather_redstone: 90000, enter_nether: 180000, find_fortress: 600000,
+    gather_flint: 60000, gather_redstone: 90000, gather_gold: 90000, smelt_gold: 70000, enter_nether: 180000, find_fortress: 600000,
     clear_inventory: 30000, mine_diamond: 95000, loot_chest: 30000, establish_base: 60000, migrate_base: 90000, plant_seed: 60000, go_fish: 240000, shoot_arrow: 45000, surface_for_air: 8000, reach_land: 60000, stock_blocks: 30000, escape_lava: 6000, clear_head: 6000, gather_leather: 60000, gather_lapis: 90000, enchant_item: 45000, breed_animals: 45000, summon_golem: 120000, leave_nether: 900000, deposit_base: 75000, restock_base: 75000, build_redstone: 90000, return_surface: 60000, wait: 10000,
     [Actions.SHELTER]: 60000, mine_from_shelter: 60000, descend_shaft_at_night: 90000,
     recover_diamond_drop: 60000,
@@ -148,7 +148,7 @@ const STATIONARY_ACTIONS = new Set([
     'wake', 'sleep', 'prepare_bed', 'leave_shelter', 'shoot_arrow', 'cook_food',
     Actions.CRAFT_TABLE, Actions.CRAFT_WOODEN_PICKAXE, Actions.CRAFT_STONE_PICKAXE,
     Actions.CRAFT_FURNACE, Actions.SMELT_IRON, Actions.CRAFT_IRON_PICKAXE, Actions.CRAFT_STONE_AXE, Actions.CRAFT_STONE_SHOVEL,
-    'clear_inventory', 'loot_chest', 'smelt_charcoal', 'craft_progression', 'enchant_item', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', Actions.SHELTER
+    'clear_inventory', 'loot_chest', 'smelt_charcoal', 'craft_progression', 'enchant_item', 'equip_armor', 'equip_shield', 'enter_nether', 'build_redstone', 'wait', 'smelt_gold', Actions.SHELTER
 ])
 
 const OPPORTUNISTIC = new Set(['mine_iron', 'mine_diamond', 'recover_diamond_drop', 'leave_flooded_tunnel', 'leave_wet_biome',
@@ -156,7 +156,7 @@ const OPPORTUNISTIC = new Set(['mine_iron', 'mine_diamond', 'recover_diamond_dro
 // Long resource walks that yield when a priority target appears; the user saw the bot walk past
 // iron and glow berries mid-action, and the next decision would have taken them (17:23Z).
 const INTERRUPTIBLE = new Set([Actions.WOOD, Actions.STONE, Actions.COAL, Actions.IRON, Actions.FOOD, Actions.SMELT_IRON,
-    Actions.EXPLORE, 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'fill_lava_bucket', 'return_surface'])
+    Actions.EXPLORE, 'gather_diamonds', 'gather_redstone', 'gather_lapis', 'gather_gold', 'fill_lava_bucket', 'return_surface'])
 
 // Home anchors surfaceY. A login underground (after a memory reset, 17:11Z at Y=-19) gives a
 // provisional sea-level home that the first open-sky position above Y=50 replaces.
@@ -1196,6 +1196,8 @@ class SurvivalController {
             ...smeltJobState(this),
             hasSmeltingFuel: this.countItems(['coal', 'charcoal']) > 0,
             rawIron: this.countItems(['raw_iron']),
+            rawGold: this.countItems(['raw_gold']),
+            goldIngots: this.countItems(['gold_ingot']),
             ironIngots,
             hasIronPickaxe: hasIronPickNow,
             hasDiamondPickaxe: this.hasAnyItem(['diamond_pickaxe', 'netherite_pickaxe']),
@@ -2448,6 +2450,43 @@ class SurvivalController {
             }
             Object.assign(this.memory.smeltJob, await furnaceDue(this.bot, furnace, total))
             this.log.info(`Smelting ${total} raw iron at ${p}; due in about ${Math.round((this.memory.smeltJob.readyAt - Date.now()) / 1000)} s.`)
+        } finally {
+            await this.bot.closeWindow(furnace).catch(() => {})
+        }
+    }
+
+    // Four raw gold take 40 s; the bot waits at the furnace, since only one pair of boots is ever needed.
+    async smeltGold () {
+        const furnaceBlock = await this.getFurnace()
+        const furnace = await this.bot.openFurnace(furnaceBlock)
+        try {
+            const input = furnace.inputItem()
+            if (input && input.name !== 'raw_gold') {
+                throw new Error(`furnace contains unexpected input: ${input.name}`)
+            }
+            const raw = this.bestItem(['raw_gold'])
+            if (raw) {
+                await furnace.putInput(raw.type, raw.metadata, this.countItems(['raw_gold']))
+            }
+            const total = furnace.inputItem()?.count || 0
+            if (total && !furnace.fuelItem()) {
+                const coal = this.bestItem(['coal', 'charcoal'])
+                const plank = this.bot.inventory.items().find(item => isFuelPlank(item.name))
+                const fuel = coal || plank
+                if (!fuel) {
+                    throw new Error('coal, charcoal or planks are missing for gold')
+                }
+                await furnace.putFuel(fuel.type, fuel.metadata, Math.min(this.countItems([fuel.name]), Math.ceil(total / (coal ? 8 : 1.5))))
+            }
+            const deadline = Date.now() + total * 10000 + 5000
+            while (furnace.inputItem() && Date.now() < deadline) {
+                this.checkAction()
+                await sleep(1000)
+            }
+            if (furnace.outputItem()?.name === 'gold_ingot') {
+                await furnace.takeOutput()
+            }
+            this.log.info(`Smelted gold; ${this.countItems(['gold_ingot'])} gold ingots carried.`)
         } finally {
             await this.bot.closeWindow(furnace).catch(() => {})
         }

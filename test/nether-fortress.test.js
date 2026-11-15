@@ -15,7 +15,7 @@ const kit = {
     hasIronArmor: true, armorEquipped: true, hasShield: true, shieldEquipped: true, hasBucket: true, buckets: 3,
     emptyBuckets: 1, waterBuckets: 2, hasFlintAndSteel: true, diamonds: 0, obsidian: 0, flint: 0, redstone: 0, foodUnits: 24,
     hasSmeltingFuel: true, dimension: 'overworld', completedAdvancements: entered, items: {},
-    gear: new Set(['diamond_sword', 'diamond_pickaxe', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots', 'shield']),
+    gear: new Set(['diamond_sword', 'diamond_pickaxe', 'iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots', 'shield', 'golden_boots']),
     bridgeSupply: EXPEDITION_BLOCKS, netherMealsReady: true, netherMealsLeft: true
 }
 

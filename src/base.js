@@ -13,7 +13,7 @@ const ARMOR = ['helmet', 'chestplate', 'leggings', 'boots']
 // levels, so a restock never triggers a deposit (no chest ping-pong).
 const CARRY = {
     diamond: 8, redstone: 8, coal: 32, charcoal: 32, torch: 32,
-    gold_ingot: 0, raw_gold: 0, lapis_lazuli: 8, emerald: 0, raw_copper: 0, copper_ingot: 0,
+    gold_ingot: 4, raw_gold: 4, lapis_lazuli: 8, emerald: 0, raw_copper: 0, copper_ingot: 0,
     string: 5, bone: 0, gunpowder: 0, ender_pearl: 0, slime_ball: 0, spider_eye: 0, feather: 4,
     leather: 0, arrow: 16, crafting_table: 1, furnace: 1
 }
@@ -59,7 +59,9 @@ function depositPlan(items, worn = {}, ironCap = 32) {
     }
     for (const piece of ARMOR) {
         const wornTier = worn[piece] ? tier(worn[piece]) : -1
-        for (const name of Object.keys(counts).filter(name => name.endsWith(`_${piece}`) && tier(name) >= 0 && tier(name) <= wornTier)) {
+        // Golden boots are Nether gear, kept beside better worn boots (user, 2026-11-15).
+        for (const name of Object.keys(counts).filter(name => name.endsWith(`_${piece}`) && tier(name) >= 0 && tier(name) <= wornTier &&
+            name !== 'golden_boots')) {
             plan.push({ name, count: counts[name] })
         }
     }

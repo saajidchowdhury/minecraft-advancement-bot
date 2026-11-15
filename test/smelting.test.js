@@ -249,3 +249,33 @@ test('a smelt job is kept to 300 blocks and abandoned beyond', () => {
     assert.deepEqual(smeltJobState(c), { smeltRunning: false, smeltReady: false })
     assert.equal(c.memory.smeltJob, null)
 })
+
+test('four raw gold are smelted in place with one coal and the ingots are taken (user 2026-11-15)', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+    const inv = { raw_gold: 4, coal: 3, gold_ingot: 0 }
+    const furnaceState = { input: null, fuel: null, output: null }
+    const furnace = {
+        inputItem: () => furnaceState.input, fuelItem: () => furnaceState.fuel, outputItem: () => furnaceState.output,
+        async putInput(type, meta, count) { inv.raw_gold -= count; furnaceState.input = { name: 'raw_gold', count } },
+        async putFuel(type, meta, count) { inv.coal -= count; furnaceState.fuel = { name: 'coal', count } },
+        async takeOutput() { inv.gold_ingot += furnaceState.output.count; furnaceState.output = null }
+    }
+    const c = {
+        running: true, actionAbort: new AbortController(), log: { info() {} },
+        bot: { game: { dimension: 'overworld' }, health: 20, openFurnace: async () => furnace, closeWindow: async () => {},
+            inventory: { items: () => [] } },
+        getFurnace: async () => ({ position: new Vec3(3, 64, 0) }),
+        bestItem: names => names.map(n => inv[n] > 0 ? { name: n, type: 1 } : null).find(Boolean) || null,
+        countItems: names => names.reduce((n, name) => n + (inv[name] || 0), 0)
+    }
+    c.checkAction = SurvivalController.prototype.checkAction.bind(c)
+    const done = SurvivalController.prototype.smeltGold.call(c)
+    for (let i = 0; i < 20 && furnaceState.fuel === null; i++) { await Promise.resolve() }
+    assert.deepEqual([inv.raw_gold, inv.coal], [0, 2], 'all four raw gold and one coal go in')
+    for (let s = 0; s < 39; s++) { t.mock.timers.tick(1000); await Promise.resolve(); await Promise.resolve() }
+    furnaceState.input = null
+    furnaceState.output = { name: 'gold_ingot', count: 4 }
+    t.mock.timers.tick(1000)
+    await done
+    assert.equal(inv.gold_ingot, 4)
+})

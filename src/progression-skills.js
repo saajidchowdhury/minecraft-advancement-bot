@@ -1806,6 +1806,13 @@ async function enterNether(c) {
     }
     check(c)
     c.memory.overworldPortal = { x: portal.position.x, y: portal.position.y, z: portal.position.z }
+    // Golden boots go on before the portal; the better boots stay carried for the way back.
+    const boots = c.bestItem(['golden_boots'])
+    if (boots && bot.inventory.slots[8]?.name !== 'golden_boots') {
+        await bot.equip(boots, 'feet')
+        check(c)
+        c.log.info('Wearing golden boots for the Nether.')
+    }
     await c.gotoWithTimeout(new goals.GoalBlock(portal.position.x, portal.position.y, portal.position.z), 15000, 'portal entry')
     await until(c, () => bot.game.dimension === 'the_nether', 10000)
     c.log.info('Entered the Nether.')
@@ -2239,8 +2246,10 @@ async function clearInventory(c) {
 // Player inventory armor slots: 5 head, 6 torso, 7 legs, 8 feet.
 const ARMOR_SLOTS = [['helmet', 'head', 5], ['chestplate', 'torso', 6], ['leggings', 'legs', 7], ['boots', 'feet', 8]]
 
+// In the Nether golden boots outrank every tier: one gold piece keeps piglins neutral (user, 2026-11-15).
 function armorUpgrades(bot) {
-    const tier = name => name ? ARMOR_TIERS.indexOf(name.split('_')[0]) : -1
+    const nether = bot.game?.dimension === 'the_nether'
+    const tier = name => !name ? -1 : nether && name === 'golden_boots' ? ARMOR_TIERS.length : ARMOR_TIERS.indexOf(name.split('_')[0])
     return ARMOR_SLOTS.map(([piece, destination, slot]) => {
         const item = bot.inventory.items().filter(i => i.name.endsWith(`_${piece}`) && tier(i.name) >= 0)
             .sort((a, b) => tier(b.name) - tier(a.name))[0]
@@ -2307,6 +2316,8 @@ async function performProgression(c, action, state) {
         case 'gather_diamonds': return gatherDeep(c, ['diamond_ore', 'deepslate_diamond_ore'])
         case 'gather_redstone': return gatherDeep(c, ['redstone_ore', 'deepslate_redstone_ore'])
         case 'gather_lapis': return gatherDeep(c, ['lapis_ore', 'deepslate_lapis_ore'])
+        case 'gather_gold': return gatherDeep(c, ['gold_ore', 'deepslate_gold_ore'])
+        case 'smelt_gold': return c.smeltGold()
         case 'gather_obsidian': return gatherObsidian(c)
         case 'gather_flint': return c.gatherOre(['gravel'], 24)
         case 'enter_nether': return enterNether(c)

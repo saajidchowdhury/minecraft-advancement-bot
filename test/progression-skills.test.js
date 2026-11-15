@@ -1116,3 +1116,37 @@ test('a level tunnel bridges a three-block gap, placing each floor from the supp
     assert.deepEqual(steps, [1, 2, 3, 4])
     assert.deepEqual([...placed].sort(), ['(1, 63, 0)', '(2, 63, 0)', '(3, 63, 0)'])
 })
+
+test('golden boots go on before the portal and outrank better boots only in the Nether (user 2026-11-15)', async () => {
+    const { performProgression, armorUpgrades } = require('../src/progression-skills')
+    const portal = { name: 'nether_portal', position: new Vec3(3, 64, 0) }
+    const golden = { name: 'golden_boots' }
+    const events = []
+    const slots = []
+    slots[8] = { name: 'iron_boots' }
+    const bot = {
+        health: 20, game: { dimension: 'overworld' }, entity: { position: new Vec3(0.5, 64, 0.5) },
+        inventory: { slots, items: () => [golden] },
+        async equip(item, destination) { events.push(`equip ${item.name} ${destination}`) }
+    }
+    const c = {
+        bot, running: true, paused: false, memory: {}, log: { info() {} }, advancements: { completed: new Set() },
+        bestItem: names => names.includes('golden_boots') ? golden : null,
+        findNearestBlock: () => portal,
+        async gotoWithTimeout(goal, ms, label) {
+            events.push(label)
+            bot.game.dimension = 'the_nether'
+        }
+    }
+    await performProgression(c, 'enter_nether', {})
+    assert.deepEqual(events, ['equip golden_boots feet', 'portal entry'])
+    bot.game.dimension = 'overworld'
+    assert.deepEqual(armorUpgrades(bot), [], 'iron boots stay on in the Overworld')
+    bot.game.dimension = 'the_nether'
+    assert.deepEqual(armorUpgrades(bot).map(u => u.item.name), ['golden_boots'])
+    slots[8] = golden
+    bot.inventory.items = () => [{ name: 'iron_boots' }]
+    assert.deepEqual(armorUpgrades(bot), [], 'the Nether keeps golden boots on')
+    bot.game.dimension = 'overworld'
+    assert.deepEqual(armorUpgrades(bot).map(u => u.item.name), ['iron_boots'], 'the Overworld puts the better boots back on')
+})
