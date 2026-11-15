@@ -1,0 +1,84 @@
+diff --git a/node_modules/prismarine-block/index.js b/node_modules/prismarine-block/index.js
+index e91fb33..48a6d95 100644
+--- a/node_modules/prismarine-block/index.js
++++ b/node_modules/prismarine-block/index.js
+@@ -309,17 +309,14 @@ function provider (registry, { Biome, version }) {
+       const materialToolMultipliers = registry.materials[this.material]
+       const isBestTool = heldItemType && materialToolMultipliers && materialToolMultipliers[heldItemType]
+ 
+-      // Compute breaking speed multiplier
+-      let blockBreakingSpeed = 1
++      // Vanilla Player.getDestroySpeed and BlockBehaviour.getDestroyProgress work in float32, and the
++      // client adds the per-tick progress to a float until it reaches 1, which can differ from ceil(1/p).
++      const f = Math.fround
++      let blockBreakingSpeed = isBestTool ? f(materialToolMultipliers[heldItemType]) : f(1)
+ 
+-      if (isBestTool) {
+-        blockBreakingSpeed = materialToolMultipliers[heldItemType]
+-      }
+-
+-      // Efficiency is applied if tools speed multiplier is more than 1.0
+       const efficiencyLevel = getEnchantmentLevel('efficiency', enchantments)
+       if (efficiencyLevel > 0 && blockBreakingSpeed > 1.0) {
+-        blockBreakingSpeed += efficiencyLevel * efficiencyLevel + 1
++        blockBreakingSpeed = f(blockBreakingSpeed + f(efficiencyLevel * efficiencyLevel + 1))
+       }
+ 
+       // Haste is always considered when effect is present, and when both
+@@ -329,33 +326,33 @@ function provider (registry, { Biome, version }) {
+         getEffectLevel('ConduitPower', effects))
+ 
+       if (hasteLevel > 0) {
+-        blockBreakingSpeed *= 1 + (0.2 * hasteLevel)
++        blockBreakingSpeed = f(blockBreakingSpeed * f(1 + f(hasteLevel * f(0.2))))
+       }
+ 
+       // Mining fatigue is applied afterwards, but multiplier only decreases up to level 4
+       const miningFatigueLevel = getEffectLevel('MiningFatigue', effects)
+ 
+       if (miningFatigueLevel > 0) {
+-        blockBreakingSpeed *= getMiningFatigueMultiplier(miningFatigueLevel)
++        blockBreakingSpeed = f(blockBreakingSpeed * f(getMiningFatigueMultiplier(miningFatigueLevel)))
+       }
+ 
+-      // Apply 5x breaking speed de-buff if we are submerged in water and do not have aqua affinity
++      // Submerged without aqua affinity the submerged_mining_speed attribute is 0.2
+       const aquaAffinityLevel = getEnchantmentLevel('aqua_affinity', enchantments)
+ 
+       if (inWater && aquaAffinityLevel === 0) {
+-        blockBreakingSpeed /= 5.0
++        blockBreakingSpeed = f(blockBreakingSpeed * f(0.2))
+       }
+ 
+       // We always get 5x breaking speed de-buff if we are not on the ground
+       if (notOnGround) {
+-        blockBreakingSpeed /= 5.0
++        blockBreakingSpeed = f(blockBreakingSpeed / f(5.0))
+       }
+ 
+       // Compute block breaking delta (breaking progress applied in a single tick)
+       const blockHardness = this.hardness
+       const matchingToolMultiplier = this.canHarvest(heldItemType) ? 30.0 : 100.0
+ 
+-      let blockBreakingDelta = blockBreakingSpeed / blockHardness / matchingToolMultiplier
++      let blockBreakingDelta = f(f(blockBreakingSpeed / f(blockHardness)) / f(matchingToolMultiplier))
+ 
+       // Delta will always be zero if block has -1.0 durability
+       if (blockHardness === -1.0) {
+@@ -372,10 +369,12 @@ function provider (registry, { Biome, version }) {
+         return 0
+       }
+ 
+-      // Determine how many ticks breaking will take, then convert to millis and return result
+-      // We round ticks up because if progress is below 1.0, it will be finished next tick
+-
+-      const ticksToBreakBlock = Math.ceil(1.0 / blockBreakingDelta)
++      let progress = f(0)
++      let ticksToBreakBlock = 0
++      while (progress < 1.0) {
++        progress = f(progress + blockBreakingDelta)
++        ticksToBreakBlock++
++      }
+       return ticksToBreakBlock * 50
+     }
+   }

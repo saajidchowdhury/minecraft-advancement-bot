@@ -37,8 +37,8 @@ test('Mineflayer sends finish at the pickaxe break time for tier-restricted ores
     ]) {
         const block = target(name)
         bot.heldItem = held(tool)
-        // Spend the 5-tick destroy delay owed by the previous break (F131).
-        t.mock.timers.tick(250)
+        // Spend the 6-tick held-attack gap owed by the previous break (F131, F151).
+        t.mock.timers.tick(300)
         packets.length = 0
         const dig = bot.dig(block, 'ignore')
         t.mock.timers.tick(expectedMs - 1)
@@ -95,8 +95,9 @@ test('digging never waits indefinitely for ground and cancels before sending sta
 test('a stranded bot breaks stone bare-handed at the hand break time but still refuses obsidian', async t => {
     const { bot, target, packets } = diggingBot(t)
     bot.heldItem = null
+    // 1/1.5/100 per tick reaches 1.0 in float32 after 151 ticks, not ceil(150) (F151).
     const dig = bot.dig(target('stone'), 'ignore')
-    t.mock.timers.tick(7499)
+    t.mock.timers.tick(7549)
     assert.deepEqual(packets, [['block_dig', 0]])
     t.mock.timers.tick(1)
     assert.deepEqual(packets, [['block_dig', 0], ['block_dig', 2]])
@@ -125,7 +126,7 @@ test('an enchanted netherite pickaxe from 26.1 item components digs at its effic
     await dig
 })
 
-test('the next break waits the vanilla 5 ticks after a timed break but not after an instant one (F131)', async t => {
+test('the next start waits the vanilla 6 held ticks after a timed break but not after an instant one (F131, F151)', async t => {
     const { bot, held, target, packets } = diggingBot(t)
     bot.heldItem = held('stone_pickaxe')
     const first = bot.dig(target('stone'), 'ignore')
@@ -133,7 +134,7 @@ test('the next break waits the vanilla 5 ticks after a timed break but not after
     await first
     packets.length = 0
     const second = bot.dig(target('stone'), 'ignore')
-    t.mock.timers.tick(249)
+    t.mock.timers.tick(299)
     await Promise.resolve()
     assert.deepEqual(packets, [])
     t.mock.timers.tick(1)
@@ -141,16 +142,21 @@ test('the next break waits the vanilla 5 ticks after a timed break but not after
     assert.deepEqual(packets, [['block_dig', 0]])
     t.mock.timers.tick(600)
     await second
-    // A 250 ms gap spent elsewhere owes nothing; grass breaks instantly and leaves no delay behind.
-    t.mock.timers.tick(250)
+    // A 300 ms gap spent elsewhere owes nothing; grass breaks instantly and leaves no delay behind.
+    t.mock.timers.tick(300)
     packets.length = 0
     const grass = bot.dig(target('short_grass'), 'ignore')
     for (let i = 0; i < 5; i++) { await Promise.resolve() }
     assert.deepEqual(packets.slice(0, 1), [['block_dig', 0]])
     t.mock.timers.tick(50)
     await grass
+    // Attack is processed once per tick, so the next instant break starts one tick later.
     packets.length = 0
     const after = bot.dig(target('short_grass'), 'ignore')
+    t.mock.timers.tick(49)
+    for (let i = 0; i < 5; i++) { await Promise.resolve() }
+    assert.deepEqual(packets, [])
+    t.mock.timers.tick(1)
     for (let i = 0; i < 5; i++) { await Promise.resolve() }
     assert.deepEqual(packets.slice(0, 1), [['block_dig', 0]])
     t.mock.timers.tick(50)
@@ -175,4 +181,67 @@ test('a wrapped dig looks at a point on the block surface and names that face in
     assert.equal(force, true)
     assert.ok(point.distanceTo(new Vec3(1, 64.62, 0.5)) < 1e-9, String(point))
     assert.deepEqual(faces[0], ['block_dig', 0, 4])
+})
+
+// Vanilla 26.1.2 break ticks: float32 speed/hardness/(30 or 100) accumulated to 1.0 (* = no drop).
+const VANILLA_TICKS = {
+    wooden_pickaxe: { stone: 23, diorite: 23, deepslate: 45, gravel: 18, dirt: 15, coal_ore: 45, iron_ore: 151 },
+    stone_pickaxe: { stone: 12, diorite: 12, deepslate: 23, gravel: 18, dirt: 15, coal_ore: 23, iron_ore: 23 },
+    copper_pickaxe: { stone: 9, diorite: 9, deepslate: 18, gravel: 18, dirt: 15, coal_ore: 18, iron_ore: 18 },
+    iron_pickaxe: { stone: 8, diorite: 8, deepslate: 15, gravel: 18, dirt: 15, coal_ore: 15, iron_ore: 15 },
+    golden_pickaxe: { stone: 4, diorite: 4, deepslate: 8, gravel: 18, dirt: 15, coal_ore: 8, iron_ore: 25 },
+    diamond_pickaxe: { stone: 6, diorite: 6, deepslate: 12, gravel: 18, dirt: 15, coal_ore: 12, iron_ore: 12 },
+    netherite_pickaxe: { stone: 5, diorite: 5, deepslate: 10, gravel: 18, dirt: 15, coal_ore: 10, iron_ore: 10 }
+}
+
+test('break times match vanilla float32 tick counts for every pickaxe tier on common cave blocks', t => {
+    const { bot, held, target } = diggingBot(t)
+    for (const [pick, blocks] of Object.entries(VANILLA_TICKS)) {
+        bot.heldItem = held(pick)
+        for (const [name, ticks] of Object.entries(blocks)) {
+            assert.equal(bot.digTime(target(name)), ticks * 50, `${pick} on ${name}`)
+        }
+    }
+})
+
+test('held mining a run of stone keeps n ticks per break and 6 ticks from each break to the next start', async t => {
+    const { bot, c, held, target } = diggingBot(t)
+    const events = []
+    bot._client.write = (name, packet) => events.push([packet.status, Date.now()])
+    bot.heldItem = held('iron_pickaxe')
+    const begin = Date.now()
+    for (let i = 0; i < 10; i++) {
+        const dig = bot.dig(target('stone'), 'ignore')
+        for (let tick = 0; tick < 14 && events.filter(([s]) => s === 2).length <= i; tick++) {
+            t.mock.timers.tick(50)
+            for (let k = 0; k < 5; k++) { await Promise.resolve() }
+        }
+        await dig
+    }
+    const starts = events.filter(([s]) => s === 0).map(([, at]) => at)
+    const stops = events.filter(([s]) => s === 2).map(([, at]) => at)
+    assert.deepEqual(stops.map((at, i) => at - starts[i]), Array(10).fill(400))
+    assert.deepEqual(starts.slice(1).map((at, i) => at - stops[i]), Array(9).fill(300))
+    assert.equal(stops.at(-1) - begin, 10 * 400 + 9 * 300)
+    assert.equal(c.digSamples.length, 10)
+    assert.deepEqual(c.digSamples.slice(1).map(s => s.gapMs), Array(9).fill(300))
+})
+
+test('the dig timing summary reports medians, the held-gap floor share and continuous throughput', () => {
+    const { digSummary, recordDig } = require('../src/dig-timing')
+    const samples = [{ durationMs: 400, modelMs: 400, gapMs: null }, { durationMs: 400, modelMs: 400, gapMs: 300 },
+        { durationMs: 450, modelMs: 400, gapMs: 300 }, { durationMs: 400, modelMs: 400, gapMs: 900 }]
+    const s = digSummary(samples)
+    assert.equal(s.durationMs, 400)
+    assert.equal(s.gapMs, 300)
+    assert.ok(Math.abs(s.atFloor - 2 / 3) < 1e-12)
+    assert.ok(Math.abs(s.blocksPerSecond - 3000 / 2750) < 1e-12)
+    const lines = []
+    const state = {}
+    for (let i = 0; i < 32; i++) {
+        recordDig(state, { info: line => lines.push(line) }, samples[1])
+    }
+    assert.equal(lines.length, 1)
+    assert.match(lines[0], /median 400 ms \(vanilla 400 ms\).*median 300 ms \(vanilla held 300 ms, 100%.*1\.43 blocks\/s/)
+    assert.equal(state.digSamples.length, 0)
 })

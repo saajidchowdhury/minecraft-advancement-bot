@@ -4,6 +4,7 @@ const { pathfinder, Movements, goals } = require('mineflayer-pathfinder')
 const { plugin: collectBlockPlugin } = require('mineflayer-collectblock')
 const { Vec3 } = require('vec3')
 const { aimDig, aimPlace } = require('./aim')
+const { digWaitMs, recordDig, CONTINUOUS_GAP_MS } = require('./dig-timing')
 const { createRng } = require('./random')
 const { dropCaution } = require('./drop-caution')
 const { findFortress, returnAlongPath, bridgeSupply } = require('./nether-fortress')
@@ -131,7 +132,6 @@ const LOW_AIR_BUBBLES = 12
 const BUBBLE_MS = 750
 const DIVE_SURFACE_BUBBLES = 15
 const DIVE_PICKUP_BUBBLES = 10
-const DESTROY_DELAY_MS = 250  // 5 ticks at 20 ticks/s
 // Standoff: a melee mob that gains under 0.5 blocks in 4 s is unreachable for 60 s unless it gains 1 block.
 const STANDOFF_WAIT_MS = 4000
 // Mobs ignore hits for 10 ticks; 125 ms between clicks (8 CPS) lets one sword keep five attackers knocked back.
@@ -647,7 +647,8 @@ class SurvivalController {
         this.bot.on('entityMoved', entity => {
             if (this.running && !this.paused && this.bot.health > 0 && this.bot.entity && HOSTILES.has(entity.name) &&
                 ![Actions.REFUGE, 'avoid_enderman', 'flee_sculk', 'escape_lava', 'surface_for_air', 'clear_head'].includes(this.activeAction) &&
-                updateCrowdRetreat(this, HOSTILES) && !(this.activeAction === Actions.FIGHT && kiteableCrowd(this))) {
+                updateCrowdRetreat(this, HOSTILES) && !(this.activeAction === Actions.FIGHT &&
+                    (kiteableCrowd(this) || this.refugeBlockedUntil > Date.now()))) {
                 if (this.busy && !this.actionAbort?.signal.aborted) {
                     this.cancelCurrentTask('crowd of mobs; taking wall refuge')
                 } else if (!this.busy) {
@@ -759,19 +760,23 @@ class SurvivalController {
                 !placedOnSupport(this.memory, dimension, this.bot, block)) {
                 await this.stepOffBlock(block)
             }
-            // Vanilla clients hold the next break 5 ticks after one that took more than a tick; instant
-            // breaks skip it. Without it Efficiency V netherite cut stone 3.5x faster than the owner (F131).
-            const sinceBreakMs = Date.now() - (this.lastTimedBreakAt ?? -Infinity)
-            if (block && this.bot.game.gameMode !== 'creative' && sinceBreakMs < DESTROY_DELAY_MS) {
-                await sleep(DESTROY_DELAY_MS - sinceBreakMs)
+            // START waits 6 ticks after a timed break, as with attack held (F131, F151).
+            const waitMs = digWaitMs(this, Date.now())
+            if (block && this.bot.game.gameMode !== 'creative' && waitMs > 0) {
+                await sleep(waitMs)
                 if (this.actionAbort?.signal.aborted || this.bot.game.dimension !== dimension) {
                     throw new Error('dig cancelled during the destroy delay')
                 }
             }
-            const timed = Boolean(block) && (this.bot.digTime?.(block) ?? 0) > 0
+            const modelMs = block ? this.bot.digTime?.(block) ?? 0 : 0
+            const startAt = Date.now()
+            const sinceBreakMs = startAt - (this.lastBreakAt ?? -Infinity)
             await dig(block, ...aimDig(this.bot, block, args))
-            if (timed) {
-                this.lastTimedBreakAt = Date.now()
+            this.lastBreakAt = Date.now()
+            if (modelMs > 0) {
+                this.lastTimedBreakAt = this.lastBreakAt
+                recordDig(this, this.log, { durationMs: this.lastBreakAt - startAt, modelMs,
+                    gapMs: sinceBreakMs <= CONTINUOUS_GAP_MS ? sinceBreakMs : null })
             }
             if (block && this.bot.game.dimension === dimension) {
                 forgetPlacement(this.memory, dimension, block.position)
