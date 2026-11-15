@@ -112,8 +112,9 @@ Nether expedition (F149)
   Ghasts are not melee hostiles.
 
 Mining and tunnels
-- Vanilla dig timing plus the 5-tick delay (F131). Pickaxe-stranded bots dig
-  stone by hand, never ore or obsidian (F126). Targets need line of sight;
+- Vanilla dig timing: float32 break ticks, then 6 ticks from a break to
+  the next start (F131, F151). Pickaxe-stranded bots dig stone by hand,
+  never ore or obsidian (F126). Targets need line of sight;
   buried ore never steers a tunnel; with no visible iron head for Y=16; ore a
   dig exposed within 6 blocks stays a target (F079, F080, F090, F100, F107, F116).
 - A confirmed diamond stays a priority within 48 blocks with 15 s walks,
@@ -355,3 +356,4 @@ Highest risk first.
 - F148 Drop caution after a 22-block dig-then-diagonal-jump fall [live failure + user direction + staged + regression]
 - F149 Nether fortress expedition: prepare, bridge one cardinal line, return along it [user direction + staged + regression]
 - F150 Dive for visible fish when no prey is in sight, steering by hand underwater [user direction + staged + regression]
+- F151 Vanilla held-attack dig schedule: 6-tick gap and float32 break ticks [user report + bytecode + regression]

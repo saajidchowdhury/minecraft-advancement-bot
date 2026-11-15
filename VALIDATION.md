@@ -54,7 +54,7 @@ files stay under 10% comment lines: `under-feet.js` 13/134, `nether-fortress.js`
 | loot | 2 | chest and chest-minecart looting |
 | memory-random | 2 | seeded rng, atomic world memory |
 | mined-ore-recovery | 13 | diamond memory, longer dry approaches, independent cooldowns, alternate stairs, cancellation, hidden water, bounded diamond pickup retry |
-| mining-timing | 6 | break times for tier ores, landing before digging, bare-hand stone when stranded, enchanted 26.1 tools, 5-tick destroy delay |
+| mining-timing | 10 | vanilla float32 break ticks for seven pickaxe tiers on cave blocks, landing before digging, bare-hand stone when stranded, enchanted 26.1 tools, 6-tick held gap, one-tick instant cadence, held-run throughput, timing summary |
 | mobility-recovery | 38 | unstick, shafts and pillars, safe drops, heap guard, surface scouts, swamp swims, tree approach limit and sliced search, land milestone, canopy descent, land mass and soil stock |
 | night-policy | 10 | night work versus shelter, crowds, beds |
 | night-skills | 13 | bed placement and sleep, shelter exits, cancellation |
@@ -141,7 +141,7 @@ none ran during the trial). "Automated" means regression tests only.
 | Take Aim, Enchanter, golem, fishing, breeding | automated | F036, F037, F059 |
 | Redstone demo | automated | G009 |
 | Bare-hand shelter exit and stair carving without a pickaxe | live (out of y=31, six levels) | F126 |
-| Enchanted 26.1 tools at efficiency speed; 5-tick destroy delay | live | F128, F131 |
+| Enchanted 26.1 tools at efficiency speed; 6-tick held gap (F151 not yet live) | live (F131) | F128, F131, F151 |
 | Crafting two empty buckets before the first water search | live | F138 |
 | Water buckets before lava, reachable berries, melee standoffs, water combat | automated; water combat staged | F127, F130, F146 |
 | Disposal zones, sky-bound surface scouts, self-overlap placement | automated | F129 |

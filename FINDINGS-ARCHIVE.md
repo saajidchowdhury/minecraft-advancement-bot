@@ -3698,3 +3698,38 @@ shore. Fish and drops were staged; pathfinder swimming, interrupts and drop pick
 four restarts (run logs `outputs/fish-dive-run*.log`). Last run: meal points 78 -> 148 from caught fish
 (not survival-unaided: food cleared, fish summoned, daytime set). Uncertain: the 35 s dive budget (cut from 50 s
 after a 60 s gather_food timeout) was not rerun live; drowned attacks in the river ended one trip.
+
+## F151 — Vanilla held-attack dig schedule: 6-tick gap and float32 break ticks
+
+User report: with an iron pickaxe the bot's blocks per second matched the owner's, but each block
+seemed to break faster and the pause between blocks seemed longer. Source checked: `javap -c` on the
+unobfuscated 26.1.2 client jar (`MultiPlayerGameMode`, `Minecraft.handleKeybinds`/`startAttack`,
+`ServerPlayerGameMode`, `Player.getDestroySpeed`, `BlockBehaviour.getDestroyProgress`). Facts:
+- Progress per tick p = speed / hardness / (correct tool for drops ? 30 : 100), all float32. Speed is
+  the tool's rule speed (wood 2, stone 4, copper 5, iron 6, diamond 8, netherite 9, gold 12; 1 for a
+  wrong tool) plus `mining_efficiency` (level^2+1) when > 1, times 1 + 0.2*Haste, times fatigue, times
+  `block_break_speed`, times `submerged_mining_speed` (0.2) with eyes in water, then /5 off the ground.
+- The client adds p to a float each tick and breaks at >= 1.0. That count can differ from ceil(1/p) by
+  one tick: wooden pickaxe on coal ore or deepslate takes 45 ticks (Mineflayer said 46), bare hand on
+  stone 151 (said 150), wooden on iron ore 151 (said 150).
+- A fresh click runs `startAttack` and then `continueAttack` in the same tick, so the click tick
+  already adds progress. With the button held, a timed break sets `destroyDelay = 5`; five ticks count
+  it down, and the sixth calls `startDestroyBlock` for the next block, which sends START with progress
+  0. So held mining is START -> STOP n ticks, STOP -> next START 6 ticks, one block per n+6 ticks.
+  F131 used 5 ticks (250 ms) and missed the START tick. Instant breaks set no delay, but attack is
+  processed once a tick.
+- The server scores progress as p*(ticks since START + 1) and accepts STOP at >= 0.7. It draws the
+  crack stages that watchers see from its own tick count. So the server would accept a STOP that is
+  30% early, but the bot already sent STOP at exactly n ticks.
+So the bot's single-block time was already vanilla (n ticks) except for the float cases. The gap was
+1 tick short, plus whatever planning or walking the bot added. The user's impression fits holding the
+button: a human sees only cracks, while the 6-tick delay goes by during the hold. Fix (commit 130eb70):
+patched `prismarine-block` `digTime` to float32 accumulation, and changed the `bot.dig` wrapper to wait
+6 ticks after a timed break and one tick after any break (`src/dig-timing.js`). The wrapper logs a
+summary every 32 timed breaks: median START->STOP against the model, median STOP->START, the share
+within one tick of 300 ms, and blocks/s while mining continuously. Regressions in
+`test/mining-timing.test.js` (tier x block tick table, 10-block held run, gap, instant cadence) fail on
+the pre-fix source. Expected cost: one more tick per block when nothing else fills the gap (iron on
+stone 13 -> 14 ticks per block), which is the human maximum. Uncertain: the live overhead between
+tunnel steps; the first block after a fresh click is one tick slower than a human's (the bot always
+behaves as if holding the button).
