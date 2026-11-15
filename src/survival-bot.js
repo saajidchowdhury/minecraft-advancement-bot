@@ -134,6 +134,9 @@ const DIVE_PICKUP_BUBBLES = 10
 const DESTROY_DELAY_MS = 250  // 5 ticks at 20 ticks/s
 // Standoff: a melee mob that gains under 0.5 blocks in 4 s is unreachable for 60 s unless it gains 1 block.
 const STANDOFF_WAIT_MS = 4000
+// Mobs ignore hits for 10 ticks; 125 ms between clicks (8 CPS) lets one sword keep five attackers knocked back.
+const MOB_HURT_COOLDOWN_MS = 500
+const CLICK_GAP_MS = 125
 const STANDOFF_APPROACH = 0.5
 const STANDOFF_MS = 60000
 const MELEE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'spider', 'cave_spider', 'vindicator', 'piglin', 'piglin_brute', 'zombified_piglin'])
@@ -1236,6 +1239,7 @@ class SurvivalController {
             this.corneredUntil = Date.now() + 6000
         }
         state.cornered = this.corneredUntil > Date.now() && (state.hostileDistance <= 3 || Boolean(this.closeMelee()))
+        state.refugeBlocked = this.refugeBlockedUntil > Date.now() && Boolean(this.closeMelee())
         state.inLava = this.inLava()
         state.suffocating = Boolean(this.suffocatingBlock())
         state.oxygen = this.bot.oxygenLevel ?? 20
@@ -1348,13 +1352,19 @@ class SurvivalController {
                     }
                     throw error
                 })
-            case Actions.REFUGE: return retreatToWall(this)
+            // A refuge with no walking route while melee is at arm's length is being cornered (03:44Z death).
+            case Actions.REFUGE: return retreatToWall(this).catch(error => {
+                if (/no supported walking route|waypoint was not reached/.test(error.message) && this.closeMelee()) {
+                    this.refugeBlockedUntil = Date.now() + 6000
+                }
+                throw error
+            })
             case 'mine_from_refuge': return mineFromRefuge(this, state)
             case Actions.DESCEND: return this.recoverMobility()
             case Actions.ASCEND: return this.escapeVerticalShaft()
             case Actions.RECOVER: return this.recoverItems()
             case Actions.FIGHT: return this.fight(state.rangedDistance <= ARCHER_ALERT_RANGE ? state.ranged : state.hostile ?? (state.cornered ? this.closeMelee() : null),
-                false, null, state.cornered)
+                false, null, state.cornered || state.refugeBlocked)
             case Actions.FIGHT_CREEPER: return this.fightCreeper(state.creeper)
             case Actions.EAT: return this.eat()
             case Actions.SHELTER: return this.makeNightSafe()
@@ -2584,11 +2594,15 @@ class SurvivalController {
                 }
                 const meleeOnly = kiteableCrowd(this)
                 const crowd = updateCrowdRetreat(this, HOSTILES) && !meleeOnly
-                if (!hunt && (crowd || (!cornered && outnumbered(this.visibleThreatCount(), wornArmorPoints(this.bot), meleeOnly)))) {
+                if (!hunt && ((crowd && !(cornered && this.refugeBlockedUntil > Date.now())) ||
+                    (!cornered && outnumbered(this.visibleThreatCount(), wornArmorPoints(this.bot), meleeOnly)))) {
                     this.urgentReplan = true
                     throw new Error('outnumbered in combat; replanning escape')
                 }
                 const distance = here.distanceTo(entity.position)
+                // Zombies at arm's length were ignored while the chosen target held 3-4 blocks off (03:44Z death).
+                const inReach = !hunt && Object.values(this.bot.entities || {}).some(e => e !== entity && e.isValid &&
+                    (MELEE.has(e.name) || ARCHERS.has(e.name)) && here.distanceTo(e.position) <= 3)
                 // Occlusion only, held 3 s without closing 2 blocks: the bot turns to its prey just before
                 // swinging (an adjacent cow failed the view cone, 06:37Z), hilltop rays to prey 40+ blocks off
                 // flicker (06:49Z), and a pig over a crest was lost while the bot closed 26 blocks (06:58Z).
@@ -2599,7 +2613,7 @@ class SurvivalController {
                     throw new Error('prey went out of view')
                 }
                 // An approaching zombie is awaited at reach, not walked into (we back off to stay out of its reach).
-                if (!close && distance > 3.1 && (hunt || swimming || !MELEE.has(entity.name) || distance > 6)) {
+                if (!close && !inReach && distance > 3.1 && (hunt || swimming || !MELEE.has(entity.name) || distance > 6)) {
                     kite(this, null)
                     if (!following || this.bot.targetDigBlock || chasePosition.distanceTo(this.bot.entity.position) >= 0.75) {
                         chasePosition = this.bot.entity.position.clone()
@@ -2653,7 +2667,7 @@ class SurvivalController {
                     following = false
                     // A zombie awaited at reach that never closes in (across a ravine, 05:23Z) froze the bot until
                     // the 12 s watchdog, and the same fight was chosen again four times (F130).
-                    if (!close && !hunt && distance > 3.1) {
+                    if (!close && !inReach && !hunt && distance > 3.1) {
                         if (distance < standoffDistance - STANDOFF_APPROACH) {
                             standoffDistance = distance
                             standoffAt = Date.now()
@@ -2665,8 +2679,11 @@ class SurvivalController {
                         standoffDistance = Infinity
                         standoffAt = Date.now()
                     }
-                    const target = close || (hunt ? entity : [entity, ...Object.values(this.bot.entities || {}).filter(e => e !== entity &&
-                        e.isValid && MELEE.has(e.name) && here.distanceTo(e.position) <= 3.1)]
+                    // Rotate over attackers in reach; an out-of-reach target never swung at always won the rotation.
+                    const pool = [entity, ...Object.values(this.bot.entities || {}).filter(e => e !== entity &&
+                        e.isValid && (MELEE.has(e.name) || ARCHERS.has(e.name)) && here.distanceTo(e.position) <= 3.1)]
+                    const reachable = pool.filter(e => here.distanceTo(e.position) <= 3)
+                    const target = close || (hunt ? entity : (reachable.length ? reachable : pool)
                         .reduce((a, b) => (lastSwing.get(b.id) ?? 0) < (lastSwing.get(a.id) ?? 0) ? b : a))
                     await this.bot.lookAt(target.position.offset(0, Math.min(target.height || 1, 1.4), 0), true)
                     this.checkAction(signal)
@@ -2674,8 +2691,9 @@ class SurvivalController {
                     // back off whenever melee is inside 2.5 blocks while swinging at 3 (user kiting advice).
                     const moving = hunt ? null : kite(this, Object.values(this.bot.entities || {}).filter(e =>
                         e.isValid && MELEE.has(e.name) && here.distanceTo(e.position) <= 4))
-                    if (Date.now() < nextHuntAttackAt || here.distanceTo(target.position) > 3 || (swimming && !this.canSee(target))) {
-                        await sleep(Math.max(20, Math.min(100, nextHuntAttackAt - Date.now())))
+                    const readyAt = hunt ? nextHuntAttackAt : Math.max(nextHuntAttackAt, (lastSwing.get(target.id) ?? -Infinity) + MOB_HURT_COOLDOWN_MS)
+                    if (Date.now() < readyAt || here.distanceTo(target.position) > 3 || (swimming && !this.canSee(target))) {
+                        await sleep(Math.max(20, Math.min(100, readyAt - Date.now())))
                         continue
                     }
                     if (this.bot.inventory?.slots[45]?.name === 'shield' && (!hunt || guard) && !moving) {
@@ -2697,9 +2715,9 @@ class SurvivalController {
                     this.bot.attack(target)
                     lastSwing.set(target.id, Date.now())
                     this.combatLiveAt = Date.now()
-                    // Mobs ignore hits for 10 ticks after one lands: swinging every 0.5 s keeps every
-                    // attacker knocked back (user: spam-clicking holds off a hallway of zombies).
-                    nextHuntAttackAt = Date.now() + (huntCooldownMs || 500)
+                    // Each mob ignores hits for 10 ticks, so combat spaces swings per target and clicks
+                    // the next attacker in reach (user: spam-clicking holds off a hallway of zombies).
+                    nextHuntAttackAt = Date.now() + (hunt ? huntCooldownMs || MOB_HURT_COOLDOWN_MS : CLICK_GAP_MS)
                     await sleep(100)
                 }
             }

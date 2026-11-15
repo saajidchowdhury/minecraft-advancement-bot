@@ -1134,6 +1134,37 @@ test('a cornered bot alternates swings between two adjacent zombies and finishes
     assert.equal(b.isValid, false)
 })
 
+test('zombies at arm\'s length are clicked in turn while the chosen target holds off (03:44Z death)', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+    const far = { id: 1, name: 'zombie', isValid: true, position: new Vec3(4.6, 64, 0.5), height: 1.95 }
+    const close = [[1.9, 0.5], [0.5, 1.9], [-0.9, 0.5], [0.5, -0.9]].map(([x, z], i) =>
+        ({ id: i + 2, name: 'zombie', isValid: true, position: new Vec3(x, 64, z), height: 1.95, hits: 0 }))
+    const swings = []
+    const c = Object.create(SurvivalController.prototype)
+    Object.assign(c, { running: true, paused: false, actionAbort: new AbortController(), canSee: () => true,
+        bestItem: () => ({ name: 'iron_sword' }), visibleThreatCount: () => 1, rememberStandoff() {},
+        bot: { health: 18, entity: { position: new Vec3(0.5, 64, 0.5) }, inventory: { slots: [] },
+            entities: Object.fromEntries([far, ...close].map(e => [e.id, e])),
+            blockAt: p => ({ name: p.y < 64 ? 'stone' : 'air', boundingBox: p.y < 64 ? 'block' : 'empty' }),
+            setControlState() {}, equip: async () => {}, lookAt: async () => {}, pathfinder: { setGoal() {} },
+            attack(z) { swings.push([z.id, Date.now()]); if (++z.hits === 4) { z.isValid = false } } } })
+    c.refugeBlockedUntil = Date.now() + 60000
+    let failure = null
+    const operation = c.fight(far, false, null, true).catch(error => { failure = error })
+    for (let i = 0; i < 800 && !failure; i++) { t.mock.timers.tick(25); for (let k = 0; k < 6; k++) { await Promise.resolve() } }
+    assert.match(failure?.message ?? 'still fighting', /not approaching/)
+    await operation
+    assert.equal(swings.some(([id]) => id === far.id), false)
+    assert.ok(close.every(z => !z.isValid), 'all four zombies in reach are killed before standing down')
+    assert.deepEqual(new Set(swings.slice(0, 4).map(([id]) => id)), new Set([2, 3, 4, 5]))
+    assert.ok(swings[3][1] - swings[0][1] < 500, 'four attackers are each clicked within one hurt cooldown')
+    for (let i = 1; i < swings.length; i++) {
+        assert.ok(swings[i][1] - swings[i - 1][1] >= 125, 'at most 8 clicks per second')
+        const previous = swings.slice(0, i).filter(([id]) => id === swings[i][0]).at(-1)
+        assert.ok(!previous || swings[i][1] - previous[1] >= 500, 'each mob is hit at most once per hurt cooldown')
+    }
+})
+
 function kitingBot(walls = new Set(), floorAt = () => 'stone') {
     const controls = {}
     const bot = { entity: { position: new Vec3(0.5, 64, 0.5), yaw: 0, pitch: 0 }, controls,

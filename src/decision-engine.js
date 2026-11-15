@@ -102,6 +102,10 @@ function chooseAction (state) {
     // Surface nights keep the retreat: more zombies keep spawning there.
     const kiteCrowd = state.hasWeapon && meleeOnlyFight(state) && !outnumbered(state.closeHostiles ?? 0, state.armorPoints, true) &&
         (state.visibleHostiles ?? state.hostileCount ?? 0) <= KITE_CROWD && !(state.isNight && !state.underground)
+    // A refuge with no walking route and melee at arm's length only absorbs hits; fight back (03:44Z death).
+    if (state.refugeBlocked && state.hasWeapon && !(state.creeperDistance <= CREEPER_ALERT_RANGE)) {
+        return Actions.FIGHT
+    }
     if ((state.crowdRetreat || (state.visibleHostiles ?? state.hostileCount ?? 0) >= 3) && !kiteCrowd) {
         return Actions.REFUGE
     }

@@ -39,6 +39,14 @@ test('critical danger outranks every progression goal', () => {
     assert.equal(chooseAction(state({ health: 6, hostileDistance: 2, hasFood: true })), Actions.ESCAPE)
 })
 
+test('a cornered bot inside a crowd fights instead of retrying a refuge with no route (03:44Z death)', () => {
+    const crowd = state({ health: 12, hasWeapon: true, hostileDistance: 1.3, visibleHostiles: 5, closeHostiles: 3, crowdRetreat: true })
+    assert.equal(chooseAction(crowd), Actions.REFUGE)
+    assert.equal(chooseAction({ ...crowd, cornered: true }), Actions.REFUGE)
+    assert.equal(chooseAction({ ...crowd, refugeBlocked: true }), Actions.FIGHT)
+    assert.notEqual(chooseAction({ ...crowd, refugeBlocked: true, creeperDistance: 3 }), Actions.FIGHT)
+})
+
 test('healthy armed bot fights a nearby hostile', () => {
     assert.equal(chooseAction(state({ health: 18, hostileDistance: 3, hasWeapon: true })), Actions.FIGHT)
 })
